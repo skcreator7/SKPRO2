@@ -66,9 +66,14 @@ class Config:
 
 # ==================== QUART APP ====================
 app = Quart(__name__)
-app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-app.config['JSON_SORT_KEYS'] = False
+
+# CRITICAL FIX: Set config immediately using update()
+app.config.update({
+    'PROVIDE_AUTOMATIC_OPTIONS': True,
+    'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
+    'JSON_SORT_KEYS': False,
+    'TEMPLATES_AUTO_RELOAD': True
+})
 
 @app.after_request
 async def add_cors(response):
