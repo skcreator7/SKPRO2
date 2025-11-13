@@ -3,6 +3,7 @@ import os
 import logging
 from pyrogram import Client, errors
 from quart import Quart, jsonify, request, Response, redirect
+from quart_cors import cors
 from hypercorn.asyncio import serve
 from hypercorn.config import Config as HyperConfig
 import html
@@ -14,7 +15,13 @@ import urllib.parse
 import json
 import time
 import uuid
-from motor.motor_asyncio import AsyncIOMotorClient
+
+# Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 class Config:
     API_ID = int(os.environ.get("API_ID", "0"))
@@ -27,19 +34,15 @@ class Config:
     ]
     
     # FILE CHANNELS - For files with different qualities
-    FILE_CHANNEL_480P = int(os.environ.get("FILE_CHANNEL_480P", "-1001768249569"))
-    FILE_CHANNEL_720P = int(os.environ.get("FILE_CHANNEL_720P", "-1001768249569"))
-    FILE_CHANNEL_1080P = int(os.environ.get("FILE_CHANNEL_1080P", "-1001768249569"))
+    FILE_CHANNEL_480P = int(os.environ.get("FILE_CHANNEL_480P", "-1002123456789"))
+    FILE_CHANNEL_720P = int(os.environ.get("FILE_CHANNEL_720P", "-1002987654321"))
+    FILE_CHANNEL_1080P = int(os.environ.get("FILE_CHANNEL_1080P", "-1002456789123"))
     
     FILE_CHANNELS = {
         "480p": FILE_CHANNEL_480P,
         "720p": FILE_CHANNEL_720P,
         "1080p": FILE_CHANNEL_1080P
     }
-    
-    # MongoDB
-    MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
-    DATABASE_NAME = os.environ.get("DATABASE_NAME", "sk4film_bot")
     
     # Bot
     BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
@@ -53,18 +56,21 @@ class Config:
     
     AUTO_UPDATE_INTERVAL = 180
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
+# Create Quart app with proper config
 app = Quart(__name__)
+
+# CRITICAL FIX: Set default config values
+app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config['JSON_SORT_KEYS'] = False
+
+# Enable CORS
+app = cors(app, allow_origin="*")
+
+# Global variables
 User = None
 bot_started = False
 auto_update_task = None
-
-# MongoDB Setup
-mongo_client = AsyncIOMotorClient(Config.MONGODB_URI)
-db = mongo_client[Config.DATABASE_NAME]
-files_collection = db.files
 
 # Movie database
 movie_db = {
@@ -202,7 +208,7 @@ async def get_high_quality_poster(title, session):
             except:
                 continue
         
-        # Custom
+        # Custom fallback
         custom_result = {
             'poster_url': f"/api/enhanced_poster?title={urllib.parse.quote(title)}",
             'title': title,
@@ -239,47 +245,6 @@ def format_original_post(text):
     formatted = re.sub(r'(https?://[^\s]+)', r'<a href="\1" target="_blank" style="color: #00ccff;">\1</a>', formatted)
     formatted = formatted.replace('\n', '<br>')
     return formatted
-
-async def auto_index_to_mongodb(message, title, quality):
-    """Auto-index files to MongoDB"""
-    try:
-        if message.document:
-            file_id = message.document.file_id
-            file_name = message.document.file_name
-            file_size = message.document.file_size
-        elif message.video:
-            file_id = message.video.file_id
-            file_name = message.video.file_name or f"video_{message.video.file_unique_id}.mp4"
-            file_size = message.video.file_size
-        else:
-            return
-        
-        import hashlib
-        unique_id = hashlib.md5(f"{file_id}{time.time()}".encode()).hexdigest()
-        
-        file_data = {
-            "file_id": file_id,
-            "unique_id": unique_id,
-            "title": title,
-            "file_name": file_name,
-            "file_size": file_size,
-            "quality": quality,
-            "caption": message.caption,
-            "message_id": message.id,
-            "chat_id": message.chat.id,
-            "indexed_at": datetime.now(),
-            "downloads": 0
-        }
-        
-        await files_collection.update_one(
-            {"file_id": file_id},
-            {"$set": file_data},
-            upsert=True
-        )
-        
-        logger.info(f"📁 Auto-indexed [{quality}]: {title}")
-    except Exception as e:
-        logger.error(f"Auto index error: {e}")
 
 async def search_text_and_files(query, limit=12, page=1):
     """Search both text channels and file channels"""
@@ -325,19 +290,12 @@ async def search_text_and_files(query, limit=12, page=1):
                         if title:
                             title_key = title.lower()
                             
-                            # Check if file is indexed in MongoDB
                             file_id = message.document.file_id if message.document else message.video.file_id
-                            file_doc = await files_collection.find_one({"file_id": file_id})
-                            unique_id = file_doc['unique_id'] if file_doc else None
-                            
-                            # If not indexed, index it now
-                            if not unique_id:
-                                await auto_index_to_mongodb(message, title, quality)
-                                file_doc = await files_collection.find_one({"file_id": file_id})
-                                unique_id = file_doc['unique_id'] if file_doc else None
-                            
                             file_size = message.document.file_size if message.document else message.video.file_size
                             file_name = message.document.file_name if message.document else (message.video.file_name or 'video.mp4')
+                            
+                            # Generate unique ID for bot
+                            unique_id = hashlib.md5(f"{file_id}{time.time()}".encode()).hexdigest()
                             
                             # Check if title already exists
                             if title_key in seen_titles:
@@ -501,12 +459,6 @@ async def init_telegram_system():
         me = await User.get_me()
         logger.info(f"✅ User: {me.first_name}")
         
-        # MongoDB indexes
-        await files_collection.create_index([("file_id", 1)], unique=True)
-        await files_collection.create_index([("unique_id", 1)], unique=True)
-        await files_collection.create_index([("title", "text")])
-        logger.info("✅ MongoDB ready")
-        
         bot_started = True
         
         # Initial load
@@ -521,6 +473,7 @@ async def init_telegram_system():
         logger.error(f"Init error: {e}")
         return False
 
+# CORS headers
 @app.after_request
 async def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -528,6 +481,7 @@ async def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST')
     return response
 
+# Routes
 @app.route('/')
 async def home():
     return jsonify({
@@ -539,6 +493,14 @@ async def home():
             "text": len(Config.TEXT_CHANNEL_IDS),
             "file": len(Config.FILE_CHANNELS)
         },
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/health')
+async def health():
+    return jsonify({
+        "status": "healthy",
+        "bot_running": bot_started,
         "timestamp": datetime.now().isoformat()
     })
 
@@ -642,6 +604,10 @@ async def run_server():
         
         config = HyperConfig()
         config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
+        config.loglevel = "info"
+        
+        logger.info(f"🌐 Starting web server on 0.0.0.0:{Config.WEB_SERVER_PORT}")
+        
         await serve(app, config)
     except Exception as e:
         logger.error(f"Server error: {e}")
