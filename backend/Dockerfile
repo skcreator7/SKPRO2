@@ -6,45 +6,34 @@ ENV OPENSSL_CONF=/etc/ssl/openssl.cnf
 
 WORKDIR /app
 
-# Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    ca-certificates \
-    libssl-dev \
-    libffi-dev \
-    openssl \
-    wget \
-    procps \
+    gcc g++ ca-certificates libssl-dev libffi-dev openssl wget procps \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # OpenSSL config
 RUN echo "openssl_conf = openssl_init" > /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
     echo "[openssl_init]" >> /etc/ssl/openssl.cnf && \
     echo "ssl_conf = ssl_sect" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
     echo "[ssl_sect]" >> /etc/ssl/openssl.cnf && \
     echo "system_default = system_default_sect" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
     echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
     echo "CipherString = DEFAULT:@SECLEVEL=1" >> /etc/ssl/openssl.cnf
 
-# Copy requirements and install
+# Install Python packages
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
+# Copy app files
 COPY bot.py main.py start.sh Procfile ./
 RUN chmod +x start.sh
 
-# Create directories
+# Create dirs
 RUN mkdir -p /tmp /app/sessions
 
-# Expose port
 EXPOSE 8000
 
-# Use Procfile or start.sh
+# CRITICAL: Explicit run command
 CMD ["bash", "start.sh"]
