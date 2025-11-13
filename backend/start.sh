@@ -1,20 +1,16 @@
 #!/bin/bash
 
-echo "🚀 Starting SK4FiLM Complete System..."
+echo "🚀 Starting SK4FiLM Backend System..."
 
 # Start bot in background
 echo "🤖 Starting Telegram Bot..."
 python bot.py &
 BOT_PID=$!
+echo "Bot PID: $BOT_PID"
 
-# Wait a bit for bot to initialize
+# Wait for bot initialization
 sleep 5
 
-# Start web server
-echo "🌐 Starting Web Server..."
-python main.py &
-WEB_PID=$!
-
-# Wait for both processes
-wait $BOT_PID
-wait $WEB_PID
+# Start web server (foreground - keeps container alive)
+echo "🌐 Starting API Server on port $PORT..."
+exec python main.py
