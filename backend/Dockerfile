@@ -15,10 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     openssl \
     wget \
+    procps \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# OpenSSL config for MongoDB SSL
+# OpenSSL config
 RUN echo "openssl_conf = openssl_init" > /etc/ssl/openssl.cnf && \
     echo "" >> /etc/ssl/openssl.cnf && \
     echo "[openssl_init]" >> /etc/ssl/openssl.cnf && \
@@ -36,7 +37,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY bot.py main.py start.sh ./
+COPY bot.py main.py start.sh Procfile ./
 RUN chmod +x start.sh
 
 # Create directories
@@ -45,5 +46,5 @@ RUN mkdir -p /tmp /app/sessions
 # Expose port
 EXPOSE 8000
 
-# Start services
-CMD ["./start.sh"]
+# Use Procfile or start.sh
+CMD ["bash", "start.sh"]
