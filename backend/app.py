@@ -36,7 +36,7 @@ class Config:
     API_ID = int(os.environ.get("API_ID", "0"))
     API_HASH = os.environ.get("API_HASH", "")
     USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", ""))
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "8368221226:AAEmmU33Frk47snclMlr9ABg_JTXGDKLQXQ"))
     
     # Channels
     TEXT_CHANNEL_IDS = [int(x) for x in os.environ.get("TEXT_CHANNEL_IDS", "-1001891090100,-1002024811395").split(",")]
