@@ -12,6 +12,7 @@ cryptography==41.0.7
 # Web Server
 aiohttp==3.9.1
 quart==0.19.4
+quart-cors==0.7.0
 hypercorn==0.16.0
 
 # Utils
