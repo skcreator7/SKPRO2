@@ -1,21 +1,13 @@
-# Telegram
 pyrogram==2.0.106
 TgCrypto==1.2.5
-
-# MongoDB with SSL
 pymongo==4.6.1
 motor==3.3.2
 certifi==2023.11.17
 pyOpenSSL==23.3.0
 cryptography==41.0.7
-
-# Web Server
 aiohttp==3.9.1
 quart==0.19.4
-quart-cors==0.7.0
 hypercorn==0.16.0
-
-# Utils
 python-dotenv==1.0.0
 dnspython==2.4.2
 urllib3==2.1.0
