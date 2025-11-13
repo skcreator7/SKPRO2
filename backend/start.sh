@@ -1,16 +1,16 @@
 #!/bin/bash
+set -e
 
-echo "🚀 Starting SK4FiLM Backend System..."
+echo "🚀 Starting SK4FiLM Backend..."
 
-# Start bot in background
-echo "🤖 Starting Telegram Bot..."
-python bot.py &
+# Start bot
+echo "🤖 Starting Bot..."
+python -u bot.py 2>&1 | sed 's/^/[BOT] /' &
 BOT_PID=$!
-echo "Bot PID: $BOT_PID"
 
-# Wait for bot initialization
+# Wait
 sleep 5
 
-# Start web server (foreground - keeps container alive)
-echo "🌐 Starting API Server on port $PORT..."
-exec python main.py
+# Start web
+echo "🌐 Starting Web Server on port ${PORT:-8000}..."
+exec python -u main.py 2>&1 | sed 's/^/[WEB] /'
