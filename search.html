@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SK4FiLM Search - Quality Selection</title>
+    
+    <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #ff0000;
+            --secondary: #0066ff;
+            --accent: #00ccff;
+            --text: #f8f9fa;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: url('https://i.postimg.cc/T2mcBGtv/pxfuel-2.jpg') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            font-family: 'Josefin Sans', sans-serif;
+            color: var(--text);
+            padding-top: 90px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.7);
+            z-index: -1;
+        }
+        
+        .top-navbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 12px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo-img {
+            height: 55px;
+            margin-right: 15px;
+            border-radius: 8px;
+        }
+        
+        .brand-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.2rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .section-box {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(5px);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .premium-ad-space {
+            min-height: 120px;
+            margin: 30px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+        }
+        
+        /* CLEAN RESULT CARD */
+        .result-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(45, 55, 72, 0.95));
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            border: 2px solid rgba(255,255,255,0.15);
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 50px rgba(0, 204, 255, 0.4);
+            border-color: rgba(0, 204, 255, 0.6);
+        }
+        
+        /* BIG MOVIE TITLE */
+        .movie-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 25px;
+            text-shadow: 0 3px 15px rgba(0, 204, 255, 0.6);
+            letter-spacing: 1px;
+            line-height: 1.3;
+        }
+        
+        /* BADGES */
+        .badge-container {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .quality-badge {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+        
+        .new-badge {
+            background: linear-gradient(45deg, #ff4757, #ff6b81);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            animation: newPulse 3s infinite;
+        }
+        
+        @keyframes newPulse {
+            0%, 100% { box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4); }
+            50% { box-shadow: 0 6px 25px rgba(255, 71, 87, 0.7); }
+        }
+        
+        /* WATCH + DOWNLOAD BUTTONS */
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .watch-btn {
+            background: linear-gradient(45deg, #0088cc, #00ccff);
+            color: white;
+            border: none;
+            padding: 18px 45px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .watch-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(0, 136, 204, 0.6);
+        }
+        
+        .download-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 18px 45px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(40, 167, 69, 0.6);
+        }
+        
+        .download-btn:disabled {
+            background: linear-gradient(45deg, #6c757d, #5a6268);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        /* QUALITY POPUP MODAL */
+        .quality-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 5000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .quality-popup-container {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(45, 55, 72, 0.98));
+            border-radius: 25px;
+            padding: 40px;
+            max-width: 600px;
+            width: 92%;
+            border: 2px solid rgba(0, 204, 255, 0.3);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
+            animation: slideUp 0.4s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .quality-popup-header {
+            text-align: center;
+            margin-bottom: 35px;
+            padding-bottom: 25px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .quality-popup-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0, 204, 255, 0.5);
+        }
+        
+        .quality-popup-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1rem;
+        }
+        
+        .quality-options {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-bottom: 30px;
+        }
+        
+        .quality-option {
+            background: linear-gradient(45deg, rgba(40, 167, 69, 0.15), rgba(32, 201, 151, 0.15));
+            border: 2px solid rgba(40, 167, 69, 0.4);
+            border-radius: 18px;
+            padding: 22px 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .quality-option:hover {
+            background: linear-gradient(45deg, rgba(40, 167, 69, 0.3), rgba(32, 201, 151, 0.3));
+            border-color: rgba(40, 167, 69, 0.7);
+            transform: translateX(10px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .quality-label {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .quality-badge-popup {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+        
+        .quality-info {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.95rem;
+        }
+        
+        .quality-size {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .popup-close-btn {
+            background: linear-gradient(45deg, #ff4757, #dc3545);
+            color: white;
+            border: none;
+            padding: 15px 35px;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+        }
+        
+        .popup-close-btn:hover {
+            background: linear-gradient(45deg, #ff3838, #c82333);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 71, 87, 0.6);
+        }
+        
+        /* PAGINATION */
+        .pagination-container {
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 20px;
+            padding: 25px;
+            margin-top: 40px;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .page-btn {
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.4s ease;
+            min-width: 50px;
+        }
+        
+        .page-btn:hover {
+            background: var(--accent);
+            transform: translateY(-3px);
+        }
+        
+        .page-btn.active {
+            background: linear-gradient(45deg, var(--primary), #dc3545);
+        }
+        
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .search-loading {
+            width: 4rem;
+            height: 4rem;
+            border: 6px solid rgba(255, 255, 255, 0.3);
+            border-top: 6px solid #28a745;
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite;
+            margin: 0 auto 25px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            body { padding-top: 80px; }
+            .movie-title { font-size: 1.5rem; }
+            .action-buttons { flex-direction: column; }
+            .watch-btn, .download-btn { width: 100%; justify-content: center; }
+            .quality-popup-container { padding: 25px; }
+            .quality-option { flex-direction: column; text-align: center; gap: 10px; }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="top-navbar">
+        <div class="container">
+            <div class="navbar-content">
+                <a href="/" style="display: flex; align-items: center; color: white; text-decoration: none;">
+                    <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
+                    <div>
+                        <div class="brand-text">SK4FiLM</div>
+                        <div style="font-size: 0.85rem; color: var(--accent);">Search Results</div>
+                    </div>
+                </a>
+                
+                <a href="/" style="color: var(--accent); text-decoration: none; font-weight: 700; background: rgba(0,204,255,0.15); padding: 12px 20px; border-radius: 15px; border: 2px solid rgba(0,204,255,0.3);">
+                    <i class="fas fa-home me-2"></i>New Search
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <!-- Info Banner -->
+        <div class="section-box animate__animated animate__fadeIn" style="background: linear-gradient(45deg, rgba(0,136,204,0.2), rgba(40,167,69,0.2)); border: 2px solid rgba(0,204,255,0.3);">
+            <div style="text-align: center;">
+                <h3 style="color: var(--accent); margin-bottom: 15px;">
+                    <i class="fas fa-star fa-2x me-3"></i>Multiple Quality Options Available
+                </h3>
+                <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 1rem;">
+                    <strong>🎬 Watch:</strong> View full post • <strong>📥 Download:</strong> Choose quality (480p/720p/1080p) & get via bot
+                </p>
+            </div>
+        </div>
+
+        <!-- Premium Ad Space 1 -->
+        <div class="premium-ad-space">
+            <div style="color: rgba(255, 255, 255, 0.5); text-align: center;">
+                <i class="fas fa-search fa-2x mb-2"></i><br>
+                <strong>Search Results Zone</strong>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div class="section-box animate__animated animate__fadeIn">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="color: var(--accent); font-size: 2rem;">
+                    <i class="fas fa-search me-3"></i>Search Results
+                </h2>
+            </div>
+            
+            <div id="searchResults">
+                <div style="text-align: center; padding: 50px;">
+                    <div class="search-loading"></div>
+                    <h4 style="color: #28a745; margin-bottom: 15px;">
+                        <i class="fas fa-search me-2"></i>Searching Text + File Channels
+                    </h4>
+                    <p style="color: rgba(255, 255, 255, 0.8);">
+                        Loading results with quality options...
+                    </p>
+                </div>
+            </div>
+            
+            <div id="searchPagination"></div>
+        </div>
+
+        <!-- Premium Ad Space 2 -->
+        <div class="premium-ad-space">
+            <div style="color: rgba(255, 255, 255, 0.5); text-align: center;">
+                <i class="fas fa-rectangle-ad fa-2x mb-2"></i><br>
+                <strong>High-Value Zone</strong>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://sk4film.koyeb.app';
+        let BOT_USERNAME = 'sk4filmbot';
+        let searchQuery = '';
+        let currentPage = 1;
+        
+        console.log('📄 SEARCH WITH QUALITY POPUP');
+        
+        // Load search results
+        async function loadSearchResults(query, page = 1) {
+            const container = document.getElementById('searchResults');
+            searchQuery = query;
+            currentPage = page;
+            
+            try {
+                if (page > 1) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <div class="search-loading"></div>
+                            <h5 style="color: #28a745;">Loading Page ${page}</h5>
+                        </div>
+                    `;
+                }
+                
+                const response = await fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=12`);
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.results?.length > 0) {
+                    BOT_USERNAME = data.bot_username || 'sk4filmbot';
+                    displayResults(data.results, query);
+                    setupPagination(data.pagination, query);
+                    console.log(`✅ Page ${page} loaded`);
+                } else {
+                    showNoResults(query);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showError(query);
+            }
+        }
+        
+        // Display CLEAN results - Title + Buttons Only
+        function displayResults(results, query) {
+            const container = document.getElementById('searchResults');
+            
+            let html = `
+                <div style="margin-bottom: 30px; text-align: center;">
+                    <h3 style="color: var(--accent); font-size: 1.8rem;">
+                        <i class="fas fa-list-alt me-2"></i>Found ${results.length} results for "${escapeHTML(query)}"
+                    </h3>
+                </div>
+            `;
+            
+            results.forEach((result, index) => {
+                const movieTitle = result.title || 'Unknown Movie';
+                const hasFile = result.has_file;
+                const qualityOptions = result.quality_options || {};
+                const availableQualities = Object.keys(qualityOptions);
+                
+                html += `
+                    <div class="result-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.1}s">
+                        <!-- BIG TITLE ONLY -->
+                        <div class="movie-title">
+                            <i class="fas fa-film me-3"></i>${escapeHTML(movieTitle)}
+                        </div>
+                        
+                        <!-- BADGES -->
+                        <div class="badge-container">
+                            ${result.is_new ? '<span class="new-badge"><i class="fas fa-fire me-1"></i>NEW</span>' : ''}
+                            ${hasFile ? `<span class="quality-badge"><i class="fas fa-check-circle me-1"></i>${availableQualities.join(', ')} Available</span>` : ''}
+                        </div>
+                        
+                        <!-- WATCH + DOWNLOAD BUTTONS -->
+                        <div class="action-buttons">
+                            <!-- WATCH BUTTON -->
+                            <button class="watch-btn" onclick='watchPost(${JSON.stringify(result).replace(/'/g, "\\'")})'> <i class="fas fa-eye fa-2x"></i>
+                                <span>Watch Post</span>
+                            </button>
+                            
+                            <!-- DOWNLOAD BUTTON -->
+                            ${hasFile ? `
+                                <button class="download-btn" onclick='showQualityPopup(${JSON.stringify(movieTitle).replace(/'/g, "\\'")}, ${JSON.stringify(qualityOptions).replace(/'/g, "\\'")})'> 
+                                    <i class="fas fa-download fa-2x"></i>
+                                    <span>Download</span>
+                                </button>
+                            ` : `
+                                <button class="download-btn" disabled>
+                                    <i class="fas fa-times-circle fa-2x"></i>
+                                    <span>Not Available</span>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            
+            if (page > 1) {
+                setTimeout(() => {
+                    document.getElementById('searchResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            }
+        }
+        
+        // WATCH BUTTON - Open full post in new page
+        function watchPost(result) {
+            console.log('👁️ Watch post:', result.title);
+            sessionStorage.setItem('watchPost', JSON.stringify(result));
+            window.open(`post.html?id=${encodeURIComponent(result.title)}`, '_blank');
+        }
+        
+        // QUALITY SELECTION POPUP
+        function showQualityPopup(title, qualityOptions) {
+            console.log('📥 Quality popup for:', title);
+            
+            const qualities = Object.keys(qualityOptions);
+            
+            if (qualities.length === 0) {
+                alert('❌ No quality options available');
+                return;
+            }
+            
+            let optionsHTML = '';
+            
+            qualities.forEach(quality => {
+                const option = qualityOptions[quality];
+                const fileSize = (option.file_size / (1024 * 1024)).toFixed(2);
+                
+                optionsHTML += `
+                    <div class="quality-option" onclick='selectQuality("${escapeJS(title)}", "${quality}", "${escapeJS(option.file_id || '')}")'>
+                        <div class="quality-label">
+                            <div class="quality-badge-popup">${quality}</div>
+                            <div class="quality-info">
+                                <strong>${escapeHTML(title)}</strong><br>
+                                <small>${escapeHTML(option.file_name || 'video.mp4')}</small>
+                            </div>
+                        </div>
+                        <div class="quality-size">
+                            <i class="fas fa-hdd me-1"></i>${fileSize} MB
+                        </div>
+                    </div>
+                `;
+            });
+            
+            const popupHTML = `
+                <div class="quality-popup-overlay" id="qualityPopup" onclick="closePopupClick(event)">
+                    <div class="quality-popup-container" onclick="event.stopPropagation()">
+                        <div class="quality-popup-header">
+                            <div class="quality-popup-title">
+                                <i class="fas fa-sliders-h me-2"></i>Select Quality
+                            </div>
+                            <div class="quality-popup-subtitle">
+                                Choose your preferred quality for: <strong>${escapeHTML(title)}</strong>
+                            </div>
+                        </div>
+                        
+                        <div class="quality-options">
+                            ${optionsHTML}
+                        </div>
+                        
+                        <button class="popup-close-btn" onclick="closeQualityPopup()">
+                            <i class="fas fa-times me-2"></i>Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', popupHTML);
+        }
+        
+        // SELECT QUALITY - Send via bot
+        function selectQuality(title, quality, fileId) {
+            console.log(`✅ Selected: ${quality} for ${title}`);
+            
+            closeQualityPopup();
+            
+            if (!fileId) {
+                alert('❌ File not indexed yet. Please try again later.');
+                return;
+            }
+            
+            // Open bot with quality parameter
+            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}_${quality}`;
+            
+            // Show success message
+            const successHTML = `
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 50px; border-radius: 20px; z-index: 6000; box-shadow: 0 20px 60px rgba(0,0,0,0.8); animation: fadeIn 0.3s ease;" id="successMsg">
+                    <div style="text-align: center; color: white;">
+                        <i class="fas fa-check-circle fa-4x mb-3"></i>
+                        <h3 style="margin-bottom: 15px;">${quality} Selected</h3>
+                        <p style="margin: 0;">Opening Telegram bot...</p>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', successHTML);
+            
+            setTimeout(() => {
+                const msg = document.getElementById('successMsg');
+                if (msg) document.body.removeChild(msg);
+                window.open(botLink, '_blank');
+            }, 2000);
+        }
+        
+        function closeQualityPopup() {
+            const popup = document.getElementById('qualityPopup');
+            if (popup) document.body.removeChild(popup);
+        }
+        
+        function closePopupClick(event) {
+            if (event.target.id === 'qualityPopup') {
+                closeQualityPopup();
+            }
+        }
+        
+        // Pagination
+        function setupPagination(paginationData, query) {
+            const container = document.getElementById('searchPagination');
+            
+            if (paginationData.total_pages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = `<div class="pagination-container">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h4 style="color: var(--accent);"><i class="fas fa-list me-2"></i>Navigate</h4>
+                </div>
+                <div class="pagination-controls">`;
+            
+            if (paginationData.has_previous) {
+                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${paginationData.current_page - 1})">
+                    <i class="fas fa-chevron-left"></i> Prev
+                </button>`;
+            }
+            
+            const start = Math.max(1, paginationData.current_page - 2);
+            const end = Math.min(paginationData.total_pages, paginationData.current_page + 2);
+            
+            if (start > 1) {
+                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', 1)">1</button>`;
+                if (start > 2) html += `<span style="color: rgba(255,255,255,0.5); padding: 0 10px;">...</span>`;
+            }
+            
+            for (let i = start; i <= end; i++) {
+                html += `<button class="page-btn ${i === paginationData.current_page ? 'active' : ''}" onclick="loadSearchResults('${escapeJS(query)}', ${i})">${i}</button>`;
+            }
+            
+            if (end < paginationData.total_pages) {
+                if (end < paginationData.total_pages - 1) html += `<span style="color: rgba(255,255,255,0.5); padding: 0 10px;">...</span>`;
+                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${paginationData.total_pages})">${paginationData.total_pages}</button>`;
+            }
+            
+            if (paginationData.has_next) {
+                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${paginationData.current_page + 1})">
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>`;
+            }
+            
+            html += `</div>
+                <div style="text-align: center; margin-top: 20px; color: rgba(255,255,255,0.8);">
+                    Page ${paginationData.current_page} of ${paginationData.total_pages} • ${paginationData.total_results} results
+                </div>
+            </div>`;
+            
+            container.innerHTML = html;
+        }
+        
+        function showNoResults(query) {
+            document.getElementById('searchResults').innerHTML = `
+                <div style="text-align: center; padding: 80px;">
+                    <i class="fas fa-search fa-6x mb-4" style="color: #6c757d;"></i>
+                    <h3>No Results</h3>
+                    <p>No results for "${escapeHTML(query)}"</p>
+                    <a href="/" style="background: var(--primary); color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; margin-top: 20px;">
+                        <i class="fas fa-home me-2"></i>Try Another Search
+                    </a>
+                </div>
+            `;
+            document.getElementById('searchPagination').innerHTML = '';
+        }
+        
+        function showError(query) {
+            document.getElementById('searchResults').innerHTML = `
+                <div style="text-align: center; padding: 80px;">
+                    <i class="fas fa-exclamation-triangle fa-6x text-warning mb-4"></i>
+                    <h3>Error</h3>
+                    <button onclick="loadSearchResults('${escapeJS(query)}', 1)" style="background: #28a745; color: white; border: none; padding: 14px 28px; border-radius: 18px; cursor: pointer; margin-top: 20px;">
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+        
+        function escapeHTML(text) {
+            if (!text) return '';
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        
+        function escapeJS(text) {
+            if (!text) return '';
+            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+        
+        // Auto load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 SEARCH SYSTEM LOADED');
+            console.log('👁️ Watch: Full post view');
+            console.log('📥 Download: Quality selection');
+            console.log('🤖 Bot: File delivery');
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const query = urlParams.get('query');
+            
+            if (query) {
+                loadSearchResults(query.trim(), 1);
+            } else {
+                window.location.href = '/';
+            }
+        });
+        
+        console.log('%c🎬 QUALITY POPUP', 'color: #28a745; font-size: 24px;');
+        console.log('%c📥 CLEAN UI', 'color: #00ccff; font-size: 16px;');
+    </script>
+</body>
+</html>
