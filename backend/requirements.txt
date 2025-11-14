@@ -1,13 +1,5 @@
-Flask==3.0.0
-hypercorn==0.15.0
 pyrogram==2.0.106
 TgCrypto==1.2.5
-python-dotenv==1.0.0
-Quart==0.19.4
-Werkzeug==3.0.4
-gunicorn==22.0.0
+quart==0.19.4
+hypercorn==0.16.0
 aiohttp==3.9.1
-asyncio
-uvloop
-beautifulsoup4==4.12.2
-requests==2.31.0
