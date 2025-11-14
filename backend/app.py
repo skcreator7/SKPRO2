@@ -2,13 +2,13 @@ import asyncio
 import os
 import logging
 import signal
+import threading
 from datetime import datetime, timedelta
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import FloodWait
-from quart import Quart, jsonify, request, Response
-from hypercorn.asyncio import serve
-from hypercorn.config import Config as HyperConfig
+from flask import Flask, jsonify, request, Response
+from werkzeug.serving import make_server
 import html
 import re
 import math
@@ -51,38 +51,35 @@ class Config:
     
     OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e"]
     TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff"]
-    BACKEND_URL = os.environ.get("BACKEND_URL", "")  # Will be set to Koyeb URL
+    BACKEND_URL = os.environ.get("BACKEND_URL", "")
 
 if not Config.BOT_TOKEN:
     logger.error("❌ BOT_TOKEN missing")
     exit(1)
 
-# Set BACKEND_URL if not provided
+# Auto-detect Koyeb URL
 if not Config.BACKEND_URL:
-    Config.BACKEND_URL = f"https://{os.environ.get('KOYEB_APP_NAME', 'app')}-{os.environ.get('KOYEB_SERVICE_NAME', 'service')}.koyeb.app"
+    Config.BACKEND_URL = f"https://{os.environ.get('KOYEB_APP_NAME', 'sk4film')}-{os.environ.get('KOYEB_SERVICE_NAME', 'service')}.koyeb.app"
 
-# ==================== GLOBAL STATE ====================
-bot_started = False
-user_started = False
-shutdown_event = asyncio.Event()
-movie_db = {'home_movies': [], 'last_update': None, 'poster_cache': {}, 'updating': False, 'stats': {'omdb': 0, 'tmdb': 0, 'custom': 0}}
-file_registry = {}
-users_collection = None
-stats_collection = None
-
-# ==================== QUART APP ====================
-app = Quart(__name__)
-
-@app.before_first_request
-async def configure_app():
-    app.config['JSON_SORT_KEYS'] = False
+# ==================== FLASK APP ====================
+app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False
 
 @app.after_request
-async def add_headers(response):
+def add_cors(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response
+
+# ==================== GLOBAL STATE ====================
+bot_started = False
+user_started = False
+movie_db = {'home_movies': [], 'last_update': None, 'poster_cache': {}, 'updating': False, 'stats': {'omdb': 0, 'tmdb': 0, 'custom': 0}}
+file_registry = {}
+loop = None
+users_collection = None
+stats_collection = None
 
 # ==================== PYROGRAM CLIENTS ====================
 bot = Client("sk4film_bot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, workdir="/tmp", sleep_threshold=60)
@@ -100,6 +97,13 @@ if MONGODB_AVAILABLE and Config.MONGODB_URI:
         logger.error(f"MongoDB: {e}")
 
 # ==================== HELPERS ====================
+def run_async(coro):
+    """Run async function in event loop"""
+    if loop and loop.is_running():
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result(timeout=30)
+    return None
+
 async def check_force_sub(user_id):
     try:
         member = await bot.get_chat_member(Config.FORCE_SUB_CHANNEL, user_id)
@@ -348,7 +352,7 @@ async def get_home_movies():
     logger.info(f"✅ Home: {len(movies)} movies")
     return movies
 
-# ==================== BOT ====================
+# ==================== BOT HANDLERS ====================
 @bot.on_message(filters.command("start") & filters.private)
 async def start_h(c, m):
     uid = m.from_user.id
@@ -373,7 +377,7 @@ async def start_h(c, m):
         
         fi = file_registry.get(fuid)
         if not fi:
-            await m.reply_text("❌ **File Not Found**\n\nExpired.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Search", url=Config.WEBSITE_URL)]]))
+            await m.reply_text("❌ **File Not Found**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Search", url=Config.WEBSITE_URL)]]))
             return
         
         try:
@@ -383,7 +387,7 @@ async def start_h(c, m):
                 fm = await User.get_messages(fi['channel_id'], fi['message_id'])
                 sent = await fm.copy(uid)
                 await pm.delete()
-                sm = await m.reply_text(f"✅ **Sent!**\n\n🎬 {fi['title']}\n📊 {fi['quality']}\n\n⚠️ Auto-delete in {Config.AUTO_DELETE_TIME//60}min")
+                sm = await m.reply_text(f"✅ **Sent!**\n\n🎬 {fi['title']}\n📊 {fi['quality']}")
                 logger.info(f"📥 File: {fi['title']} → {uid}")
                 
                 if Config.AUTO_DELETE_TIME > 0:
@@ -393,38 +397,36 @@ async def start_h(c, m):
                         await sm.edit_text("🗑️ Deleted")
                     except:
                         pass
-            else:
-                await pm.edit_text("❌ Unavailable")
         except Exception as e:
             logger.error(f"File err: {e}")
             await m.reply_text("❌ Error")
         return
     
-    await m.reply_text("🎬 **SK4FiLM Bot**\n\n📌 File delivery only\n\n**Usage:**\n1. Visit website\n2. Search\n3. Select quality\n4. Get file", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
+    await m.reply_text("🎬 **SK4FiLM Bot**\n\n📌 File delivery only\n\n1. Visit website\n2. Search\n3. Get file", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
 
 @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats']))
 async def text_h(c, m):
-    await m.reply_text("👋 Hi!\n\n🤖 Use website.\n\nBot delivers files only.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
+    await m.reply_text("👋 Use website to search.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
 
 @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
 async def stats_h(c, m):
     try:
         tu = await users_collection.count_documents({}) if users_collection else 0
-        await m.reply_text(f"📊 **Stats**\n\n👥 Users: `{tu}`\n🎬 Movies: `{len(movie_db['home_movies'])}`\n📁 Files: `{len(file_registry)}`\n🖼️ OMDB:{movie_db['stats']['omdb']} TMDB:{movie_db['stats']['tmdb']} Custom:{movie_db['stats']['custom']}\n🤖 Bot: `{'✅' if bot_started else '❌'}`\n👤 User: `{'✅' if user_started else '❌'}`")
+        await m.reply_text(f"📊 **Stats**\n\n👥 {tu}\n🎬 {len(movie_db['home_movies'])}\n📁 {len(file_registry)}\n🖼️ OMDB:{movie_db['stats']['omdb']} TMDB:{movie_db['stats']['tmdb']}\n🤖 {'✅' if bot_started else '❌'}\n👤 {'✅' if user_started else '❌'}")
     except Exception as e:
-        await m.reply_text(f"❌ Error: {e}")
+        await m.reply_text(f"❌ {e}")
 
-# ==================== API ====================
+# ==================== FLASK ROUTES ====================
 @app.route('/')
-async def root():
-    return jsonify({'status': 'healthy', 'service': 'SK4FiLM', 'bot': f'@{Config.BOT_USERNAME}', 'backend_url': Config.BACKEND_URL})
+def root():
+    return jsonify({'status': 'healthy', 'service': 'SK4FiLM', 'bot': f'@{Config.BOT_USERNAME}', 'backend': Config.BACKEND_URL})
 
 @app.route('/health')
-async def health():
+def health():
     return jsonify({'status': 'ok', 'bot': bot_started, 'user': user_started})
 
 @app.route('/api/movies')
-async def api_movies():
+def api_movies():
     try:
         if not user_started:
             return jsonify({'status': 'error', 'message': 'Starting'}), 503
@@ -432,8 +434,10 @@ async def api_movies():
         if not movie_db['home_movies'] or not movie_db['last_update'] or (datetime.now() - movie_db['last_update']).seconds > 300:
             if not movie_db['updating']:
                 movie_db['updating'] = True
-                movie_db['home_movies'] = await get_home_movies()
-                movie_db['last_update'] = datetime.now()
+                movies = run_async(get_home_movies())
+                if movies:
+                    movie_db['home_movies'] = movies
+                    movie_db['last_update'] = datetime.now()
                 movie_db['updating'] = False
         
         return jsonify({'status': 'success', 'movies': movie_db['home_movies'], 'total': len(movie_db['home_movies']), 'bot_username': Config.BOT_USERNAME})
@@ -443,7 +447,7 @@ async def api_movies():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/search')
-async def api_search():
+def api_search():
     try:
         q = request.args.get('query', '').strip()
         p = int(request.args.get('page', 1))
@@ -455,14 +459,17 @@ async def api_search():
         if not user_started:
             return jsonify({'status': 'error', 'message': 'Starting'}), 503
         
-        r = await search_movies(q, l, p)
-        return jsonify({'status': 'success', 'query': q, 'results': r['results'], 'pagination': r['pagination'], 'bot_username': Config.BOT_USERNAME})
+        r = run_async(search_movies(q, l, p))
+        if r:
+            return jsonify({'status': 'success', 'query': q, 'results': r['results'], 'pagination': r['pagination'], 'bot_username': Config.BOT_USERNAME})
+        else:
+            return jsonify({'status': 'error', 'message': 'Search failed'}), 500
     except Exception as e:
         logger.error(f"API search: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/poster')
-async def api_poster():
+def api_poster():
     t = request.args.get('title', 'Movie')
     d = t[:18] + "..." if len(t) > 18 else t
     colors = [('#667eea','#764ba2'),('#f093fb','#f5576c'),('#4facfe','#00f2fe'),('#43e97b','#38f9d7'),('#fa709a','#fee140')]
@@ -498,52 +505,46 @@ async def start_user():
     except Exception as e:
         logger.error(f"❌ User: {e}")
 
-async def start_web():
-    try:
-        cfg = HyperConfig()
-        cfg.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
-        cfg.loglevel = "warning"
-        cfg.graceful_timeout = 2
-        logger.info(f"🌐 Web on port {Config.WEB_SERVER_PORT}")
-        await serve(app, cfg, shutdown_trigger=shutdown_event.wait)
-    except Exception as e:
-        logger.error(f"❌ Web: {e}")
+def run_flask():
+    """Run Flask in separate thread"""
+    app.run(host='0.0.0.0', port=Config.WEB_SERVER_PORT, debug=False, use_reloader=False)
 
-async def cleanup():
-    logger.info("🔄 Cleaning...")
-    if bot_started:
-        try:
-            await bot.stop()
-        except:
-            pass
-    if user_started and User:
-        try:
-            await User.stop()
-        except:
-            pass
-    shutdown_event.set()
-
-def sig_handler(signum, frame):
-    asyncio.create_task(cleanup())
-
-async def main():
-    signal.signal(signal.SIGINT, sig_handler)
-    signal.signal(signal.SIGTERM, sig_handler)
+async def run_bots():
+    """Run both Pyrogram clients"""
+    global loop
+    loop = asyncio.get_event_loop()
     
+    await start_bot()
+    await start_user()
+    
+    # Keep running
+    try:
+        await asyncio.Event().wait()
+    except:
+        pass
+
+def main():
     logger.info("=" * 60)
-    logger.info("🚀 SK4FiLM Starting (Koyeb)")
+    logger.info("🚀 SK4FiLM (Koyeb Deployment)")
     logger.info("=" * 60)
     logger.info(f"🤖 Bot: @{Config.BOT_USERNAME}")
     logger.info(f"🌐 Website: {Config.WEBSITE_URL}")
     logger.info(f"📡 Backend: {Config.BACKEND_URL}")
+    logger.info(f"🔌 Port: {Config.WEB_SERVER_PORT}")
     logger.info("=" * 60)
     
+    # Start Flask in thread
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    logger.info("🌐 Flask started")
+    
+    # Run bots in main thread
     try:
-        await asyncio.gather(start_bot(), start_user(), start_web())
-    except:
-        pass
-    finally:
-        await cleanup()
+        asyncio.run(run_bots())
+    except KeyboardInterrupt:
+        logger.info("\n⚠️ Stopped")
+    except Exception as e:
+        logger.error(f"❌ Fatal: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
