@@ -15,7 +15,6 @@ import aiohttp
 import urllib.parse
 import hashlib
 import time
-import uuid
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -40,11 +39,9 @@ class Config:
     
     # Channels
     TEXT_CHANNEL_IDS = [int(x) for x in os.environ.get("TEXT_CHANNEL_IDS", "-1001891090100,-1002024811395").split(",")]
-    
-    # Single File Channel (All qualities in one)
     FILE_CHANNEL_ID = int(os.environ.get("FILE_CHANNEL_ID", "-1001768249569"))
     
-    # Quality patterns for detection
+    # Quality patterns
     QUALITY_PATTERNS = {
         "1080p": [r"1080p", r"1080P", r"FullHD", r"FHD"],
         "720p": [r"720p", r"720P", r"HD", r"720p\.HEVC", r"720pHEVC"],
@@ -73,7 +70,6 @@ class Config:
 # ==================== QUART APP ====================
 app = Quart(__name__, static_folder=None, static_url_path=None)
 
-# Set config immediately
 app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['JSON_SORT_KEYS'] = False
@@ -102,17 +98,11 @@ movie_db = {
 files_collection = None
 users_collection = None
 stats_collection = None
-
-# File tracking for quality selection
 file_registry = {}
 
-# MongoDB setup (FIXED - removed ssl_cert_reqs)
+# MongoDB setup
 if MONGODB_AVAILABLE and Config.MONGODB_URI:
     try:
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-        
         mongo_client = AsyncIOMotorClient(
             Config.MONGODB_URI,
             serverSelectionTimeoutMS=30000,
@@ -143,7 +133,7 @@ async def shorten_link(url):
     if not Config.SHORTENER_API:
         return url
     try:
-        api_url = f"{Config.SHORTENER_DOMAIN}?api={Config.SHORTENER_API}&url={url}"
+        api_url = f"{Config.SHORTENER_DOMAIN}?api={Config.SHORTENER_API}&url={urllib.parse.quote(url)}"
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url, timeout=10) as response:
                 if response.status == 200:
@@ -185,6 +175,7 @@ def extract_title_from_file(message):
             title = extract_title_smart(message.caption)
             if title:
                 return title
+        
         filename = message.document.file_name if message.document else (message.video.file_name if message.video else None)
         if filename:
             title = filename.rsplit('.', 1)[0]
@@ -228,6 +219,7 @@ async def get_poster(title, session):
             return cached
     
     try:
+        # Try OMDB
         for api_key in Config.OMDB_KEYS:
             try:
                 url = f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={api_key}"
@@ -249,6 +241,7 @@ async def get_poster(title, session):
             except:
                 continue
         
+        # Try TMDB
         for tmdb_key in Config.TMDB_KEYS:
             try:
                 url = "https://api.themoviedb.org/3/search/movie"
@@ -273,6 +266,7 @@ async def get_poster(title, session):
             except:
                 continue
         
+        # Custom poster
         result = {
             'poster_url': f"/api/poster?title={urllib.parse.quote(title)}",
             'title': title,
@@ -300,7 +294,7 @@ def is_new_post(post_date):
         return False
 
 def format_original_post(text):
-    """Format post content"""
+    """Format post content for HTML display"""
     if not text:
         return ""
     formatted = html.escape(text)
@@ -308,9 +302,18 @@ def format_original_post(text):
     formatted = formatted.replace('\n', '<br>')
     return formatted
 
+def get_channel_name(channel_id):
+    """Get friendly channel name"""
+    channel_names = {
+        -1001891090100: "SK4FiLM Main",
+        -1002024811395: "SK4FiLM Updates",
+        -1001768249569: "SK4FiLM Files"
+    }
+    return channel_names.get(channel_id, f"Channel {channel_id}")
+
 # ==================== SEARCH FUNCTIONS ====================
 async def search_movies(query, limit=12, page=1):
-    """Search text channels and single file channel"""
+    """Search text channels and file channel with quality options"""
     offset = (page - 1) * limit
     results = []
     seen = {}
@@ -327,6 +330,7 @@ async def search_movies(query, limit=12, page=1):
                             'type': 'text_post',
                             'content': format_original_post(msg.text),
                             'date': msg.date.isoformat() if msg.date else datetime.now().isoformat(),
+                            'channel': get_channel_name(channel_id),
                             'channel_id': channel_id,
                             'message_id': msg.id,
                             'is_new': is_new_post(msg.date) if msg.date else False,
@@ -337,7 +341,7 @@ async def search_movies(query, limit=12, page=1):
         except Exception as e:
             logger.warning(f"Text channel {channel_id} search error: {e}")
     
-    # Search single file channel
+    # Search file channel
     try:
         async for msg in User.search_messages(Config.FILE_CHANNEL_ID, query, limit=50):
             if msg.document or msg.video:
@@ -350,13 +354,15 @@ async def search_movies(query, limit=12, page=1):
                     detected_quality = detect_quality(file_name)
                     unique_id = hashlib.md5(f"{file_id}{time.time()}".encode()).hexdigest()
                     
+                    # Store in registry
                     file_registry[unique_id] = {
                         'file_id': file_id,
                         'channel_id': Config.FILE_CHANNEL_ID,
                         'message_id': msg.id,
                         'quality': detected_quality,
                         'file_size': file_size,
-                        'file_name': file_name
+                        'file_name': file_name,
+                        'title': title
                     }
                     
                     title_key = title.lower()
@@ -365,9 +371,8 @@ async def search_movies(query, limit=12, page=1):
                         results[idx]['has_file'] = True
                         results[idx]['type'] = 'with_file'
                         results[idx]['quality_options'][detected_quality] = {
-                            'unique_id': unique_id,
+                            'file_id': unique_id,
                             'file_size': file_size,
-                            'file_size_formatted': format_size(file_size),
                             'file_name': file_name
                         }
                     else:
@@ -376,15 +381,15 @@ async def search_movies(query, limit=12, page=1):
                             'type': 'with_file',
                             'content': format_original_post(msg.caption or title),
                             'date': msg.date.isoformat() if msg.date else datetime.now().isoformat(),
+                            'channel': get_channel_name(Config.FILE_CHANNEL_ID),
                             'channel_id': Config.FILE_CHANNEL_ID,
                             'message_id': msg.id,
                             'is_new': is_new_post(msg.date) if msg.date else False,
                             'has_file': True,
                             'quality_options': {
                                 detected_quality: {
-                                    'unique_id': unique_id,
+                                    'file_id': unique_id,
                                     'file_size': file_size,
-                                    'file_size_formatted': format_size(file_size),
                                     'file_name': file_name
                                 }
                             }
@@ -393,6 +398,7 @@ async def search_movies(query, limit=12, page=1):
     except Exception as e:
         logger.warning(f"File channel search error: {e}")
     
+    # Sort results
     results.sort(key=lambda x: (x['has_file'], x['date']), reverse=True)
     total = len(results)
     paginated = results[offset:offset+limit]
@@ -410,7 +416,7 @@ async def search_movies(query, limit=12, page=1):
     }
 
 async def background_update():
-    """Background update for home page"""
+    """Background update for homepage"""
     if movie_db['updating']:
         return
     
@@ -443,6 +449,7 @@ async def background_update():
                 post['date'] = post['date'].isoformat()
                 unique.append(post)
         
+        # Fetch posters
         async with aiohttp.ClientSession() as session:
             for i in range(0, min(len(unique), 24), 4):
                 batch = unique[i:i+4]
@@ -475,6 +482,99 @@ async def background_update():
 async def start_cmd(client, message):
     user_id = message.from_user.id
     
+    # Handle file request with start parameter
+    if len(message.command) > 1:
+        param = message.command[1]
+        
+        # Check subscription first
+        if not await check_force_sub(user_id):
+            try:
+                channel = await bot.get_chat(Config.FORCE_SUB_CHANNEL)
+                channel_link = f"https://t.me/{channel.username}" if channel.username else f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
+            except:
+                channel_link = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
+            
+            await message.reply_text(
+                "⚠️ **Access Restricted**\n\nPlease join our channel first to download files.\n\nAfter joining, click the download link again.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=channel_link)]])
+            )
+            return
+        
+        # Handle file request
+        unique_id = param
+        file_info = file_registry.get(unique_id)
+        
+        if not file_info:
+            await message.reply_text(
+                "❌ **File Not Found**\n\nThis file link has expired or is invalid.\n\nPlease search again on our website.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)]])
+            )
+            return
+        
+        try:
+            # Send processing message
+            processing_msg = await message.reply_text(
+                f"⏳ **Processing Your Request**\n\n"
+                f"📁 File: `{file_info['file_name']}`\n"
+                f"🎬 Quality: `{file_info['quality']}`\n"
+                f"📦 Size: `{format_size(file_info['file_size'])}`\n\n"
+                f"Please wait..."
+            )
+            
+            # Forward file from channel
+            file_msg = await User.get_messages(file_info['channel_id'], file_info['message_id'])
+            sent_msg = await file_msg.copy(user_id)
+            
+            # Delete processing message
+            await processing_msg.delete()
+            
+            # Send success message
+            success_msg = await message.reply_text(
+                f"✅ **File Sent Successfully!**\n\n"
+                f"🎬 {file_info['title']}\n"
+                f"📊 Quality: `{file_info['quality']}`\n"
+                f"📦 Size: `{format_size(file_info['file_size'])}`\n\n"
+                f"⚠️ This file will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes.\n\n"
+                f"🌐 Search more: {Config.WEBSITE_URL}"
+            )
+            
+            # Track stats
+            if stats_collection:
+                try:
+                    await stats_collection.insert_one({
+                        'user_id': user_id,
+                        'file_id': unique_id,
+                        'quality': file_info['quality'],
+                        'title': file_info['title'],
+                        'timestamp': datetime.now(),
+                        'type': 'download'
+                    })
+                except:
+                    pass
+            
+            # Auto-delete after configured time
+            if Config.AUTO_DELETE_TIME > 0:
+                await asyncio.sleep(Config.AUTO_DELETE_TIME)
+                try:
+                    await sent_msg.delete()
+                    await success_msg.edit_text(
+                        f"🗑️ **File Auto-Deleted**\n\n"
+                        f"The file has been automatically deleted for security.\n\n"
+                        f"🔄 Search again: {Config.WEBSITE_URL}"
+                    )
+                except:
+                    pass
+        
+        except Exception as e:
+            logger.error(f"File forward error: {e}")
+            await message.reply_text(
+                "❌ **Error Sending File**\n\nAn error occurred while processing your request.\n\nPlease try again or contact support.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Try Again", url=Config.WEBSITE_URL)]])
+            )
+        
+        return
+    
+    # Check subscription for normal start
     if not await check_force_sub(user_id):
         try:
             channel = await bot.get_chat(Config.FORCE_SUB_CHANNEL)
@@ -488,25 +588,45 @@ async def start_cmd(client, message):
         )
         return
     
+    # Track user
     if users_collection:
         try:
             await users_collection.update_one(
                 {'user_id': user_id},
-                {'$set': {'first_name': message.from_user.first_name, 'username': message.from_user.username, 'last_seen': datetime.now()}, '$inc': {'start_count': 1}},
+                {
+                    '$set': {
+                        'first_name': message.from_user.first_name,
+                        'username': message.from_user.username,
+                        'last_seen': datetime.now()
+                    },
+                    '$inc': {'start_count': 1}
+                },
                 upsert=True
             )
         except:
             pass
     
+    # Send welcome message
     await message.reply_text(
-        f"👋 **Welcome to SK4FiLM Bot!**\n\n🎬 Search and download movies\n\n**How to use:**\n• Send movie name\n• Choose quality\n• Get download link\n\n🌐 **Website:** {Config.WEBSITE_URL}\n\n⚡ Powered by SK4FiLM",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL),
-            InlineKeyboardButton("📢 Channel", url=f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1")
-        ]])
+        f"👋 **Welcome to SK4FiLM Bot!**\n\n"
+        f"🎬 **Features:**\n"
+        f"• Search thousands of movies\n"
+        f"• Multiple quality options (480p/720p/1080p)\n"
+        f"• Fast downloads\n"
+        f"• Regular updates\n\n"
+        f"**How to use:**\n"
+        f"1. Send movie name\n"
+        f"2. Choose quality\n"
+        f"3. Get instant download\n\n"
+        f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
+        f"⚡ Powered by SK4FiLM",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)],
+            [InlineKeyboardButton("📢 Channel", url=f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1")]
+        ])
     )
 
-@bot.on_message(filters.text & filters.private & ~filters.command(['start', 'help', 'about']))
+@bot.on_message(filters.text & filters.private & ~filters.command(['start', 'help', 'about', 'stats']))
 async def search_cmd(client, message):
     user_id = message.from_user.id
     
@@ -518,59 +638,29 @@ async def search_cmd(client, message):
     search_url = f"{Config.WEBSITE_URL}/search.html?query={urllib.parse.quote(query)}"
     shortened = await shorten_link(search_url)
     
+    # Track search
     if stats_collection:
         try:
-            await stats_collection.insert_one({'user_id': user_id, 'query': query, 'timestamp': datetime.now(), 'type': 'search'})
+            await stats_collection.insert_one({
+                'user_id': user_id,
+                'query': query,
+                'timestamp': datetime.now(),
+                'type': 'search'
+            })
         except:
             pass
     
     await message.reply_text(
-        f"🔍 **Searching for:** {query}\n\n👉 Click below to view results\n\n📱 Link: {shortened}",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📱 View Results", url=shortened)]])
+        f"🔍 **Searching for:** {query}\n\n"
+        f"📊 Results will show:\n"
+        f"• Text posts with full details\n"
+        f"• Available quality options\n"
+        f"• Direct download buttons\n\n"
+        f"👉 Click below to view results",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("📱 View Results", url=shortened)
+        ]])
     )
-
-@bot.on_callback_query(filters.regex(r"^file_"))
-async def handle_file_request(client, callback_query: CallbackQuery):
-    """Handle file download requests"""
-    try:
-        unique_id = callback_query.data.split("_")[1]
-        user_id = callback_query.from_user.id
-        
-        if not await check_force_sub(user_id):
-            await callback_query.answer("❌ Please join our channel first!", show_alert=True)
-            return
-        
-        file_info = file_registry.get(unique_id)
-        if not file_info:
-            await callback_query.answer("❌ File not found. Please search again.", show_alert=True)
-            return
-        
-        try:
-            file_msg = await User.get_messages(file_info['channel_id'], file_info['message_id'])
-            sent_msg = await file_msg.copy(user_id)
-            
-            if stats_collection:
-                try:
-                    await stats_collection.insert_one({'user_id': user_id, 'file_id': unique_id, 'quality': file_info['quality'], 'timestamp': datetime.now(), 'type': 'download'})
-                except:
-                    pass
-            
-            await callback_query.answer(f"✅ File sent! Quality: {file_info['quality']}", show_alert=False)
-            
-            if Config.AUTO_DELETE_TIME > 0:
-                await asyncio.sleep(Config.AUTO_DELETE_TIME)
-                try:
-                    await sent_msg.delete()
-                except:
-                    pass
-        
-        except Exception as e:
-            logger.error(f"File forward error: {e}")
-            await callback_query.answer("❌ Error sending file.", show_alert=True)
-    
-    except Exception as e:
-        logger.error(f"Callback error: {e}")
-        await callback_query.answer("❌ An error occurred", show_alert=True)
 
 @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
 async def stats_cmd(client, message):
@@ -580,21 +670,71 @@ async def stats_cmd(client, message):
         total_searches = await stats_collection.count_documents({'type': 'search'}) if stats_collection else 0
         total_downloads = await stats_collection.count_documents({'type': 'download'}) if stats_collection else 0
         
+        # Recent activity
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_searches = await stats_collection.count_documents({'type': 'search', 'timestamp': {'$gte': today}}) if stats_collection else 0
+        today_downloads = await stats_collection.count_documents({'type': 'download', 'timestamp': {'$gte': today}}) if stats_collection else 0
+        
         stats_text = (
-            f"📊 **Bot Statistics**\n\n"
-            f"👥 Users: `{total_users}`\n"
-            f"🔍 Searches: `{total_searches}`\n"
-            f"⬇️ Downloads: `{total_downloads}`\n"
+            f"📊 **SK4FiLM Bot Statistics**\n\n"
+            f"**Overall:**\n"
+            f"👥 Total Users: `{total_users}`\n"
+            f"🔍 Total Searches: `{total_searches}`\n"
+            f"⬇️ Total Downloads: `{total_downloads}`\n\n"
+            f"**Today:**\n"
+            f"🔍 Searches: `{today_searches}`\n"
+            f"⬇️ Downloads: `{today_downloads}`\n\n"
+            f"**Database:**\n"
             f"🎬 Movies: `{len(movie_db['home_movies'])}`\n"
-            f"🖼️ Posters: `{len(movie_db['poster_cache'])}`\n"
-            f"📁 Files: `{len(file_registry)}`\n\n"
-            f"**Sources:**\n"
+            f"🖼️ Cached Posters: `{len(movie_db['poster_cache'])}`\n"
+            f"📁 File Registry: `{len(file_registry)}`\n\n"
+            f"**Poster Sources:**\n"
             f"• OMDB: `{movie_db['stats']['omdb']}`\n"
             f"• TMDB: `{movie_db['stats']['tmdb']}`\n"
             f"• Custom: `{movie_db['stats']['custom']}`\n\n"
-            f"🕒 Updated: `{movie_db['last_update'].strftime('%H:%M:%S') if movie_db['last_update'] else 'Never'}`"
+            f"🕒 Last Update: `{movie_db['last_update'].strftime('%H:%M:%S') if movie_db['last_update'] else 'Never'}`"
         )
         await message.reply_text(stats_text)
+    except Exception as e:
+        await message.reply_text(f"❌ Error: {e}")
+
+@bot.on_message(filters.command("broadcast") & filters.user(Config.ADMIN_IDS))
+async def broadcast_cmd(client, message):
+    """Admin broadcast command"""
+    if not message.reply_to_message:
+        await message.reply_text("❌ Reply to a message to broadcast")
+        return
+    
+    if not users_collection:
+        await message.reply_text("❌ MongoDB not available")
+        return
+    
+    try:
+        users = await users_collection.find({}).to_list(length=None)
+        total = len(users)
+        success = 0
+        failed = 0
+        
+        status_msg = await message.reply_text(f"📢 Broadcasting to {total} users...")
+        
+        for user in users:
+            try:
+                await message.reply_to_message.copy(user['user_id'])
+                success += 1
+                
+                if success % 50 == 0:
+                    await status_msg.edit_text(f"📢 Progress: {success}/{total}")
+                
+                await asyncio.sleep(0.05)
+            except:
+                failed += 1
+        
+        await status_msg.edit_text(
+            f"✅ **Broadcast Complete**\n\n"
+            f"✅ Success: `{success}`\n"
+            f"❌ Failed: `{failed}`\n"
+            f"📊 Total: `{total}`"
+        )
     except Exception as e:
         await message.reply_text(f"❌ Error: {e}")
 
@@ -604,14 +744,28 @@ async def home():
     return jsonify({
         'status': 'healthy' if bot_started and user_started else 'starting',
         'service': 'SK4FiLM',
+        'version': '2.0',
         'bot_username': f'@{Config.BOT_USERNAME}',
-        'channels': {'text': len(Config.TEXT_CHANNEL_IDS), 'file': 1},
-        'stats': {'movies': len(movie_db['home_movies']), 'cached_posters': len(movie_db['poster_cache']), 'file_registry': len(file_registry)}
+        'website': Config.WEBSITE_URL,
+        'channels': {
+            'text': len(Config.TEXT_CHANNEL_IDS),
+            'file': 1
+        },
+        'stats': {
+            'movies': len(movie_db['home_movies']),
+            'cached_posters': len(movie_db['poster_cache']),
+            'file_registry': len(file_registry)
+        }
     })
 
 @app.route('/health')
 async def health():
-    return jsonify({'status': 'healthy', 'bot_running': bot_started, 'user_running': user_started})
+    return jsonify({
+        'status': 'healthy',
+        'bot_running': bot_started,
+        'user_running': user_started,
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/api/movies')
 async def api_movies():
@@ -623,12 +777,13 @@ async def api_movies():
         'status': 'success',
         'movies': movie_db['home_movies'],
         'total': len(movie_db['home_movies']),
+        'last_update': movie_db['last_update'].isoformat() if movie_db['last_update'] else None,
         'bot_username': Config.BOT_USERNAME
     })
 
 @app.route('/api/search')
 async def api_search():
-    """Search API"""
+    """Search API with quality options"""
     query = request.args.get('query', '').strip()
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 12))
@@ -663,12 +818,13 @@ async def api_file_info(unique_id):
         'status': 'success',
         'file': {
             'unique_id': unique_id,
+            'title': file_info['title'],
             'quality': file_info['quality'],
             'file_size': file_info['file_size'],
             'file_size_formatted': format_size(file_info['file_size']),
             'file_name': file_info['file_name'],
             'bot_username': Config.BOT_USERNAME,
-            'download_url': f"https://t.me/{Config.BOT_USERNAME}?start=file_{unique_id}"
+            'download_url': f"https://t.me/{Config.BOT_USERNAME}?start={unique_id}"
         }
     })
 
@@ -679,9 +835,12 @@ async def api_poster():
     display_title = title[:20] + "..." if len(title) > 20 else title
     
     svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
-        <defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:#667eea"/><stop offset="100%" style="stop-color:#764ba2"/>
-        </linearGradient></defs>
+        <defs>
+            <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#667eea"/>
+                <stop offset="100%" style="stop-color:#764ba2"/>
+            </linearGradient>
+        </defs>
         <rect width="100%" height="100%" fill="url(#bg)" rx="18"/>
         <circle cx="150" cy="180" r="45" fill="rgba(255,255,255,0.15)"/>
         <text x="50%" y="195" text-anchor="middle" fill="#fff" font-size="44">🎬</text>
@@ -700,7 +859,8 @@ async def api_stats():
             'movies': len(movie_db['home_movies']),
             'cached_posters': len(movie_db['poster_cache']),
             'file_registry': len(file_registry),
-            'poster_sources': movie_db['stats']
+            'poster_sources': movie_db['stats'],
+            'last_update': movie_db['last_update'].isoformat() if movie_db['last_update'] else None
         }
     })
 
@@ -740,7 +900,11 @@ async def start_user():
         me = await User.get_me()
         logger.info(f"✅ User: {me.first_name}")
         user_started = True
+        
+        # Initial update
         await background_update()
+        
+        # Start auto-update loop
         asyncio.create_task(auto_update_loop())
     except Exception as e:
         logger.error(f"User client error: {e}")
@@ -767,11 +931,25 @@ async def start_web():
 
 async def main():
     """Main startup"""
-    logger.info("🚀 SK4FiLM - Starting Complete System")
-    logger.info(f"📊 Config: {len(Config.TEXT_CHANNEL_IDS)} text channels, 1 file channel")
-    logger.info(f"💾 MongoDB: {'Enabled' if MONGODB_AVAILABLE and Config.MONGODB_URI else 'Disabled'}")
+    logger.info("=" * 60)
+    logger.info("🚀 SK4FiLM - Complete Movie Bot System")
+    logger.info("=" * 60)
+    logger.info(f"📊 Config:")
+    logger.info(f"   • Text Channels: {len(Config.TEXT_CHANNEL_IDS)}")
+    logger.info(f"   • File Channel: 1")
+    logger.info(f"   • Force Subscribe: Enabled")
+    logger.info(f"   • Auto Delete: {Config.AUTO_DELETE_TIME}s")
+    logger.info(f"   • Auto Update: {Config.AUTO_UPDATE_INTERVAL}s")
+    logger.info(f"💾 MongoDB: {'✅ Enabled' if MONGODB_AVAILABLE and Config.MONGODB_URI else '❌ Disabled'}")
+    logger.info(f"🌐 Website: {Config.WEBSITE_URL}")
+    logger.info(f"🤖 Bot: @{Config.BOT_USERNAME}")
+    logger.info("=" * 60)
     
-    await asyncio.gather(start_bot(), start_user(), start_web())
+    await asyncio.gather(
+        start_bot(),
+        start_user(),
+        start_web()
+    )
 
 if __name__ == "__main__":
     try:
@@ -779,4 +957,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("⚠️ Stopped by user")
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.error(f"❌ Fatal error: {e}")
