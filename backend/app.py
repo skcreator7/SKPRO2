@@ -3,16 +3,15 @@ import os
 import logging
 import hashlib
 import time
+import json
 from datetime import datetime, timedelta
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from quart import Quart, jsonify, request, Response
-from hypercorn.asyncio import serve
-from hypercorn.config import Config as HyperConfig
+from flask import Flask, jsonify, request, Response
 import html
 import re
 import math
-import aiohttp
+import requests
 import urllib.parse
 
 # Logging
@@ -25,7 +24,7 @@ class Config:
     API_ID = int(os.environ.get("API_ID", "0"))
     API_HASH = os.environ.get("API_HASH", "")
     USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "8368221226:AAEOwAiBl_XXWAhOfSLsltw5a7SEaN4uiMo")
     
     TEXT_CHANNEL_IDS = [int(x) for x in os.environ.get("TEXT_CHANNEL_IDS", "-1001891090100,-1002024811395").split(",")]
     FILE_CHANNEL_ID = int(os.environ.get("FILE_CHANNEL_ID", "-1001768249569"))
@@ -38,18 +37,17 @@ class Config:
     WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
     BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
     
+    # Multiple poster sources
     OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e", "c3e6f8d9"]
     TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff"]
-    AUTO_UPDATE_INTERVAL = 180
 
 if not Config.BOT_TOKEN:
     logger.error("❌ BOT_TOKEN missing")
     exit(1)
 
-# ==================== INITIALIZE CLIENTS FIRST ====================
-logger.info("🔧 Initializing Pyrogram clients...")
+# ==================== INITIALIZE PYROGRAM ====================
+logger.info("🔧 Initializing Pyrogram...")
 
-# Bot client
 bot = Client(
     "sk4film_bot",
     api_id=Config.API_ID,
@@ -59,7 +57,6 @@ bot = Client(
     sleep_threshold=60
 )
 
-# User client
 User = Client(
     "sk4film_user",
     api_id=Config.API_ID,
@@ -69,13 +66,14 @@ User = Client(
     sleep_threshold=60
 ) if Config.USER_SESSION_STRING else None
 
-logger.info("✅ Clients initialized")
+logger.info("✅ Pyrogram initialized")
 
-# ==================== QUART APP ====================
-app = Quart(__name__)
+# ==================== FLASK APP (NOT QUART - FIX) ====================
+app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False
 
 @app.after_request
-async def add_headers(response):
+def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
@@ -89,9 +87,18 @@ movie_db = {
     'last_update': None,
     'poster_cache': {},
     'updating': False,
-    'stats': {'omdb': 0, 'tmdb': 0, 'custom': 0}
+    'stats': {
+        'omdb': 0,
+        'tmdb': 0,
+        'impawards': 0,
+        'justwatch': 0,
+        'letterboxd': 0,
+        'custom': 0,
+        'failed': 0
+    }
 }
 file_registry = {}
+loop = None
 
 # ==================== HELPERS ====================
 def extract_title_smart(text):
@@ -166,6 +173,17 @@ def is_new(date):
     except:
         return False
 
+def run_async(coro):
+    """Run async from sync context"""
+    if loop and loop.is_running():
+        import concurrent.futures
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        try:
+            return future.result(timeout=30)
+        except:
+            return None
+    return None
+
 async def check_force_sub(user_id):
     try:
         member = await bot.get_chat_member(Config.FORCE_SUB_CHANNEL, user_id)
@@ -173,67 +191,171 @@ async def check_force_sub(user_id):
     except:
         return True
 
-# ==================== POSTER ====================
-async def get_poster(title, session):
+# ==================== ADVANCED POSTER SOURCES ====================
+def get_poster_multi_source(title):
+    """Multiple poster sources - SYNCHRONOUS for Flask"""
     ck = title.lower().strip()
     
+    # Check cache
     if ck in movie_db['poster_cache']:
         c, ct = movie_db['poster_cache'][ck]
         if (datetime.now() - ct).seconds < 600:
             return c
     
-    logger.info(f"🎨 Fetching: {title}")
+    logger.info(f"🎨 Fetching poster: {title}")
     
-    # OMDB
+    # SOURCE 1: OMDB (High Quality)
     for k in Config.OMDB_KEYS:
         try:
-            async with session.get(f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={k}", timeout=5) as r:
-                if r.status == 200:
-                    d = await r.json()
-                    if d.get('Response') == 'True' and d.get('Poster') != 'N/A':
+            r = requests.get(f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={k}", timeout=5)
+            if r.status_code == 200:
+                d = r.json()
+                if d.get('Response') == 'True' and d.get('Poster') != 'N/A':
+                    res = {
+                        'poster_url': d['Poster'].replace('http://', 'https://'),
+                        'title': d.get('Title', title),
+                        'year': d.get('Year', ''),
+                        'rating': d.get('imdbRating', ''),
+                        'source': 'OMDB',
+                        'quality': 'HIGH',
+                        'success': True
+                    }
+                    movie_db['poster_cache'][ck] = (res, datetime.now())
+                    movie_db['stats']['omdb'] += 1
+                    logger.info(f"✅ OMDB: {title}")
+                    return res
+        except:
+            continue
+    
+    # SOURCE 2: TMDB (High Resolution)
+    for k in Config.TMDB_KEYS:
+        try:
+            r = requests.get("https://api.themoviedb.org/3/search/movie", params={'api_key': k, 'query': title}, timeout=5)
+            if r.status_code == 200:
+                d = r.json()
+                if d.get('results'):
+                    m = d['results'][0]
+                    p = m.get('poster_path')
+                    if p:
                         res = {
-                            'poster_url': d['Poster'].replace('http://', 'https://'),
-                            'title': d.get('Title', title),
-                            'year': d.get('Year', ''),
-                            'rating': d.get('imdbRating', ''),
-                            'source': 'OMDB',
+                            'poster_url': f"https://image.tmdb.org/t/p/w780{p}",  # Higher resolution
+                            'title': m.get('title', title),
+                            'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
+                            'rating': f"{m.get('vote_average', 0):.1f}",
+                            'source': 'TMDB',
+                            'quality': 'HIGH',
                             'success': True
                         }
                         movie_db['poster_cache'][ck] = (res, datetime.now())
-                        movie_db['stats']['omdb'] += 1
-                        logger.info(f"✅ OMDB: {title}")
+                        movie_db['stats']['tmdb'] += 1
+                        logger.info(f"✅ TMDB: {title}")
                         return res
         except:
             continue
     
-    # TMDB
-    for k in Config.TMDB_KEYS:
-        try:
-            async with session.get("https://api.themoviedb.org/3/search/movie", params={'api_key': k, 'query': title}, timeout=5) as r:
-                if r.status == 200:
-                    d = await r.json()
-                    if d.get('results'):
-                        m = d['results'][0]
-                        p = m.get('poster_path')
-                        if p:
-                            res = {
-                                'poster_url': f"https://image.tmdb.org/t/p/w500{p}",
-                                'title': m.get('title', title),
-                                'year': m.get('release_date', '')[:4] if m.get('release_date') else '',
-                                'rating': f"{m.get('vote_average', 0):.1f}",
-                                'source': 'TMDB',
-                                'success': True
-                            }
-                            movie_db['poster_cache'][ck] = (res, datetime.now())
-                            movie_db['stats']['tmdb'] += 1
-                            logger.info(f"✅ TMDB: {title}")
-                            return res
-        except:
-            continue
+    # SOURCE 3: IMPAwards (Alternative)
+    try:
+        # IMPAwards search
+        search_title = title.replace(' ', '+')
+        imp_url = f"https://www.impawards.com/search/?q={search_title}"
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml'
+        }
+        
+        r = requests.get(imp_url, headers=headers, timeout=7)
+        if r.status_code == 200:
+            # Simple regex to find poster URLs
+            poster_match = re.search(r'<img src="([^"]+posters[^"]+\.jpg)"', r.text)
+            if poster_match:
+                poster_url = poster_match.group(1)
+                if not poster_url.startswith('http'):
+                    poster_url = 'https://www.impawards.com' + poster_url
+                
+                res = {
+                    'poster_url': poster_url,
+                    'title': title,
+                    'source': 'IMPAwards',
+                    'quality': 'MEDIUM',
+                    'success': True
+                }
+                movie_db['poster_cache'][ck] = (res, datetime.now())
+                movie_db['stats']['impawards'] += 1
+                logger.info(f"✅ IMPAwards: {title}")
+                return res
+    except Exception as e:
+        logger.debug(f"IMPAwards failed: {e}")
     
-    # Custom
+    # SOURCE 4: JustWatch (Streaming service posters)
+    try:
+        # JustWatch API (simplified - they have restrictions)
+        jw_search = title.lower().replace(' ', '-')
+        jw_url = f"https://apis.justwatch.com/content/titles/movie/{jw_search}/locale/en_IN"
+        
+        r = requests.get(jw_url, timeout=5)
+        if r.status_code == 200:
+            d = r.json()
+            poster_path = d.get('poster')
+            if poster_path:
+                poster_url = f"https://images.justwatch.com{poster_path}"
+                
+                res = {
+                    'poster_url': poster_url,
+                    'title': d.get('title', title),
+                    'year': d.get('original_release_year', ''),
+                    'source': 'JustWatch',
+                    'quality': 'HIGH',
+                    'success': True
+                }
+                movie_db['poster_cache'][ck] = (res, datetime.now())
+                movie_db['stats']['justwatch'] += 1
+                logger.info(f"✅ JustWatch: {title}")
+                return res
+    except:
+        pass
+    
+    # SOURCE 5: Letterboxd (Film community)
+    try:
+        # Letterboxd search
+        lb_search = title.lower().replace(' ', '-')
+        lb_url = f"https://letterboxd.com/film/{lb_search}/"
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        r = requests.get(lb_url, headers=headers, timeout=6)
+        if r.status_code == 200:
+            # Find Open Graph image
+            og_match = re.search(r'<meta property="og:image" content="([^"]+)"', r.text)
+            if og_match:
+                poster_url = og_match.group(1)
+                
+                res = {
+                    'poster_url': poster_url,
+                    'title': title,
+                    'source': 'Letterboxd',
+                    'quality': 'HIGH',
+                    'success': True
+                }
+                movie_db['poster_cache'][ck] = (res, datetime.now())
+                movie_db['stats']['letterboxd'] += 1
+                logger.info(f"✅ Letterboxd: {title}")
+                return res
+    except:
+        pass
+    
+    # FALLBACK: Custom SVG
+    logger.info(f"ℹ️ Custom poster: {title}")
     movie_db['stats']['custom'] += 1
-    res = {'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}", 'title': title, 'source': 'CUSTOM', 'success': True}
+    res = {
+        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}",
+        'title': title,
+        'source': 'CUSTOM',
+        'quality': 'CUSTOM',
+        'success': True
+    }
     movie_db['poster_cache'][ck] = (res, datetime.now())
     return res
 
@@ -272,7 +394,7 @@ async def search_movies(query, limit=12, page=1):
                         cnt += 1
             logger.info(f"  ✓ Text: {cnt}")
         except Exception as e:
-            logger.error(f"Text ch error: {e}")
+            logger.error(f"Text error: {e}")
     
     # File channel
     try:
@@ -321,7 +443,7 @@ async def search_movies(query, limit=12, page=1):
                     cnt += 1
         logger.info(f"  ✓ Files: {cnt}")
     except Exception as e:
-        logger.error(f"File ch error: {e}")
+        logger.error(f"File error: {e}")
     
     results.sort(key=lambda x: (x['has_file'], x['date']), reverse=True)
     total = len(results)
@@ -368,30 +490,35 @@ async def get_home_movies():
     movies.sort(key=lambda x: x['date'], reverse=True)
     movies = movies[:24]
     
-    logger.info(f"🎨 Fetching posters...")
+    logger.info(f"🎨 Fetching posters from multiple sources...")
     
-    async with aiohttp.ClientSession() as s:
-        for i in range(0, len(movies), 5):
-            batch = movies[i:i+5]
-            posters = await asyncio.gather(*[get_poster(m['title'], s) for m in batch], return_exceptions=True)
+    # Fetch posters synchronously
+    for i, movie in enumerate(movies):
+        try:
+            poster = get_poster_multi_source(movie['title'])
+            if poster and poster.get('success'):
+                movie.update({
+                    'poster_url': poster['poster_url'],
+                    'poster_title': poster.get('title', movie['title']),
+                    'poster_year': poster.get('year', ''),
+                    'poster_rating': poster.get('rating', ''),
+                    'poster_source': poster['source'],
+                    'poster_quality': poster.get('quality', 'STANDARD'),
+                    'has_poster': True
+                })
+            else:
+                movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                movie['has_poster'] = True
             
-            for m, p in zip(batch, posters):
-                if isinstance(p, dict) and p.get('success'):
-                    m.update({
-                        'poster_url': p['poster_url'],
-                        'poster_title': p.get('title', m['title']),
-                        'poster_year': p.get('year', ''),
-                        'poster_rating': p.get('rating', ''),
-                        'poster_source': p['source'],
-                        'has_poster': True
-                    })
-                else:
-                    m['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(m['title'])}"
-                    m['has_poster'] = True
-            
-            await asyncio.sleep(0.2)
+            # Rate limit
+            if i % 5 == 0 and i > 0:
+                time.sleep(0.3)
+        except Exception as e:
+            logger.error(f"Poster error: {e}")
+            movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+            movie['has_poster'] = True
     
-    logger.info(f"✅ Loaded {len(movies)} movies with posters")
+    logger.info(f"✅ Loaded {len(movies)} movies | Stats: {movie_db['stats']}")
     return movies
 
 # ==================== BOT HANDLERS ====================
@@ -468,24 +595,40 @@ async def text_handler(client, message):
 async def stats_handler(client, message):
     await message.reply_text(
         f"📊 **Stats**\n\n"
-        f"🎬 {len(movie_db['home_movies'])}\n"
-        f"📁 {len(file_registry)}\n"
-        f"🖼️ OMDB:{movie_db['stats']['omdb']} TMDB:{movie_db['stats']['tmdb']} Custom:{movie_db['stats']['custom']}\n"
-        f"🤖 {'✅' if bot_started else '❌'}\n"
-        f"👤 {'✅' if user_started else '❌'}"
+        f"🎬 Movies: {len(movie_db['home_movies'])}\n"
+        f"📁 Files: {len(file_registry)}\n"
+        f"🖼️ Poster Sources:\n"
+        f"  • OMDB: {movie_db['stats']['omdb']}\n"
+        f"  • TMDB: {movie_db['stats']['tmdb']}\n"
+        f"  • IMPAwards: {movie_db['stats']['impawards']}\n"
+        f"  • JustWatch: {movie_db['stats']['justwatch']}\n"
+        f"  • Letterboxd: {movie_db['stats']['letterboxd']}\n"
+        f"  • Custom: {movie_db['stats']['custom']}\n"
+        f"🤖 Bot: {'✅' if bot_started else '❌'}\n"
+        f"👤 User: {'✅' if user_started else '❌'}"
     )
 
 # ==================== API ====================
 @app.route('/')
-async def root():
-    return jsonify({'status': 'healthy', 'service': 'SK4FiLM', 'bot': f'@{Config.BOT_USERNAME}', 'backend': Config.BACKEND_URL})
+def root():
+    return jsonify({
+        'status': 'healthy',
+        'service': 'SK4FiLM - Multi-Source Posters',
+        'bot': f'@{Config.BOT_USERNAME}',
+        'poster_sources': ['OMDB', 'TMDB', 'IMPAwards', 'JustWatch', 'Letterboxd', 'Custom'],
+        'stats': movie_db['stats']
+    })
 
 @app.route('/health')
-async def health():
-    return jsonify({'status': 'ok' if (bot_started and user_started) else 'starting', 'bot': bot_started, 'user': user_started})
+def health():
+    return jsonify({
+        'status': 'ok' if (bot_started and user_started) else 'starting',
+        'bot': bot_started,
+        'user': user_started
+    })
 
 @app.route('/api/movies')
-async def api_movies():
+def api_movies():
     try:
         if not user_started:
             return jsonify({'status': 'error', 'message': 'Starting'}), 503
@@ -493,18 +636,26 @@ async def api_movies():
         if not movie_db['home_movies'] or not movie_db['last_update'] or (datetime.now() - movie_db['last_update']).seconds > 300:
             if not movie_db['updating']:
                 movie_db['updating'] = True
-                movie_db['home_movies'] = await get_home_movies()
-                movie_db['last_update'] = datetime.now()
+                movies = run_async(get_home_movies())
+                if movies:
+                    movie_db['home_movies'] = movies
+                    movie_db['last_update'] = datetime.now()
                 movie_db['updating'] = False
         
-        return jsonify({'status': 'success', 'movies': movie_db['home_movies'], 'total': len(movie_db['home_movies']), 'bot_username': Config.BOT_USERNAME})
+        return jsonify({
+            'status': 'success',
+            'movies': movie_db['home_movies'],
+            'total': len(movie_db['home_movies']),
+            'bot_username': Config.BOT_USERNAME,
+            'poster_stats': movie_db['stats']
+        })
     except Exception as e:
         logger.error(f"API movies: {e}")
         movie_db['updating'] = False
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/search')
-async def api_search():
+def api_search():
     try:
         q = request.args.get('query', '').strip()
         p = int(request.args.get('page', 1))
@@ -516,24 +667,34 @@ async def api_search():
         if not user_started:
             return jsonify({'status': 'error', 'message': 'Starting'}), 503
         
-        result = await search_movies(q, l, p)
-        return jsonify({'status': 'success', 'query': q, 'results': result['results'], 'pagination': result['pagination'], 'bot_username': Config.BOT_USERNAME})
+        result = run_async(search_movies(q, l, p))
+        if result:
+            return jsonify({
+                'status': 'success',
+                'query': q,
+                'results': result['results'],
+                'pagination': result['pagination'],
+                'bot_username': Config.BOT_USERNAME
+            })
+        else:
+            return jsonify({'status': 'error', 'message': 'Search failed'}), 500
     except Exception as e:
         logger.error(f"API search: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/poster')
-async def api_poster():
+def api_poster():
     t = request.args.get('title', 'Movie')
     d = t[:18] + "..." if len(t) > 18 else t
-    colors = [('#667eea','#764ba2'),('#f093fb','#f5576c'),('#4facfe','#00f2fe'),('#43e97b','#38f9d7'),('#fa709a','#fee140')]
+    colors = [('#667eea','#764ba2'),('#f093fb','#f5576c'),('#4facfe','#00f2fe'),('#43e97b','#38f9d7'),('#fa709a','#fee140'),('#30cfd0','#330867'),('#a8edea','#fed6e3')]
     c = colors[hash(t) % len(colors)]
     svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:{c[0]}"/><stop offset="100%" style="stop-color:{c[1]}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#bg)" rx="20"/><circle cx="150" cy="180" r="50" fill="rgba(255,255,255,0.2)"/><text x="50%" y="200" text-anchor="middle" fill="#fff" font-size="50">🎬</text><text x="50%" y="270" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">{html.escape(d)}</text><rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/><text x="50%" y="405" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">SK4FiLM</text></svg>'''
     return Response(svg, mimetype='image/svg+xml', headers={'Cache-Control': 'public, max-age=3600'})
 
 # ==================== STARTUP ====================
 async def start_clients():
-    global bot_started, user_started
+    global bot_started, user_started, loop
+    loop = asyncio.get_event_loop()
     
     try:
         logger.info("🤖 Starting bot...")
@@ -558,24 +719,42 @@ async def start_clients():
         except Exception as e:
             logger.error(f"User error: {e}")
 
-async def main():
+def run_flask():
+    """Flask in thread"""
+    logger.info(f"🌐 Flask on 0.0.0.0:{Config.WEB_SERVER_PORT}")
+    app.run(host='0.0.0.0', port=Config.WEB_SERVER_PORT, debug=False, use_reloader=False, threaded=True)
+
+async def run_bot():
+    """Pyrogram in main thread"""
+    await start_clients()
+    logger.info("✅ All systems running")
+    try:
+        await asyncio.Event().wait()
+    except:
+        pass
+
+def main():
+    import threading
+    
     logger.info("=" * 70)
-    logger.info("🚀 SK4FiLM")
+    logger.info("🚀 SK4FiLM - Multi-Source Poster System")
     logger.info("=" * 70)
     logger.info(f"🤖 @{Config.BOT_USERNAME}")
     logger.info(f"🌐 {Config.WEBSITE_URL}")
     logger.info(f"📡 {Config.BACKEND_URL}")
+    logger.info(f"🎨 Poster Sources: 5+")
     logger.info("=" * 70)
     
-    # Start clients
-    await start_clients()
+    # Flask in thread
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    time.sleep(2)
     
-    # Start web server
-    cfg = HyperConfig()
-    cfg.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
-    cfg.loglevel = "warning"
-    
-    await serve(app, cfg)
+    # Pyrogram in main
+    try:
+        asyncio.run(run_bot())
+    except KeyboardInterrupt:
+        logger.info("\n⚠️ Stopped")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
