@@ -268,7 +268,7 @@ async def get_poster(title, session):
         
         # Custom poster
         result = {
-            'poster_url': f"/api/poster?title={urllib.parse.quote(title)}",
+            'poster_url': f"{Config.WEBSITE_URL}/api/poster?title={urllib.parse.quote(title)}",
             'title': title,
             'source': 'CUSTOM',
             'success': True
@@ -278,7 +278,7 @@ async def get_poster(title, session):
         return result
     except:
         return {
-            'poster_url': f"/api/poster?title={urllib.parse.quote(title)}",
+            'poster_url': f"{Config.WEBSITE_URL}/api/poster?title={urllib.parse.quote(title)}",
             'title': title,
             'source': 'CUSTOM',
             'success': True
@@ -317,6 +317,8 @@ async def search_movies(query, limit=12, page=1):
     offset = (page - 1) * limit
     results = []
     seen = {}
+    
+    logger.info(f"🔍 Search started: '{query}' | Page: {page}")
     
     # Search text channels
     for channel_id in Config.TEXT_CHANNEL_IDS:
@@ -362,7 +364,8 @@ async def search_movies(query, limit=12, page=1):
                         'quality': detected_quality,
                         'file_size': file_size,
                         'file_name': file_name,
-                        'title': title
+                        'title': title,
+                        'created_at': datetime.now()
                     }
                     
                     title_key = title.lower()
@@ -402,6 +405,8 @@ async def search_movies(query, limit=12, page=1):
     results.sort(key=lambda x: (x['has_file'], x['date']), reverse=True)
     total = len(results)
     paginated = results[offset:offset+limit]
+    
+    logger.info(f"✅ Search complete: {total} results | Showing: {len(paginated)}")
     
     return {
         'results': paginated,
@@ -477,9 +482,25 @@ async def background_update():
     finally:
         movie_db['updating'] = False
 
+async def cleanup_old_files():
+    """Cleanup old file registry entries"""
+    try:
+        cutoff = datetime.now() - timedelta(hours=2)
+        to_remove = [
+            uid for uid, info in file_registry.items()
+            if info.get('created_at', datetime.now()) < cutoff
+        ]
+        for uid in to_remove:
+            del file_registry[uid]
+        if to_remove:
+            logger.info(f"🗑️ Cleaned up {len(to_remove)} old file entries")
+    except Exception as e:
+        logger.error(f"Cleanup error: {e}")
+
 # ==================== BOT HANDLERS ====================
 @bot.on_message(filters.command("start") & filters.private)
 async def start_cmd(client, message):
+    """Bot start command - Only for file delivery"""
     user_id = message.from_user.id
     
     # Handle file request with start parameter
@@ -495,8 +516,12 @@ async def start_cmd(client, message):
                 channel_link = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
             
             await message.reply_text(
-                "⚠️ **Access Restricted**\n\nPlease join our channel first to download files.\n\nAfter joining, click the download link again.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=channel_link)]])
+                "⚠️ **Access Restricted**\n\n"
+                "Please join our channel first to download files.\n\n"
+                "After joining, click the download link again.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("📢 Join Channel", url=channel_link)
+                ]])
             )
             return
         
@@ -506,8 +531,12 @@ async def start_cmd(client, message):
         
         if not file_info:
             await message.reply_text(
-                "❌ **File Not Found**\n\nThis file link has expired or is invalid.\n\nPlease search again on our website.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)]])
+                "❌ **File Not Found**\n\n"
+                "This file link has expired or is invalid.\n\n"
+                "Please search again on our website.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🌐 Search on Website", url=Config.WEBSITE_URL)
+                ]])
             )
             return
         
@@ -535,7 +564,7 @@ async def start_cmd(client, message):
                 f"📊 Quality: `{file_info['quality']}`\n"
                 f"📦 Size: `{format_size(file_info['file_size'])}`\n\n"
                 f"⚠️ This file will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes.\n\n"
-                f"🌐 Search more: {Config.WEBSITE_URL}"
+                f"🔍 Search more movies: {Config.WEBSITE_URL}"
             )
             
             # Track stats
@@ -551,6 +580,8 @@ async def start_cmd(client, message):
                     })
                 except:
                     pass
+            
+            logger.info(f"📥 File delivered: {file_info['title']} ({file_info['quality']}) to {user_id}")
             
             # Auto-delete after configured time
             if Config.AUTO_DELETE_TIME > 0:
@@ -568,27 +599,17 @@ async def start_cmd(client, message):
         except Exception as e:
             logger.error(f"File forward error: {e}")
             await message.reply_text(
-                "❌ **Error Sending File**\n\nAn error occurred while processing your request.\n\nPlease try again or contact support.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Try Again", url=Config.WEBSITE_URL)]])
+                "❌ **Error Sending File**\n\n"
+                "An error occurred while processing your request.\n\n"
+                "Please try again or contact support.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔄 Try Again", url=Config.WEBSITE_URL)
+                ]])
             )
         
         return
     
-    # Check subscription for normal start
-    if not await check_force_sub(user_id):
-        try:
-            channel = await bot.get_chat(Config.FORCE_SUB_CHANNEL)
-            channel_link = f"https://t.me/{channel.username}" if channel.username else f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
-        except:
-            channel_link = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
-        
-        await message.reply_text(
-            "⚠️ **Access Restricted**\n\nPlease join our channel first.\n\nAfter joining, click /start again.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=channel_link)]])
-        )
-        return
-    
-    # Track user
+    # Regular start - Redirect to website
     if users_collection:
         try:
             await users_collection.update_one(
@@ -606,61 +627,39 @@ async def start_cmd(client, message):
         except:
             pass
     
-    # Send welcome message
     await message.reply_text(
-        f"👋 **Welcome to SK4FiLM Bot!**\n\n"
-        f"🎬 **Features:**\n"
-        f"• Search thousands of movies\n"
-        f"• Multiple quality options (480p/720p/1080p)\n"
-        f"• Fast downloads\n"
-        f"• Regular updates\n\n"
-        f"**How to use:**\n"
-        f"1. Send movie name\n"
-        f"2. Choose quality\n"
-        f"3. Get instant download\n\n"
-        f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
-        f"⚡ Powered by SK4FiLM",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)],
-            [InlineKeyboardButton("📢 Channel", url=f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1")]
-        ])
-    )
-
-@bot.on_message(filters.text & filters.private & ~filters.command(['start', 'help', 'about', 'stats']))
-async def search_cmd(client, message):
-    user_id = message.from_user.id
-    
-    if not await check_force_sub(user_id):
-        await message.reply_text("❌ Please join our channel first. Click /start")
-        return
-    
-    query = message.text.strip()
-    search_url = f"{Config.WEBSITE_URL}/search.html?query={urllib.parse.quote(query)}"
-    shortened = await shorten_link(search_url)
-    
-    # Track search
-    if stats_collection:
-        try:
-            await stats_collection.insert_one({
-                'user_id': user_id,
-                'query': query,
-                'timestamp': datetime.now(),
-                'type': 'search'
-            })
-        except:
-            pass
-    
-    await message.reply_text(
-        f"🔍 **Searching for:** {query}\n\n"
-        f"📊 Results will show:\n"
-        f"• Text posts with full details\n"
-        f"• Available quality options\n"
-        f"• Direct download buttons\n\n"
-        f"👉 Click below to view results",
+        f"🎬 **Welcome to SK4FiLM Bot!**\n\n"
+        f"📌 This bot is only for **file delivery**.\n\n"
+        f"🔍 To search movies and download:\n"
+        f"👉 Visit our website\n\n"
+        f"**How it works:**\n"
+        f"1️⃣ Search movie on website\n"
+        f"2️⃣ Select quality (480p/720p/1080p)\n"
+        f"3️⃣ Click download - Bot will send file\n\n"
+        f"⚡ Fast • Simple • Automated",
         reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("📱 View Results", url=shortened)
+            InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)
         ]])
     )
+
+@bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'broadcast']))
+async def handle_any_message(client, message):
+    """Handle any text message - Redirect to website"""
+    user_id = message.from_user.id
+    
+    await message.reply_text(
+        f"👋 Hi **{message.from_user.first_name}**!\n\n"
+        f"🤖 This bot doesn't accept direct messages.\n\n"
+        f"🔍 **To search movies:**\n"
+        f"Please visit our website below\n\n"
+        f"📌 All searches and downloads are done through the website.\n"
+        f"This bot only delivers files automatically.",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🌐 Visit SK4FiLM Website", url=Config.WEBSITE_URL)
+        ]])
+    )
+    
+    logger.info(f"💬 Message from {user_id}: '{message.text[:50]}' - Redirected to website")
 
 @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
 async def stats_cmd(client, message):
@@ -672,7 +671,6 @@ async def stats_cmd(client, message):
         
         # Recent activity
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_searches = await stats_collection.count_documents({'type': 'search', 'timestamp': {'$gte': today}}) if stats_collection else 0
         today_downloads = await stats_collection.count_documents({'type': 'download', 'timestamp': {'$gte': today}}) if stats_collection else 0
         
         stats_text = (
@@ -682,7 +680,6 @@ async def stats_cmd(client, message):
             f"🔍 Total Searches: `{total_searches}`\n"
             f"⬇️ Total Downloads: `{total_downloads}`\n\n"
             f"**Today:**\n"
-            f"🔍 Searches: `{today_searches}`\n"
             f"⬇️ Downloads: `{today_downloads}`\n\n"
             f"**Database:**\n"
             f"🎬 Movies: `{len(movie_db['home_movies'])}`\n"
@@ -692,7 +689,9 @@ async def stats_cmd(client, message):
             f"• OMDB: `{movie_db['stats']['omdb']}`\n"
             f"• TMDB: `{movie_db['stats']['tmdb']}`\n"
             f"• Custom: `{movie_db['stats']['custom']}`\n\n"
-            f"🕒 Last Update: `{movie_db['last_update'].strftime('%H:%M:%S') if movie_db['last_update'] else 'Never'}`"
+            f"🕒 Last Update: `{movie_db['last_update'].strftime('%H:%M:%S') if movie_db['last_update'] else 'Never'}`\n"
+            f"🤖 Bot: `{'✅ Running' if bot_started else '❌ Stopped'}`\n"
+            f"👤 User Client: `{'✅ Running' if user_started else '❌ Stopped'}`"
         )
         await message.reply_text(stats_text)
     except Exception as e:
@@ -738,15 +737,16 @@ async def broadcast_cmd(client, message):
     except Exception as e:
         await message.reply_text(f"❌ Error: {e}")
 
-# ==================== WEB ROUTES ====================
+# ==================== WEB API ROUTES ====================
 @app.route('/')
 async def home():
     return jsonify({
         'status': 'healthy' if bot_started and user_started else 'starting',
-        'service': 'SK4FiLM',
+        'service': 'SK4FiLM API',
         'version': '2.0',
         'bot_username': f'@{Config.BOT_USERNAME}',
         'website': Config.WEBSITE_URL,
+        'bot_mode': 'File Delivery Only',
         'channels': {
             'text': len(Config.TEXT_CHANNEL_IDS),
             'file': 1
@@ -755,7 +755,8 @@ async def home():
             'movies': len(movie_db['home_movies']),
             'cached_posters': len(movie_db['poster_cache']),
             'file_registry': len(file_registry)
-        }
+        },
+        'timestamp': datetime.now().isoformat()
     })
 
 @app.route('/health')
@@ -773,6 +774,8 @@ async def api_movies():
     if not user_started:
         return jsonify({'status': 'error', 'message': 'Service starting'}), 503
     
+    logger.info("📱 API: Homepage movies requested")
+    
     return jsonify({
         'status': 'success',
         'movies': movie_db['home_movies'],
@@ -783,7 +786,7 @@ async def api_movies():
 
 @app.route('/api/search')
 async def api_search():
-    """Search API with quality options"""
+    """Search API"""
     query = request.args.get('query', '').strip()
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 12))
@@ -795,7 +798,9 @@ async def api_search():
         return jsonify({'status': 'error', 'message': 'Service starting'}), 503
     
     try:
+        logger.info(f"📱 API: Search request - '{query}' | Page: {page}")
         result = await search_movies(query, limit, page)
+        
         return jsonify({
             'status': 'success',
             'query': query,
@@ -804,7 +809,7 @@ async def api_search():
             'bot_username': Config.BOT_USERNAME
         })
     except Exception as e:
-        logger.error(f"Search error: {e}")
+        logger.error(f"Search API error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/file/<unique_id>')
@@ -813,6 +818,8 @@ async def api_file_info(unique_id):
     file_info = file_registry.get(unique_id)
     if not file_info:
         return jsonify({'status': 'error', 'message': 'File not found'}), 404
+    
+    logger.info(f"📱 API: File info requested - {unique_id}")
     
     return jsonify({
         'status': 'success',
@@ -866,16 +873,16 @@ async def api_stats():
 
 # ==================== STARTUP ====================
 async def start_bot():
-    """Start bot"""
+    """Start Telegram bot"""
     global bot_started
     try:
-        logger.info("🤖 Starting bot...")
+        logger.info("🤖 Starting Telegram bot...")
         max_retries = 3
         for attempt in range(max_retries):
             try:
                 await bot.start()
                 me = await bot.get_me()
-                logger.info(f"✅ Bot: @{me.username}")
+                logger.info(f"✅ Bot started: @{me.username}")
                 bot_started = True
                 return
             except FloodWait as e:
@@ -889,7 +896,7 @@ async def start_bot():
                 else:
                     raise
     except Exception as e:
-        logger.error(f"Bot start error: {e}")
+        logger.error(f"❌ Bot start error: {e}")
 
 async def start_user():
     """Start user client"""
@@ -898,19 +905,20 @@ async def start_user():
         logger.info("👤 Starting user client...")
         await User.start()
         me = await User.get_me()
-        logger.info(f"✅ User: {me.first_name}")
+        logger.info(f"✅ User client started: {me.first_name}")
         user_started = True
         
-        # Initial update
+        # Initial homepage update
         await background_update()
         
-        # Start auto-update loop
+        # Start background tasks
         asyncio.create_task(auto_update_loop())
+        asyncio.create_task(cleanup_loop())
     except Exception as e:
-        logger.error(f"User client error: {e}")
+        logger.error(f"❌ User client error: {e}")
 
 async def auto_update_loop():
-    """Auto-update loop"""
+    """Auto-update homepage movies"""
     while True:
         try:
             await asyncio.sleep(Config.AUTO_UPDATE_INTERVAL)
@@ -918,43 +926,56 @@ async def auto_update_loop():
         except Exception as e:
             logger.error(f"Auto-update error: {e}")
 
+async def cleanup_loop():
+    """Cleanup old file registry entries"""
+    while True:
+        try:
+            await asyncio.sleep(3600)  # Every hour
+            await cleanup_old_files()
+        except Exception as e:
+            logger.error(f"Cleanup loop error: {e}")
+
 async def start_web():
-    """Start web server"""
+    """Start web API server"""
     try:
         config = HyperConfig()
         config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
         config.loglevel = "info"
-        logger.info(f"🌐 Starting web server on port {Config.WEB_SERVER_PORT}")
+        logger.info(f"🌐 Starting web API server on port {Config.WEB_SERVER_PORT}")
         await serve(app, config)
     except Exception as e:
-        logger.error(f"Web server error: {e}")
+        logger.error(f"❌ Web server error: {e}")
 
 async def main():
-    """Main startup"""
-    logger.info("=" * 60)
-    logger.info("🚀 SK4FiLM - Complete Movie Bot System")
-    logger.info("=" * 60)
-    logger.info(f"📊 Config:")
+    """Main startup function"""
+    logger.info("=" * 70)
+    logger.info("🚀 SK4FiLM - Movie Bot & API System")
+    logger.info("=" * 70)
+    logger.info(f"📌 Bot Mode: FILE DELIVERY ONLY")
+    logger.info(f"📊 Configuration:")
     logger.info(f"   • Text Channels: {len(Config.TEXT_CHANNEL_IDS)}")
     logger.info(f"   • File Channel: 1")
-    logger.info(f"   • Force Subscribe: Enabled")
+    logger.info(f"   • Force Subscribe: ✅ Enabled")
     logger.info(f"   • Auto Delete: {Config.AUTO_DELETE_TIME}s")
     logger.info(f"   • Auto Update: {Config.AUTO_UPDATE_INTERVAL}s")
+    logger.info(f"   • Web Port: {Config.WEB_SERVER_PORT}")
     logger.info(f"💾 MongoDB: {'✅ Enabled' if MONGODB_AVAILABLE and Config.MONGODB_URI else '❌ Disabled'}")
     logger.info(f"🌐 Website: {Config.WEBSITE_URL}")
     logger.info(f"🤖 Bot: @{Config.BOT_USERNAME}")
-    logger.info("=" * 60)
+    logger.info("=" * 70)
+    logger.info("🔄 Starting all services...")
     
+    # Start all services concurrently
     await asyncio.gather(
-        start_bot(),
-        start_user(),
-        start_web()
+        start_bot(),      # Telegram bot - file delivery only
+        start_user(),     # User client - channel access
+        start_web()       # Web API server
     )
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("⚠️ Stopped by user")
+        logger.info("\n⚠️ Stopped by user (Ctrl+C)")
     except Exception as e:
         logger.error(f"❌ Fatal error: {e}")
