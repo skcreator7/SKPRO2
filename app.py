@@ -13,7 +13,10 @@ def search():
 
 @app.route('/post.html')
 def post():
-    return send_from_directory('.', 'post.html')
+    try:
+        return send_from_directory('.', 'post.html')
+    except:
+        return send_from_directory('.', 'index.html')
 
 @app.route('/health')
 def health():
@@ -23,8 +26,9 @@ def health():
 def static_files(path):
     try:
         return send_from_directory('.', path)
-    except:
+    except Exception as e:
+        print(f"Error serving {path}: {e}")
         return send_from_directory('.', 'index.html')
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=False)
