@@ -51,11 +51,15 @@ class Config:
     
     OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e"]
     TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff"]
-    BACKEND_URL = os.environ.get("BACKEND_URL", f"http://localhost:{WEB_SERVER_PORT}")
+    BACKEND_URL = os.environ.get("BACKEND_URL", "")  # Will be set to Koyeb URL
 
 if not Config.BOT_TOKEN:
     logger.error("❌ BOT_TOKEN missing")
     exit(1)
+
+# Set BACKEND_URL if not provided
+if not Config.BACKEND_URL:
+    Config.BACKEND_URL = f"https://{os.environ.get('KOYEB_APP_NAME', 'app')}-{os.environ.get('KOYEB_SERVICE_NAME', 'service')}.koyeb.app"
 
 # ==================== GLOBAL STATE ====================
 bot_started = False
@@ -66,11 +70,9 @@ file_registry = {}
 users_collection = None
 stats_collection = None
 
-# ==================== QUART APP (MINIMAL CONFIG) ====================
-# Create app WITHOUT any initial config to avoid KeyError
+# ==================== QUART APP ====================
 app = Quart(__name__)
 
-# Set config AFTER creation
 @app.before_first_request
 async def configure_app():
     app.config['JSON_SORT_KEYS'] = False
@@ -415,7 +417,11 @@ async def stats_h(c, m):
 # ==================== API ====================
 @app.route('/')
 async def root():
-    return jsonify({'status': 'healthy', 'service': 'SK4FiLM', 'bot': f'@{Config.BOT_USERNAME}'})
+    return jsonify({'status': 'healthy', 'service': 'SK4FiLM', 'bot': f'@{Config.BOT_USERNAME}', 'backend_url': Config.BACKEND_URL})
+
+@app.route('/health')
+async def health():
+    return jsonify({'status': 'ok', 'bot': bot_started, 'user': user_started})
 
 @app.route('/api/movies')
 async def api_movies():
@@ -508,20 +514,16 @@ async def cleanup():
     if bot_started:
         try:
             await bot.stop()
-            logger.info("✅ Bot stopped")
         except:
             pass
     if user_started and User:
         try:
             await User.stop()
-            logger.info("✅ User stopped")
         except:
             pass
     shutdown_event.set()
-    logger.info("✅ Cleanup done")
 
 def sig_handler(signum, frame):
-    logger.info(f"\n⚠️ Signal {signum}")
     asyncio.create_task(cleanup())
 
 async def main():
@@ -529,25 +531,19 @@ async def main():
     signal.signal(signal.SIGTERM, sig_handler)
     
     logger.info("=" * 60)
-    logger.info("🚀 SK4FiLM Starting")
+    logger.info("🚀 SK4FiLM Starting (Koyeb)")
     logger.info("=" * 60)
     logger.info(f"🤖 Bot: @{Config.BOT_USERNAME}")
     logger.info(f"🌐 Website: {Config.WEBSITE_URL}")
+    logger.info(f"📡 Backend: {Config.BACKEND_URL}")
     logger.info("=" * 60)
     
     try:
         await asyncio.gather(start_bot(), start_user(), start_web())
-    except KeyboardInterrupt:
-        logger.info("\n⚠️ Keyboard interrupt")
-    except Exception as e:
-        logger.error(f"❌ Fatal: {e}")
+    except:
+        pass
     finally:
         await cleanup()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("\n⚠️ Stopped")
-    except Exception as e:
-        logger.error(f"❌ Error: {e}")
+    asyncio.run(main())
