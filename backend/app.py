@@ -32,7 +32,7 @@ class Config:
     
     FORCE_SUB_CHANNEL = int(os.environ.get("FORCE_SUB_CHANNEL", "-1001891090100"))
     WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
-    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4film_bot")
+    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
     ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
     AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "300"))
     WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
@@ -41,9 +41,16 @@ class Config:
     OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e", "c3e6f8d9"]
     TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff"]
 
-# ==================== QUART APP ====================
+# ==================== QUART APP (FIX APPLIED) ====================
+# FIX: Initialize with proper config BEFORE any routes
 app = Quart(__name__)
-app.config['JSON_SORT_KEYS'] = False
+
+# Set config BEFORE using app
+app.config.update({
+    'JSON_SORT_KEYS': False,
+    'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
+    'PROVIDE_AUTOMATIC_OPTIONS': True  # FIX for Quart 0.19.4 + Flask 3.1 compatibility
+})
 
 @app.after_request
 async def add_headers(response):
@@ -249,7 +256,7 @@ async def search_movies(query, limit=12, page=1):
                 if msg.text:
                     t = extract_title_smart(msg.text)
                     if t and t.lower() not in seen:
-                        results.append({'title': t, 'type': 'text_post', 'content': format_post(msg.text), 'date': msg.date.isoformat() if msg.date else datetime.now().isoformat(), 'channel': channel_name(cid), 'is_new': is_new(msg.date) if msg.date else False, 'has_file': False, 'quality_options': {}})
+                        results.append({'title': t, 'type': 'text_post', 'content': format_post(msg.text), 'date': msg.date.isoformat() if msg.date else datetime.now().isoformat(), 'channel': channel_name(cid), 'channel_id': cid, 'message_id': msg.id, 'is_new': is_new(msg.date) if msg.date else False, 'has_file': False, 'quality_options': {}})
                         seen[t.lower()] = len(results) - 1
                         cnt += 1
         except:
@@ -278,7 +285,7 @@ async def search_movies(query, limit=12, page=1):
                         results[idx]['type'] = 'with_file'
                         results[idx]['quality_options'][q] = {'file_id': uid, 'file_size': fsz, 'file_name': fnm}
                     else:
-                        results.append({'title': t, 'type': 'with_file', 'content': format_post(msg.caption or t) if msg.caption else t, 'date': msg.date.isoformat() if msg.date else datetime.now().isoformat(), 'channel': channel_name(Config.FILE_CHANNEL_ID), 'is_new': is_new(msg.date) if msg.date else False, 'has_file': True, 'quality_options': {q: {'file_id': uid, 'file_size': fsz, 'file_name': fnm}}})
+                        results.append({'title': t, 'type': 'with_file', 'content': format_post(msg.caption or t) if msg.caption else t, 'date': msg.date.isoformat() if msg.date else datetime.now().isoformat(), 'channel': channel_name(Config.FILE_CHANNEL_ID), 'channel_id': Config.FILE_CHANNEL_ID, 'message_id': msg.id, 'is_new': is_new(msg.date) if msg.date else False, 'has_file': True, 'quality_options': {q: {'file_id': uid, 'file_size': fsz, 'file_name': fnm}}})
                         seen[tk] = len(results) - 1
                     cnt += 1
     except:
@@ -333,11 +340,11 @@ async def get_home_movies():
 # ==================== API ====================
 @app.route('/')
 async def root():
-    return jsonify({'status': 'healthy', 'service': 'SK4FiLM', 'bot': f'@{Config.BOT_USERNAME}', 'sources': ['OMDB','TMDB','IMPAwards','JustWatch','Letterboxd'], 'stats': movie_db['stats']})
+    return jsonify({'status': 'healthy', 'service': 'SK4FiLM', 'bot': f'@{Config.BOT_USERNAME}', 'sources': ['OMDB','TMDB','IMPAwards','JustWatch','Letterboxd'], 'stats': movie_db['stats'], 'movies': len(movie_db['home_movies']), 'files': len(file_registry)})
 
 @app.route('/health')
 async def health():
-    return jsonify({'status': 'ok' if bot_started else 'starting', 'bot': bot_started})
+    return jsonify({'status': 'ok' if bot_started else 'starting', 'bot': bot_started, 'movies': len(movie_db['home_movies'])})
 
 @app.route('/api/movies')
 async def api_movies():
@@ -408,12 +415,13 @@ async def setup_bot():
                 await message.reply_text("❌ Not Found", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 Search", url=Config.WEBSITE_URL)]]))
                 return
             try:
-                pm = await message.reply_text(f"⏳ Sending...\n\n📁 {fi['file_name']}\n📊 {fi['quality']}")
+                pm = await message.reply_text(f"⏳ Sending\n\n📁 {fi['file_name']}\n📊 {fi['quality']}\n📦 {format_size(fi['file_size'])}")
                 if User:
                     fm = await User.get_messages(fi['channel_id'], fi['message_id'])
                     sent = await fm.copy(uid)
                     await pm.delete()
-                    sm = await message.reply_text(f"✅ Sent!\n\n🎬 {fi['title']}\n📊 {fi['quality']}\n\n⚠️ Delete in {Config.AUTO_DELETE_TIME//60}min")
+                    sm = await message.reply_text(f"✅ Sent!\n\n🎬 {fi['title']}\n📊 {fi['quality']}\n📦 {format_size(fi['file_size'])}\n\n⚠️ Delete in {Config.AUTO_DELETE_TIME//60}min")
+                    logger.info(f"✅ {fi['title']} → {uid}")
                     if Config.AUTO_DELETE_TIME > 0:
                         await asyncio.sleep(Config.AUTO_DELETE_TIME)
                         try:
@@ -421,10 +429,11 @@ async def setup_bot():
                             await sm.edit_text("🗑️ Deleted")
                         except:
                             pass
-            except:
+            except Exception as e:
+                logger.error(f"Delivery: {e}")
                 await message.reply_text("❌ Error")
             return
-        await message.reply_text("🎬 SK4FiLM\n\n1. Visit\n2. Search\n3. Get", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Go", url=Config.WEBSITE_URL)]]))
+        await message.reply_text("🎬 **SK4FiLM**\n\n1. Visit\n2. Search\n3. Get", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Go", url=Config.WEBSITE_URL)]]))
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats']))
     async def text_handler(client, message):
@@ -432,36 +441,46 @@ async def setup_bot():
     
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
-        await message.reply_text(f"📊\n🎬 {len(movie_db['home_movies'])}\n📁 {len(file_registry)}\n🖼️ OMDB:{movie_db['stats']['omdb']} TMDB:{movie_db['stats']['tmdb']} IMP:{movie_db['stats']['impawards']} JW:{movie_db['stats']['justwatch']} LB:{movie_db['stats']['letterboxd']} Custom:{movie_db['stats']['custom']}")
+        await message.reply_text(f"📊 **Stats**\n\n🎬 Movies: {len(movie_db['home_movies'])}\n📁 Files: {len(file_registry)}\n🖼️ Posters:\n  OMDB: {movie_db['stats']['omdb']}\n  TMDB: {movie_db['stats']['tmdb']}\n  IMPAwards: {movie_db['stats']['impawards']}\n  JustWatch: {movie_db['stats']['justwatch']}\n  Letterboxd: {movie_db['stats']['letterboxd']}\n  Custom: {movie_db['stats']['custom']}\n\n🤖 Bot: {'✅' if bot_started else '❌'}")
 
 # ==================== INIT ====================
 async def init():
     global User, bot, bot_started
     try:
-        logger.info("🔄 Init...")
+        logger.info("🔄 Initializing...")
         User = Client("sk4film_user", api_id=Config.API_ID, api_hash=Config.API_HASH, session_string=Config.USER_SESSION_STRING, workdir="/tmp", sleep_threshold=60)
         bot = Client("sk4film_bot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, workdir="/tmp", sleep_threshold=60)
         await User.start()
         await bot.start()
         await setup_bot()
         me = await bot.get_me()
-        logger.info(f"✅ @{me.username}")
+        logger.info(f"✅ Bot: @{me.username}")
         bot_started = True
         movie_db['home_movies'] = await get_home_movies()
         movie_db['last_update'] = datetime.now()
+        logger.info("✅ System ready!")
         return True
     except Exception as e:
-        logger.error(f"Init: {e}")
+        logger.error(f"Init error: {e}")
         return False
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM - 5 Poster Sources")
+    logger.info("🚀 SK4FiLM - Complete System with 5 Poster Sources")
     logger.info("="*70)
+    logger.info(f"🌐 Website: {Config.WEBSITE_URL}")
+    logger.info(f"📡 Backend: {Config.BACKEND_URL}")
+    logger.info(f"🤖 Bot: @{Config.BOT_USERNAME}")
+    logger.info("="*70)
+    
     await init()
+    
     cfg = HyperConfig()
     cfg.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     cfg.loglevel = "warning"
+    cfg.accesslog = "-"
+    
+    logger.info(f"🌐 Server starting on port {Config.WEB_SERVER_PORT}")
     await serve(app, cfg)
 
 if __name__ == "__main__":
