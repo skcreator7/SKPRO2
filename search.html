@@ -3,23 +3,19 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SK4FiLM Search - Quality Selection</title>
+    <title>SK4FiLM Search</title>
     
-    <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-5244164301170945">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     
     <style>
         :root {
             --primary: #ff0000;
-            --secondary: #0066ff;
             --accent: #00ccff;
-            --text: #f8f9fa;
         }
         
         * {
@@ -33,7 +29,7 @@
             background-size: cover;
             min-height: 100vh;
             font-family: 'Josefin Sans', sans-serif;
-            color: var(--text);
+            color: #f8f9fa;
             padding-top: 90px;
         }
         
@@ -44,7 +40,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(10, 10, 10, 0.7);
+            background: rgba(10, 10, 10, 0.75);
             z-index: -1;
         }
         
@@ -74,26 +70,16 @@
         .brand-text {
             font-family: 'Montserrat', sans-serif;
             font-size: 2.2rem;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            background: linear-gradient(90deg, var(--primary), #0066ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
         
-        .section-box {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(5px);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
+        /* CLEAN RESULT CARD - ONLY TITLE + BUTTONS */
         .result-card {
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(45, 55, 72, 0.95));
             border-radius: 20px;
-            padding: 30px;
+            padding: 35px;
             margin-bottom: 25px;
             border: 2px solid rgba(255,255,255,0.15);
             transition: all 0.4s ease;
@@ -104,74 +90,74 @@
         .result-card:hover {
             transform: translateY(-8px);
             box-shadow: 0 20px 50px rgba(0, 204, 255, 0.4);
-            border-color: rgba(0, 204, 255, 0.6);
+            border-color: var(--accent);
         }
         
         .movie-title {
-            font-size: 2rem;
+            font-size: 2.2rem;
             font-weight: 800;
             color: var(--accent);
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             text-shadow: 0 3px 15px rgba(0, 204, 255, 0.6);
-            letter-spacing: 1px;
-            line-height: 1.3;
+            letter-spacing: 0.5px;
         }
         
-        .badge-container {
+        .badge-row {
             display: flex;
             gap: 12px;
             justify-content: center;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             flex-wrap: wrap;
         }
         
         .quality-badge {
             background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
-            padding: 8px 18px;
+            padding: 10px 20px;
             border-radius: 20px;
             font-weight: 700;
-            font-size: 0.85rem;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+            font-size: 0.9rem;
         }
         
         .new-badge {
             background: linear-gradient(45deg, #ff4757, #ff6b81);
             color: white;
-            padding: 8px 18px;
+            padding: 10px 20px;
             border-radius: 20px;
             font-weight: 700;
-            font-size: 0.85rem;
-            animation: newPulse 3s infinite;
+            font-size: 0.9rem;
+            animation: pulse 2s infinite;
         }
         
-        @keyframes newPulse {
+        @keyframes pulse {
             0%, 100% { box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4); }
             50% { box-shadow: 0 6px 25px rgba(255, 71, 87, 0.7); }
         }
         
-        .action-buttons {
+        .action-btns {
             display: flex;
             gap: 20px;
             justify-content: center;
-            margin-top: 25px;
             flex-wrap: wrap;
+        }
+        
+        .watch-btn, .download-btn {
+            border: none;
+            padding: 20px 50px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
         }
         
         .watch-btn {
             background: linear-gradient(45deg, #0088cc, #00ccff);
-            color: white;
-            border: none;
-            padding: 18px 45px;
-            border-radius: 30px;
-            font-weight: 800;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.4s ease;
             box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
-            display: flex;
-            align-items: center;
-            gap: 12px;
         }
         
         .watch-btn:hover {
@@ -181,18 +167,7 @@
         
         .download-btn {
             background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            border: none;
-            padding: 18px 45px;
-            border-radius: 30px;
-            font-weight: 800;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.4s ease;
             box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
-            display: flex;
-            align-items: center;
-            gap: 12px;
         }
         
         .download-btn:hover {
@@ -206,18 +181,19 @@
             opacity: 0.6;
         }
         
+        /* QUALITY POPUP */
         .quality-popup-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.92);
+            background: rgba(0, 0, 0, 0.93);
             z-index: 5000;
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 0.3s ease-in;
+            animation: fadeIn 0.3s;
         }
         
         @keyframes fadeIn {
@@ -225,14 +201,14 @@
             to { opacity: 1; }
         }
         
-        .quality-popup-container {
+        .quality-popup-box {
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(45, 55, 72, 0.98));
             border-radius: 25px;
-            padding: 40px;
-            max-width: 600px;
+            padding: 45px;
+            max-width: 650px;
             width: 92%;
-            border: 2px solid rgba(0, 204, 255, 0.3);
-            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--accent);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9);
             animation: slideUp 0.4s ease-out;
         }
         
@@ -241,146 +217,81 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .quality-popup-header {
-            text-align: center;
-            margin-bottom: 35px;
-            padding-bottom: 25px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .quality-popup-title {
-            font-size: 2rem;
+        .popup-title {
+            font-size: 2.2rem;
             font-weight: 800;
             color: var(--accent);
-            margin-bottom: 15px;
-            text-shadow: 0 2px 10px rgba(0, 204, 255, 0.5);
-        }
-        
-        .quality-options {
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
+            text-align: center;
             margin-bottom: 30px;
+            text-shadow: 0 2px 10px rgba(0, 204, 255, 0.5);
         }
         
         .quality-option {
             background: linear-gradient(45deg, rgba(40, 167, 69, 0.15), rgba(32, 201, 151, 0.15));
             border: 2px solid rgba(40, 167, 69, 0.4);
-            border-radius: 18px;
-            padding: 22px 30px;
+            border-radius: 20px;
+            padding: 25px 35px;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 18px;
         }
         
         .quality-option:hover {
             background: linear-gradient(45deg, rgba(40, 167, 69, 0.3), rgba(32, 201, 151, 0.3));
-            border-color: rgba(40, 167, 69, 0.7);
+            border-color: #28a745;
             transform: translateX(10px);
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.5);
         }
         
-        .quality-badge-popup {
+        .quality-badge-big {
             background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
-            padding: 10px 20px;
-            border-radius: 15px;
+            padding: 12px 25px;
+            border-radius: 18px;
             font-weight: 800;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+            font-size: 1.3rem;
         }
         
-        .popup-close-btn {
+        .close-popup-btn {
             background: linear-gradient(45deg, #ff4757, #dc3545);
             color: white;
             border: none;
-            padding: 15px 35px;
+            padding: 16px;
             border-radius: 25px;
             font-weight: 700;
             font-size: 1.1rem;
             cursor: pointer;
             width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+            margin-top: 25px;
         }
         
-        .popup-close-btn:hover {
+        .close-popup-btn:hover {
             background: linear-gradient(45deg, #ff3838, #c82333);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(255, 71, 87, 0.6);
-        }
-        
-        .pagination-controls {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin: 30px 0;
-            padding: 25px;
-            background: rgba(30, 41, 59, 0.8);
-            border-radius: 20px;
         }
         
         .page-btn {
             background: rgba(15, 23, 42, 0.9);
             border: 2px solid rgba(255,255,255,0.2);
             color: white;
-            padding: 12px 18px;
+            padding: 12px 20px;
             border-radius: 15px;
             cursor: pointer;
             font-weight: 700;
-            transition: all 0.4s ease;
-            min-width: 50px;
+            min-width: 55px;
+            margin: 5px;
         }
         
-        .page-btn:hover {
-            background: var(--accent);
-            transform: translateY(-3px);
-        }
-        
-        .page-btn.active {
-            background: linear-gradient(45deg, var(--primary), #dc3545);
-        }
-        
-        .page-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        
-        .search-loading {
-            width: 4rem;
-            height: 4rem;
-            border: 6px solid rgba(255, 255, 255, 0.3);
-            border-top: 6px solid #28a745;
-            border-radius: 50%;
-            animation: spin 1.5s linear infinite;
-            margin: 0 auto 25px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .debug-info {
-            background: rgba(40, 167, 69, 0.2);
-            border: 2px solid rgba(40, 167, 69, 0.4);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
+        .page-btn:hover { background: var(--accent); }
+        .page-btn.active { background: linear-gradient(45deg, var(--primary), #dc3545); }
         
         @media (max-width: 768px) {
             body { padding-top: 80px; }
-            .movie-title { font-size: 1.5rem; }
-            .action-buttons { flex-direction: column; }
+            .movie-title { font-size: 1.6rem; }
+            .action-btns { flex-direction: column; }
             .watch-btn, .download-btn { width: 100%; justify-content: center; }
-            .quality-popup-container { padding: 25px; }
-            .quality-option { flex-direction: column; text-align: center; gap: 10px; }
         }
     </style>
 </head>
@@ -396,186 +307,76 @@
                         <div style="font-size: 0.85rem; color: var(--accent);">Search Results</div>
                     </div>
                 </a>
-                
-                <a href="/" style="color: var(--accent); text-decoration: none; font-weight: 700; background: rgba(0,204,255,0.15); padding: 12px 20px; border-radius: 15px; border: 2px solid rgba(0,204,255,0.3);">
-                    <i class="fas fa-home me-2"></i>New Search
+                <a href="/" style="color: var(--accent); text-decoration: none; font-weight: 700; background: rgba(0,204,255,0.15); padding: 12px 20px; border-radius: 15px;">
+                    <i class="fas fa-home me-2"></i>Home
                 </a>
             </div>
         </div>
     </nav>
     
     <div class="container">
-        <!-- Debug Info -->
-        <div id="debugInfo" class="debug-info" style="display: none;">
-            <strong>🐛 Debug Info:</strong><br>
-            Query: <span id="debugQuery">-</span><br>
-            Backend: <span id="debugBackend">-</span><br>
-            Status: <span id="debugStatus">-</span><br>
-            Results: <span id="debugResults">-</span><br>
-            Error: <span id="debugError">-</span>
-        </div>
-
-        <!-- Search Results -->
-        <div class="section-box animate__animated animate__fadeIn">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h2 style="color: var(--accent); font-size: 2rem;">
-                    <i class="fas fa-search me-3"></i>Search Results
-                </h2>
-            </div>
-            
-            <div id="searchResults">
-                <div style="text-align: center; padding: 50px;">
-                    <div class="search-loading"></div>
-                    <h4 style="color: #28a745; margin-bottom: 15px;">
-                        <i class="fas fa-search me-2"></i>Searching Channels...
-                    </h4>
-                    <p style="color: rgba(255, 255, 255, 0.8);">
-                        Loading results with quality options...
-                    </p>
-                </div>
-            </div>
-            
-            <div id="searchPagination"></div>
-        </div>
+        <div id="searchResults"></div>
+        <div id="searchPagination" style="text-align: center;"></div>
     </div>
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         let BOT_USERNAME = 'sk4filmbot';
-        let searchQuery = '';
-        let currentPage = 1;
         
-        console.log('%c🔍 SEARCH SYSTEM LOADED', 'color: #28a745; font-size: 20px; font-weight: bold;');
-        console.log('📡 Backend URL:', BACKEND_URL);
-        
-        // Enable debug mode - Press Ctrl+D
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.key === 'd') {
-                e.preventDefault();
-                const debugDiv = document.getElementById('debugInfo');
-                debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
-            }
-        });
-        
-        function updateDebug(field, value) {
-            const element = document.getElementById(`debug${field}`);
-            if (element) {
-                element.textContent = value;
-                console.log(`🐛 ${field}:`, value);
-            }
-        }
-        
-        // Load search results
         async function loadSearchResults(query, page = 1) {
             const container = document.getElementById('searchResults');
-            searchQuery = query;
-            currentPage = page;
-            
-            console.log('🔍 Loading search results...');
-            console.log('  Query:', query);
-            console.log('  Page:', page);
-            
-            updateDebug('Query', query);
-            updateDebug('Backend', BACKEND_URL);
-            updateDebug('Status', 'Loading...');
+            container.innerHTML = '<div style="text-align: center; padding: 80px;"><div style="width: 4rem; height: 4rem; border: 6px solid rgba(255,255,255,0.3); border-top: 6px solid #28a745; border-radius: 50%; animation: spin 1.5s linear infinite; margin: 0 auto 25px;"></div><h4 style="color: #28a745;">Searching...</h4></div>';
             
             try {
-                if (page > 1) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 40px;">
-                            <div class="search-loading"></div>
-                            <h5 style="color: #28a745;">Loading Page ${page}...</h5>
-                        </div>
-                    `;
-                }
-                
-                const url = `${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=12`;
-                console.log('📡 Fetching:', url);
-                updateDebug('Status', 'Fetching API...');
-                
-                const response = await fetch(url);
-                console.log('📥 Response status:', response.status);
-                updateDebug('Status', `Response: ${response.status}`);
-                
+                const response = await fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=12`);
                 const data = await response.json();
-                console.log('📦 Data received:', data);
-                updateDebug('Status', data.status);
                 
-                if (data.status === 'success') {
-                    console.log('✅ Results:', data.results.length);
-                    updateDebug('Results', data.results.length);
-                    updateDebug('Error', 'None');
-                    
-                    if (data.results && data.results.length > 0) {
-                        BOT_USERNAME = data.bot_username || 'sk4filmbot';
-                        console.log('🤖 Bot username:', BOT_USERNAME);
-                        
-                        displayResults(data.results, query);
-                        setupPagination(data.pagination, query);
-                    } else {
-                        console.log('⚠️ No results found');
-                        showNoResults(query);
-                    }
+                if (data.status === 'success' && data.results?.length > 0) {
+                    BOT_USERNAME = data.bot_username || 'sk4filmbot';
+                    displayResults(data.results, query);
+                    setupPagination(data.pagination, query);
                 } else {
-                    console.error('❌ API error:', data.message);
-                    updateDebug('Error', data.message || 'Unknown');
-                    showError(query, data.message);
+                    showNoResults(query);
                 }
-                
             } catch (error) {
-                console.error('❌ Fetch error:', error);
-                updateDebug('Error', error.message);
-                showError(query, error.message);
+                console.error('Error:', error);
+                showError(query);
             }
         }
         
-        // Display results
         function displayResults(results, query) {
-            console.log('🎨 Displaying', results.length, 'results');
-            
             const container = document.getElementById('searchResults');
-            
-            let html = `
-                <div style="margin-bottom: 30px; text-align: center;">
-                    <h3 style="color: var(--accent); font-size: 1.8rem;">
-                        <i class="fas fa-list-alt me-2"></i>Found ${results.length} results for "<strong>${escapeHTML(query)}</strong>"
-                    </h3>
-                </div>
-            `;
+            let html = `<div style="margin-bottom: 40px; text-align: center;"><h2 style="color: var(--accent); font-size: 2rem;"><i class="fas fa-list-alt me-2"></i>${results.length} Results for "${escapeHTML(query)}"</h2></div>`;
             
             results.forEach((result, index) => {
-                const movieTitle = result.title || 'Unknown Movie';
+                const title = result.title || 'Unknown';
                 const hasFile = result.has_file || false;
-                const qualityOptions = result.quality_options || {};
-                const availableQualities = Object.keys(qualityOptions);
-                
-                console.log(`  ${index + 1}. ${movieTitle} | File: ${hasFile} | Qualities: ${availableQualities.join(', ')}`);
+                const qualities = Object.keys(result.quality_options || {});
                 
                 html += `
-                    <div class="result-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.1}s">
-                        <!-- Title -->
+                    <div class="result-card" style="animation-delay: ${index * 0.1}s">
+                        <!-- ONLY TITLE -->
                         <div class="movie-title">
-                            <i class="fas fa-film me-3"></i>${escapeHTML(movieTitle)}
+                            <i class="fas fa-film me-3"></i>${escapeHTML(title)}
                         </div>
                         
-                        <!-- Badges -->
-                        <div class="badge-container">
+                        <!-- BADGES -->
+                        <div class="badge-row">
                             ${result.is_new ? '<span class="new-badge"><i class="fas fa-fire me-1"></i>NEW</span>' : ''}
-                            ${hasFile && availableQualities.length > 0 ? 
-                                `<span class="quality-badge"><i class="fas fa-check-circle me-1"></i>${availableQualities.join(', ')} Available</span>` : ''}
+                            ${hasFile && qualities.length > 0 ? `<span class="quality-badge"><i class="fas fa-check-circle me-1"></i>${qualities.join(', ')}</span>` : ''}
                         </div>
                         
-                        <!-- Buttons -->
-                        <div class="action-buttons">
+                        <!-- ONLY 2 BUTTONS -->
+                        <div class="action-btns">
                             <button class="watch-btn" onclick='watchPost(${JSON.stringify(result)})'>
                                 <i class="fas fa-eye fa-2x"></i>
-                                <span>Watch Post</span>
+                                <span>Watch</span>
                             </button>
                             
-                            ${hasFile && availableQualities.length > 0 ? `
-                                <button class="download-btn" onclick='showQualityPopup(${JSON.stringify(movieTitle)}, ${JSON.stringify(qualityOptions)})'>
+                            ${hasFile && qualities.length > 0 ? `
+                                <button class="download-btn" onclick='showQualityPopup(${JSON.stringify(title)}, ${JSON.stringify(result.quality_options)})'>
                                     <i class="fas fa-download fa-2x"></i>
-                                    <span>Download (${availableQualities.length} quality)</span>
+                                    <span>Download</span>
                                 </button>
                             ` : `
                                 <button class="download-btn" disabled>
@@ -589,225 +390,98 @@
             });
             
             container.innerHTML = html;
-            console.log('✅ Display complete');
-            
-            if (page > 1) {
-                setTimeout(() => {
-                    document.getElementById('searchResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 300);
-            }
         }
         
-        // Watch button
         function watchPost(result) {
             console.log('👁️ Watch:', result.title);
-            try {
-                sessionStorage.setItem('watchPost', JSON.stringify(result));
-                window.open(`post.html?id=${encodeURIComponent(result.title)}`, '_blank');
-            } catch (error) {
-                console.error('Watch error:', error);
-                alert('❌ Unable to open post');
-            }
+            sessionStorage.setItem('watchPost', JSON.stringify(result));
+            window.open(`post.html?id=${encodeURIComponent(result.title)}`, '_blank');
         }
         
-        // Quality popup
         function showQualityPopup(title, qualityOptions) {
-            console.log('📥 Quality popup for:', title);
-            console.log('   Options:', qualityOptions);
-            
+            console.log('📥 Quality popup:', title);
             const qualities = Object.keys(qualityOptions);
+            if (qualities.length === 0) return;
             
-            if (qualities.length === 0) {
-                alert('❌ No quality options available');
-                return;
-            }
-            
-            let optionsHTML = '';
-            
-            qualities.forEach(quality => {
-                const option = qualityOptions[quality];
-                const fileSize = option.file_size ? (option.file_size / (1024 * 1024)).toFixed(2) : 'Unknown';
-                
-                console.log(`   ${quality}: ${fileSize} MB | ID: ${option.file_id}`);
-                
-                optionsHTML += `
-                    <div class="quality-option" onclick='selectQuality("${escapeJS(title)}", "${quality}", "${escapeJS(option.file_id || '')}") '>
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div class="quality-badge-popup">${quality}</div>
-                            <div style="color: rgba(255,255,255,0.9); text-align: left;">
+            let html = '';
+            qualities.forEach(q => {
+                const opt = qualityOptions[q];
+                const size = (opt.file_size / (1024 * 1024)).toFixed(2);
+                html += `
+                    <div class="quality-option" onclick='selectQuality("${escapeJS(opt.file_id)}")'>
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div class="quality-badge-big">${q}</div>
+                            <div style="text-align: left; color: rgba(255,255,255,0.9);">
                                 <strong>${escapeHTML(title)}</strong><br>
-                                <small style="color: rgba(255,255,255,0.7);">${escapeHTML(option.file_name || 'video.mp4')}</small>
+                                <small style="color: rgba(255,255,255,0.7);">${escapeHTML(opt.file_name)}</small>
                             </div>
                         </div>
-                        <div style="color: rgba(255,255,255,0.7); font-weight: 600;">
-                            <i class="fas fa-hdd me-1"></i>${fileSize} MB
+                        <div style="color: rgba(255,255,255,0.7); font-weight: 700; font-size: 1.1rem;">
+                            <i class="fas fa-hdd me-1"></i>${size} MB
                         </div>
                     </div>
                 `;
             });
             
-            const popupHTML = `
+            const popup = `
                 <div class="quality-popup-overlay" id="qualityPopup" onclick="closePopupClick(event)">
-                    <div class="quality-popup-container" onclick="event.stopPropagation()">
-                        <div class="quality-popup-header">
-                            <div class="quality-popup-title">
-                                <i class="fas fa-sliders-h me-2"></i>Select Quality
-                            </div>
-                            <div style="color: rgba(255,255,255,0.8); font-size: 1rem;">
-                                Choose your preferred quality for:<br><strong>${escapeHTML(title)}</strong>
-                            </div>
+                    <div class="quality-popup-box" onclick="event.stopPropagation()">
+                        <div class="popup-title">
+                            <i class="fas fa-sliders-h me-2"></i>Select Quality
                         </div>
-                        
-                        <div class="quality-options">
-                            ${optionsHTML}
-                        </div>
-                        
-                        <button class="popup-close-btn" onclick="closeQualityPopup()">
+                        ${html}
+                        <button class="close-popup-btn" onclick="closeQualityPopup()">
                             <i class="fas fa-times me-2"></i>Close
                         </button>
                     </div>
                 </div>
             `;
             
-            document.body.insertAdjacentHTML('beforeend', popupHTML);
-            console.log('✅ Popup displayed');
+            document.body.insertAdjacentHTML('beforeend', popup);
         }
         
-        // Select quality
-        function selectQuality(title, quality, fileId) {
-            console.log(`✅ Selected: ${quality} for ${title}`);
-            console.log('   File ID:', fileId);
-            
+        function selectQuality(fileId) {
             closeQualityPopup();
-            
             if (!fileId) {
-                alert('❌ File ID not available');
+                alert('❌ File not available');
                 return;
             }
-            
-            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-            console.log('🤖 Opening bot:', botLink);
-            
-            // Success message
-            const successHTML = `
-                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 50px; border-radius: 20px; z-index: 6000; box-shadow: 0 20px 60px rgba(0,0,0,0.8); animation: fadeIn 0.3s ease;" id="successMsg">
-                    <div style="text-align: center; color: white;">
-                        <i class="fas fa-check-circle fa-4x mb-3"></i>
-                        <h3 style="margin-bottom: 15px;">${quality} Selected</h3>
-                        <p style="margin: 0;">Opening Telegram bot...</p>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', successHTML);
-            
-            setTimeout(() => {
-                const msg = document.getElementById('successMsg');
-                if (msg) document.body.removeChild(msg);
-                window.open(botLink, '_blank');
-            }, 1500);
+            window.open(`https://t.me/${BOT_USERNAME}?start=${fileId}`, '_blank');
         }
         
         function closeQualityPopup() {
             const popup = document.getElementById('qualityPopup');
-            if (popup) {
-                document.body.removeChild(popup);
-                console.log('✅ Popup closed');
-            }
+            if (popup) document.body.removeChild(popup);
         }
         
         function closePopupClick(event) {
-            if (event.target.id === 'qualityPopup') {
-                closeQualityPopup();
-            }
+            if (event.target.id === 'qualityPopup') closeQualityPopup();
         }
         
-        // Pagination
-        function setupPagination(paginationData, query) {
-            console.log('📄 Setting up pagination:', paginationData);
+        function setupPagination(pg, query) {
+            if (pg.total_pages <= 1) return;
             
-            const container = document.getElementById('searchPagination');
+            let html = '<div style="padding: 30px; background: rgba(30,41,59,0.8); border-radius: 20px; margin-top: 40px;">';
             
-            if (paginationData.total_pages <= 1) {
-                container.innerHTML = '';
-                return;
+            if (pg.has_previous) html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${pg.current_page - 1})">← Prev</button>`;
+            
+            for (let i = Math.max(1, pg.current_page - 2); i <= Math.min(pg.total_pages, pg.current_page + 2); i++) {
+                html += `<button class="page-btn ${i === pg.current_page ? 'active' : ''}" onclick="loadSearchResults('${escapeJS(query)}', ${i})">${i}</button>`;
             }
             
-            let html = `<div class="pagination-controls">`;
+            if (pg.has_next) html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${pg.current_page + 1})">Next →</button>`;
             
-            if (paginationData.has_previous) {
-                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${paginationData.current_page - 1})">
-                    <i class="fas fa-chevron-left"></i> Prev
-                </button>`;
-            }
+            html += `<div style="color: rgba(255,255,255,0.8); margin-top: 20px;">Page ${pg.current_page} / ${pg.total_pages} • ${pg.total_results} total</div></div>`;
             
-            const start = Math.max(1, paginationData.current_page - 2);
-            const end = Math.min(paginationData.total_pages, paginationData.current_page + 2);
-            
-            if (start > 1) {
-                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', 1)">1</button>`;
-                if (start > 2) html += `<span style="color: rgba(255,255,255,0.5); padding: 0 10px;">...</span>`;
-            }
-            
-            for (let i = start; i <= end; i++) {
-                html += `<button class="page-btn ${i === paginationData.current_page ? 'active' : ''}" onclick="loadSearchResults('${escapeJS(query)}', ${i})">${i}</button>`;
-            }
-            
-            if (end < paginationData.total_pages) {
-                if (end < paginationData.total_pages - 1) html += `<span style="color: rgba(255,255,255,0.5); padding: 0 10px;">...</span>`;
-                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${paginationData.total_pages})">${paginationData.total_pages}</button>`;
-            }
-            
-            if (paginationData.has_next) {
-                html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${paginationData.current_page + 1})">
-                    Next <i class="fas fa-chevron-right"></i>
-                </button>`;
-            }
-            
-            html += `</div>
-                <div style="text-align: center; margin-top: 10px; color: rgba(255,255,255,0.8);">
-                    Page ${paginationData.current_page} of ${paginationData.total_pages} • ${paginationData.total_results} total results
-                </div>`;
-            
-            container.innerHTML = html;
+            document.getElementById('searchPagination').innerHTML = html;
         }
         
         function showNoResults(query) {
-            console.log('⚠️ No results found');
-            updateDebug('Results', '0');
-            
-            document.getElementById('searchResults').innerHTML = `
-                <div style="text-align: center; padding: 80px;">
-                    <i class="fas fa-search fa-6x mb-4" style="color: #6c757d;"></i>
-                    <h3 style="color: var(--accent);">No Results Found</h3>
-                    <p style="color: rgba(255,255,255,0.8); margin: 20px 0;">No results for "<strong>${escapeHTML(query)}</strong>"</p>
-                    <a href="/" style="background: var(--primary); color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; margin-top: 20px; font-weight: 700;">
-                        <i class="fas fa-home me-2"></i>Try Another Search
-                    </a>
-                </div>
-            `;
-            document.getElementById('searchPagination').innerHTML = '';
+            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 100px;"><i class="fas fa-search fa-6x mb-4" style="color: #6c757d;"></i><h3 style="color: var(--accent);">No Results</h3><p style="color: rgba(255,255,255,0.8);">No results for "${escapeHTML(query)}"</p><a href="/" style="background: var(--primary); color: white; text-decoration: none; padding: 15px 35px; border-radius: 20px; display: inline-block; margin-top: 25px; font-weight: 700;"><i class="fas fa-home me-2"></i>Home</a></div>`;
         }
         
-        function showError(query, errorMsg = 'Unknown error') {
-            console.error('❌ Error:', errorMsg);
-            
-            document.getElementById('searchResults').innerHTML = `
-                <div style="text-align: center; padding: 80px;">
-                    <i class="fas fa-exclamation-triangle fa-6x text-warning mb-4"></i>
-                    <h3 style="color: #ffc107;">Error Loading Results</h3>
-                    <p style="color: rgba(255,255,255,0.8); margin: 20px 0;">
-                        ${escapeHTML(errorMsg)}<br><br>
-                        Backend may be starting or unavailable.
-                    </p>
-                    <button onclick="loadSearchResults('${escapeJS(query)}', 1)" style="background: #28a745; color: white; border: none; padding: 14px 28px; border-radius: 18px; cursor: pointer; font-weight: 700; font-size: 1rem;">
-                        <i class="fas fa-redo me-2"></i>Retry Search
-                    </button>
-                    <a href="/" style="background: var(--accent); color: white; text-decoration: none; padding: 14px 28px; border-radius: 18px; display: inline-block; margin-left: 15px; font-weight: 700;">
-                        <i class="fas fa-home me-2"></i>Home
-                    </a>
-                </div>
-            `;
+        function showError(query) {
+            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 100px;"><i class="fas fa-exclamation-triangle fa-6x text-warning mb-4"></i><h3>Error</h3><button onclick="loadSearchResults('${escapeJS(query)}', 1)" style="background: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 18px; cursor: pointer; margin-top: 20px; font-weight: 700;">Retry</button></div>`;
         }
         
         function escapeHTML(text) {
@@ -822,26 +496,15 @@
             return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
         }
         
-        // Auto load on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Page loaded');
-            console.log('📋 Checking URL parameters...');
-            
             const urlParams = new URLSearchParams(window.location.search);
             const query = urlParams.get('query');
-            
-            console.log('🔍 Query from URL:', query);
-            
-            if (query && query.trim().length > 0) {
-                console.log('✅ Valid query found, loading results...');
+            if (query) {
                 loadSearchResults(query.trim(), 1);
             } else {
-                console.log('❌ No query found, redirecting to home...');
                 window.location.href = '/';
             }
         });
-        
-        console.log('%c💡 TIP: Press Ctrl+D for debug info', 'color: #ffc107; font-size: 14px;');
     </script>
 </body>
 </html>
