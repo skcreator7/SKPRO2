@@ -2,14 +2,26 @@
   "version": 2,
   "builds": [
     {
-      "src": "app.py",
-      "use": "@vercel/python"
+      "src": "*.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/search",
+      "dest": "/search.html"
+    },
+    {
+      "src": "/search(.*)",
+      "dest": "/search.html"
+    },
+    {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "/index.html"
     }
   ]
 }
