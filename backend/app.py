@@ -65,15 +65,12 @@ class Config:
     AUTO_UPDATE_INTERVAL = 180
 
 # ==================== QUART APP ====================
-app = Quart(__name__)
+app = Quart(__name__, static_folder=None, static_url_path=None)
 
-# CRITICAL FIX: Set config immediately using update()
-app.config.update({
-    'PROVIDE_AUTOMATIC_OPTIONS': True,
-    'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,
-    'JSON_SORT_KEYS': False,
-    'TEMPLATES_AUTO_RELOAD': True
-})
+# Set config immediately
+app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['JSON_SORT_KEYS'] = False
 
 @app.after_request
 async def add_cors(response):
