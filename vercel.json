@@ -16,12 +16,35 @@
       "dest": "/search.html"
     },
     {
-      "src": "/search(.*)",
+      "src": "/search.html",
       "dest": "/search.html"
+    },
+    {
+      "src": "/post",
+      "dest": "/post.html"
+    },
+    {
+      "src": "/post.html",
+      "dest": "/post.html"
+    },
+    {
+      "src": "/(.*\\.html)",
+      "dest": "/$1"
     },
     {
       "src": "/(.*)",
       "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
     }
   ]
 }
