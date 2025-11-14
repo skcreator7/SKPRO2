@@ -2,5 +2,4 @@ pyrogram==2.0.106
 TgCrypto
 Flask==3.0.0
 motor==3.3.2
-aiohttp==3.9.1
-gunicorn==21.2.0
+requests==2.31.0
