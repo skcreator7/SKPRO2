@@ -1,8 +1,9 @@
 import asyncio
 import os
 import logging
+import signal
 from datetime import datetime, timedelta
-from pyrogram import Client, filters, errors
+from pyrogram import Client, filters, idle
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import FloodWait
 from quart import Quart, jsonify, request, Response
@@ -19,10 +20,12 @@ import time
 # Logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Suppress asyncio warnings
+logging.getLogger('asyncio').setLevel(logging.WARNING)
 
 # MongoDB
 try:
@@ -30,7 +33,6 @@ try:
     MONGODB_AVAILABLE = True
 except ImportError:
     MONGODB_AVAILABLE = False
-    logger.warning("⚠️ MongoDB not available")
 
 # ==================== CONFIG ====================
 class Config:
@@ -53,46 +55,75 @@ class Config:
     
     FORCE_SUB_CHANNEL = int(os.environ.get("FORCE_SUB_CHANNEL", "-1001891090100"))
     WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
-    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4film_bot")
+    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
     ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
     AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "300"))
     WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
     
-    # Multiple API keys for better availability
-    OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e", "c3e6f8d9"]
-    TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff", "2a9f7e1c3d4b5a6c7d8e9f0a1b2c3d4e"]
-    
+    OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e"]
+    TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff"]
     AUTO_UPDATE_INTERVAL = 180
-    BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+    BACKEND_URL = os.environ.get("BACKEND_URL", f"http://localhost:{WEB_SERVER_PORT}")
 
 if Config.API_ID == 0 or not Config.BOT_TOKEN:
     logger.error("❌ Missing API_ID or BOT_TOKEN")
     exit(1)
 
-# ==================== QUART APP ====================
+# ==================== QUART APP (FIXED) ====================
 app = Quart(__name__)
+
+# Configure app BEFORE any routes
+app.config.update(
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,
+    JSON_SORT_KEYS=False,
+    TEMPLATES_AUTO_RELOAD=False
+)
+
+@app.before_serving
+async def startup():
+    logger.info("🌐 Web server starting...")
+
+@app.after_serving
+async def shutdown():
+    logger.info("🌐 Web server stopped")
 
 @app.after_request
 async def add_cors(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Cache-Control'] = 'no-cache'
     return response
 
-# ==================== CLIENTS ====================
-bot = Client("sk4film_bot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, workdir="/tmp")
-User = Client("sk4film_user", api_id=Config.API_ID, api_hash=Config.API_HASH, session_string=Config.USER_SESSION_STRING, workdir="/tmp") if Config.USER_SESSION_STRING else None
+# ==================== PYROGRAM CLIENTS ====================
+bot = Client(
+    "sk4film_bot",
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+    bot_token=Config.BOT_TOKEN,
+    workdir="/tmp",
+    sleep_threshold=60
+)
+
+User = Client(
+    "sk4film_user",
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+    session_string=Config.USER_SESSION_STRING,
+    workdir="/tmp",
+    sleep_threshold=60
+) if Config.USER_SESSION_STRING else None
 
 # ==================== GLOBAL STATE ====================
 bot_started = False
 user_started = False
+shutdown_event = asyncio.Event()
 movie_db = {
     'home_movies': [],
     'last_update': None,
     'poster_cache': {},
     'updating': False,
-    'stats': {'omdb': 0, 'tmdb': 0, 'custom': 0, 'failed': 0}
+    'stats': {'omdb': 0, 'tmdb': 0, 'custom': 0}
 }
 file_registry = {}
 users_collection = None
@@ -162,7 +193,7 @@ def extract_title_from_file(message):
         if filename:
             name = filename.rsplit('.', 1)[0]
             name = re.sub(r'[\._\-]', ' ', name)
-            name = re.sub(r'(720p|1080p|480p|HDRip|WEB|BluRay|x264|x265|HEVC|mkv|mp4)', '', name, flags=re.IGNORECASE)
+            name = re.sub(r'(720p|1080p|480p|HDRip|WEB|BluRay|x264|x265|HEVC)', '', name, flags=re.IGNORECASE)
             name = ' '.join(name.split()).strip()
             if 4 <= len(name) <= 50:
                 return name
@@ -222,9 +253,8 @@ def is_new_post(post_date):
     except:
         return False
 
-# ==================== POSTER FETCHING ====================
+# ==================== POSTER FUNCTIONS ====================
 async def fetch_poster_omdb(title, session):
-    """Fetch poster from OMDB"""
     for api_key in Config.OMDB_KEYS:
         try:
             url = f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={api_key}"
@@ -232,12 +262,7 @@ async def fetch_poster_omdb(title, session):
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get('Response') == 'True' and data.get('Poster') != 'N/A':
-                        poster_url = data['Poster']
-                        # Ensure HTTPS
-                        if poster_url.startswith('http://'):
-                            poster_url = poster_url.replace('http://', 'https://')
-                        
-                        logger.info(f"✅ OMDB poster: {title}")
+                        poster_url = data['Poster'].replace('http://', 'https://')
                         movie_db['stats']['omdb'] += 1
                         return {
                             'poster_url': poster_url,
@@ -247,20 +272,17 @@ async def fetch_poster_omdb(title, session):
                             'source': 'OMDB',
                             'success': True
                         }
-        except Exception as e:
-            logger.debug(f"OMDB attempt failed: {e}")
+        except:
             continue
-    
     return None
 
 async def fetch_poster_tmdb(title, session):
-    """Fetch poster from TMDB"""
     for api_key in Config.TMDB_KEYS:
         try:
-            search_url = "https://api.themoviedb.org/3/search/movie"
+            url = "https://api.themoviedb.org/3/search/movie"
             params = {'api_key': api_key, 'query': title}
             
-            async with session.get(search_url, params=params, timeout=5) as resp:
+            async with session.get(url, params=params, timeout=5) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get('results') and len(data['results']) > 0:
@@ -268,60 +290,46 @@ async def fetch_poster_tmdb(title, session):
                         poster_path = movie.get('poster_path')
                         
                         if poster_path:
-                            poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
-                            
-                            logger.info(f"✅ TMDB poster: {title}")
                             movie_db['stats']['tmdb'] += 1
                             return {
-                                'poster_url': poster_url,
+                                'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}",
                                 'title': movie.get('title', title),
                                 'year': movie.get('release_date', '')[:4] if movie.get('release_date') else '',
                                 'rating': f"{movie.get('vote_average', 0):.1f}",
                                 'source': 'TMDB',
                                 'success': True
                             }
-        except Exception as e:
-            logger.debug(f"TMDB attempt failed: {e}")
+        except:
             continue
-    
     return None
 
 async def get_poster(title, session=None):
-    """Get poster with caching and multiple sources"""
-    # Check cache
     cache_key = title.lower().strip()
     if cache_key in movie_db['poster_cache']:
         cached, cache_time = movie_db['poster_cache'][cache_key]
-        if (datetime.now() - cache_time).seconds < 600:  # 10 min cache
+        if (datetime.now() - cache_time).seconds < 600:
             return cached
     
-    # Create session if not provided
     should_close = False
     if not session:
         session = aiohttp.ClientSession()
         should_close = True
     
     try:
-        # Try OMDB first
         result = await fetch_poster_omdb(title, session)
         if result:
             movie_db['poster_cache'][cache_key] = (result, datetime.now())
             return result
         
-        # Try TMDB
         result = await fetch_poster_tmdb(title, session)
         if result:
             movie_db['poster_cache'][cache_key] = (result, datetime.now())
             return result
         
-        # Fallback: Custom SVG poster
-        logger.info(f"ℹ️ Custom poster: {title}")
         movie_db['stats']['custom'] += 1
         result = {
             'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}",
             'title': title,
-            'year': '',
-            'rating': '',
             'source': 'CUSTOM',
             'success': True
         }
@@ -329,8 +337,7 @@ async def get_poster(title, session=None):
         return result
     
     except Exception as e:
-        logger.error(f"❌ Poster error for '{title}': {e}")
-        movie_db['stats']['failed'] += 1
+        logger.error(f"Poster error: {e}")
         return {
             'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}",
             'title': title,
@@ -344,24 +351,13 @@ async def get_poster(title, session=None):
 # ==================== SEARCH FUNCTION ====================
 async def search_movies(query, limit=12, page=1):
     if not User:
-        logger.error("❌ User client not available")
-        return {
-            'results': [],
-            'pagination': {
-                'current_page': 1,
-                'total_pages': 1,
-                'total_results': 0,
-                'per_page': limit,
-                'has_next': False,
-                'has_previous': False
-            }
-        }
+        return {'results': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_results': 0, 'per_page': limit, 'has_next': False, 'has_previous': False}}
     
     offset = (page - 1) * limit
     results = []
     seen = {}
     
-    logger.info(f"🔍 Searching: '{query}' | Page: {page}")
+    logger.info(f"🔍 Search: '{query}' | Page: {page}")
     
     # Search text channels
     for channel_id in Config.TEXT_CHANNEL_IDS:
@@ -458,7 +454,7 @@ async def search_movies(query, limit=12, page=1):
     total = len(results)
     paginated = results[offset:offset + limit]
     
-    logger.info(f"✅ Found {total} results | Showing {len(paginated)}")
+    logger.info(f"✅ Found {total} | Showing {len(paginated)}")
     
     return {
         'results': paginated,
@@ -473,16 +469,12 @@ async def search_movies(query, limit=12, page=1):
     }
 
 async def get_homepage_movies():
-    """Get movies for homepage with posters"""
     if not User:
         return []
     
     movies = []
     seen = set()
     
-    logger.info("🔄 Fetching homepage movies...")
-    
-    # Get recent posts from text channels
     for channel_id in Config.TEXT_CHANNEL_IDS:
         try:
             count = 0
@@ -501,22 +493,18 @@ async def get_homepage_movies():
                         seen.add(title.lower())
                         count += 1
         except Exception as e:
-            logger.error(f"Homepage channel {channel_id} error: {e}")
+            logger.error(f"Homepage channel error: {e}")
     
-    # Sort by date
     movies.sort(key=lambda x: x['date'], reverse=True)
     movies = movies[:24]
     
-    # Fetch posters in batches
+    # Fetch posters
     async with aiohttp.ClientSession() as session:
         for i in range(0, len(movies), 5):
             batch = movies[i:i+5]
-            
-            # Fetch posters concurrently
             poster_tasks = [get_poster(m['title'], session) for m in batch]
             posters = await asyncio.gather(*poster_tasks, return_exceptions=True)
             
-            # Update movies with poster data
             for movie, poster in zip(batch, posters):
                 if isinstance(poster, dict) and poster.get('success'):
                     movie.update({
@@ -528,15 +516,14 @@ async def get_homepage_movies():
                         'has_poster': True
                     })
                 else:
-                    # Fallback
                     movie.update({
                         'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}",
                         'has_poster': True
                     })
             
-            await asyncio.sleep(0.2)  # Rate limiting
+            await asyncio.sleep(0.2)
     
-    logger.info(f"✅ Homepage: {len(movies)} movies with posters")
+    logger.info(f"✅ Homepage: {len(movies)} movies")
     return movies
 
 # ==================== BOT HANDLERS ====================
@@ -565,7 +552,7 @@ async def start_handler(client, message):
                 link = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
             
             await message.reply_text(
-                "⚠️ **Please Join Channel First**\n\nAfter joining, click download link again.",
+                "⚠️ **Join Channel First**\n\nClick join, then download again.",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join", url=link)]])
             )
             return
@@ -579,7 +566,7 @@ async def start_handler(client, message):
             return
         
         try:
-            processing = await message.reply_text(f"⏳ Sending...\n\n📁 {file_info['file_name']}\n📊 {file_info['quality']}\n📦 {format_size(file_info['file_size'])}")
+            processing = await message.reply_text(f"⏳ Sending...\n\n📁 {file_info['file_name']}\n📊 {file_info['quality']}")
             
             if User:
                 file_msg = await User.get_messages(file_info['channel_id'], file_info['message_id'])
@@ -601,7 +588,7 @@ async def start_handler(client, message):
                     except:
                         pass
             else:
-                await processing.edit_text("❌ Service unavailable")
+                await processing.edit_text("❌ Unavailable")
         
         except Exception as e:
             logger.error(f"File error: {e}")
@@ -610,14 +597,7 @@ async def start_handler(client, message):
         return
     
     await message.reply_text(
-        f"🎬 **SK4FiLM Bot**\n\n"
-        f"📌 File delivery only\n\n"
-        f"**Usage:**\n"
-        f"1. Visit website\n"
-        f"2. Search movie\n"
-        f"3. Select quality\n"
-        f"4. Get file\n\n"
-        f"⚡ Fast & Automated",
+        f"🎬 **SK4FiLM Bot**\n\n📌 File delivery only\n\n**Usage:**\n1. Visit website\n2. Search\n3. Select quality\n4. Get file\n\n⚡ Automated",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]])
     )
 
@@ -638,11 +618,7 @@ async def stats_handler(client, message):
             f"👥 Users: `{total_users}`\n"
             f"🎬 Movies: `{len(movie_db['home_movies'])}`\n"
             f"📁 Files: `{len(file_registry)}`\n"
-            f"🖼️ Posters:\n"
-            f"  • OMDB: `{movie_db['stats']['omdb']}`\n"
-            f"  • TMDB: `{movie_db['stats']['tmdb']}`\n"
-            f"  • Custom: `{movie_db['stats']['custom']}`\n"
-            f"  • Failed: `{movie_db['stats']['failed']}`\n"
+            f"🖼️ Posters: OMDB:{movie_db['stats']['omdb']} TMDB:{movie_db['stats']['tmdb']} Custom:{movie_db['stats']['custom']}\n"
             f"🤖 Bot: `{'✅' if bot_started else '❌'}`\n"
             f"👤 User: `{'✅' if user_started else '❌'}`"
         )
@@ -654,10 +630,9 @@ async def stats_handler(client, message):
 async def root():
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM API',
+        'service': 'SK4FiLM',
         'bot': f'@{Config.BOT_USERNAME}',
-        'website': Config.WEBSITE_URL,
-        'poster_stats': movie_db['stats']
+        'website': Config.WEBSITE_URL
     })
 
 @app.route('/api/movies')
@@ -666,7 +641,6 @@ async def api_movies():
         if not user_started:
             return jsonify({'status': 'error', 'message': 'Starting'}), 503
         
-        # Auto-refresh every 5 minutes
         if not movie_db['home_movies'] or not movie_db['last_update'] or (datetime.now() - movie_db['last_update']).seconds > 300:
             if not movie_db['updating']:
                 movie_db['updating'] = True
@@ -678,8 +652,7 @@ async def api_movies():
             'status': 'success',
             'movies': movie_db['home_movies'],
             'total': len(movie_db['home_movies']),
-            'bot_username': Config.BOT_USERNAME,
-            'last_update': movie_db['last_update'].isoformat() if movie_db['last_update'] else None
+            'bot_username': Config.BOT_USERNAME
         })
     except Exception as e:
         logger.error(f"API movies error: {e}")
@@ -714,11 +687,9 @@ async def api_search():
 
 @app.route('/api/poster')
 async def api_poster():
-    """Generate custom SVG poster"""
     title = request.args.get('title', 'Movie')
     display = title[:18] + "..." if len(title) > 18 else title
     
-    # Generate gradient colors based on title
     colors = [
         ('#667eea', '#764ba2'),
         ('#f093fb', '#f5576c'),
@@ -729,30 +700,19 @@ async def api_poster():
     color_set = colors[hash(title) % len(colors)]
     
     svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:{color_set[0]}"/>
-                <stop offset="100%" style="stop-color:{color_set[1]}"/>
-            </linearGradient>
-        </defs>
+        <defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:{color_set[0]}"/>
+        <stop offset="100%" style="stop-color:{color_set[1]}"/>
+        </linearGradient></defs>
         <rect width="100%" height="100%" fill="url(#bg)" rx="20"/>
         <circle cx="150" cy="180" r="50" fill="rgba(255,255,255,0.2)"/>
-        <text x="50%" y="200" text-anchor="middle" fill="#fff" font-size="50" font-weight="bold">🎬</text>
-        <text x="50%" y="270" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">{html.escape(display)}</text>
+        <text x="50%" y="200" text-anchor="middle" fill="#fff" font-size="50">🎬</text>
+        <text x="50%" y="270" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">{html.escape(display)}</text>
         <rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/>
         <text x="50%" y="405" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">SK4FiLM</text>
     </svg>'''
     
     return Response(svg, mimetype='image/svg+xml', headers={'Cache-Control': 'public, max-age=3600'})
-
-@app.route('/api/poster-stats')
-async def poster_stats():
-    """Poster statistics endpoint"""
-    return jsonify({
-        'status': 'success',
-        'stats': movie_db['stats'],
-        'cache_size': len(movie_db['poster_cache'])
-    })
 
 # ==================== STARTUP ====================
 async def start_bot_client():
@@ -769,7 +729,7 @@ async def start_bot_client():
 async def start_user_client():
     global user_started
     if not User:
-        logger.error("❌ User session not configured")
+        logger.error("❌ User session missing")
         return
     
     try:
@@ -779,11 +739,8 @@ async def start_user_client():
         logger.info(f"✅ User: {me.first_name}")
         user_started = True
         
-        # Initial load
-        logger.info("🔄 Loading homepage...")
         movie_db['home_movies'] = await get_homepage_movies()
         movie_db['last_update'] = datetime.now()
-        logger.info("✅ Homepage loaded")
     except Exception as e:
         logger.error(f"❌ User error: {e}")
 
@@ -792,25 +749,62 @@ async def start_web_server():
         config = HyperConfig()
         config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
         config.loglevel = "warning"
-        logger.info(f"🌐 Starting web on port {Config.WEB_SERVER_PORT}")
-        await serve(app, config)
+        config.graceful_timeout = 2
+        logger.info(f"🌐 Web server on port {Config.WEB_SERVER_PORT}")
+        await serve(app, config, shutdown_trigger=shutdown_event.wait)
     except Exception as e:
         logger.error(f"❌ Web error: {e}")
 
+async def cleanup():
+    """Cleanup on shutdown"""
+    logger.info("🔄 Cleaning up...")
+    
+    if bot_started:
+        try:
+            await bot.stop()
+            logger.info("✅ Bot stopped")
+        except:
+            pass
+    
+    if user_started and User:
+        try:
+            await User.stop()
+            logger.info("✅ User stopped")
+        except:
+            pass
+    
+    shutdown_event.set()
+    logger.info("✅ Cleanup complete")
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals"""
+    logger.info(f"\n⚠️ Received signal {signum}")
+    asyncio.create_task(cleanup())
+
 async def main():
+    # Register signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     logger.info("=" * 60)
     logger.info("🚀 SK4FiLM Starting")
     logger.info("=" * 60)
     logger.info(f"🤖 Bot: @{Config.BOT_USERNAME}")
     logger.info(f"🌐 Website: {Config.WEBSITE_URL}")
-    logger.info(f"🖼️ Poster APIs: OMDB + TMDB + Custom")
     logger.info("=" * 60)
     
-    await asyncio.gather(
-        start_bot_client(),
-        start_user_client(),
-        start_web_server()
-    )
+    try:
+        await asyncio.gather(
+            start_bot_client(),
+            start_user_client(),
+            start_web_server()
+        )
+    except KeyboardInterrupt:
+        logger.info("\n⚠️ Keyboard interrupt")
+    except Exception as e:
+        logger.error(f"❌ Fatal: {e}")
+    finally:
+        await cleanup()
 
 if __name__ == "__main__":
     try:
@@ -818,4 +812,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("\n⚠️ Stopped")
     except Exception as e:
-        logger.error(f"❌ Fatal: {e}")
+        logger.error(f"❌ Error: {e}")
