@@ -90,18 +90,6 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .premium-ad-space {
-            min-height: 120px;
-            margin: 30px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            border: 2px dashed rgba(255, 255, 255, 0.3);
-        }
-        
-        /* CLEAN RESULT CARD */
         .result-card {
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(45, 55, 72, 0.95));
             border-radius: 20px;
@@ -119,7 +107,6 @@
             border-color: rgba(0, 204, 255, 0.6);
         }
         
-        /* BIG MOVIE TITLE */
         .movie-title {
             font-size: 2rem;
             font-weight: 800;
@@ -130,7 +117,6 @@
             line-height: 1.3;
         }
         
-        /* BADGES */
         .badge-container {
             display: flex;
             gap: 12px;
@@ -164,7 +150,6 @@
             50% { box-shadow: 0 6px 25px rgba(255, 71, 87, 0.7); }
         }
         
-        /* WATCH + DOWNLOAD BUTTONS */
         .action-buttons {
             display: flex;
             gap: 20px;
@@ -221,7 +206,6 @@
             opacity: 0.6;
         }
         
-        /* QUALITY POPUP MODAL */
         .quality-popup-overlay {
             position: fixed;
             top: 0;
@@ -253,14 +237,8 @@
         }
         
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .quality-popup-header {
@@ -276,11 +254,6 @@
             color: var(--accent);
             margin-bottom: 15px;
             text-shadow: 0 2px 10px rgba(0, 204, 255, 0.5);
-        }
-        
-        .quality-popup-subtitle {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 1rem;
         }
         
         .quality-options {
@@ -309,12 +282,6 @@
             box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
         }
         
-        .quality-label {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
         .quality-badge-popup {
             background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
@@ -323,17 +290,6 @@
             font-weight: 800;
             font-size: 1.2rem;
             box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-        }
-        
-        .quality-info {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 0.95rem;
-        }
-        
-        .quality-size {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.9rem;
-            font-weight: 600;
         }
         
         .popup-close-btn {
@@ -356,20 +312,15 @@
             box-shadow: 0 10px 30px rgba(255, 71, 87, 0.6);
         }
         
-        /* PAGINATION */
-        .pagination-container {
-            background: rgba(30, 41, 59, 0.8);
-            border-radius: 20px;
-            padding: 25px;
-            margin-top: 40px;
-        }
-        
         .pagination-controls {
             display: flex;
             justify-content: center;
             gap: 12px;
             flex-wrap: wrap;
-            margin-bottom: 20px;
+            margin: 30px 0;
+            padding: 25px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 20px;
         }
         
         .page-btn {
@@ -413,6 +364,16 @@
             100% { transform: rotate(360deg); }
         }
         
+        .debug-info {
+            background: rgba(40, 167, 69, 0.2);
+            border: 2px solid rgba(40, 167, 69, 0.4);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
         @media (max-width: 768px) {
             body { padding-top: 80px; }
             .movie-title { font-size: 1.5rem; }
@@ -444,24 +405,14 @@
     </nav>
     
     <div class="container">
-        <!-- Info Banner -->
-        <div class="section-box animate__animated animate__fadeIn" style="background: linear-gradient(45deg, rgba(0,136,204,0.2), rgba(40,167,69,0.2)); border: 2px solid rgba(0,204,255,0.3);">
-            <div style="text-align: center;">
-                <h3 style="color: var(--accent); margin-bottom: 15px;">
-                    <i class="fas fa-star fa-2x me-3"></i>Multiple Quality Options Available
-                </h3>
-                <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 1rem;">
-                    <strong>🎬 Watch:</strong> View full post • <strong>📥 Download:</strong> Choose quality (480p/720p/1080p) & get via bot
-                </p>
-            </div>
-        </div>
-
-        <!-- Premium Ad Space 1 -->
-        <div class="premium-ad-space">
-            <div style="color: rgba(255, 255, 255, 0.5); text-align: center;">
-                <i class="fas fa-search fa-2x mb-2"></i><br>
-                <strong>Search Results Zone</strong>
-            </div>
+        <!-- Debug Info -->
+        <div id="debugInfo" class="debug-info" style="display: none;">
+            <strong>🐛 Debug Info:</strong><br>
+            Query: <span id="debugQuery">-</span><br>
+            Backend: <span id="debugBackend">-</span><br>
+            Status: <span id="debugStatus">-</span><br>
+            Results: <span id="debugResults">-</span><br>
+            Error: <span id="debugError">-</span>
         </div>
 
         <!-- Search Results -->
@@ -476,7 +427,7 @@
                 <div style="text-align: center; padding: 50px;">
                     <div class="search-loading"></div>
                     <h4 style="color: #28a745; margin-bottom: 15px;">
-                        <i class="fas fa-search me-2"></i>Searching Text + File Channels
+                        <i class="fas fa-search me-2"></i>Searching Channels...
                     </h4>
                     <p style="color: rgba(255, 255, 255, 0.8);">
                         Loading results with quality options...
@@ -486,14 +437,6 @@
             
             <div id="searchPagination"></div>
         </div>
-
-        <!-- Premium Ad Space 2 -->
-        <div class="premium-ad-space">
-            <div style="color: rgba(255, 255, 255, 0.5); text-align: center;">
-                <i class="fas fa-rectangle-ad fa-2x mb-2"></i><br>
-                <strong>High-Value Zone</strong>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -502,7 +445,25 @@
         let searchQuery = '';
         let currentPage = 1;
         
-        console.log('📄 SEARCH WITH QUALITY POPUP');
+        console.log('%c🔍 SEARCH SYSTEM LOADED', 'color: #28a745; font-size: 20px; font-weight: bold;');
+        console.log('📡 Backend URL:', BACKEND_URL);
+        
+        // Enable debug mode - Press Ctrl+D
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+                const debugDiv = document.getElementById('debugInfo');
+                debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+        
+        function updateDebug(field, value) {
+            const element = document.getElementById(`debug${field}`);
+            if (element) {
+                element.textContent = value;
+                console.log(`🐛 ${field}:`, value);
+            }
+        }
         
         // Load search results
         async function loadSearchResults(query, page = 1) {
@@ -510,77 +471,111 @@
             searchQuery = query;
             currentPage = page;
             
+            console.log('🔍 Loading search results...');
+            console.log('  Query:', query);
+            console.log('  Page:', page);
+            
+            updateDebug('Query', query);
+            updateDebug('Backend', BACKEND_URL);
+            updateDebug('Status', 'Loading...');
+            
             try {
                 if (page > 1) {
                     container.innerHTML = `
                         <div style="text-align: center; padding: 40px;">
                             <div class="search-loading"></div>
-                            <h5 style="color: #28a745;">Loading Page ${page}</h5>
+                            <h5 style="color: #28a745;">Loading Page ${page}...</h5>
                         </div>
                     `;
                 }
                 
-                const response = await fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=12`);
-                const data = await response.json();
+                const url = `${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=12`;
+                console.log('📡 Fetching:', url);
+                updateDebug('Status', 'Fetching API...');
                 
-                if (data.status === 'success' && data.results?.length > 0) {
-                    BOT_USERNAME = data.bot_username || 'sk4filmbot';
-                    displayResults(data.results, query);
-                    setupPagination(data.pagination, query);
-                    console.log(`✅ Page ${page} loaded`);
+                const response = await fetch(url);
+                console.log('📥 Response status:', response.status);
+                updateDebug('Status', `Response: ${response.status}`);
+                
+                const data = await response.json();
+                console.log('📦 Data received:', data);
+                updateDebug('Status', data.status);
+                
+                if (data.status === 'success') {
+                    console.log('✅ Results:', data.results.length);
+                    updateDebug('Results', data.results.length);
+                    updateDebug('Error', 'None');
+                    
+                    if (data.results && data.results.length > 0) {
+                        BOT_USERNAME = data.bot_username || 'sk4filmbot';
+                        console.log('🤖 Bot username:', BOT_USERNAME);
+                        
+                        displayResults(data.results, query);
+                        setupPagination(data.pagination, query);
+                    } else {
+                        console.log('⚠️ No results found');
+                        showNoResults(query);
+                    }
                 } else {
-                    showNoResults(query);
+                    console.error('❌ API error:', data.message);
+                    updateDebug('Error', data.message || 'Unknown');
+                    showError(query, data.message);
                 }
                 
             } catch (error) {
-                console.error('Search error:', error);
-                showError(query);
+                console.error('❌ Fetch error:', error);
+                updateDebug('Error', error.message);
+                showError(query, error.message);
             }
         }
         
-        // Display CLEAN results - Title + Buttons Only
+        // Display results
         function displayResults(results, query) {
+            console.log('🎨 Displaying', results.length, 'results');
+            
             const container = document.getElementById('searchResults');
             
             let html = `
                 <div style="margin-bottom: 30px; text-align: center;">
                     <h3 style="color: var(--accent); font-size: 1.8rem;">
-                        <i class="fas fa-list-alt me-2"></i>Found ${results.length} results for "${escapeHTML(query)}"
+                        <i class="fas fa-list-alt me-2"></i>Found ${results.length} results for "<strong>${escapeHTML(query)}</strong>"
                     </h3>
                 </div>
             `;
             
             results.forEach((result, index) => {
                 const movieTitle = result.title || 'Unknown Movie';
-                const hasFile = result.has_file;
+                const hasFile = result.has_file || false;
                 const qualityOptions = result.quality_options || {};
                 const availableQualities = Object.keys(qualityOptions);
                 
+                console.log(`  ${index + 1}. ${movieTitle} | File: ${hasFile} | Qualities: ${availableQualities.join(', ')}`);
+                
                 html += `
                     <div class="result-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.1}s">
-                        <!-- BIG TITLE ONLY -->
+                        <!-- Title -->
                         <div class="movie-title">
                             <i class="fas fa-film me-3"></i>${escapeHTML(movieTitle)}
                         </div>
                         
-                        <!-- BADGES -->
+                        <!-- Badges -->
                         <div class="badge-container">
                             ${result.is_new ? '<span class="new-badge"><i class="fas fa-fire me-1"></i>NEW</span>' : ''}
-                            ${hasFile ? `<span class="quality-badge"><i class="fas fa-check-circle me-1"></i>${availableQualities.join(', ')} Available</span>` : ''}
+                            ${hasFile && availableQualities.length > 0 ? 
+                                `<span class="quality-badge"><i class="fas fa-check-circle me-1"></i>${availableQualities.join(', ')} Available</span>` : ''}
                         </div>
                         
-                        <!-- WATCH + DOWNLOAD BUTTONS -->
+                        <!-- Buttons -->
                         <div class="action-buttons">
-                            <!-- WATCH BUTTON -->
-                            <button class="watch-btn" onclick='watchPost(${JSON.stringify(result).replace(/'/g, "\\'")})'> <i class="fas fa-eye fa-2x"></i>
+                            <button class="watch-btn" onclick='watchPost(${JSON.stringify(result)})'>
+                                <i class="fas fa-eye fa-2x"></i>
                                 <span>Watch Post</span>
                             </button>
                             
-                            <!-- DOWNLOAD BUTTON -->
-                            ${hasFile ? `
-                                <button class="download-btn" onclick='showQualityPopup(${JSON.stringify(movieTitle).replace(/'/g, "\\'")}, ${JSON.stringify(qualityOptions).replace(/'/g, "\\'")})'> 
+                            ${hasFile && availableQualities.length > 0 ? `
+                                <button class="download-btn" onclick='showQualityPopup(${JSON.stringify(movieTitle)}, ${JSON.stringify(qualityOptions)})'>
                                     <i class="fas fa-download fa-2x"></i>
-                                    <span>Download</span>
+                                    <span>Download (${availableQualities.length} quality)</span>
                                 </button>
                             ` : `
                                 <button class="download-btn" disabled>
@@ -594,6 +589,7 @@
             });
             
             container.innerHTML = html;
+            console.log('✅ Display complete');
             
             if (page > 1) {
                 setTimeout(() => {
@@ -602,16 +598,22 @@
             }
         }
         
-        // WATCH BUTTON - Open full post in new page
+        // Watch button
         function watchPost(result) {
-            console.log('👁️ Watch post:', result.title);
-            sessionStorage.setItem('watchPost', JSON.stringify(result));
-            window.open(`post.html?id=${encodeURIComponent(result.title)}`, '_blank');
+            console.log('👁️ Watch:', result.title);
+            try {
+                sessionStorage.setItem('watchPost', JSON.stringify(result));
+                window.open(`post.html?id=${encodeURIComponent(result.title)}`, '_blank');
+            } catch (error) {
+                console.error('Watch error:', error);
+                alert('❌ Unable to open post');
+            }
         }
         
-        // QUALITY SELECTION POPUP
+        // Quality popup
         function showQualityPopup(title, qualityOptions) {
             console.log('📥 Quality popup for:', title);
+            console.log('   Options:', qualityOptions);
             
             const qualities = Object.keys(qualityOptions);
             
@@ -624,18 +626,20 @@
             
             qualities.forEach(quality => {
                 const option = qualityOptions[quality];
-                const fileSize = (option.file_size / (1024 * 1024)).toFixed(2);
+                const fileSize = option.file_size ? (option.file_size / (1024 * 1024)).toFixed(2) : 'Unknown';
+                
+                console.log(`   ${quality}: ${fileSize} MB | ID: ${option.file_id}`);
                 
                 optionsHTML += `
-                    <div class="quality-option" onclick='selectQuality("${escapeJS(title)}", "${quality}", "${escapeJS(option.file_id || '')}")'>
-                        <div class="quality-label">
+                    <div class="quality-option" onclick='selectQuality("${escapeJS(title)}", "${quality}", "${escapeJS(option.file_id || '')}") '>
+                        <div style="display: flex; align-items: center; gap: 15px;">
                             <div class="quality-badge-popup">${quality}</div>
-                            <div class="quality-info">
+                            <div style="color: rgba(255,255,255,0.9); text-align: left;">
                                 <strong>${escapeHTML(title)}</strong><br>
-                                <small>${escapeHTML(option.file_name || 'video.mp4')}</small>
+                                <small style="color: rgba(255,255,255,0.7);">${escapeHTML(option.file_name || 'video.mp4')}</small>
                             </div>
                         </div>
-                        <div class="quality-size">
+                        <div style="color: rgba(255,255,255,0.7); font-weight: 600;">
                             <i class="fas fa-hdd me-1"></i>${fileSize} MB
                         </div>
                     </div>
@@ -649,8 +653,8 @@
                             <div class="quality-popup-title">
                                 <i class="fas fa-sliders-h me-2"></i>Select Quality
                             </div>
-                            <div class="quality-popup-subtitle">
-                                Choose your preferred quality for: <strong>${escapeHTML(title)}</strong>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 1rem;">
+                                Choose your preferred quality for:<br><strong>${escapeHTML(title)}</strong>
                             </div>
                         </div>
                         
@@ -666,23 +670,25 @@
             `;
             
             document.body.insertAdjacentHTML('beforeend', popupHTML);
+            console.log('✅ Popup displayed');
         }
         
-        // SELECT QUALITY - Send via bot
+        // Select quality
         function selectQuality(title, quality, fileId) {
             console.log(`✅ Selected: ${quality} for ${title}`);
+            console.log('   File ID:', fileId);
             
             closeQualityPopup();
             
             if (!fileId) {
-                alert('❌ File not indexed yet. Please try again later.');
+                alert('❌ File ID not available');
                 return;
             }
             
-            // Open bot with quality parameter
-            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}_${quality}`;
+            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
+            console.log('🤖 Opening bot:', botLink);
             
-            // Show success message
+            // Success message
             const successHTML = `
                 <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 50px; border-radius: 20px; z-index: 6000; box-shadow: 0 20px 60px rgba(0,0,0,0.8); animation: fadeIn 0.3s ease;" id="successMsg">
                     <div style="text-align: center; color: white;">
@@ -699,12 +705,15 @@
                 const msg = document.getElementById('successMsg');
                 if (msg) document.body.removeChild(msg);
                 window.open(botLink, '_blank');
-            }, 2000);
+            }, 1500);
         }
         
         function closeQualityPopup() {
             const popup = document.getElementById('qualityPopup');
-            if (popup) document.body.removeChild(popup);
+            if (popup) {
+                document.body.removeChild(popup);
+                console.log('✅ Popup closed');
+            }
         }
         
         function closePopupClick(event) {
@@ -715,6 +724,8 @@
         
         // Pagination
         function setupPagination(paginationData, query) {
+            console.log('📄 Setting up pagination:', paginationData);
+            
             const container = document.getElementById('searchPagination');
             
             if (paginationData.total_pages <= 1) {
@@ -722,11 +733,7 @@
                 return;
             }
             
-            let html = `<div class="pagination-container">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h4 style="color: var(--accent);"><i class="fas fa-list me-2"></i>Navigate</h4>
-                </div>
-                <div class="pagination-controls">`;
+            let html = `<div class="pagination-controls">`;
             
             if (paginationData.has_previous) {
                 html += `<button class="page-btn" onclick="loadSearchResults('${escapeJS(query)}', ${paginationData.current_page - 1})">
@@ -758,21 +765,23 @@
             }
             
             html += `</div>
-                <div style="text-align: center; margin-top: 20px; color: rgba(255,255,255,0.8);">
-                    Page ${paginationData.current_page} of ${paginationData.total_pages} • ${paginationData.total_results} results
-                </div>
-            </div>`;
+                <div style="text-align: center; margin-top: 10px; color: rgba(255,255,255,0.8);">
+                    Page ${paginationData.current_page} of ${paginationData.total_pages} • ${paginationData.total_results} total results
+                </div>`;
             
             container.innerHTML = html;
         }
         
         function showNoResults(query) {
+            console.log('⚠️ No results found');
+            updateDebug('Results', '0');
+            
             document.getElementById('searchResults').innerHTML = `
                 <div style="text-align: center; padding: 80px;">
                     <i class="fas fa-search fa-6x mb-4" style="color: #6c757d;"></i>
-                    <h3>No Results</h3>
-                    <p>No results for "${escapeHTML(query)}"</p>
-                    <a href="/" style="background: var(--primary); color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; margin-top: 20px;">
+                    <h3 style="color: var(--accent);">No Results Found</h3>
+                    <p style="color: rgba(255,255,255,0.8); margin: 20px 0;">No results for "<strong>${escapeHTML(query)}</strong>"</p>
+                    <a href="/" style="background: var(--primary); color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; margin-top: 20px; font-weight: 700;">
                         <i class="fas fa-home me-2"></i>Try Another Search
                     </a>
                 </div>
@@ -780,47 +789,59 @@
             document.getElementById('searchPagination').innerHTML = '';
         }
         
-        function showError(query) {
+        function showError(query, errorMsg = 'Unknown error') {
+            console.error('❌ Error:', errorMsg);
+            
             document.getElementById('searchResults').innerHTML = `
                 <div style="text-align: center; padding: 80px;">
                     <i class="fas fa-exclamation-triangle fa-6x text-warning mb-4"></i>
-                    <h3>Error</h3>
-                    <button onclick="loadSearchResults('${escapeJS(query)}', 1)" style="background: #28a745; color: white; border: none; padding: 14px 28px; border-radius: 18px; cursor: pointer; margin-top: 20px;">
-                        Retry
+                    <h3 style="color: #ffc107;">Error Loading Results</h3>
+                    <p style="color: rgba(255,255,255,0.8); margin: 20px 0;">
+                        ${escapeHTML(errorMsg)}<br><br>
+                        Backend may be starting or unavailable.
+                    </p>
+                    <button onclick="loadSearchResults('${escapeJS(query)}', 1)" style="background: #28a745; color: white; border: none; padding: 14px 28px; border-radius: 18px; cursor: pointer; font-weight: 700; font-size: 1rem;">
+                        <i class="fas fa-redo me-2"></i>Retry Search
                     </button>
+                    <a href="/" style="background: var(--accent); color: white; text-decoration: none; padding: 14px 28px; border-radius: 18px; display: inline-block; margin-left: 15px; font-weight: 700;">
+                        <i class="fas fa-home me-2"></i>Home
+                    </a>
                 </div>
             `;
         }
         
         function escapeHTML(text) {
             if (!text) return '';
-            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function escapeJS(text) {
             if (!text) return '';
-            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
         }
         
-        // Auto load
+        // Auto load on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SEARCH SYSTEM LOADED');
-            console.log('👁️ Watch: Full post view');
-            console.log('📥 Download: Quality selection');
-            console.log('🤖 Bot: File delivery');
+            console.log('🚀 Page loaded');
+            console.log('📋 Checking URL parameters...');
             
             const urlParams = new URLSearchParams(window.location.search);
             const query = urlParams.get('query');
             
-            if (query) {
+            console.log('🔍 Query from URL:', query);
+            
+            if (query && query.trim().length > 0) {
+                console.log('✅ Valid query found, loading results...');
                 loadSearchResults(query.trim(), 1);
             } else {
+                console.log('❌ No query found, redirecting to home...');
                 window.location.href = '/';
             }
         });
         
-        console.log('%c🎬 QUALITY POPUP', 'color: #28a745; font-size: 24px;');
-        console.log('%c📥 CLEAN UI', 'color: #00ccff; font-size: 16px;');
+        console.log('%c💡 TIP: Press Ctrl+D for debug info', 'color: #ffc107; font-size: 14px;');
     </script>
 </body>
 </html>
