@@ -108,11 +108,6 @@
             transform: translateY(-4px);
             box-shadow: 0 12px 35px rgba(0, 136, 204, 0.6);
         }
-        
-        @media (max-width: 768px) {
-            .post-box { padding: 30px 20px; }
-            .post-title { font-size: 1.5rem; }
-        }
     </style>
 </head>
 
@@ -127,7 +122,7 @@
         <div class="post-content" id="postContent">
             <div style="text-align: center; padding: 50px;">
                 <i class="fas fa-spinner fa-spin fa-3x" style="color: #00ccff;"></i>
-                <p style="margin-top: 25px;">Loading post...</p>
+                <p style="margin-top: 25px;">Loading post content...</p>
             </div>
         </div>
         
@@ -139,28 +134,58 @@
     </div>
 
     <script>
-        console.log('%c📄 POST PAGE', 'color: #00ccff; font-size: 18px; font-weight: bold;');
+        console.log('%c📄 POST PAGE', 'color: #00ccff; font-size: 20px; font-weight: bold;');
+        console.log('🔗 URL:', window.location.href);
+        console.log('⏰ Time:', new Date().toLocaleString());
         
         function loadPostDetails() {
             try {
-                console.log('📥 Loading post...');
+                console.log('\n📥 Attempting to load post data...');
                 
-                // Try storage
-                let postData = sessionStorage.getItem('watchPost') || localStorage.getItem('watchPost');
+                // Try sessionStorage first
+                let postData = sessionStorage.getItem('watchPost');
+                console.log('SessionStorage:', postData ? `Available (${postData.length} chars)` : 'Empty');
+                
+                // Try localStorage as fallback
+                if (!postData) {
+                    postData = localStorage.getItem('watchPost');
+                    console.log('LocalStorage:', postData ? `Available (${postData.length} chars)` : 'Empty');
+                    
+                    // Check if data is fresh
+                    if (postData) {
+                        const timestamp = localStorage.getItem('watchPostTime');
+                        if (timestamp) {
+                            const age = Date.now() - parseInt(timestamp);
+                            const minutes = Math.floor(age / 60000);
+                            console.log(`Data age: ${minutes} minutes`);
+                            if (age > 5 * 60 * 1000) {
+                                console.warn('⚠️ Data too old (>5 min), clearing...');
+                                localStorage.removeItem('watchPost');
+                                localStorage.removeItem('watchPostTime');
+                                postData = null;
+                            }
+                        }
+                    }
+                }
                 
                 if (!postData) {
-                    console.error('❌ No data');
+                    console.error('❌ No post data found in any storage');
                     showError();
                     return;
                 }
                 
+                console.log('✅ Raw data found, parsing...');
                 const post = JSON.parse(postData);
-                console.log('✅ Data loaded:', post);
+                console.log('📋 Parsed post data:', post);
+                console.log('📝 Content length:', post.content?.length || 0);
+                console.log('🎬 Title:', post.title);
+                console.log('📡 Channel:', post.channel);
                 
-                // Title
+                // Display title
                 document.getElementById('postTitle').innerHTML = `<i class="fas fa-film me-3"></i>${escapeHTML(post.title)}`;
+                console.log('✅ Title displayed');
                 
-                // Meta
+                // Display meta
                 let metaHTML = `
                     <div class="meta-item">
                         <i class="fab fa-telegram me-2"></i>${escapeHTML(post.channel || 'Channel')}
@@ -174,22 +199,27 @@
                     metaHTML += '<div class="meta-item" style="background: rgba(255,71,87,0.2); color: #ff4757;"><i class="fas fa-fire me-2"></i>NEW</div>';
                 }
                 
-                if (post.has_file) {
-                    const qualities = Object.keys(post.quality_options || {});
+                if (post.has_file && post.quality_options) {
+                    const qualities = Object.keys(post.quality_options);
                     if (qualities.length > 0) {
                         metaHTML += `<div class="meta-item" style="background: rgba(40,167,69,0.2); color: #28a745;"><i class="fas fa-download me-2"></i>${qualities.join(', ')}</div>`;
                     }
                 }
                 
                 document.getElementById('postMeta').innerHTML = metaHTML;
+                console.log('✅ Meta displayed');
                 
-                // Content
+                // Display content
                 let content = post.content || '';
+                console.log('📄 Content type:', typeof content);
+                console.log('📏 Content preview:', content.substring(0, 200));
                 
-                // If empty or too short, show info
+                // If empty or too short
                 if (!content || content.trim().length < 20) {
+                    console.warn('⚠️ Content too short or empty, showing placeholder');
                     content = `
-                        <div style="text-align: center; padding: 30px;">
+                        <div style="text-align: center; padding: 40px;">
+                            <i class="fas fa-info-circle fa-3x mb-3" style="color: #00ccff;"></i>
                             <h4 style="color: #00ccff; margin-bottom: 20px;">${escapeHTML(post.title)}</h4>
                             ${post.has_file ? `
                                 <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; margin: 20px 0;">
@@ -204,47 +234,67 @@
                             `}
                         </div>
                     `;
+                } else {
+                    console.log('✅ Using provided content');
                 }
                 
                 document.getElementById('postContent').innerHTML = content;
-                
-                console.log('✅ Post displayed');
+                console.log('✅ Content displayed successfully');
                 
             } catch (error) {
-                console.error('❌ Error:', error);
+                console.error('❌ Error loading post:', error);
+                console.error('Stack trace:', error.stack);
                 showError();
             }
         }
         
         function showError() {
-            document.getElementById('postTitle').innerHTML = '<i class="fas fa-exclamation-triangle me-3"></i>Error';
+            console.log('🚨 Showing error message');
+            document.getElementById('postTitle').innerHTML = '<i class="fas fa-exclamation-triangle me-3"></i>Post Not Found';
             document.getElementById('postMeta').innerHTML = '';
             document.getElementById('postContent').innerHTML = `
                 <div style="text-align: center; padding: 50px;">
                     <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                    <h4>Unable to load</h4>
-                    <p style="color: rgba(255,255,255,0.7); margin: 20px 0;">Data not available</p>
+                    <h4>Unable to Load Post</h4>
+                    <p style="color: rgba(255,255,255,0.7); margin: 20px 0;">
+                        The post data is not available or has expired.<br>
+                        Please search again and try reopening.
+                    </p>
                     <a href="/" style="background: #0088cc; color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; margin-top: 20px; font-weight: 700;">
-                        <i class="fas fa-home me-2"></i>Home
+                        <i class="fas fa-home me-2"></i>Back to Home
                     </a>
                 </div>
             `;
         }
         
         function goBack() {
+            console.log('⬅️ Back button clicked');
             sessionStorage.removeItem('watchPost');
             localStorage.removeItem('watchPost');
             localStorage.removeItem('watchPostTime');
+            console.log('🗑️ Storage cleared');
+            
             window.close();
-            setTimeout(() => { if (!window.closed) window.history.back(); }, 100);
+            setTimeout(() => {
+                if (!window.closed) {
+                    console.log('⬅️ Fallback: Using history.back()');
+                    window.history.back();
+                }
+            }, 100);
         }
         
         function formatDate(dateStr) {
             try {
                 const date = new Date(dateStr);
-                return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                return date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
             } catch {
-                return 'Unknown';
+                return 'Unknown date';
             }
         }
         
@@ -255,10 +305,19 @@
             return div.innerHTML;
         }
         
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 Loading...');
+        // Load on page ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM ready, loading post in 100ms...');
             setTimeout(loadPostDetails, 100);
         });
+        
+        // Debug storage
+        console.log('\n📦 Storage Debug:');
+        console.log('SessionStorage keys:', Object.keys(sessionStorage));
+        console.log('LocalStorage keys:', Object.keys(localStorage));
+        console.log('watchPost in sessionStorage:', sessionStorage.getItem('watchPost') ? 'YES' : 'NO');
+        console.log('watchPost in localStorage:', localStorage.getItem('watchPost') ? 'YES' : 'NO');
+        console.log('\n✅ Post page script loaded');
     </script>
 </body>
 </html>
