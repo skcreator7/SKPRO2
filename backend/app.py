@@ -40,8 +40,8 @@ class Config:
     WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
     BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
     
-    OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e", "c3e6f8d9", "3e7e7ac8"]
-    TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff", "8265bd1c"]
+    OMDB_KEYS = ["8265bd1c", "b9bd48a6", "2f2d1c8e", "c3e6f8d9"]
+    TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff"]
     AUTO_INDEX_INTERVAL = 600
 
 # ==================== QUART APP ====================
@@ -90,7 +90,7 @@ async def init_mongodb():
 User = None
 bot = None
 bot_started = False
-movie_db = {'poster_cache': {}, 'stats': {'omdb': 0, 'tmdb': 0, 'impawards': 0, 'justwatch': 0, 'letterboxd': 0, 'custom': 0}}
+movie_db = {'poster_cache': {}, 'stats': {'omdb': 0, 'tmdb': 0, 'impawards': 0, 'custom': 0}}
 auto_index_task = None
 
 # ==================== HELPERS ====================
@@ -121,7 +121,7 @@ def extract_title_from_file(msg):
         if fn:
             name = fn.rsplit('.', 1)[0]
             name = re.sub(r'[\._\-]', ' ', name)
-            name = re.sub(r'(720p|1080p|480p|2160p|HDRip|WEB|BluRay|x264|x265|HEVC|HDTV)', '', name, flags=re.IGNORECASE)
+            name = re.sub(r'(720p|1080p|480p|2160p|HDRip|WEB|BluRay|x264|x265|HEVC)', '', name, flags=re.IGNORECASE)
             name = ' '.join(name.split()).strip()
             if 4 <= len(name) <= 50:
                 return name
@@ -140,16 +140,10 @@ def format_size(size):
         return f"{size/(1024*1024*1024):.2f} GB"
 
 def detect_quality(filename):
-    """IMPROVED: Better quality detection with HEVC, x265, etc."""
     if not filename:
         return "480p"
-    
     fl = filename.lower()
-    
-    # Check for HEVC/x265 variants
-    is_hevc = 'hevc' in fl or 'x265' in fl or 'h265' in fl or 'h.265' in fl
-    
-    # Detect resolution
+    is_hevc = 'hevc' in fl or 'x265' in fl or 'h265' in fl
     if '2160p' in fl or '4k' in fl or 'uhd' in fl:
         return "2160p HEVC" if is_hevc else "2160p"
     elif '1080p' in fl or 'fhd' in fl:
@@ -158,7 +152,6 @@ def detect_quality(filename):
         return "720p HEVC" if is_hevc else "720p"
     elif '480p' in fl:
         return "480p HEVC" if is_hevc else "480p"
-    
     return "480p"
 
 def format_post(text):
@@ -186,13 +179,83 @@ async def check_force_sub(user_id):
     except:
         return True
 
-# ==================== AUTO INDEXING ====================
+# ==================== REAL-TIME AUTO INDEXING ====================
+async def index_single_post(message):
+    """REAL-TIME: Index single text post"""
+    if posts_col is None:
+        return False
+    
+    try:
+        title = extract_title_smart(message.text)
+        if not title:
+            return False
+        
+        await posts_col.update_one(
+            {'channel_id': message.chat.id, 'message_id': message.id},
+            {'$set': {
+                'title': title,
+                'content': message.text,
+                'channel_id': message.chat.id,
+                'channel_name': channel_name(message.chat.id),
+                'message_id': message.id,
+                'date': message.date,
+                'is_new': True,
+                'indexed_at': datetime.now()
+            }},
+            upsert=True
+        )
+        
+        logger.info(f"✅ Real-time indexed POST: {title}")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Index post error: {e}")
+        return False
+
+async def index_single_file(message):
+    """REAL-TIME: Index single file"""
+    if files_col is None:
+        return False
+    
+    try:
+        title = extract_title_from_file(message)
+        if not title:
+            return False
+        
+        file_id = message.document.file_id if message.document else message.video.file_id
+        file_size = message.document.file_size if message.document else (message.video.file_size if message.video else 0)
+        file_name = message.document.file_name if message.document else (message.video.file_name if message.video else 'video.mp4')
+        quality = detect_quality(file_name)
+        
+        await files_col.update_one(
+            {'file_id': file_id},
+            {'$set': {
+                'title': title,
+                'file_id': file_id,
+                'channel_id': message.chat.id,
+                'message_id': message.id,
+                'quality': quality,
+                'file_size': file_size,
+                'file_name': file_name,
+                'caption': message.caption or '',
+                'date': message.date,
+                'indexed_at': datetime.now()
+            }},
+            upsert=True
+        )
+        
+        logger.info(f"✅ Real-time indexed FILE: {title} [{quality}]")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Index file error: {e}")
+        return False
+
+# ==================== BULK INDEXING ====================
 async def index_all_files():
     if not User or not bot_started or posts_col is None or files_col is None:
         logger.warning("⚠️ Cannot index")
         return
     
-    logger.info("📥 Indexing...")
+    logger.info("📥 Bulk indexing...")
     indexed = 0
     
     try:
@@ -202,27 +265,9 @@ async def index_all_files():
                 cnt = 0
                 async for msg in User.get_chat_history(cid, limit=100):
                     if msg.text:
-                        t = extract_title_smart(msg.text)
-                        if t:
-                            try:
-                                await posts_col.update_one(
-                                    {'channel_id': cid, 'message_id': msg.id},
-                                    {'$set': {
-                                        'title': t,
-                                        'content': msg.text,
-                                        'channel_id': cid,
-                                        'channel_name': channel_name(cid),
-                                        'message_id': msg.id,
-                                        'date': msg.date,
-                                        'is_new': is_new(msg.date) if msg.date else False,
-                                        'indexed_at': datetime.now()
-                                    }},
-                                    upsert=True
-                                )
-                                cnt += 1
-                                indexed += 1
-                            except:
-                                pass
+                        if await index_single_post(msg):
+                            cnt += 1
+                            indexed += 1
                 logger.info(f"  ✓ {channel_name(cid)}: {cnt}")
             except Exception as e:
                 logger.error(f"  ✗ {channel_name(cid)}: {e}")
@@ -232,34 +277,9 @@ async def index_all_files():
             cnt = 0
             async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=200):
                 if msg.document or msg.video:
-                    t = extract_title_from_file(msg)
-                    if t:
-                        fid = msg.document.file_id if msg.document else msg.video.file_id
-                        fsz = msg.document.file_size if msg.document else (msg.video.file_size if msg.video else 0)
-                        fnm = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
-                        q = detect_quality(fnm)
-                        
-                        try:
-                            await files_col.update_one(
-                                {'file_id': fid},
-                                {'$set': {
-                                    'title': t,
-                                    'file_id': fid,
-                                    'channel_id': Config.FILE_CHANNEL_ID,
-                                    'message_id': msg.id,
-                                    'quality': q,
-                                    'file_size': fsz,
-                                    'file_name': fnm,
-                                    'caption': msg.caption or '',
-                                    'date': msg.date,
-                                    'indexed_at': datetime.now()
-                                }},
-                                upsert=True
-                            )
-                            cnt += 1
-                            indexed += 1
-                        except:
-                            pass
+                    if await index_single_file(msg):
+                        cnt += 1
+                        indexed += 1
             logger.info(f"  ✓ Files: {cnt}")
         except Exception as e:
             logger.error(f"  ✗ Files: {e}")
@@ -286,8 +306,6 @@ async def get_poster_multi(title, session):
         if (datetime.now() - ct).seconds < 600:
             return c
     
-    logger.info(f"🎨 Poster: {title}")
-    
     # OMDB
     for k in Config.OMDB_KEYS:
         try:
@@ -298,7 +316,6 @@ async def get_poster_multi(title, session):
                         res = {'poster_url': d['Poster'].replace('http://', 'https://'), 'source': 'OMDB', 'success': True}
                         movie_db['poster_cache'][ck] = (res, datetime.now())
                         movie_db['stats']['omdb'] += 1
-                        logger.info(f"✅ OMDB: {title}")
                         return res
         except:
             continue
@@ -316,7 +333,6 @@ async def get_poster_multi(title, session):
                             res = {'poster_url': f"https://image.tmdb.org/t/p/w780{p}", 'source': 'TMDB', 'success': True}
                             movie_db['poster_cache'][ck] = (res, datetime.now())
                             movie_db['stats']['tmdb'] += 1
-                            logger.info(f"✅ TMDB: {title}")
                             return res
         except:
             continue
@@ -327,9 +343,8 @@ async def get_poster_multi(title, session):
     movie_db['poster_cache'][ck] = (res, datetime.now())
     return res
 
-# ==================== SEARCH WITH QUALITY GROUPING ====================
+# ==================== SEARCH ====================
 async def search_movies(query, limit=12, page=1):
-    """Search with grouped qualities"""
     if posts_col is None or files_col is None:
         return {'results': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_results': 0, 'per_page': limit, 'has_next': False, 'has_previous': False}}
     
@@ -354,7 +369,7 @@ async def search_movies(query, limit=12, page=1):
     except Exception as e:
         logger.error(f"  ✗ Posts: {e}")
     
-    # Files - GROUP by title
+    # Files - GROUP
     file_results = {}
     try:
         cursor = files_col.find({'$text': {'$search': query}}).limit(200)
@@ -373,14 +388,13 @@ async def search_movies(query, limit=12, page=1):
                     'content': format_post(doc.get('caption', '')) or doc['title']
                 }
             
-            # Add quality
             file_results[tk]['quality_options'][q] = {
                 'file_id': doc['file_id'],
                 'file_size': doc['file_size'],
                 'file_name': doc['file_name']
             }
         
-        logger.info(f"  ✓ Files: {len(file_results)} titles")
+        logger.info(f"  ✓ Files: {len(file_results)}")
     except Exception as e:
         logger.error(f"  ✗ Files: {e}")
     
@@ -396,7 +410,6 @@ async def search_movies(query, limit=12, page=1):
         else:
             results[tk] = fd
     
-    # Sort
     final = list(results.values())
     final.sort(key=lambda x: (x['has_file'], x['date']), reverse=True)
     
@@ -463,7 +476,7 @@ async def get_home_movies():
 async def root():
     tp = await posts_col.count_documents({}) if posts_col is not None else 0
     tf = await files_col.count_documents({}) if files_col is not None else 0
-    return jsonify({'status': 'healthy', 'service': 'SK4FiLM v2.0', 'bot': f'@{Config.BOT_USERNAME}', 'database': {'posts': tp, 'files': tf}, 'bot_status': 'online' if bot_started else 'starting'})
+    return jsonify({'status': 'healthy', 'service': 'SK4FiLM v2.0 - Real-time Indexing', 'database': {'posts': tp, 'files': tf}, 'bot_status': 'online' if bot_started else 'starting'})
 
 @app.route('/health')
 async def health():
@@ -517,8 +530,25 @@ async def api_poster():
     svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:{c[0]}"/><stop offset="100%" style="stop-color:{c[1]}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#bg)" rx="20"/><circle cx="150" cy="180" r="50" fill="rgba(255,255,255,0.2)"/><text x="50%" y="200" text-anchor="middle" fill="#fff" font-size="50">🎬</text><text x="50%" y="270" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">{html.escape(d)}</text><rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/><text x="50%" y="405" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">SK4FiLM</text></svg>'''
     return Response(svg, mimetype='image/svg+xml', headers={'Cache-Control': 'public, max-age=3600'})
 
-# ==================== BOT ====================
+# ==================== BOT + REAL-TIME HANDLERS ====================
 async def setup_bot():
+    """Setup bot with REAL-TIME indexing handlers"""
+    
+    # ==================== REAL-TIME: Text Channel Posts ====================
+    @User.on_message(filters.chat(Config.TEXT_CHANNEL_IDS) & filters.text)
+    async def handle_new_text_post(client, message):
+        """REAL-TIME: Auto-index new text posts"""
+        logger.info(f"📝 New text post detected in {channel_name(message.chat.id)}")
+        await index_single_post(message)
+    
+    # ==================== REAL-TIME: File Channel Files ====================
+    @User.on_message(filters.chat(Config.FILE_CHANNEL_ID) & (filters.document | filters.video))
+    async def handle_new_file(client, message):
+        """REAL-TIME: Auto-index new files"""
+        logger.info(f"📁 New file detected in {channel_name(message.chat.id)}")
+        await index_single_file(message)
+    
+    # ==================== BOT: File Delivery ====================
     @bot.on_message(filters.command("start") & filters.private)
     async def start_handler(client, message):
         uid = message.from_user.id
@@ -551,7 +581,7 @@ async def setup_bot():
                     sent = await fm.copy(uid)
                     await pm.delete()
                     
-                    sm = await message.reply_text(f"✅ Sent!\n\n🎬 {fd['title']}\n📊 {fd['quality']}\n📦 {format_size(fd['file_size'])}\n\n⚠️ Delete in {Config.AUTO_DELETE_TIME//60}min")
+                    sm = await message.reply_text(f"✅ Sent!\n\n🎬 {fd['title']}\n📊 {fd['quality']}\n📦 {format_size(fd['file_size'])}\n\n⚠️ Auto-delete in {Config.AUTO_DELETE_TIME//60}min")
                     
                     logger.info(f"✅ {fd['title']} → {uid}")
                     
@@ -567,7 +597,7 @@ async def setup_bot():
                 await message.reply_text("❌ Error")
             return
         
-        await message.reply_text("🎬 SK4FiLM\n\n1. Visit\n2. Search\n3. Get", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Go", url=Config.WEBSITE_URL)]]))
+        await message.reply_text("🎬 SK4FiLM v2.0\n\n✨ Real-time indexing\n🔍 Search & download\n📊 Multiple qualities", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Go", url=Config.WEBSITE_URL)]]))
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index']))
     async def text_handler(client, message):
@@ -575,7 +605,7 @@ async def setup_bot():
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
-        await message.reply_text("🔄 Indexing...")
+        await message.reply_text("🔄 Bulk indexing...")
         await index_all_files()
         tp = await posts_col.count_documents({}) if posts_col is not None else 0
         tf = await files_col.count_documents({}) if files_col is not None else 0
@@ -585,7 +615,7 @@ async def setup_bot():
     async def stats_handler(client, message):
         tp = await posts_col.count_documents({}) if posts_col is not None else 0
         tf = await files_col.count_documents({}) if files_col is not None else 0
-        await message.reply_text(f"📊 Stats\n\n📝 {tp}\n📁 {tf}")
+        await message.reply_text(f"📊 Stats\n\n📝 Posts: {tp}\n📁 Files: {tf}\n\n🖼️ Posters: OMDB:{movie_db['stats']['omdb']} TMDB:{movie_db['stats']['tmdb']} Custom:{movie_db['stats']['custom']}")
 
 # ==================== INIT ====================
 async def init():
@@ -605,17 +635,22 @@ async def init():
         logger.info(f"✅ @{me.username}")
         bot_started = True
         
+        logger.info("📥 Initial bulk index...")
         await index_all_files()
+        
         auto_index_task = asyncio.create_task(auto_index_loop())
+        logger.info("✅ Real-time indexing active")
         
         return True
     except Exception as e:
         logger.error(f"❌ {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM v2.0")
+    logger.info("🚀 SK4FiLM v2.0 - Real-time Auto-Indexing")
     logger.info("="*70)
     await init()
     cfg = HyperConfig()
