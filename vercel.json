@@ -1,26 +1,17 @@
 {
   "version": 2,
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "routes": [
+  "rewrites": [
     {
-      "src": "^/$",
-      "dest": "/index.html"
+      "source": "/search",
+      "destination": "/search.html"
     },
     {
-      "src": "^/search$",
-      "dest": "/search.html"
+      "source": "/view",
+      "destination": "/view.html"
     },
     {
-      "src": "^/view$",
-      "dest": "/view.html"
-    },
-    {
-      "src": "^/post$",
-      "dest": "/view.html"
-    },
-    {
-      "handle": "filesystem"
+      "source": "/post",
+      "destination": "/view.html"
     }
   ]
 }
