@@ -141,7 +141,6 @@
             opacity: 0.6;
         }
         
-        /* Quality Popup */
         .quality-popup {
             position: fixed;
             top: 0;
@@ -214,7 +213,6 @@
             font-size: 1.2rem;
         }
         
-        /* Warning Box */
         .warning-box {
             background: rgba(255, 193, 7, 0.15);
             border: 2px solid rgba(255, 193, 7, 0.5);
@@ -246,7 +244,6 @@
 </head>
 
 <body>
-    <!-- Navigation -->
     <nav class="top-navbar">
         <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center;">
             <a href="/" style="display: flex; align-items: center; color: white; text-decoration: none;">
@@ -259,7 +256,6 @@
         </div>
     </nav>
 
-    <!-- Search -->
     <div class="search-section">
         <div style="max-width: 800px; margin: 0 auto; padding: 0 20px;">
             <div style="display: flex; gap: 12px;">
@@ -272,14 +268,12 @@
     </div>
 
     <div class="main-container">
-        <!-- Stats -->
         <div id="searchStats" style="display: none; background: rgba(15, 23, 42, 0.8); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
             <div style="color: var(--accent); font-size: 1.2rem; margin-bottom: 10px;">Search Results</div>
             <div id="searchQuery"></div>
             <div id="resultsCount" style="margin-top: 10px; color: #28a745;"></div>
         </div>
 
-        <!-- Results -->
         <div style="background: rgba(15, 23, 42, 0.8); border-radius: 15px; padding: 25px;">
             <div id="searchResults">
                 <div style="text-align: center; padding: 50px 20px;">
@@ -293,11 +287,12 @@
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
-        const FORCE_SUB_CHANNEL = '@SK4FiLM';  // Replace with your channel
+        const FORCE_SUB_CHANNEL = '@SK4FiLM';
         let BOT_USERNAME = 'sk4filmbot';
         let searchResultsData = [];
         
-        console.log('%c🎬 SK4FiLM Search v2.0', 'color: #28a745; font-size: 18px; font-weight: bold;');
+        console.log('%c🎬 SK4FiLM SEARCH v2.0', 'color: #28a745; font-size: 18px; font-weight: bold;');
+        console.log('Backend:', BACKEND_URL);
         
         function doSearch() {
             const input = document.getElementById('searchInput');
@@ -309,20 +304,12 @@
         
         async function performSearch(query) {
             const container = document.getElementById('searchResults');
-            
-            container.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <div style="width: 3rem; height: 3rem; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                    <div style="color: var(--accent);">Searching...</div>
-                </div>
-            `;
+            container.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="width: 3rem; height: 3rem; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div><div style="color: var(--accent);">Searching...</div></div>';
             
             try {
                 console.log('🔍 Searching:', query);
                 const response = await fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&limit=20`);
                 const data = await response.json();
-                
-                console.log('📦 Response:', data);
                 
                 if (data.status === 'success' && data.results?.length > 0) {
                     BOT_USERNAME = data.bot_username || 'sk4filmbot';
@@ -331,7 +318,6 @@
                 } else {
                     showNoResults(query);
                 }
-                
             } catch (error) {
                 console.error('❌ Error:', error);
                 showError();
@@ -361,13 +347,11 @@
                         <div class="movie-title">
                             <i class="fas fa-film me-2"></i>${escapeHTML(displayTitle)}
                         </div>
-                        
                         <div class="action-buttons">
                             <button class="btn-watch" onclick="watchPost(${index})">
                                 <i class="fas fa-eye fa-lg"></i>
                                 <span>Watch Post</span>
                             </button>
-                            
                             ${hasFile && qualities.length > 0 ? `
                                 <button class="btn-download" onclick="showQualityPopup(${index})">
                                     <i class="fas fa-download fa-lg"></i>
@@ -387,7 +371,7 @@
             document.getElementById('searchResults').innerHTML = html;
         }
         
-        // FIX 1: Watch Post - Opens post.html with full content
+        // NEW METHOD: URL Parameter (100% Working)
         function watchPost(index) {
             console.log('👁️ Watch:', index);
             
@@ -397,34 +381,49 @@
                 return;
             }
             
-            const postData = {
-                title: result.title || 'Movie',
-                content: result.content || '<div style="text-align:center;padding:50px;"><p style="color:#ccc;">No additional content available.</p></div>',
-                channel: result.channel || 'SK4FiLM',
-                date: result.date || new Date().toISOString(),
-                is_new: result.is_new || false,
-                has_file: result.has_file || false,
-                quality_options: result.quality_options || {}
-            };
-            
-            const jsonData = JSON.stringify(postData);
-            sessionStorage.setItem('watchPost', jsonData);
-            localStorage.setItem('watchPost', jsonData);
-            localStorage.setItem('watchPostTime', Date.now().toString());
-            
-            console.log('✅ Opening post.html');
-            window.open(window.location.origin + '/post.html?t=' + Date.now(), '_blank');
+            try {
+                const postData = {
+                    title: result.title || 'Movie',
+                    content: result.content || '<p style="text-align:center;padding:50px;color:#ccc;">No additional content available.</p>',
+                    channel: result.channel || 'SK4FiLM',
+                    date: result.date || new Date().toISOString(),
+                    is_new: result.is_new || false,
+                    has_file: result.has_file || false,
+                    quality_options: result.quality_options || {}
+                };
+                
+                // METHOD 1: URL Parameter (Primary - Always Works)
+                const jsonStr = JSON.stringify(postData);
+                const encoded = btoa(encodeURIComponent(jsonStr));
+                
+                // Check URL length (browsers have limits ~2000 chars)
+                const viewUrl = window.location.origin + '/view.html?d=' + encoded;
+                console.log('📏 URL length:', viewUrl.length);
+                
+                if (viewUrl.length > 2000) {
+                    console.warn('⚠️ URL too long, using storage method');
+                    // Fallback to storage method
+                    sessionStorage.setItem('watchPost', jsonStr);
+                    localStorage.setItem('watchPost', jsonStr);
+                    window.open(window.location.origin + '/view.html', '_blank');
+                } else {
+                    // METHOD 2: Storage (Backup)
+                    sessionStorage.setItem('watchPost', jsonStr);
+                    localStorage.setItem('watchPost', jsonStr);
+                    
+                    console.log('✅ Opening view page');
+                    window.open(viewUrl, '_blank');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error: ' + error.message);
+            }
         }
         
-        // FIX 2: Quality Popup with Force Sub & Auto-delete Warning
         function showQualityPopup(index) {
-            console.log('📥 Download:', index);
-            
             const result = searchResultsData[index];
-            if (!result) {
-                alert('Error: Result not found');
-                return;
-            }
+            if (!result) return;
             
             const title = result.title;
             const qualityOptions = result.quality_options || {};
@@ -435,7 +434,6 @@
                 return;
             }
             
-            // Sort qualities
             const order = {'2160p': 5, '2160p HEVC': 5, '1080p': 4, '1080p HEVC': 4, '720p': 3, '720p HEVC': 3, '480p': 2, '480p HEVC': 2};
             qualities.sort((a, b) => (order[b] || 0) - (order[a] || 0));
             
@@ -465,21 +463,17 @@
                             ${escapeHTML(title)}<br>
                             <small style="color: rgba(255,255,255,0.6);">${qualities.length} quality options</small>
                         </div>
-                        
                         ${optionsHTML}
-                        
-                        <!-- FIX 3: Force Sub Warning -->
                         <div class="warning-box">
                             <div style="font-weight: 600; margin-bottom: 8px;">
-                                <i class="fas fa-info-circle me-2"></i>Important Notes:
+                                <i class="fas fa-info-circle me-2"></i>Important:
                             </div>
                             <div style="font-size: 0.85rem; line-height: 1.6;">
-                                • You must join ${FORCE_SUB_CHANNEL} to download<br>
-                                • File will auto-delete after 5 minutes<br>
-                                • Download immediately after receiving
+                                • Join ${FORCE_SUB_CHANNEL} first<br>
+                                • File auto-deletes in 5 minutes<br>
+                                • Download immediately
                             </div>
                         </div>
-                        
                         <button class="close-popup" onclick="closePopup()">
                             <i class="fas fa-times me-2"></i>Close
                         </button>
@@ -490,10 +484,7 @@
             document.body.insertAdjacentHTML('beforeend', popup);
         }
         
-        // FIX 4: Select Quality with User Confirmation
         function selectQuality(fileId, quality, title) {
-            console.log('✅ Selected:', quality);
-            
             closePopup();
             
             if (!fileId || fileId === 'undefined') {
@@ -501,32 +492,28 @@
                 return;
             }
             
-            // Show confirmation with warnings
             const confirmMsg = `
                 <div id="confirmPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(45, 55, 72, 0.98)); padding: 35px; border-radius: 20px; z-index: 10000; max-width: 500px; width: 90%; border: 2px solid #00ccff; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
                     <div style="text-align: center; color: white;">
                         <i class="fas fa-download fa-3x mb-3" style="color: #28a745;"></i>
                         <h3 style="color: #00ccff; margin-bottom: 20px;">[${quality}] Selected</h3>
-                        <p style="margin: 15px 0; font-size: 1rem;">${escapeHTML(title)}</p>
-                        
+                        <p style="margin: 15px 0;">${escapeHTML(title)}</p>
                         <div style="background: rgba(255, 193, 7, 0.15); border: 2px solid rgba(255, 193, 7, 0.5); border-radius: 12px; padding: 15px; margin: 20px 0; text-align: left;">
                             <div style="color: #ffc107; font-weight: 600; margin-bottom: 10px;">
                                 <i class="fas fa-exclamation-triangle me-2"></i>Important:
                             </div>
                             <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem; line-height: 1.8;">
-                                ✓ Join ${FORCE_SUB_CHANNEL} first<br>
-                                ✓ File auto-deletes in 5 minutes<br>
-                                ✓ Download immediately<br>
-                                ✓ Don't refresh the bot
+                                ✓ Join ${FORCE_SUB_CHANNEL}<br>
+                                ✓ Auto-delete in 5 min<br>
+                                ✓ Download immediately
                             </div>
                         </div>
-                        
                         <div style="display: flex; gap: 10px; margin-top: 20px;">
                             <button onclick="document.body.removeChild(document.getElementById('confirmPopup'))" style="flex: 1; background: #6c757d; color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
                                 Cancel
                             </button>
                             <button onclick="openBot('${fileId}'); document.body.removeChild(document.getElementById('confirmPopup'))" style="flex: 2; background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
-                                <i class="fab fa-telegram me-2"></i>Open Telegram Bot
+                                <i class="fab fa-telegram me-2"></i>Open Bot
                             </button>
                         </div>
                     </div>
@@ -539,20 +526,11 @@
         
         function openBot(fileId) {
             const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-            console.log('🤖 Opening:', botLink);
-            
-            const successMsg = document.createElement('div');
-            successMsg.innerHTML = `
-                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 45px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
-                    <i class="fas fa-check-circle fa-3x mb-3"></i>
-                    <h3 style="margin: 15px 0;">Opening Telegram...</h3>
-                    <p style="opacity: 0.9;">Bot will send file in few seconds</p>
-                </div>
-            `;
-            document.body.appendChild(successMsg);
-            
+            const msg = document.createElement('div');
+            msg.innerHTML = `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 45px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);"><i class="fas fa-check-circle fa-3x mb-3"></i><h3>Opening...</h3></div>`;
+            document.body.appendChild(msg);
             setTimeout(() => {
-                document.body.removeChild(successMsg);
+                document.body.removeChild(msg);
                 window.open(botLink, '_blank');
             }, 1500);
         }
@@ -563,23 +541,11 @@
         }
         
         function showNoResults(query) {
-            document.getElementById('searchResults').innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                    <h4>No Results</h4>
-                    <p>No results for "${escapeHTML(query)}"</p>
-                </div>
-            `;
+            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 40px;"><i class="fas fa-search fa-3x text-muted mb-3"></i><h4>No Results</h4><p>No results for "${escapeHTML(query)}"</p></div>`;
         }
         
         function showError() {
-            document.getElementById('searchResults').innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                    <h4>Search Error</h4>
-                    <p>Backend may be starting...</p>
-                </div>
-            `;
+            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 40px;"><i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i><h4>Error</h4><p>Backend may be starting...</p></div>`;
         }
         
         function escapeHTML(text) {
@@ -597,18 +563,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             const query = new URLSearchParams(window.location.search).get('query');
             const input = document.getElementById('searchInput');
-            
             if (input) {
                 input.value = query || '';
                 input.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') doSearch();
                 });
             }
-            
             if (query) performSearch(query);
         });
-        
-        console.log('✅ Search page loaded');
     </script>
 </body>
 </html>
