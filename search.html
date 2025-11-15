@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Results - SK4FiLM</title>
     
-    <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-5244164301170945">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     
-    <!-- CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -19,7 +17,6 @@
             --primary: #ff0000;
             --secondary: #0066ff;
             --accent: #00ccff;
-            --light: #f8f9fa;
         }
         
         body {
@@ -27,7 +24,7 @@
             background-size: cover;
             min-height: 100vh;
             font-family: 'Poppins', sans-serif;
-            color: var(--light);
+            color: #f8f9fa;
             padding-top: 140px;
         }
         
@@ -64,19 +61,6 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-        }
-        
-        .search-ad-space {
-            min-height: 100px;
-            margin: 25px 0;
-            background: rgba(0, 0, 0, 0.3);
-            border: 2px dashed rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.9rem;
         }
         
         .result-item {
@@ -164,7 +148,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 9999;
             display: flex;
             align-items: center;
@@ -181,9 +165,9 @@
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(45, 55, 72, 0.98));
             border-radius: 20px;
             padding: 40px;
-            max-width: 600px;
+            max-width: 650px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
             border: 2px solid var(--accent);
             animation: slideUp 0.3s;
@@ -199,7 +183,7 @@
             font-weight: 700;
             color: var(--accent);
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         
         .quality-btn {
@@ -228,6 +212,17 @@
             border-radius: 10px;
             font-weight: 700;
             font-size: 1.2rem;
+        }
+        
+        /* Warning Box */
+        .warning-box {
+            background: rgba(255, 193, 7, 0.15);
+            border: 2px solid rgba(255, 193, 7, 0.5);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+            color: #ffc107;
+            font-size: 0.9rem;
         }
         
         .close-popup {
@@ -277,27 +272,11 @@
     </div>
 
     <div class="main-container">
-        <!-- Top Ad -->
-        <div class="search-ad-space">
-            <div style="text-align: center;">
-                <i class="fas fa-ad fa-2x mb-2"></i><br>
-                <small>Top Advertisement</small>
-            </div>
-        </div>
-
         <!-- Stats -->
         <div id="searchStats" style="display: none; background: rgba(15, 23, 42, 0.8); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
             <div style="color: var(--accent); font-size: 1.2rem; margin-bottom: 10px;">Search Results</div>
             <div id="searchQuery"></div>
             <div id="resultsCount" style="margin-top: 10px; color: #28a745;"></div>
-        </div>
-
-        <!-- Middle Ad -->
-        <div class="search-ad-space">
-            <div style="text-align: center;">
-                <i class="fas fa-rectangle-ad fa-2x mb-2"></i><br>
-                <small>Premium Ad Zone</small>
-            </div>
         </div>
 
         <!-- Results -->
@@ -310,22 +289,15 @@
                 </div>
             </div>
         </div>
-
-        <!-- Bottom Ad -->
-        <div class="search-ad-space">
-            <div style="text-align: center;">
-                <i class="fas fa-bullhorn fa-2x mb-2"></i><br>
-                <small>Bottom Advertisement</small>
-            </div>
-        </div>
     </div>
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
+        const FORCE_SUB_CHANNEL = '@SK4FiLM';  // Replace with your channel
         let BOT_USERNAME = 'sk4filmbot';
         let searchResultsData = [];
         
-        console.log('%c🎬 SK4FiLM Search', 'color: #28a745; font-size: 18px; font-weight: bold;');
+        console.log('%c🎬 SK4FiLM Search v2.0', 'color: #28a745; font-size: 18px; font-weight: bold;');
         
         function doSearch() {
             const input = document.getElementById('searchInput');
@@ -373,7 +345,6 @@
             
             let html = '';
             results.forEach((result, index) => {
-                // Get clean title
                 let displayTitle = result.title || 'Unknown';
                 if (result.has_file && result.quality_options) {
                     const firstQuality = Object.keys(result.quality_options)[0];
@@ -384,8 +355,6 @@
                 
                 const hasFile = result.has_file || false;
                 const qualities = Object.keys(result.quality_options || {});
-                
-                console.log(`${index + 1}. ${displayTitle} | Has file: ${hasFile} | Qualities: ${qualities.join(', ')}`);
                 
                 html += `
                     <div class="result-item">
@@ -416,20 +385,17 @@
             });
             
             document.getElementById('searchResults').innerHTML = html;
-            console.log('✅ Results displayed');
         }
         
+        // FIX 1: Watch Post - Opens post.html with full content
         function watchPost(index) {
-            console.log('👁️ Watch button clicked:', index);
+            console.log('👁️ Watch:', index);
             
             const result = searchResultsData[index];
             if (!result) {
-                console.error('❌ Result not found');
                 alert('Error: Result not found');
                 return;
             }
-            
-            console.log('📄 Storing post data...');
             
             const postData = {
                 title: result.title || 'Movie',
@@ -446,14 +412,13 @@
             localStorage.setItem('watchPost', jsonData);
             localStorage.setItem('watchPostTime', Date.now().toString());
             
-            console.log('✅ Data stored, opening post page...');
-            
-            const postUrl = window.location.origin + '/post.html?t=' + Date.now();
-            window.open(postUrl, '_blank');
+            console.log('✅ Opening post.html');
+            window.open(window.location.origin + '/post.html?t=' + Date.now(), '_blank');
         }
         
+        // FIX 2: Quality Popup with Force Sub & Auto-delete Warning
         function showQualityPopup(index) {
-            console.log('📥 Download button clicked:', index);
+            console.log('📥 Download:', index);
             
             const result = searchResultsData[index];
             if (!result) {
@@ -466,14 +431,12 @@
             const qualities = Object.keys(qualityOptions);
             
             if (qualities.length === 0) {
-                alert('No quality options available');
+                alert('No quality options');
                 return;
             }
             
-            console.log('📊 Qualities:', qualities);
-            
             // Sort qualities
-            const order = {'2160p': 5, '2160p HEVC': 5, '1080p': 4, '1080p HEVC': 4, '720p': 3, '720p HEVC': 3, '480p': 2};
+            const order = {'2160p': 5, '2160p HEVC': 5, '1080p': 4, '1080p HEVC': 4, '720p': 3, '720p HEVC': 3, '480p': 2, '480p HEVC': 2};
             qualities.sort((a, b) => (order[b] || 0) - (order[a] || 0));
             
             let optionsHTML = '';
@@ -498,11 +461,25 @@
                         <div class="popup-title">
                             <i class="fas fa-sliders-h me-2"></i>Select Quality
                         </div>
-                        <div style="color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 25px;">
+                        <div style="color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 20px;">
                             ${escapeHTML(title)}<br>
-                            <small style="color: rgba(255,255,255,0.6);">${qualities.length} options available</small>
+                            <small style="color: rgba(255,255,255,0.6);">${qualities.length} quality options</small>
                         </div>
+                        
                         ${optionsHTML}
+                        
+                        <!-- FIX 3: Force Sub Warning -->
+                        <div class="warning-box">
+                            <div style="font-weight: 600; margin-bottom: 8px;">
+                                <i class="fas fa-info-circle me-2"></i>Important Notes:
+                            </div>
+                            <div style="font-size: 0.85rem; line-height: 1.6;">
+                                • You must join ${FORCE_SUB_CHANNEL} to download<br>
+                                • File will auto-delete after 5 minutes<br>
+                                • Download immediately after receiving
+                            </div>
+                        </div>
+                        
                         <button class="close-popup" onclick="closePopup()">
                             <i class="fas fa-times me-2"></i>Close
                         </button>
@@ -511,12 +488,11 @@
             `;
             
             document.body.insertAdjacentHTML('beforeend', popup);
-            console.log('✅ Popup displayed');
         }
         
+        // FIX 4: Select Quality with User Confirmation
         function selectQuality(fileId, quality, title) {
             console.log('✅ Selected:', quality);
-            console.log('📁 File ID:', fileId);
             
             closePopup();
             
@@ -525,15 +501,58 @@
                 return;
             }
             
-            const msg = document.createElement('div');
-            msg.innerHTML = `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 45px; border-radius: 20px; z-index: 10000; text-align: center; color: white;"><i class="fas fa-check-circle fa-3x mb-3"></i><h3>[${quality}]</h3><p>Opening Telegram...</p></div>`;
-            document.body.appendChild(msg);
+            // Show confirmation with warnings
+            const confirmMsg = `
+                <div id="confirmPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(45, 55, 72, 0.98)); padding: 35px; border-radius: 20px; z-index: 10000; max-width: 500px; width: 90%; border: 2px solid #00ccff; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
+                    <div style="text-align: center; color: white;">
+                        <i class="fas fa-download fa-3x mb-3" style="color: #28a745;"></i>
+                        <h3 style="color: #00ccff; margin-bottom: 20px;">[${quality}] Selected</h3>
+                        <p style="margin: 15px 0; font-size: 1rem;">${escapeHTML(title)}</p>
+                        
+                        <div style="background: rgba(255, 193, 7, 0.15); border: 2px solid rgba(255, 193, 7, 0.5); border-radius: 12px; padding: 15px; margin: 20px 0; text-align: left;">
+                            <div style="color: #ffc107; font-weight: 600; margin-bottom: 10px;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Important:
+                            </div>
+                            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem; line-height: 1.8;">
+                                ✓ Join ${FORCE_SUB_CHANNEL} first<br>
+                                ✓ File auto-deletes in 5 minutes<br>
+                                ✓ Download immediately<br>
+                                ✓ Don't refresh the bot
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button onclick="document.body.removeChild(document.getElementById('confirmPopup'))" style="flex: 1; background: #6c757d; color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
+                                Cancel
+                            </button>
+                            <button onclick="openBot('${fileId}'); document.body.removeChild(document.getElementById('confirmPopup'))" style="flex: 2; background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
+                                <i class="fab fa-telegram me-2"></i>Open Telegram Bot
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999;" onclick="document.body.removeChild(document.getElementById('confirmPopup')); this.remove();"></div>
+            `;
             
+            document.body.insertAdjacentHTML('beforeend', confirmMsg);
+        }
+        
+        function openBot(fileId) {
             const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
             console.log('🤖 Opening:', botLink);
             
+            const successMsg = document.createElement('div');
+            successMsg.innerHTML = `
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 45px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <h3 style="margin: 15px 0;">Opening Telegram...</h3>
+                    <p style="opacity: 0.9;">Bot will send file in few seconds</p>
+                </div>
+            `;
+            document.body.appendChild(successMsg);
+            
             setTimeout(() => {
-                document.body.removeChild(msg);
+                document.body.removeChild(successMsg);
                 window.open(botLink, '_blank');
             }, 1500);
         }
@@ -558,7 +577,7 @@
                 <div style="text-align: center; padding: 40px;">
                     <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
                     <h4>Search Error</h4>
-                    <p>Unable to connect. Backend may be starting...</p>
+                    <p>Backend may be starting...</p>
                 </div>
             `;
         }
