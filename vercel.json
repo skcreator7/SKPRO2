@@ -8,20 +8,16 @@
       "dest": "/index.html"
     },
     {
-      "src": "^/search\\.html$",
+      "src": "^/search(?:\\.html)?$",
       "dest": "/search.html"
     },
     {
-      "src": "^/search$",
-      "dest": "/search.html"
-    },
-    {
-      "src": "^/post\\.html$",
+      "src": "^/post(?:\\.html)?$",
       "dest": "/post.html"
     },
     {
-      "src": "^/post$",
-      "dest": "/post.html"
+      "src": "^/(.*\\.html)$",
+      "dest": "/$1"
     },
     {
       "handle": "filesystem"
@@ -30,6 +26,21 @@
       "src": "/(.*)",
       "status": 404,
       "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
     }
   ]
 }
