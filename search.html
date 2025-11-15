@@ -52,6 +52,7 @@
             width: 100%;
             z-index: 1000;
             padding: 15px 0;
+            backdrop-filter: blur(10px);
         }
         
         .search-section {
@@ -61,6 +62,7 @@
             width: 100%;
             z-index: 900;
             padding: 15px 0;
+            backdrop-filter: blur(10px);
         }
         
         .main-container {
@@ -99,6 +101,7 @@
             background: rgba(0, 136, 204, 0.1);
             border-radius: 10px;
             border-left: 4px solid var(--accent);
+            word-wrap: break-word;
         }
         
         .action-buttons {
@@ -149,7 +152,6 @@
             opacity: 0.6;
         }
         
-        /* INLINE QUALITY BUTTONS (Expandable) */
         .quality-section {
             margin-top: 20px;
             padding-top: 20px;
@@ -200,6 +202,7 @@
             align-items: center;
             gap: 5px;
             min-width: 120px;
+            flex: 0 0 auto;
         }
         
         .quality-item:hover {
@@ -220,20 +223,131 @@
             border-radius: 8px;
             font-weight: 700;
             font-size: 1rem;
+            white-space: nowrap;
         }
         
         .quality-size {
             color: rgba(255, 255, 255, 0.8);
             font-size: 0.85rem;
             font-weight: 600;
+            white-space: nowrap;
         }
         
         @media (max-width: 768px) {
-            body { padding-top: 120px; }
-            .action-buttons { flex-direction: column; }
-            .btn-watch, .btn-download { min-width: 100%; }
-            .quality-buttons { flex-direction: column; }
-            .quality-item { width: 100%; }
+            body { 
+                padding-top: 115px; 
+            }
+            
+            .main-container {
+                padding: 12px;
+            }
+            
+            .result-item {
+                padding: 18px;
+                margin-bottom: 20px;
+            }
+            
+            .movie-title {
+                font-size: 1.05rem;
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+            
+            .action-buttons { 
+                gap: 10px;
+            }
+            
+            .btn-watch, .btn-download { 
+                flex: 1;
+                min-width: 140px;
+                padding: 12px 20px;
+                font-size: 0.95rem;
+            }
+            
+            .quality-title {
+                font-size: 0.95rem;
+                margin-bottom: 12px;
+            }
+            
+            .quality-buttons {
+                gap: 8px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 5px 0;
+                justify-content: flex-start;
+                -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x proximity;
+            }
+            
+            .quality-item {
+                min-width: 100px;
+                padding: 10px 16px;
+                flex-shrink: 0;
+                scroll-snap-align: start;
+            }
+            
+            .quality-badge {
+                font-size: 0.9rem;
+                padding: 5px 12px;
+            }
+            
+            .quality-size {
+                font-size: 0.75rem;
+            }
+            
+            .quality-buttons::-webkit-scrollbar {
+                height: 4px;
+            }
+            
+            .quality-buttons::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 2px;
+            }
+            
+            .quality-buttons::-webkit-scrollbar-thumb {
+                background: var(--accent);
+                border-radius: 2px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding-top: 110px;
+            }
+            
+            .result-item {
+                padding: 15px;
+            }
+            
+            .movie-title {
+                font-size: 1rem;
+                padding: 10px;
+            }
+            
+            .btn-watch, .btn-download {
+                min-width: 130px;
+                padding: 11px 18px;
+                font-size: 0.9rem;
+            }
+            
+            .quality-item {
+                min-width: 90px;
+                padding: 8px 14px;
+            }
+            
+            .quality-badge {
+                font-size: 0.85rem;
+                padding: 4px 10px;
+            }
+            
+            .quality-size {
+                font-size: 0.7rem;
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -297,12 +411,19 @@
         
         async function performSearch(query) {
             const container = document.getElementById('searchResults');
-            container.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="width: 3rem; height: 3rem; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div><div style="color: var(--accent);">Searching...</div></div>';
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="width: 3rem; height: 3rem; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                    <div style="color: var(--accent);">Searching...</div>
+                </div>
+            `;
             
             try {
                 console.log('🔍 Searching:', query);
                 const response = await fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&limit=20`);
                 const data = await response.json();
+                
+                console.log('📦 Response:', data);
                 
                 if (data.status === 'success' && data.results?.length > 0) {
                     BOT_USERNAME = data.bot_username || 'sk4filmbot';
@@ -329,11 +450,9 @@
                 const qualityOptions = result.quality_options || {};
                 const qualities = Object.keys(qualityOptions);
                 
-                // Sort qualities
                 const order = {'2160p': 5, '2160p HEVC': 5, '1080p': 4, '1080p HEVC': 4, '720p': 3, '720p HEVC': 3, '480p': 2, '480p HEVC': 2};
                 qualities.sort((a, b) => (order[b] || 0) - (order[a] || 0));
                 
-                // Build quality buttons HTML
                 let qualityButtonsHTML = '';
                 qualities.forEach(quality => {
                     const option = qualityOptions[quality];
@@ -373,7 +492,6 @@
                             `}
                         </div>
                         
-                        <!-- INLINE QUALITY SECTION -->
                         ${hasFile && qualities.length > 0 ? `
                             <div class="quality-section" id="quality-${index}">
                                 <div class="quality-title">
@@ -389,24 +507,21 @@
             });
             
             document.getElementById('searchResults').innerHTML = html;
+            console.log('✅ Results displayed');
         }
         
-        // TOGGLE INLINE QUALITY SECTION
         function toggleQualitySection(index) {
             const qualitySection = document.getElementById(`quality-${index}`);
             
-            // Close all other quality sections
             document.querySelectorAll('.quality-section').forEach(section => {
                 if (section.id !== `quality-${index}`) {
                     section.classList.remove('show');
                 }
             });
             
-            // Toggle current section
             if (qualitySection) {
                 qualitySection.classList.toggle('show');
                 
-                // Scroll into view if needed
                 if (qualitySection.classList.contains('show')) {
                     setTimeout(() => {
                         qualitySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -462,7 +577,6 @@
                 return;
             }
             
-            // Show brief confirmation
             const msg = document.createElement('div');
             msg.innerHTML = `
                 <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 25px 40px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
@@ -525,6 +639,8 @@
             }
             if (query) performSearch(query);
         });
+        
+        console.log('✅ Search page ready');
     </script>
 </body>
 </html>
