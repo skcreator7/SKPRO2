@@ -310,7 +310,6 @@ async def get_poster_multi(title, session):
     movie_db['poster_cache'][ck] = (res, datetime.now())
     return res
 
-# HYBRID SEARCH - MongoDB + Direct Pyrogram
 async def direct_search_channels(query, limit=50):
     if not User:
         return {'posts': [], 'files': []}
@@ -381,7 +380,6 @@ async def search_movies(query, limit=12, page=1):
     posts_dict = {}
     files_dict = {}
     
-    # Try MongoDB first
     if posts_col is not None and files_col is not None:
         try:
             cursor = posts_col.find({'$text': {'$search': query}}).sort('date', -1).limit(100)
@@ -416,7 +414,6 @@ async def search_movies(query, limit=12, page=1):
         except Exception as e:
             logger.error(f"  ✗ MongoDB: {e}")
     
-    # Fallback to direct search if needed
     if len(posts_dict) == 0 and len(files_dict) == 0:
         logger.info("  🔄 Using direct search...")
         direct = await direct_search_channels(query, limit=50)
@@ -447,7 +444,6 @@ async def search_movies(query, limit=12, page=1):
                 'file_name': file['file_name']
             }
     
-    # Merge
     merged = {}
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data
@@ -491,6 +487,7 @@ async def get_home_movies():
     if posts_col is None:
         return []
     
+    logger.info("🏠 Loading...")
     movies = []
     seen = set()
     
@@ -507,6 +504,7 @@ async def get_home_movies():
     except:
         pass
     
+    logger.info(f"🎨 Posters...")
     async with aiohttp.ClientSession() as s:
         for i in range(0, len(movies), 5):
             batch = movies[i:i + 5]
@@ -519,12 +517,13 @@ async def get_home_movies():
                     m['has_poster'] = True
             await asyncio.sleep(0.2)
     
+    logger.info(f"✅ {len(movies)}")
     return movies
 
 @app.route('/')
 async def root():
-    tp = await posts_col.count_documents({}) if posts_col else 0
-    tf = await files_col.count_documents({}) if files_col else 0
+    tp = await posts_col.count_documents({}) if posts_col is not None else 0
+    tf = await files_col.count_documents({}) if files_col is not None else 0
     return jsonify({'status': 'healthy', 'service': 'SK4FiLM v2.0', 'database': {'posts': tp, 'files': tf}, 'bot_status': 'online' if bot_started else 'starting'})
 
 @app.route('/health')
@@ -579,7 +578,6 @@ async def api_poster():
     svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:{c[0]}"/><stop offset="100%" style="stop-color:{c[1]}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#bg)" rx="20"/><circle cx="150" cy="180" r="50" fill="rgba(255,255,255,0.2)"/><text x="50%" y="200" text-anchor="middle" fill="#fff" font-size="50">🎬</text><text x="50%" y="270" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">{html.escape(d)}</text><rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/><text x="50%" y="405" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">SK4FiLM</text></svg>'''
     return Response(svg, mimetype='image/svg+xml', headers={'Cache-Control': 'public, max-age=3600'})
 
-# BOT - FILE SENDING
 async def setup_bot():
     @bot.on_message(filters.command("start") & filters.private)
     async def start_handler(client, message):
@@ -589,68 +587,64 @@ async def setup_bot():
             fid = message.command[1]
             logger.info(f"📥 {uid} | {fid}")
             
-            # CHECK FORCE SUB
             if not await check_force_sub(uid):
                 try:
                     ch = await bot.get_chat(Config.FORCE_SUB_CHANNEL)
                     lk = f"https://t.me/{ch.username}" if ch.username else f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
                 except:
                     lk = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
-                await message.reply_text("⚠️ **Join channel first**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=lk)]]))
+                await message.reply_text("⚠️ **Join channel first**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join", url=lk)]]))
                 return
             
-            # FIND FILE
-            fd = await files_col.find_one({'file_id': fid}) if files_col else None
+            fd = await files_col.find_one({'file_id': fid}) if files_col is not None else None
             
             if not fd:
                 logger.error(f"❌ Not found: {fid}")
-                await message.reply_text("❌ **File Not Found**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 Search Again", url=Config.WEBSITE_URL)]]))
+                await message.reply_text("❌ **File Not Found**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 Search", url=Config.WEBSITE_URL)]]))
                 return
             
             try:
-                pm = await message.reply_text(f"⏳ **Sending file...**\n\n📁 `{fd['file_name']}`\n📊 {fd['quality']}\n📦 {format_size(fd['file_size'])}")
+                pm = await message.reply_text(f"⏳ **Sending...**\n\n📁 `{fd['file_name']}`\n📊 {fd['quality']}\n📦 {format_size(fd['file_size'])}")
                 
-                # SEND FILE USING USER CLIENT
                 if User:
                     fm = await User.get_messages(fd['channel_id'], fd['message_id'])
                     sent = await fm.copy(uid)
                     await pm.delete()
                     
-                    sm = await message.reply_text(f"✅ **File sent!**\n\n🎬 {fd['title']}\n📊 {fd['quality']}\n📦 {format_size(fd['file_size'])}\n\n⚠️ **File will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes**")
+                    sm = await message.reply_text(f"✅ **Sent!**\n\n🎬 {fd['title']}\n📊 {fd['quality']}\n📦 {format_size(fd['file_size'])}\n\n⚠️ **Auto-delete in {Config.AUTO_DELETE_TIME//60} min**")
                     
                     logger.info(f"✅ {fd['title']} → {uid}")
                     
-                    # AUTO DELETE
                     if Config.AUTO_DELETE_TIME > 0:
                         await asyncio.sleep(Config.AUTO_DELETE_TIME)
                         try:
                             await sent.delete()
-                            await sm.edit_text("🗑️ **File deleted**")
+                            await sm.edit_text("🗑️ **Deleted**")
                         except:
                             pass
             except Exception as e:
                 logger.error(f"❌ {e}")
-                await message.reply_text("❌ **Error sending file**")
+                await message.reply_text("❌ **Error**")
             return
         
-        await message.reply_text("🎬 **SK4FiLM**\n\nSearch & download movies", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Open Website", url=Config.WEBSITE_URL)]]))
+        await message.reply_text("🎬 **SK4FiLM**\n\nSearch & download", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index']))
     async def text_handler(client, message):
-        await message.reply_text("👋 Use website", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
+        await message.reply_text("👋 Use website", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Go", url=Config.WEBSITE_URL)]]))
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
         await message.reply_text("🔄 Indexing...")
         await index_all_files()
-        tp = await posts_col.count_documents({}) if posts_col else 0
-        tf = await files_col.count_documents({}) if files_col else 0
+        tp = await posts_col.count_documents({}) if posts_col is not None else 0
+        tf = await files_col.count_documents({}) if files_col is not None else 0
         await message.reply_text(f"✅ Done\n\n📝 {tp}\n📁 {tf}")
     
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
-        tp = await posts_col.count_documents({}) if posts_col else 0
-        tf = await files_col.count_documents({}) if files_col else 0
+        tp = await posts_col.count_documents({}) if posts_col is not None else 0
+        tf = await files_col.count_documents({}) if files_col is not None else 0
         await message.reply_text(f"📊 Stats\n\n📝 {tp}\n📁 {tf}")
 
 async def init():
@@ -680,7 +674,7 @@ async def init():
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM v2.0 - Complete")
+    logger.info("🚀 SK4FiLM v2.0 - Production")
     logger.info("="*70)
     await init()
     cfg = HyperConfig()
