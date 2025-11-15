@@ -75,6 +75,7 @@
             -webkit-text-fill-color: transparent;
         }
         
+        /* CLEAN RESULT CARD - TITLE STYLE */
         .result-card {
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(45, 55, 72, 0.95));
             border-radius: 20px;
@@ -92,36 +93,36 @@
             border-color: var(--accent);
         }
         
+        /* FIX: Better title display - Like filename */
         .movie-title {
-            font-size: 2.2rem;
-            font-weight: 800;
-            color: var(--accent);
-            margin-bottom: 30px;
-            text-shadow: 0 3px 15px rgba(0, 204, 255, 0.6);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 25px;
+            line-height: 1.6;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 204, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 4px solid var(--accent);
         }
         
         .badge-row {
             display: flex;
             gap: 12px;
             justify-content: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             flex-wrap: wrap;
-        }
-        
-        .quality-badge {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-weight: 700;
         }
         
         .new-badge {
             background: linear-gradient(45deg, #ff4757, #ff6b81);
             color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 8px 18px;
+            border-radius: 15px;
             font-weight: 700;
+            font-size: 0.9rem;
             animation: pulse 2s infinite;
         }
         
@@ -282,7 +283,7 @@
         
         @media (max-width: 768px) {
             body { padding-top: 80px; }
-            .movie-title { font-size: 1.6rem; }
+            .movie-title { font-size: 1.2rem; padding: 15px; }
             .action-btns { flex-direction: column; }
             .watch-btn, .download-btn { width: 100%; justify-content: center; }
             .quality-option { flex-direction: column; gap: 15px; text-align: center; }
@@ -315,25 +316,25 @@
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
-        let BOT_USERNAME = 'sk4filmbot';
+        let BOT_USERNAME = 'sk4film_bot';
         
-        console.log('%c🔍 SEARCH PAGE LOADED', 'color: #28a745; font-size: 18px; font-weight: bold;');
-        console.log('Backend:', BACKEND_URL);
+        console.log('%c🔍 SK4FiLM SEARCH', 'color: #28a745; font-size: 18px; font-weight: bold;');
         
         async function loadSearchResults(query, page = 1) {
             const container = document.getElementById('searchResults');
             container.innerHTML = '<div style="text-align: center; padding: 80px;"><div style="width: 4rem; height: 4rem; border: 6px solid rgba(255,255,255,0.3); border-top: 6px solid #28a745; border-radius: 50%; animation: spin 1.5s linear infinite; margin: 0 auto 25px;"></div><h4 style="color: #28a745;">Searching...</h4></div>';
             
             try {
-                console.log(`🔍 Searching: "${query}" (Page ${page})`);
+                console.log(`🔍 Query: "${query}" | Page: ${page}`);
                 
                 const response = await fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=12`);
                 const data = await response.json();
                 
-                console.log('📦 API Response:', data);
+                console.log('📦 Response:', data);
                 
                 if (data.status === 'success' && data.results?.length > 0) {
-                    BOT_USERNAME = data.bot_username || 'sk4filmbot';
+                    BOT_USERNAME = data.bot_username || 'sk4film_bot';
+                    console.log('🤖 Bot:', BOT_USERNAME);
                     displayResults(data.results, query);
                     setupPagination(data.pagination, query);
                 } else {
@@ -345,31 +346,41 @@
             }
         }
         
+        // FIX: Display with clean title format
         function displayResults(results, query) {
             const container = document.getElementById('searchResults');
-            let html = `<div style="margin-bottom: 40px; text-align: center;"><h2 style="color: var(--accent); font-size: 2rem;"><i class="fas fa-list-alt me-2"></i>${results.length} Results for "${escapeHTML(query)}"</h2></div>`;
+            let html = `<div style="margin-bottom: 40px; text-align: center;"><h2 style="color: var(--accent); font-size: 2rem;"><i class="fas fa-list-alt me-2"></i>${results.length} Results</h2></div>`;
             
             results.forEach((result, index) => {
-                const title = result.title || 'Unknown';
+                // FIX: Get clean title from file_name or title
+                let displayTitle = result.title || 'Unknown';
+                
+                // If has file, try to get better display name from quality options
+                if (result.has_file && result.quality_options) {
+                    const firstQuality = Object.keys(result.quality_options)[0];
+                    if (firstQuality && result.quality_options[firstQuality].file_name) {
+                        // Use filename without extension as display title
+                        displayTitle = result.quality_options[firstQuality].file_name.replace(/\.[^.]+$/, '');
+                    }
+                }
+                
                 const hasFile = result.has_file || false;
                 const qualities = Object.keys(result.quality_options || {});
                 
-                console.log(`${index + 1}. ${title}`);
-                console.log('   Has file:', hasFile);
+                console.log(`${index + 1}. ${displayTitle}`);
                 console.log('   Qualities:', qualities);
-                console.log('   Quality options:', result.quality_options);
                 
                 html += `
                     <div class="result-card" style="animation: fadeInUp 0.5s ease ${index * 0.1}s both;">
+                        <!-- CLEAN TITLE LIKE FILENAME -->
                         <div class="movie-title">
-                            <i class="fas fa-film me-3"></i>${escapeHTML(title)}
+                            ${escapeHTML(displayTitle)}
                         </div>
                         
-                        <div class="badge-row">
-                            ${result.is_new ? '<span class="new-badge"><i class="fas fa-fire me-1"></i>NEW</span>' : ''}
-                            ${hasFile && qualities.length > 0 ? `<span class="quality-badge"><i class="fas fa-check-circle me-1"></i>${qualities.join(', ')}</span>` : ''}
-                        </div>
+                        <!-- NEW BADGE ONLY -->
+                        ${result.is_new ? '<div class="badge-row"><span class="new-badge"><i class="fas fa-fire me-1"></i>NEW</span></div>' : ''}
                         
+                        <!-- ONLY 2 BUTTONS -->
                         <div class="action-btns">
                             <button class="watch-btn" onclick='watchPost(${JSON.stringify(result).replace(/'/g, "&#39;")})'>
                                 <i class="fas fa-eye fa-2x"></i>
@@ -377,9 +388,9 @@
                             </button>
                             
                             ${hasFile && qualities.length > 0 ? `
-                                <button class="download-btn" onclick='showQualityPopup(${JSON.stringify(title).replace(/'/g, "&#39;")}, ${JSON.stringify(result.quality_options).replace(/'/g, "&#39;")})'>
+                                <button class="download-btn" onclick='showQualityPopup(${JSON.stringify(displayTitle).replace(/'/g, "&#39;")}, ${JSON.stringify(result.quality_options).replace(/'/g, "&#39;")})'>
                                     <i class="fas fa-download fa-2x"></i>
-                                    <span>Download (${qualities.length} options)</span>
+                                    <span>Download</span>
                                 </button>
                             ` : `
                                 <button class="download-btn" disabled>
@@ -395,68 +406,70 @@
             container.innerHTML = html;
         }
         
-        // FIX 1: Watch button - Store data and open new tab properly
+        // FIX: Watch button - Proper data storage
         function watchPost(result) {
-            console.log('👁️ Watch button clicked for:', result.title);
+            console.log('👁️ Watch:', result.title);
             
             try {
-                // Store in both sessionStorage and localStorage for reliability
-                const postData = JSON.stringify(result);
-                sessionStorage.setItem('watchPost', postData);
-                localStorage.setItem('watchPost', postData);
+                const postData = {
+                    title: result.title,
+                    content: result.content || 'No additional content available.',
+                    channel: result.channel || 'Channel',
+                    date: result.date || new Date().toISOString(),
+                    is_new: result.is_new || false,
+                    has_file: result.has_file || false,
+                    quality_options: result.quality_options || {}
+                };
+                
+                // Store properly
+                const jsonData = JSON.stringify(postData);
+                sessionStorage.setItem('watchPost', jsonData);
+                localStorage.setItem('watchPost', jsonData);
                 localStorage.setItem('watchPostTime', Date.now().toString());
                 
-                console.log('✅ Post data stored:', result);
+                console.log('✅ Stored:', postData);
                 
-                // Open post.html in new tab with absolute URL
-                const postUrl = window.location.origin + '/post.html?id=' + encodeURIComponent(result.title) + '&t=' + Date.now();
+                // Open with unique timestamp
+                const postUrl = window.location.origin + '/post.html?t=' + Date.now();
                 console.log('🔗 Opening:', postUrl);
                 
-                const newWindow = window.open(postUrl, '_blank');
-                
-                if (!newWindow) {
-                    alert('⚠️ Please allow popups for this site');
-                } else {
-                    console.log('✅ Post page opened');
-                }
+                window.open(postUrl, '_blank');
                 
             } catch (error) {
                 console.error('❌ Watch error:', error);
-                alert('Error opening post. Please try again.');
+                alert('Error opening post');
             }
         }
         
-        // FIX 2: Download button - Show ALL qualities
+        // FIX: Quality popup with ALL options
         function showQualityPopup(title, qualityOptions) {
-            console.log('📥 Quality popup for:', title);
-            console.log('📊 Available qualities:', qualityOptions);
+            console.log('📥 Quality popup:', title);
+            console.log('📊 Options:', qualityOptions);
             
             const qualities = Object.keys(qualityOptions);
             
             if (qualities.length === 0) {
-                alert('❌ No quality options available');
+                alert('❌ No quality options');
                 return;
             }
             
-            console.log('✅ Showing', qualities.length, 'quality options');
+            console.log(`✅ Showing ${qualities.length} options`);
             
             let optionsHTML = '';
             
-            // FIX: Loop through ALL qualities
             qualities.forEach(quality => {
                 const option = qualityOptions[quality];
-                const fileSize = option.file_size ? (option.file_size / (1024 * 1024)).toFixed(2) : 'Unknown';
+                const fileSize = option.file_size ? (option.file_size / (1024 * 1024)).toFixed(2) : '?';
                 const fileId = option.file_id || '';
                 
-                console.log(`  • ${quality}: ${fileSize} MB | File ID: ${fileId}`);
+                console.log(`  • ${quality}: ${fileSize} MB | ID: ${fileId}`);
                 
                 optionsHTML += `
                     <div class="quality-option" onclick='selectQuality("${escapeJS(fileId)}", "${escapeJS(title)}", "${quality}")'>
                         <div style="display: flex; align-items: center; gap: 20px; flex: 1;">
                             <div class="quality-badge-big">${quality}</div>
-                            <div style="text-align: left; color: rgba(255,255,255,0.9);">
-                                <strong style="font-size: 1.1rem;">${escapeHTML(title)}</strong><br>
-                                <small style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">${escapeHTML(option.file_name || 'video.mp4')}</small>
+                            <div style="text-align: left; color: rgba(255,255,255,0.9); flex: 1;">
+                                <strong style="font-size: 1.1rem;">${escapeHTML(option.file_name || title)}</strong>
                             </div>
                         </div>
                         <div style="color: rgba(255,255,255,0.7); font-weight: 700; font-size: 1.1rem; white-space: nowrap;">
@@ -467,17 +480,15 @@
             });
             
             const popup = `
-                <div class="quality-popup-overlay" id="qualityPopup" onclick="closePopupOnOverlay(event)">
+                <div class="quality-popup-overlay" id="qualityPopup" onclick="closePopupClick(event)">
                     <div class="quality-popup-box" onclick="event.stopPropagation()">
                         <div class="popup-title">
                             <i class="fas fa-sliders-h me-2"></i>Select Quality
                         </div>
-                        <div style="color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 25px; font-size: 1.1rem;">
-                            Choose quality for: <strong style="color: var(--accent);">${escapeHTML(title)}</strong>
+                        <div style="color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 25px; font-size: 1rem;">
+                            ${escapeHTML(title)}
                         </div>
-                        <div style="margin-bottom: 20px;">
-                            ${optionsHTML}
-                        </div>
+                        ${optionsHTML}
                         <button class="close-popup-btn" onclick="closeQualityPopup()">
                             <i class="fas fa-times me-2"></i>Close
                         </button>
@@ -486,51 +497,43 @@
             `;
             
             document.body.insertAdjacentHTML('beforeend', popup);
-            console.log('✅ Popup displayed with', qualities.length, 'options');
+            console.log('✅ Popup shown');
         }
         
-        // FIX 3: Quality selection - Send correct file_id to bot
+        // FIX: Quality selection with proper file_id
         function selectQuality(fileId, title, quality) {
-            console.log('✅ Quality selected:', quality);
+            console.log('✅ Selected:', quality);
             console.log('📁 File ID:', fileId);
-            console.log('🎬 Title:', title);
             
             closeQualityPopup();
             
-            if (!fileId || fileId === 'undefined') {
-                console.error('❌ Invalid file ID:', fileId);
-                alert('❌ File ID not available. Please try again.');
+            if (!fileId || fileId === 'undefined' || fileId === 'null') {
+                console.error('❌ Invalid file ID');
+                alert('❌ File ID not available');
                 return;
             }
             
-            // Show success message
-            showSuccessMessage(title, quality);
-            
-            // Open bot with file_id
-            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-            console.log('🤖 Opening bot:', botLink);
-            
-            setTimeout(() => {
-                window.open(botLink, '_blank');
-            }, 500);
-        }
-        
-        function showSuccessMessage(title, quality) {
-            const msg = `
-                <div id="successMsg" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 50px; border-radius: 20px; z-index: 6000; box-shadow: 0 20px 60px rgba(0,0,0,0.8); animation: fadeIn 0.3s ease; text-align: center; color: white;">
+            // Success message
+            const msg = document.createElement('div');
+            msg.id = 'successMsg';
+            msg.innerHTML = `
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 50px; border-radius: 20px; z-index: 6000; box-shadow: 0 20px 60px rgba(0,0,0,0.8); text-align: center; color: white; animation: fadeIn 0.3s ease;">
                     <i class="fas fa-check-circle fa-4x mb-3"></i>
                     <h3 style="margin: 15px 0;">${quality} Selected</h3>
-                    <p style="margin: 0; font-size: 1.1rem;">${title}</p>
-                    <p style="margin-top: 10px; opacity: 0.9;">Opening Telegram bot...</p>
+                    <p style="margin: 10px 0; font-size: 1.1rem;">Opening Telegram...</p>
                 </div>
             `;
+            document.body.appendChild(msg);
             
-            document.body.insertAdjacentHTML('beforeend', msg);
+            // Open bot
+            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
+            console.log('🤖 Bot link:', botLink);
             
             setTimeout(() => {
                 const msgEl = document.getElementById('successMsg');
                 if (msgEl) document.body.removeChild(msgEl);
-            }, 2000);
+                window.open(botLink, '_blank');
+            }, 1500);
         }
         
         function closeQualityPopup() {
@@ -541,7 +544,7 @@
             }
         }
         
-        function closePopupOnOverlay(event) {
+        function closePopupClick(event) {
             if (event.target.id === 'qualityPopup') {
                 closeQualityPopup();
             }
@@ -566,7 +569,7 @@
         }
         
         function showNoResults(query) {
-            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 100px;"><i class="fas fa-search fa-6x mb-4" style="color: #6c757d;"></i><h3 style="color: var(--accent);">No Results</h3><p>No results for "${escapeHTML(query)}"</p><a href="/" style="background: var(--primary); color: white; text-decoration: none; padding: 15px 35px; border-radius: 20px; display: inline-block; margin-top: 25px; font-weight: 700;"><i class="fas fa-home me-2"></i>Home</a></div>`;
+            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 100px;"><i class="fas fa-search fa-6x mb-4" style="color: #6c757d;"></i><h3 style="color: var(--accent);">No Results</h3><a href="/" style="background: var(--primary); color: white; text-decoration: none; padding: 15px 35px; border-radius: 20px; display: inline-block; margin-top: 25px; font-weight: 700;"><i class="fas fa-home me-2"></i>Home</a></div>`;
         }
         
         function showError(query) {
@@ -590,10 +593,10 @@
             const query = urlParams.get('query');
             
             if (query) {
-                console.log('🚀 Starting search for:', query);
+                console.log('🚀 Starting search:', query);
                 loadSearchResults(query.trim(), 1);
             } else {
-                console.log('⚠️ No query found, redirecting...');
+                console.log('⚠️ No query, redirecting...');
                 window.location.href = '/';
             }
         });
