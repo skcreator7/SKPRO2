@@ -8,23 +8,19 @@
       "dest": "/index.html"
     },
     {
+      "src": "^/search\\.html$",
+      "dest": "/search.html"
+    },
+    {
       "src": "^/search$",
       "dest": "/search.html"
     },
     {
-      "src": "^/post$",
+      "src": "^/post\\.html$",
       "dest": "/post.html"
     },
     {
-      "src": "^/index.html$",
-      "dest": "/index.html"
-    },
-    {
-      "src": "^/search.html$",
-      "dest": "/search.html"
-    },
-    {
-      "src": "^/post.html$",
+      "src": "^/post$",
       "dest": "/post.html"
     },
     {
