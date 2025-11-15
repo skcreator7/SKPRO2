@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SK4FiLM - Post</title>
+    <title>SK4FiLM - Post Details</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -134,32 +134,36 @@
     </div>
 
     <script>
-        console.log('%c📄 POST PAGE', 'color: #00ccff; font-size: 20px; font-weight: bold;');
-        console.log('🔗 URL:', window.location.href);
+        console.log('%c📄 POST PAGE LOADED', 'color: #00ccff; font-size: 20px; font-weight: bold;');
+        console.log('🔗 Current URL:', window.location.href);
+        console.log('🌐 Origin:', window.location.origin);
+        console.log('📍 Pathname:', window.location.pathname);
         console.log('⏰ Time:', new Date().toLocaleString());
+        
+        // Prevent automatic redirect
+        console.log('✅ Page loaded, will NOT redirect to homepage');
         
         function loadPostDetails() {
             try {
-                console.log('\n📥 Attempting to load post data...');
+                console.log('\n📥 Starting to load post data...');
                 
-                // Try sessionStorage first
+                // Check both storages
                 let postData = sessionStorage.getItem('watchPost');
-                console.log('SessionStorage:', postData ? `Available (${postData.length} chars)` : 'Empty');
+                console.log('1️⃣ SessionStorage check:', postData ? `✅ Found (${postData.length} chars)` : '❌ Empty');
                 
-                // Try localStorage as fallback
                 if (!postData) {
                     postData = localStorage.getItem('watchPost');
-                    console.log('LocalStorage:', postData ? `Available (${postData.length} chars)` : 'Empty');
+                    console.log('2️⃣ LocalStorage check:', postData ? `✅ Found (${postData.length} chars)` : '❌ Empty');
                     
-                    // Check if data is fresh
                     if (postData) {
                         const timestamp = localStorage.getItem('watchPostTime');
                         if (timestamp) {
-                            const age = Date.now() - parseInt(timestamp);
-                            const minutes = Math.floor(age / 60000);
-                            console.log(`Data age: ${minutes} minutes`);
-                            if (age > 5 * 60 * 1000) {
-                                console.warn('⚠️ Data too old (>5 min), clearing...');
+                            const ageMs = Date.now() - parseInt(timestamp);
+                            const ageMin = Math.floor(ageMs / 60000);
+                            console.log(`⏱️ Data age: ${ageMin} minutes (${ageMs}ms)`);
+                            
+                            if (ageMs > 5 * 60 * 1000) {
+                                console.warn('⚠️ Data expired (>5 min), clearing...');
                                 localStorage.removeItem('watchPost');
                                 localStorage.removeItem('watchPostTime');
                                 postData = null;
@@ -170,25 +174,33 @@
                 
                 if (!postData) {
                     console.error('❌ No post data found in any storage');
-                    showError();
+                    console.log('💡 User should click Watch button again');
+                    showError('no-data');
                     return;
                 }
                 
-                console.log('✅ Raw data found, parsing...');
+                console.log('✅ Raw JSON data found');
+                console.log('📄 First 100 chars:', postData.substring(0, 100));
+                
                 const post = JSON.parse(postData);
-                console.log('📋 Parsed post data:', post);
-                console.log('📝 Content length:', post.content?.length || 0);
+                console.log('✅ Successfully parsed JSON');
+                console.log('📋 Post object:', post);
                 console.log('🎬 Title:', post.title);
+                console.log('📝 Content length:', post.content?.length || 0);
                 console.log('📡 Channel:', post.channel);
+                console.log('📅 Date:', post.date);
+                console.log('🔥 Is new:', post.is_new);
+                console.log('📁 Has file:', post.has_file);
                 
                 // Display title
-                document.getElementById('postTitle').innerHTML = `<i class="fas fa-film me-3"></i>${escapeHTML(post.title)}`;
+                const titleHTML = `<i class="fas fa-film me-3"></i>${escapeHTML(post.title)}`;
+                document.getElementById('postTitle').innerHTML = titleHTML;
                 console.log('✅ Title displayed');
                 
                 // Display meta
                 let metaHTML = `
                     <div class="meta-item">
-                        <i class="fab fa-telegram me-2"></i>${escapeHTML(post.channel || 'Channel')}
+                        <i class="fab fa-telegram me-2"></i>${escapeHTML(post.channel || 'SK4FiLM Channel')}
                     </div>
                     <div class="meta-item">
                         <i class="fas fa-calendar me-2"></i>${formatDate(post.date)}
@@ -202,7 +214,7 @@
                 if (post.has_file && post.quality_options) {
                     const qualities = Object.keys(post.quality_options);
                     if (qualities.length > 0) {
-                        metaHTML += `<div class="meta-item" style="background: rgba(40,167,69,0.2); color: #28a745;"><i class="fas fa-download me-2"></i>${qualities.join(', ')}</div>`;
+                        metaHTML += `<div class="meta-item" style="background: rgba(40,167,69,0.2); color: #28a745;"><i class="fas fa-download me-2"></i>${qualities.length} Quality Options</div>`;
                     }
                 }
                 
@@ -212,72 +224,120 @@
                 // Display content
                 let content = post.content || '';
                 console.log('📄 Content type:', typeof content);
-                console.log('📏 Content preview:', content.substring(0, 200));
+                console.log('📏 Content length:', content.length);
                 
-                // If empty or too short
+                if (content.length > 0) {
+                    console.log('📝 Content preview (first 200 chars):', content.substring(0, 200));
+                }
+                
+                // Check if content is empty or too short
                 if (!content || content.trim().length < 20) {
-                    console.warn('⚠️ Content too short or empty, showing placeholder');
-                    content = `
-                        <div style="text-align: center; padding: 40px;">
-                            <i class="fas fa-info-circle fa-3x mb-3" style="color: #00ccff;"></i>
-                            <h4 style="color: #00ccff; margin-bottom: 20px;">${escapeHTML(post.title)}</h4>
-                            ${post.has_file ? `
-                                <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; margin: 20px 0;">
-                                    <i class="fas fa-check-circle" style="color: #28a745;"></i>
-                                    File available for download
-                                </p>
-                                <p style="color: rgba(255,255,255,0.7);">
-                                    Available in: <strong style="color: #28a745;">${Object.keys(post.quality_options || {}).join(', ')}</strong>
-                                </p>
-                            ` : `
-                                <p style="color: rgba(255,255,255,0.7);">Movie information post</p>
-                            `}
-                        </div>
-                    `;
+                    console.warn('⚠️ Content is empty or too short, creating placeholder');
+                    content = createPlaceholderContent(post);
                 } else {
-                    console.log('✅ Using provided content');
+                    console.log('✅ Content is available and valid');
                 }
                 
                 document.getElementById('postContent').innerHTML = content;
                 console.log('✅ Content displayed successfully');
+                console.log('\n🎉 POST LOADED COMPLETELY!');
                 
             } catch (error) {
-                console.error('❌ Error loading post:', error);
-                console.error('Stack trace:', error.stack);
-                showError();
+                console.error('❌ Critical error while loading post:', error);
+                console.error('Error name:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                showError('load-error');
             }
         }
         
-        function showError() {
-            console.log('🚨 Showing error message');
-            document.getElementById('postTitle').innerHTML = '<i class="fas fa-exclamation-triangle me-3"></i>Post Not Found';
+        function createPlaceholderContent(post) {
+            console.log('🔨 Creating placeholder content');
+            return `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-info-circle fa-3x mb-4" style="color: #00ccff;"></i>
+                    <h4 style="color: #00ccff; margin-bottom: 25px;">${escapeHTML(post.title)}</h4>
+                    <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; line-height: 1.8;">
+                        Full post content is not available at this time.
+                    </p>
+                    ${post.has_file ? `
+                        <div style="margin-top: 30px; padding: 25px; background: rgba(40,167,69,0.1); border-radius: 15px; border: 1px solid rgba(40,167,69,0.3);">
+                            <p style="color: #28a745; font-size: 1.2rem; margin-bottom: 15px;">
+                                <i class="fas fa-check-circle"></i> File Available for Download
+                            </p>
+                            <p style="color: rgba(255,255,255,0.7);">
+                                Available qualities: <strong style="color: #28a745;">${Object.keys(post.quality_options || {}).join(', ')}</strong>
+                            </p>
+                        </div>
+                    ` : ''}
+                    <p style="color: rgba(255,255,255,0.6); margin-top: 25px; font-size: 0.95rem;">
+                        <i class="fas fa-arrow-left me-2"></i>Go back to search and click Watch again
+                    </p>
+                </div>
+            `;
+        }
+        
+        function showError(errorType) {
+            console.log('🚨 Showing error screen, type:', errorType);
+            
+            let errorMessage = '';
+            let errorIcon = 'exclamation-triangle';
+            
+            if (errorType === 'no-data') {
+                errorMessage = `
+                    <h4>Post Data Not Found</h4>
+                    <p style="color: rgba(255,255,255,0.7); margin: 20px 0;">
+                        The post data is not available in your browser's storage.<br>
+                        This might happen if you refreshed the page or cleared browser data.
+                    </p>
+                    <p style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+                        Please go back to search results and click the Watch button again.
+                    </p>
+                `;
+            } else {
+                errorMessage = `
+                    <h4>Error Loading Post</h4>
+                    <p style="color: rgba(255,255,255,0.7); margin: 20px 0;">
+                        An unexpected error occurred while loading the post.<br>
+                        Please try again.
+                    </p>
+                `;
+            }
+            
+            document.getElementById('postTitle').innerHTML = `<i class="fas fa-${errorIcon} me-3"></i>Unable to Load Post`;
             document.getElementById('postMeta').innerHTML = '';
             document.getElementById('postContent').innerHTML = `
                 <div style="text-align: center; padding: 50px;">
-                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                    <h4>Unable to Load Post</h4>
-                    <p style="color: rgba(255,255,255,0.7); margin: 20px 0;">
-                        The post data is not available or has expired.<br>
-                        Please search again and try reopening.
-                    </p>
-                    <a href="/" style="background: #0088cc; color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; margin-top: 20px; font-weight: 700;">
-                        <i class="fas fa-home me-2"></i>Back to Home
-                    </a>
+                    <i class="fas fa-${errorIcon} fa-3x text-warning mb-3"></i>
+                    ${errorMessage}
+                    <div style="margin-top: 30px;">
+                        <a href="/" style="background: #0088cc; color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; font-weight: 700; margin-right: 10px;">
+                            <i class="fas fa-home me-2"></i>Home
+                        </a>
+                        <button onclick="window.history.back()" style="background: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 20px; font-weight: 700; cursor: pointer;">
+                            <i class="fas fa-arrow-left me-2"></i>Go Back
+                        </button>
+                    </div>
                 </div>
             `;
         }
         
         function goBack() {
             console.log('⬅️ Back button clicked');
+            
+            // Clear storage
             sessionStorage.removeItem('watchPost');
             localStorage.removeItem('watchPost');
             localStorage.removeItem('watchPostTime');
             console.log('🗑️ Storage cleared');
             
+            // Try to close window first (if opened in new tab)
             window.close();
+            
+            // Fallback: go back in history
             setTimeout(() => {
                 if (!window.closed) {
-                    console.log('⬅️ Fallback: Using history.back()');
+                    console.log('⬅️ Window not closed, using history.back()');
                     window.history.back();
                 }
             }, 100);
@@ -305,19 +365,22 @@
             return div.innerHTML;
         }
         
-        // Load on page ready
+        // Load post when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 DOM ready, loading post in 100ms...');
-            setTimeout(loadPostDetails, 100);
+            console.log('🚀 DOM ready event fired');
+            console.log('⏳ Will load post in 150ms...');
+            setTimeout(loadPostDetails, 150);
         });
         
-        // Debug storage
-        console.log('\n📦 Storage Debug:');
+        // Debug info
+        console.log('\n📦 STORAGE DEBUG:');
         console.log('SessionStorage keys:', Object.keys(sessionStorage));
         console.log('LocalStorage keys:', Object.keys(localStorage));
-        console.log('watchPost in sessionStorage:', sessionStorage.getItem('watchPost') ? 'YES' : 'NO');
-        console.log('watchPost in localStorage:', localStorage.getItem('watchPost') ? 'YES' : 'NO');
-        console.log('\n✅ Post page script loaded');
+        console.log('watchPost in session:', sessionStorage.getItem('watchPost') ? 'YES ✅' : 'NO ❌');
+        console.log('watchPost in local:', localStorage.getItem('watchPost') ? 'YES ✅' : 'NO ❌');
+        console.log('watchPostTime:', localStorage.getItem('watchPostTime'));
+        
+        console.log('\n✅ Post page script fully loaded and ready');
     </script>
 </body>
 </html>
