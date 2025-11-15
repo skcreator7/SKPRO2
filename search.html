@@ -19,6 +19,12 @@
             --accent: #00ccff;
         }
         
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             background: url('https://i.postimg.cc/T2mcBGtv/pxfuel-2.jpg') no-repeat center center fixed;
             background-size: cover;
@@ -70,6 +76,7 @@
             padding: 25px;
             margin-bottom: 25px;
             position: relative;
+            transition: all 0.3s ease;
         }
         
         .result-item::before {
@@ -80,6 +87,7 @@
             width: 4px;
             height: 100%;
             background: linear-gradient(45deg, var(--primary), var(--accent));
+            border-radius: 15px 0 0 15px;
         }
         
         .movie-title {
@@ -141,88 +149,82 @@
             opacity: 0.6;
         }
         
-        /* CLEAN Quality Popup - NO WARNINGS */
-        .quality-popup {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.3s;
+        /* INLINE QUALITY BUTTONS (Expandable) */
+        .quality-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+            display: none;
+            animation: slideDown 0.3s ease-out;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
-        .popup-content {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(45, 55, 72, 0.98));
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 650px;
-            width: 90%;
-            max-height: 85vh;
-            overflow-y: auto;
-            border: 2px solid var(--accent);
-            animation: slideUp 0.3s;
+        .quality-section.show {
+            display: block;
         }
         
-        @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .popup-title {
-            font-size: 1.8rem;
-            font-weight: 700;
+        .quality-title {
             color: var(--accent);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
             text-align: center;
-            margin-bottom: 25px;
         }
         
-        .quality-btn {
+        .quality-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+        
+        .quality-item {
             background: linear-gradient(45deg, rgba(40, 167, 69, 0.2), rgba(32, 201, 151, 0.2));
             border: 2px solid rgba(40, 167, 69, 0.5);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 15px;
+            border-radius: 12px;
+            padding: 12px 20px;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
-            color: white;
+            gap: 5px;
+            min-width: 120px;
         }
         
-        .quality-btn:hover {
+        .quality-item:hover {
             background: linear-gradient(45deg, rgba(40, 167, 69, 0.4), rgba(32, 201, 151, 0.4));
-            transform: translateX(10px);
             border-color: #28a745;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
         }
         
-        .quality-label {
+        .quality-item:active {
+            transform: translateY(0);
+        }
+        
+        .quality-badge {
             background: linear-gradient(45deg, #28a745, #20c997);
-            padding: 8px 20px;
-            border-radius: 10px;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 8px;
             font-weight: 700;
-            font-size: 1.2rem;
+            font-size: 1rem;
         }
         
-        .close-popup {
-            background: linear-gradient(45deg, #ff4757, #dc3545);
-            color: white;
-            border: none;
-            padding: 15px;
-            border-radius: 25px;
-            width: 100%;
-            margin-top: 20px;
-            cursor: pointer;
+        .quality-size {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.85rem;
             font-weight: 600;
         }
         
@@ -230,6 +232,8 @@
             body { padding-top: 120px; }
             .action-buttons { flex-direction: column; }
             .btn-watch, .btn-download { min-width: 100%; }
+            .quality-buttons { flex-direction: column; }
+            .quality-item { width: 100%; }
         }
     </style>
 </head>
@@ -320,26 +324,44 @@
             
             let html = '';
             results.forEach((result, index) => {
-                // FIX: Show POST title only, NOT file title
                 const displayTitle = result.title || 'Unknown';
-                
                 const hasFile = result.has_file || false;
-                const qualities = Object.keys(result.quality_options || {});
+                const qualityOptions = result.quality_options || {};
+                const qualities = Object.keys(qualityOptions);
                 
-                console.log(`${index + 1}. ${displayTitle} | File: ${hasFile} | Qualities: ${qualities.join(', ')}`);
+                // Sort qualities
+                const order = {'2160p': 5, '2160p HEVC': 5, '1080p': 4, '1080p HEVC': 4, '720p': 3, '720p HEVC': 3, '480p': 2, '480p HEVC': 2};
+                qualities.sort((a, b) => (order[b] || 0) - (order[a] || 0));
+                
+                // Build quality buttons HTML
+                let qualityButtonsHTML = '';
+                qualities.forEach(quality => {
+                    const option = qualityOptions[quality];
+                    const fileSize = option.file_size ? (option.file_size / (1024 * 1024)).toFixed(2) : '?';
+                    const fileId = option.file_id || '';
+                    
+                    qualityButtonsHTML += `
+                        <div class="quality-item" onclick='selectQuality("${escapeJS(fileId)}", "${escapeJS(quality)}")'>
+                            <div class="quality-badge">[${quality}]</div>
+                            <div class="quality-size">${fileSize} MB</div>
+                        </div>
+                    `;
+                });
                 
                 html += `
-                    <div class="result-item">
+                    <div class="result-item" id="result-${index}">
                         <div class="movie-title">
                             <i class="fas fa-film me-2"></i>${escapeHTML(displayTitle)}
                         </div>
+                        
                         <div class="action-buttons">
                             <button class="btn-watch" onclick="watchPost(${index})">
                                 <i class="fas fa-eye fa-lg"></i>
                                 <span>Watch Post</span>
                             </button>
+                            
                             ${hasFile && qualities.length > 0 ? `
-                                <button class="btn-download" onclick="showQualityPopup(${index})">
+                                <button class="btn-download" onclick="toggleQualitySection(${index})">
                                     <i class="fas fa-download fa-lg"></i>
                                     <span>Download (${qualities.length})</span>
                                 </button>
@@ -350,11 +372,47 @@
                                 </button>
                             `}
                         </div>
+                        
+                        <!-- INLINE QUALITY SECTION -->
+                        ${hasFile && qualities.length > 0 ? `
+                            <div class="quality-section" id="quality-${index}">
+                                <div class="quality-title">
+                                    <i class="fas fa-sliders-h me-2"></i>Select Quality
+                                </div>
+                                <div class="quality-buttons">
+                                    ${qualityButtonsHTML}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             });
             
             document.getElementById('searchResults').innerHTML = html;
+        }
+        
+        // TOGGLE INLINE QUALITY SECTION
+        function toggleQualitySection(index) {
+            const qualitySection = document.getElementById(`quality-${index}`);
+            
+            // Close all other quality sections
+            document.querySelectorAll('.quality-section').forEach(section => {
+                if (section.id !== `quality-${index}`) {
+                    section.classList.remove('show');
+                }
+            });
+            
+            // Toggle current section
+            if (qualitySection) {
+                qualitySection.classList.toggle('show');
+                
+                // Scroll into view if needed
+                if (qualitySection.classList.contains('show')) {
+                    setTimeout(() => {
+                        qualitySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                }
+            }
         }
         
         function watchPost(index) {
@@ -396,86 +454,27 @@
             }
         }
         
-        // CLEAN Quality Popup - NO WARNINGS
-        function showQualityPopup(index) {
-            const result = searchResultsData[index];
-            if (!result) return;
-            
-            const title = result.title;
-            const qualityOptions = result.quality_options || {};
-            const qualities = Object.keys(qualityOptions);
-            
-            if (qualities.length === 0) {
-                alert('No quality options');
-                return;
-            }
-            
-            const order = {'2160p': 5, '2160p HEVC': 5, '1080p': 4, '1080p HEVC': 4, '720p': 3, '720p HEVC': 3, '480p': 2, '480p HEVC': 2};
-            qualities.sort((a, b) => (order[b] || 0) - (order[a] || 0));
-            
-            let optionsHTML = '';
-            qualities.forEach(quality => {
-                const option = qualityOptions[quality];
-                const fileSize = option.file_size ? (option.file_size / (1024 * 1024)).toFixed(2) : '?';
-                const fileId = option.file_id || '';
-                
-                optionsHTML += `
-                    <div class="quality-btn" onclick='selectQuality("${escapeJS(fileId)}", "${escapeJS(quality)}")'>
-                        <div class="quality-label">[${quality}]</div>
-                        <div style="font-weight: 600;">
-                            <i class="fas fa-hdd me-1"></i>${fileSize} MB
-                        </div>
-                    </div>
-                `;
-            });
-            
-            // CLEAN POPUP - NO WARNINGS (Bot will handle)
-            const popup = `
-                <div class="quality-popup" id="qualityPopup" onclick="if(event.target.id==='qualityPopup') closePopup()">
-                    <div class="popup-content" onclick="event.stopPropagation()">
-                        <div class="popup-title">
-                            <i class="fas fa-sliders-h me-2"></i>Select Quality
-                        </div>
-                        <div style="color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 25px;">
-                            <strong style="font-size: 1.1rem;">${escapeHTML(title)}</strong><br>
-                            <small style="color: rgba(255,255,255,0.6);">${qualities.length} quality options available</small>
-                        </div>
-                        ${optionsHTML}
-                        <button class="close-popup" onclick="closePopup()">
-                            <i class="fas fa-times me-2"></i>Close
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', popup);
-        }
-        
-        // DIRECT BOT OPEN - NO CONFIRMATION (Bot handles warnings)
         function selectQuality(fileId, quality) {
             console.log('✅ Selected:', quality, '| File ID:', fileId);
-            
-            closePopup();
             
             if (!fileId || fileId === 'undefined') {
                 alert('❌ File ID not available');
                 return;
             }
             
-            // Show brief loading message
+            // Show brief confirmation
             const msg = document.createElement('div');
             msg.innerHTML = `
-                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 45px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
-                    <i class="fas fa-check-circle fa-3x mb-3"></i>
-                    <h3 style="margin: 10px 0;">[${quality}] Selected</h3>
-                    <p style="opacity: 0.9;">Opening Telegram bot...</p>
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 25px 40px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h4 style="margin: 8px 0;">[${quality}]</h4>
+                    <p style="opacity: 0.9; margin: 0;">Opening bot...</p>
                 </div>
             `;
             document.body.appendChild(msg);
             
-            // Open bot directly
             const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-            console.log('🤖 Opening bot:', botLink);
+            console.log('🤖 Opening:', botLink);
             
             setTimeout(() => {
                 document.body.removeChild(msg);
@@ -483,17 +482,24 @@
             }, 1000);
         }
         
-        function closePopup() {
-            const popup = document.getElementById('qualityPopup');
-            if (popup) document.body.removeChild(popup);
-        }
-        
         function showNoResults(query) {
-            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 40px;"><i class="fas fa-search fa-3x text-muted mb-3"></i><h4>No Results</h4><p>No results for "${escapeHTML(query)}"</p></div>`;
+            document.getElementById('searchResults').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4>No Results</h4>
+                    <p>No results for "${escapeHTML(query)}"</p>
+                </div>
+            `;
         }
         
         function showError() {
-            document.getElementById('searchResults').innerHTML = `<div style="text-align: center; padding: 40px;"><i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i><h4>Error</h4><p>Backend may be starting...</p></div>`;
+            document.getElementById('searchResults').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h4>Search Error</h4>
+                    <p>Backend may be starting...</p>
+                </div>
+            `;
         }
         
         function escapeHTML(text) {
