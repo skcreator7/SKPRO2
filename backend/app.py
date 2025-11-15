@@ -406,7 +406,6 @@ async def search_movies(query, limit=12, page=1):
                         'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date']
                     }
                 
-                # NEW: Use channel_id + message_id format
                 files_dict[norm_title]['quality_options'][quality] = {
                     'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
                     'file_size': doc['file_size'],
@@ -445,7 +444,6 @@ async def search_movies(query, limit=12, page=1):
                     'date': file['date'].isoformat() if isinstance(file['date'], datetime) else file['date']
                 }
             
-            # NEW: Use channel_id + message_id format
             files_dict[norm_title]['quality_options'][quality] = {
                 'file_id': f"{file.get('channel_id', Config.FILE_CHANNEL_ID)}_{file.get('message_id')}_{quality}",
                 'file_size': file['file_size'],
@@ -538,7 +536,7 @@ async def root():
     tf = await files_col.count_documents({}) if files_col is not None else 0
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v2.1',
+        'service': 'SK4FiLM v2.2',
         'database': {'posts': tp, 'files': tf},
         'bot_status': 'online' if bot_started else 'starting'
     })
@@ -629,14 +627,12 @@ async def setup_bot():
                 )
                 return
             
-            # Parse: "channelID_messageID_quality"
             try:
                 parts = fid.split('_')
                 if len(parts) >= 2:
                     channel_id = int(parts[0])
                     message_id = int(parts[1])
                     quality = parts[2] if len(parts) > 2 else "Unknown"
-                    
                     logger.info(f"✅ Parsed: Ch {channel_id} | Msg {message_id} | {quality}")
                 else:
                     raise ValueError("Invalid")
@@ -651,44 +647,69 @@ async def setup_bot():
             try:
                 pm = await message.reply_text(f"⏳ **Sending [{quality}]...**")
                 
-                if not User:
-                    logger.error("❌ User offline")
-                    await pm.edit_text("❌ **Error**")
-                    return
+                # METHOD 1: User forward
+                if User:
+                    try:
+                        logger.info(f"📤 Method 1: User forward...")
+                        file_message = await User.get_messages(channel_id, message_id)
+                        
+                        if file_message and (file_message.document or file_message.video):
+                            if file_message.document:
+                                file_name = file_message.document.file_name
+                                file_size = file_message.document.file_size
+                            else:
+                                file_name = file_message.video.file_name or "video.mp4"
+                                file_size = file_message.video.file_size
+                            
+                            logger.info(f"📁 {file_name} ({format_size(file_size)})")
+                            
+                            sent = await file_message.forward(uid)
+                            await pm.delete()
+                            
+                            success = await message.reply_text(
+                                f"✅ **Sent!**\n\n"
+                                f"📁 `{file_name}`\n"
+                                f"📊 {quality}\n"
+                                f"📦 {format_size(file_size)}\n\n"
+                                f"⚠️ **Auto-delete in {Config.AUTO_DELETE_TIME//60} min**"
+                            )
+                            
+                            logger.info(f"✅ SUCCESS (User)")
+                            logger.info(f"="*60)
+                            
+                            if Config.AUTO_DELETE_TIME > 0:
+                                await asyncio.sleep(Config.AUTO_DELETE_TIME)
+                                try:
+                                    await sent.delete()
+                                    await success.edit_text("🗑️ **Deleted**")
+                                except:
+                                    pass
+                            return
+                            
+                    except Exception as e:
+                        logger.warning(f"⚠️ User failed: {e}")
+                        logger.info(f"🔄 Method 2...")
                 
-                logger.info(f"📤 Getting message...")
+                # METHOD 2: Bot send
+                logger.info(f"📤 Method 2: Bot send...")
+                
                 try:
-                    file_message = await User.get_messages(channel_id, message_id)
-                except Exception as e:
-                    logger.error(f"❌ Get failed: {e}")
-                    await pm.edit_text(f"❌ **Error: {str(e)}**")
-                    return
-                
-                if not file_message:
-                    logger.error("❌ Not found")
-                    await pm.edit_text("❌ **Not found**")
-                    return
-                
-                if not file_message.document and not file_message.video:
-                    logger.error("❌ No file")
-                    await pm.edit_text("❌ **No file**")
-                    return
-                
-                if file_message.document:
-                    file_name = file_message.document.file_name
-                    file_size = file_message.document.file_size
-                elif file_message.video:
-                    file_name = file_message.video.file_name or "video.mp4"
-                    file_size = file_message.video.file_size
-                else:
-                    file_name = "file"
-                    file_size = 0
-                
-                logger.info(f"📁 {file_name} ({format_size(file_size)})")
-                logger.info(f"📤 Copying...")
-                
-                try:
-                    sent = await file_message.copy(uid)
+                    file_message = await bot.get_messages(channel_id, message_id)
+                    
+                    if not file_message or (not file_message.document and not file_message.video):
+                        raise Exception("No file")
+                    
+                    if file_message.document:
+                        file_name = file_message.document.file_name
+                        file_size = file_message.document.file_size
+                        file_id = file_message.document.file_id
+                        sent = await bot.send_document(uid, file_id, caption=f"🎬 {quality}\n📦 {format_size(file_size)}")
+                    else:
+                        file_name = file_message.video.file_name or "video.mp4"
+                        file_size = file_message.video.file_size
+                        file_id = file_message.video.file_id
+                        sent = await bot.send_video(uid, file_id, caption=f"🎬 {quality}\n📦 {format_size(file_size)}")
+                    
                     await pm.delete()
                     
                     success = await message.reply_text(
@@ -699,7 +720,7 @@ async def setup_bot():
                         f"⚠️ **Auto-delete in {Config.AUTO_DELETE_TIME//60} min**"
                     )
                     
-                    logger.info(f"✅ SUCCESS")
+                    logger.info(f"✅ SUCCESS (Bot)")
                     logger.info(f"="*60)
                     
                     if Config.AUTO_DELETE_TIME > 0:
@@ -707,12 +728,11 @@ async def setup_bot():
                         try:
                             await sent.delete()
                             await success.edit_text("🗑️ **Deleted**")
-                            logger.info(f"🗑️ Deleted")
                         except:
                             pass
-                
+                    
                 except Exception as e:
-                    logger.error(f"❌ Copy failed: {e}")
+                    logger.error(f"❌ Bot failed: {e}")
                     await pm.edit_text(f"❌ **Failed**\n\n`{str(e)}`")
                     
             except Exception as e:
@@ -774,7 +794,7 @@ async def init():
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM v2.1 Final")
+    logger.info("🚀 SK4FiLM v2.2 Final")
     logger.info("="*70)
     await init()
     cfg = HyperConfig()
