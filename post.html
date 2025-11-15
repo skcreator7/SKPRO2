@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SK4FiLM - Post Details</title>
+    <title>SK4FiLM - Post</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -41,13 +41,14 @@
         }
         
         .post-title {
-            font-size: 2.8rem;
-            font-weight: 800;
+            font-size: 2rem;
+            font-weight: 700;
             color: #00ccff;
             margin-bottom: 30px;
             text-shadow: 0 3px 15px rgba(0, 204, 255, 0.6);
             text-align: center;
             word-wrap: break-word;
+            line-height: 1.5;
         }
         
         .post-meta {
@@ -75,7 +76,7 @@
             padding: 35px;
             margin: 35px 0;
             line-height: 1.9;
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             color: #ffffff;
             word-wrap: break-word;
             max-height: 60vh;
@@ -86,14 +87,6 @@
             color: #00ccff;
             text-decoration: none;
             font-weight: 600;
-            border-bottom: 1px solid rgba(0, 204, 255, 0.3);
-        }
-        
-        .post-content a:hover {
-            color: #fff;
-            background: rgba(0, 204, 255, 0.2);
-            padding: 4px 10px;
-            border-radius: 8px;
         }
         
         .back-btn {
@@ -118,7 +111,7 @@
         
         @media (max-width: 768px) {
             .post-box { padding: 30px 20px; }
-            .post-title { font-size: 2rem; }
+            .post-title { font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -134,156 +127,124 @@
         <div class="post-content" id="postContent">
             <div style="text-align: center; padding: 50px;">
                 <i class="fas fa-spinner fa-spin fa-3x" style="color: #00ccff;"></i>
-                <p style="margin-top: 25px;">Loading full post...</p>
+                <p style="margin-top: 25px;">Loading post...</p>
             </div>
         </div>
         
         <div style="text-align: center; margin-top: 35px;">
             <button class="back-btn" onclick="goBack()">
-                <i class="fas fa-arrow-left"></i>Back to Search
+                <i class="fas fa-arrow-left"></i>Back
             </button>
         </div>
     </div>
 
     <script>
-        console.log('%c📄 POST PAGE LOADED', 'color: #00ccff; font-size: 18px; font-weight: bold;');
-        console.log('🔗 URL:', window.location.href);
+        console.log('%c📄 POST PAGE', 'color: #00ccff; font-size: 18px; font-weight: bold;');
         
         function loadPostDetails() {
             try {
-                console.log('📥 Attempting to load post details...');
+                console.log('📥 Loading post...');
                 
-                // FIX: Try multiple storage methods
-                let postData = null;
-                
-                // Try sessionStorage first
-                postData = sessionStorage.getItem('watchPost');
-                console.log('SessionStorage:', postData ? 'Found' : 'Empty');
-                
-                // Try localStorage as fallback
-                if (!postData) {
-                    postData = localStorage.getItem('watchPost');
-                    console.log('LocalStorage:', postData ? 'Found' : 'Empty');
-                    
-                    // Check if data is fresh (within 5 minutes)
-                    if (postData) {
-                        const timestamp = localStorage.getItem('watchPostTime');
-                        if (timestamp) {
-                            const age = Date.now() - parseInt(timestamp);
-                            if (age > 5 * 60 * 1000) {
-                                console.warn('⚠️ Data too old, clearing...');
-                                localStorage.removeItem('watchPost');
-                                localStorage.removeItem('watchPostTime');
-                                postData = null;
-                            }
-                        }
-                    }
-                }
+                // Try storage
+                let postData = sessionStorage.getItem('watchPost') || localStorage.getItem('watchPost');
                 
                 if (!postData) {
-                    console.error('❌ No post data found in storage');
+                    console.error('❌ No data');
                     showError();
                     return;
                 }
                 
                 const post = JSON.parse(postData);
-                console.log('✅ Post data loaded:', post);
+                console.log('✅ Data loaded:', post);
                 
-                // Display title
+                // Title
                 document.getElementById('postTitle').innerHTML = `<i class="fas fa-film me-3"></i>${escapeHTML(post.title)}`;
                 
-                // Display meta
-                const metaHTML = `
+                // Meta
+                let metaHTML = `
                     <div class="meta-item">
                         <i class="fab fa-telegram me-2"></i>${escapeHTML(post.channel || 'Channel')}
                     </div>
                     <div class="meta-item">
                         <i class="fas fa-calendar me-2"></i>${formatDate(post.date)}
                     </div>
-                    ${post.is_new ? '<div class="meta-item" style="background: rgba(40,167,69,0.2); color: #28a745;"><i class="fas fa-fire me-2"></i>NEW</div>' : ''}
-                    ${post.has_file ? '<div class="meta-item" style="background: rgba(40,167,69,0.2); color: #28a745;"><i class="fas fa-download me-2"></i>File Available</div>' : ''}
                 `;
+                
+                if (post.is_new) {
+                    metaHTML += '<div class="meta-item" style="background: rgba(255,71,87,0.2); color: #ff4757;"><i class="fas fa-fire me-2"></i>NEW</div>';
+                }
+                
+                if (post.has_file) {
+                    const qualities = Object.keys(post.quality_options || {});
+                    if (qualities.length > 0) {
+                        metaHTML += `<div class="meta-item" style="background: rgba(40,167,69,0.2); color: #28a745;"><i class="fas fa-download me-2"></i>${qualities.join(', ')}</div>`;
+                    }
+                }
+                
                 document.getElementById('postMeta').innerHTML = metaHTML;
                 
-                // Display content
+                // Content
                 let content = post.content || '';
                 
-                // If no content, show available info
-                if (!content || content.trim().length < 10) {
+                // If empty or too short, show info
+                if (!content || content.trim().length < 20) {
                     content = `
                         <div style="text-align: center; padding: 30px;">
-                            <i class="fas fa-info-circle fa-3x mb-3" style="color: var(--accent);"></i>
-                            <h4 style="color: var(--accent); margin-bottom: 20px;">${escapeHTML(post.title)}</h4>
-                            <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem;">
-                                ${post.has_file ? 'File is available for download.' : 'Information about this movie.'}
-                            </p>
+                            <h4 style="color: #00ccff; margin-bottom: 20px;">${escapeHTML(post.title)}</h4>
                             ${post.has_file ? `
-                                <p style="margin-top: 15px; color: rgba(255,255,255,0.7);">
-                                    Available qualities: <strong style="color: #28a745;">${Object.keys(post.quality_options || {}).join(', ')}</strong>
+                                <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; margin: 20px 0;">
+                                    <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                                    File available for download
                                 </p>
-                            ` : ''}
+                                <p style="color: rgba(255,255,255,0.7);">
+                                    Available in: <strong style="color: #28a745;">${Object.keys(post.quality_options || {}).join(', ')}</strong>
+                                </p>
+                            ` : `
+                                <p style="color: rgba(255,255,255,0.7);">Movie information post</p>
+                            `}
                         </div>
                     `;
                 }
                 
                 document.getElementById('postContent').innerHTML = content;
                 
-                console.log('✅ Post loaded successfully');
+                console.log('✅ Post displayed');
                 
             } catch (error) {
-                console.error('❌ Load error:', error);
+                console.error('❌ Error:', error);
                 showError();
             }
         }
         
         function showError() {
-            document.getElementById('postTitle').innerHTML = '<i class="fas fa-exclamation-triangle me-3"></i>Post Not Found';
+            document.getElementById('postTitle').innerHTML = '<i class="fas fa-exclamation-triangle me-3"></i>Error';
             document.getElementById('postMeta').innerHTML = '';
             document.getElementById('postContent').innerHTML = `
                 <div style="text-align: center; padding: 50px;">
                     <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                    <h4>Unable to load post details</h4>
-                    <p style="color: rgba(255,255,255,0.7); margin: 20px 0;">
-                        The post data may have expired or is unavailable.<br>
-                        Please go back and try again.
-                    </p>
+                    <h4>Unable to load</h4>
+                    <p style="color: rgba(255,255,255,0.7); margin: 20px 0;">Data not available</p>
                     <a href="/" style="background: #0088cc; color: white; text-decoration: none; padding: 15px 30px; border-radius: 20px; display: inline-block; margin-top: 20px; font-weight: 700;">
-                        <i class="fas fa-home me-2"></i>Back to Home
+                        <i class="fas fa-home me-2"></i>Home
                     </a>
                 </div>
             `;
         }
         
         function goBack() {
-            // Clear storage
             sessionStorage.removeItem('watchPost');
             localStorage.removeItem('watchPost');
             localStorage.removeItem('watchPostTime');
-            
-            // Try to close window
             window.close();
-            
-            // Fallback: go back in history
-            setTimeout(() => {
-                if (!window.closed) {
-                    window.history.back();
-                }
-            }, 100);
+            setTimeout(() => { if (!window.closed) window.history.back(); }, 100);
         }
         
         function formatDate(dateStr) {
             try {
                 const date = new Date(dateStr);
-                const options = { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                };
-                return date.toLocaleDateString('en-US', options);
+                return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             } catch {
-                return 'Unknown date';
+                return 'Unknown';
             }
         }
         
@@ -294,16 +255,10 @@
             return div.innerHTML;
         }
         
-        // Load on page ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 DOM ready, loading post...');
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Loading...');
             setTimeout(loadPostDetails, 100);
         });
-        
-        // Debug info
-        console.log('Storage check:');
-        console.log('  SessionStorage:', sessionStorage.getItem('watchPost') ? 'Available' : 'Empty');
-        console.log('  LocalStorage:', localStorage.getItem('watchPost') ? 'Available' : 'Empty');
     </script>
 </body>
 </html>
