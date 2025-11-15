@@ -141,6 +141,7 @@
             opacity: 0.6;
         }
         
+        /* CLEAN Quality Popup - NO WARNINGS */
         .quality-popup {
             position: fixed;
             top: 0;
@@ -213,16 +214,6 @@
             font-size: 1.2rem;
         }
         
-        .warning-box {
-            background: rgba(255, 193, 7, 0.15);
-            border: 2px solid rgba(255, 193, 7, 0.5);
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 20px;
-            color: #ffc107;
-            font-size: 0.9rem;
-        }
-        
         .close-popup {
             background: linear-gradient(45deg, #ff4757, #dc3545);
             color: white;
@@ -287,12 +278,10 @@
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
-        const FORCE_SUB_CHANNEL = '@SK4FiLM';
         let BOT_USERNAME = 'sk4filmbot';
         let searchResultsData = [];
         
         console.log('%c🎬 SK4FiLM SEARCH v2.0', 'color: #28a745; font-size: 18px; font-weight: bold;');
-        console.log('Backend:', BACKEND_URL);
         
         function doSearch() {
             const input = document.getElementById('searchInput');
@@ -331,16 +320,13 @@
             
             let html = '';
             results.forEach((result, index) => {
-                let displayTitle = result.title || 'Unknown';
-                if (result.has_file && result.quality_options) {
-                    const firstQuality = Object.keys(result.quality_options)[0];
-                    if (firstQuality && result.quality_options[firstQuality].file_name) {
-                        displayTitle = result.quality_options[firstQuality].file_name.replace(/\.[^.]+$/, '');
-                    }
-                }
+                // FIX: Show POST title only, NOT file title
+                const displayTitle = result.title || 'Unknown';
                 
                 const hasFile = result.has_file || false;
                 const qualities = Object.keys(result.quality_options || {});
+                
+                console.log(`${index + 1}. ${displayTitle} | File: ${hasFile} | Qualities: ${qualities.join(', ')}`);
                 
                 html += `
                     <div class="result-item">
@@ -371,7 +357,6 @@
             document.getElementById('searchResults').innerHTML = html;
         }
         
-        // NEW METHOD: URL Parameter (100% Working)
         function watchPost(index) {
             console.log('👁️ Watch:', index);
             
@@ -392,26 +377,16 @@
                     quality_options: result.quality_options || {}
                 };
                 
-                // METHOD 1: URL Parameter (Primary - Always Works)
                 const jsonStr = JSON.stringify(postData);
                 const encoded = btoa(encodeURIComponent(jsonStr));
-                
-                // Check URL length (browsers have limits ~2000 chars)
                 const viewUrl = window.location.origin + '/view.html?d=' + encoded;
-                console.log('📏 URL length:', viewUrl.length);
+                
+                sessionStorage.setItem('watchPost', jsonStr);
+                localStorage.setItem('watchPost', jsonStr);
                 
                 if (viewUrl.length > 2000) {
-                    console.warn('⚠️ URL too long, using storage method');
-                    // Fallback to storage method
-                    sessionStorage.setItem('watchPost', jsonStr);
-                    localStorage.setItem('watchPost', jsonStr);
                     window.open(window.location.origin + '/view.html', '_blank');
                 } else {
-                    // METHOD 2: Storage (Backup)
-                    sessionStorage.setItem('watchPost', jsonStr);
-                    localStorage.setItem('watchPost', jsonStr);
-                    
-                    console.log('✅ Opening view page');
                     window.open(viewUrl, '_blank');
                 }
                 
@@ -421,6 +396,7 @@
             }
         }
         
+        // CLEAN Quality Popup - NO WARNINGS
         function showQualityPopup(index) {
             const result = searchResultsData[index];
             if (!result) return;
@@ -444,7 +420,7 @@
                 const fileId = option.file_id || '';
                 
                 optionsHTML += `
-                    <div class="quality-btn" onclick='selectQuality("${escapeJS(fileId)}", "${escapeJS(quality)}", "${escapeJS(title)}")'>
+                    <div class="quality-btn" onclick='selectQuality("${escapeJS(fileId)}", "${escapeJS(quality)}")'>
                         <div class="quality-label">[${quality}]</div>
                         <div style="font-weight: 600;">
                             <i class="fas fa-hdd me-1"></i>${fileSize} MB
@@ -453,27 +429,18 @@
                 `;
             });
             
+            // CLEAN POPUP - NO WARNINGS (Bot will handle)
             const popup = `
                 <div class="quality-popup" id="qualityPopup" onclick="if(event.target.id==='qualityPopup') closePopup()">
                     <div class="popup-content" onclick="event.stopPropagation()">
                         <div class="popup-title">
                             <i class="fas fa-sliders-h me-2"></i>Select Quality
                         </div>
-                        <div style="color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 20px;">
-                            ${escapeHTML(title)}<br>
-                            <small style="color: rgba(255,255,255,0.6);">${qualities.length} quality options</small>
+                        <div style="color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 25px;">
+                            <strong style="font-size: 1.1rem;">${escapeHTML(title)}</strong><br>
+                            <small style="color: rgba(255,255,255,0.6);">${qualities.length} quality options available</small>
                         </div>
                         ${optionsHTML}
-                        <div class="warning-box">
-                            <div style="font-weight: 600; margin-bottom: 8px;">
-                                <i class="fas fa-info-circle me-2"></i>Important:
-                            </div>
-                            <div style="font-size: 0.85rem; line-height: 1.6;">
-                                • Join ${FORCE_SUB_CHANNEL} first<br>
-                                • File auto-deletes in 5 minutes<br>
-                                • Download immediately
-                            </div>
-                        </div>
                         <button class="close-popup" onclick="closePopup()">
                             <i class="fas fa-times me-2"></i>Close
                         </button>
@@ -484,7 +451,10 @@
             document.body.insertAdjacentHTML('beforeend', popup);
         }
         
-        function selectQuality(fileId, quality, title) {
+        // DIRECT BOT OPEN - NO CONFIRMATION (Bot handles warnings)
+        function selectQuality(fileId, quality) {
+            console.log('✅ Selected:', quality, '| File ID:', fileId);
+            
             closePopup();
             
             if (!fileId || fileId === 'undefined') {
@@ -492,47 +462,25 @@
                 return;
             }
             
-            const confirmMsg = `
-                <div id="confirmPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(45, 55, 72, 0.98)); padding: 35px; border-radius: 20px; z-index: 10000; max-width: 500px; width: 90%; border: 2px solid #00ccff; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
-                    <div style="text-align: center; color: white;">
-                        <i class="fas fa-download fa-3x mb-3" style="color: #28a745;"></i>
-                        <h3 style="color: #00ccff; margin-bottom: 20px;">[${quality}] Selected</h3>
-                        <p style="margin: 15px 0;">${escapeHTML(title)}</p>
-                        <div style="background: rgba(255, 193, 7, 0.15); border: 2px solid rgba(255, 193, 7, 0.5); border-radius: 12px; padding: 15px; margin: 20px 0; text-align: left;">
-                            <div style="color: #ffc107; font-weight: 600; margin-bottom: 10px;">
-                                <i class="fas fa-exclamation-triangle me-2"></i>Important:
-                            </div>
-                            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem; line-height: 1.8;">
-                                ✓ Join ${FORCE_SUB_CHANNEL}<br>
-                                ✓ Auto-delete in 5 min<br>
-                                ✓ Download immediately
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button onclick="document.body.removeChild(document.getElementById('confirmPopup'))" style="flex: 1; background: #6c757d; color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
-                                Cancel
-                            </button>
-                            <button onclick="openBot('${fileId}'); document.body.removeChild(document.getElementById('confirmPopup'))" style="flex: 2; background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
-                                <i class="fab fa-telegram me-2"></i>Open Bot
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999;" onclick="document.body.removeChild(document.getElementById('confirmPopup')); this.remove();"></div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', confirmMsg);
-        }
-        
-        function openBot(fileId) {
-            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
+            // Show brief loading message
             const msg = document.createElement('div');
-            msg.innerHTML = `<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 45px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);"><i class="fas fa-check-circle fa-3x mb-3"></i><h3>Opening...</h3></div>`;
+            msg.innerHTML = `
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 30px 45px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <h3 style="margin: 10px 0;">[${quality}] Selected</h3>
+                    <p style="opacity: 0.9;">Opening Telegram bot...</p>
+                </div>
+            `;
             document.body.appendChild(msg);
+            
+            // Open bot directly
+            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
+            console.log('🤖 Opening bot:', botLink);
+            
             setTimeout(() => {
                 document.body.removeChild(msg);
                 window.open(botLink, '_blank');
-            }, 1500);
+            }, 1000);
         }
         
         function closePopup() {
