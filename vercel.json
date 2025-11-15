@@ -8,39 +8,19 @@
       "dest": "/index.html"
     },
     {
-      "src": "^/search(?:\\.html)?$",
+      "src": "^/search$",
       "dest": "/search.html"
     },
     {
-      "src": "^/post(?:\\.html)?$",
-      "dest": "/post.html"
+      "src": "^/view$",
+      "dest": "/view.html"
     },
     {
-      "src": "^/(.*\\.html)$",
-      "dest": "/$1"
+      "src": "^/post$",
+      "dest": "/view.html"
     },
     {
       "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "status": 404,
-      "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        }
-      ]
     }
   ]
 }
