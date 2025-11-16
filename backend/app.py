@@ -1,7 +1,7 @@
 import asyncio
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant, ChatAdminRequired, ChannelPrivate
@@ -26,6 +26,7 @@ class Config:
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
     
+    # PRIORITY: Main channel first for recent posts
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
     FILE_CHANNEL_ID = -1001768249569
     FORCE_SUB_CHANNEL = -1002555323872
@@ -58,7 +59,7 @@ files_col = None
 async def init_mongodb():
     global mongo_client, db, posts_col, files_col
     try:
-        logger.info("🔌 MongoDB...")
+        logger.info("🔌 Connecting to MongoDB...")
         mongo_client = AsyncIOMotorClient(Config.MONGODB_URI, serverSelectionTimeoutMS=10000)
         await mongo_client.admin.command('ping')
         
@@ -71,20 +72,22 @@ async def init_mongodb():
         await posts_col.create_index([("indexed_at", -1)])
         await posts_col.create_index([("is_new", -1)])
         await posts_col.create_index([("normalized_title", 1)])
+        await posts_col.create_index([("channel_id", 1), ("message_id", 1)], unique=True)
+        
         await files_col.create_index([("title", "text")])
         await files_col.create_index([("normalized_title", 1)])
-        await files_col.create_index([("message_id", 1), ("channel_id", 1)])
+        await files_col.create_index([("message_id", 1), ("channel_id", 1)], unique=True)
         
-        logger.info("✅ MongoDB OK")
+        logger.info("✅ MongoDB connected and indexed")
         return True
     except Exception as e:
-        logger.error(f"❌ MongoDB: {e}")
+        logger.error(f"❌ MongoDB error: {e}")
         return False
 
 User = None
 bot = None
 bot_started = False
-movie_db = {'poster_cache': {}, 'stats': {'omdb': 0, 'tmdb': 0, 'impawards': 0, 'justwatch': 0, 'letterboxd': 0, 'custom': 0}}
+movie_db = {'poster_cache': {}, 'stats': {'omdb': 0, 'tmdb': 0, 'custom': 0}}
 auto_index_task = None
 
 def normalize_title(title):
@@ -97,20 +100,51 @@ def normalize_title(title):
     return normalized
 
 def extract_title_smart(text):
-    if not text or len(text) < 15:
+    """Enhanced title extraction"""
+    if not text or len(text) < 10:
         return None
     try:
-        clean = re.sub(r'[^\w\s\(\)\-\.\n]', ' ', text)
-        first = clean.split('\n')[0].strip()
-        patterns = [r'🎬\s*([^-\n]{4,50})', r'^([^(]{4,50})\s*\(\d{4}\)', r'^([^-]{4,50})\s*-', r'^([A-Z][a-z]+(?:\s+[A-Za-z]+){1,5})']
-        for p in patterns:
-            m = re.search(p, first)
-            if m:
-                t = m.group(1).strip()
-                if 4 <= len(t) <= 50:
-                    return t
-    except:
-        pass
+        # Clean text
+        clean = re.sub(r'[^\w\s\(\)\-\.\n:]', ' ', text)
+        lines = [l.strip() for l in clean.split('\n') if l.strip()]
+        
+        if not lines:
+            return None
+        
+        first_line = lines[0]
+        
+        # Pattern 1: 🎬 Movie Name
+        m = re.search(r'🎬\s*([^\n\-\(]{3,60})', first_line)
+        if m:
+            title = m.group(1).strip()
+            title = re.sub(r'\s+', ' ', title)
+            if 3 <= len(title) <= 60:
+                return title
+        
+        # Pattern 2: Movie Name (2024)
+        m = re.search(r'^([^\(\n]{3,60})\s*\(\d{4}\)', first_line)
+        if m:
+            title = m.group(1).strip()
+            if 3 <= len(title) <= 60:
+                return title
+        
+        # Pattern 3: Movie Name - Quality
+        m = re.search(r'^([^\-\n]{3,60})\s*-', first_line)
+        if m:
+            title = m.group(1).strip()
+            title = re.sub(r'\s+', ' ', title)
+            if 3 <= len(title) <= 60:
+                return title
+        
+        # Pattern 4: First line if looks like title
+        if len(first_line) >= 3 and len(first_line) <= 60:
+            # Remove quality markers
+            title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hevc|x264|x265)\b', '', first_line, flags=re.IGNORECASE)
+            title = re.sub(r'\s+', ' ', title).strip()
+            if 3 <= len(title) <= 60:
+                return title
+    except Exception as e:
+        logger.error(f"Title extraction error: {e}")
     return None
 
 def extract_title_from_file(msg):
@@ -164,8 +198,12 @@ def format_post(text):
     return text.replace('\n', '<br>')
 
 def channel_name(cid):
-    names = {-1001891090100: "SK4FiLM Main", -1002024811395: "SK4FiLM Updates", -1001768249569: "SK4FiLM Files"}
-    return names.get(cid, "Channel")
+    names = {
+        -1001891090100: "SK4FiLM Main", 
+        -1002024811395: "SK4FiLM Updates", 
+        -1001768249569: "SK4FiLM Files"
+    }
+    return names.get(cid, f"Channel {cid}")
 
 def is_new(date):
     try:
@@ -194,33 +232,40 @@ async def check_force_sub(user_id):
         return True
 
 async def index_all_files():
+    """FIXED: Proper indexing with priority to main channel"""
     if not User or not bot_started or posts_col is None or files_col is None:
-        logger.warning("⚠️ Cannot index")
+        logger.warning("⚠️ Cannot index - services not ready")
         return
     
-    logger.info("📥 Starting indexing...")
+    logger.info("="*70)
+    logger.info("📥 STARTING FULL INDEXING...")
+    logger.info("="*70)
+    
     indexed_posts = 0
     indexed_files = 0
     
     try:
+        # Index TEXT channels (BOTH) with more messages
         for channel_id in Config.TEXT_CHANNEL_IDS:
             try:
                 count = 0
-                logger.info(f"📝 Indexing {channel_name(channel_id)}...")
+                channel_name_str = channel_name(channel_id)
+                logger.info(f"📝 Indexing {channel_name_str} ({channel_id})...")
                 
-                async for msg in User.get_chat_history(channel_id, limit=150):
-                    if msg.text:
+                # Increased limit to 200 for better coverage
+                async for msg in User.get_chat_history(channel_id, limit=200):
+                    if msg.text and len(msg.text) > 15:  # Minimum text length
                         title = extract_title_smart(msg.text)
                         if title:
                             try:
-                                await posts_col.update_one(
+                                result = await posts_col.update_one(
                                     {'channel_id': channel_id, 'message_id': msg.id},
                                     {'$set': {
                                         'title': title,
                                         'normalized_title': normalize_title(title),
-                                        'content': msg.text,
+                                        'content': msg.text[:1000],  # Limit content size
                                         'channel_id': channel_id,
-                                        'channel_name': channel_name(channel_id),
+                                        'channel_name': channel_name_str,
                                         'message_id': msg.id,
                                         'date': msg.date,
                                         'is_new': is_new(msg.date) if msg.date else False,
@@ -230,18 +275,24 @@ async def index_all_files():
                                 )
                                 count += 1
                                 indexed_posts += 1
+                                
+                                if count % 50 == 0:
+                                    logger.info(f"    ⏳ Progress: {count} posts...")
+                                    
                             except Exception as e:
-                                logger.error(f"    Error: {e}")
+                                logger.error(f"    ❌ Post error: {e}")
                 
-                logger.info(f"  ✓ Indexed {count} posts")
+                logger.info(f"  ✅ Indexed {count} posts from {channel_name_str}")
+                
             except Exception as e:
-                logger.error(f"  ✗ Error: {e}")
+                logger.error(f"  ❌ Channel error: {e}")
         
+        # Index FILES channel
         try:
             count = 0
-            logger.info(f"📁 Indexing files...")
+            logger.info(f"📁 Indexing Files Channel ({Config.FILE_CHANNEL_ID})...")
             
-            async for msg in bot.get_chat_history(Config.FILE_CHANNEL_ID, limit=300):
+            async for msg in bot.get_chat_history(Config.FILE_CHANNEL_ID, limit=400):
                 if msg.document or msg.video:
                     title = extract_title_from_file(msg)
                     if title:
@@ -271,32 +322,39 @@ async def index_all_files():
                             count += 1
                             indexed_files += 1
                             
-                            if count % 50 == 0:
-                                logger.info(f"    Progress: {count} files...")
+                            if count % 100 == 0:
+                                logger.info(f"    ⏳ Progress: {count} files...")
+                                
                         except Exception as e:
-                            logger.error(f"    Error: {e}")
+                            logger.error(f"    ❌ File error: {e}")
             
-            logger.info(f"  ✓ Indexed {count} files")
+            logger.info(f"  ✅ Indexed {count} files")
+            
         except Exception as e:
-            logger.error(f"  ✗ Error: {e}")
+            logger.error(f"  ❌ Files error: {e}")
         
-        logger.info(f"✅ Complete: {indexed_posts} posts, {indexed_files} files")
+        logger.info("="*70)
+        logger.info(f"✅ INDEXING COMPLETE")
+        logger.info(f"📝 Posts indexed: {indexed_posts}")
+        logger.info(f"📁 Files indexed: {indexed_files}")
+        logger.info("="*70)
         
     except Exception as e:
-        logger.error(f"❌ Error: {e}")
+        logger.error(f"❌ Indexing failed: {e}")
 
 async def auto_index_loop():
+    """Auto-index loop"""
     while True:
         try:
             await asyncio.sleep(Config.AUTO_INDEX_INTERVAL)
-            logger.info("🔄 Auto-index")
+            logger.info("🔄 Auto-indexing triggered...")
             await index_all_files()
         except Exception as e:
-            logger.error(f"Loop error: {e}")
+            logger.error(f"Auto-index error: {e}")
             await asyncio.sleep(60)
 
 async def get_poster_aggressive(title, session):
-    """Aggressive poster fetching with ALL sources"""
+    """Aggressive poster fetching"""
     ck = title.lower().strip()
     
     if ck in movie_db['poster_cache']:
@@ -304,7 +362,7 @@ async def get_poster_aggressive(title, session):
         if (datetime.now() - ct).seconds < 600:
             return c
     
-    # 1. OMDB
+    # OMDB
     for api_key in Config.OMDB_KEYS:
         try:
             url = f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={api_key}"
@@ -320,7 +378,7 @@ async def get_poster_aggressive(title, session):
         except:
             continue
     
-    # 2. TMDB
+    # TMDB
     for api_key in Config.TMDB_KEYS:
         try:
             url = "https://api.themoviedb.org/3/search/movie"
@@ -339,45 +397,6 @@ async def get_poster_aggressive(title, session):
         except:
             continue
     
-    # 3. IMPAwards
-    try:
-        year_match = re.search(r'\b(19|20)\d{2}\b', title)
-        if year_match:
-            year = year_match.group()
-            clean_title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
-            slug = clean_title.lower().replace(' ', '_').replace(':', '').replace("'", '')
-            slug = re.sub(r'[^\w_]', '', slug)
-            
-            poster_url = f"https://www.impawards.com/{year}/posters/{slug}.jpg"
-            async with session.head(poster_url, timeout=3) as r:
-                if r.status == 200:
-                    res = {'poster_url': poster_url, 'source': 'IMPAwards', 'success': True}
-                    movie_db['poster_cache'][ck] = (res, datetime.now())
-                    movie_db['stats']['impawards'] += 1
-                    return res
-    except:
-        pass
-    
-    # 4. TMDB HD
-    for api_key in Config.TMDB_KEYS:
-        try:
-            url = "https://api.themoviedb.org/3/search/movie"
-            params = {'api_key': api_key, 'query': title}
-            async with session.get(url, params=params, timeout=5) as r:
-                if r.status == 200:
-                    data = await r.json()
-                    if data.get('results'):
-                        for result in data['results'][:3]:
-                            poster_path = result.get('poster_path')
-                            if poster_path:
-                                poster_url = f"https://image.tmdb.org/t/p/original{poster_path}"
-                                res = {'poster_url': poster_url, 'source': 'TMDB-HD', 'success': True}
-                                movie_db['poster_cache'][ck] = (res, datetime.now())
-                                movie_db['stats']['tmdb'] += 1
-                                return res
-        except:
-            continue
-    
     # Fallback
     movie_db['stats']['custom'] += 1
     res = {'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}", 'source': 'CUSTOM', 'success': True}
@@ -385,7 +404,7 @@ async def get_poster_aggressive(title, session):
     return res
 
 async def direct_search_channels(query, limit=100):
-    """Enhanced direct search"""
+    """Enhanced direct search - BOTH channels"""
     if not User or not bot:
         return {'posts': [], 'files': []}
     
@@ -394,21 +413,22 @@ async def direct_search_channels(query, limit=100):
     posts_found = []
     files_found = []
     
-    # Search BOTH text channels
+    # Search BOTH text channels with increased limit
     for channel_id in Config.TEXT_CHANNEL_IDS:
         try:
-            logger.info(f"  📝 {channel_name(channel_id)}...")
+            cname = channel_name(channel_id)
+            logger.info(f"  📝 Searching {cname}...")
             count = 0
             
             async for msg in User.search_messages(channel_id, query=query, limit=limit):
-                if msg.text:
+                if msg.text and len(msg.text) > 15:
                     title = extract_title_smart(msg.text)
                     if title and query_lower in title.lower():
                         posts_found.append({
                             'title': title,
                             'normalized_title': normalize_title(title),
                             'content': msg.text,
-                            'channel_name': channel_name(channel_id),
+                            'channel_name': cname,
                             'channel_id': channel_id,
                             'message_id': msg.id,
                             'date': msg.date,
@@ -416,14 +436,14 @@ async def direct_search_channels(query, limit=100):
                         })
                         count += 1
             
-            logger.info(f"    ✅ {count} posts")
+            logger.info(f"    ✅ Found {count} posts in {cname}")
             
         except Exception as e:
-            logger.error(f"    ❌ {e}")
+            logger.error(f"    ❌ Error: {e}")
     
     # Search files
     try:
-        logger.info(f"  📁 Files...")
+        logger.info(f"  📁 Searching files...")
         count = 0
         
         async for msg in bot.search_messages(Config.FILE_CHANNEL_ID, query=query, limit=limit*2):
@@ -446,24 +466,25 @@ async def direct_search_channels(query, limit=100):
                     })
                     count += 1
         
-        logger.info(f"    ✅ {count} files")
+        logger.info(f"    ✅ Found {count} files")
         
     except Exception as e:
-        logger.error(f"    ❌ {e}")
+        logger.error(f"    ❌ Error: {e}")
     
-    logger.info(f"✅ Complete: {len(posts_found)} posts, {len(files_found)} files")
+    logger.info(f"✅ Search complete: {len(posts_found)} posts, {len(files_found)} files")
     return {'posts': posts_found, 'files': files_found}
 
 async def search_movies(query, limit=12, page=1):
+    """Enhanced search with proper merging"""
     offset = (page - 1) * limit
     logger.info(f"🔍 SEARCH: '{query}' | Page: {page}")
     
     posts_dict = {}
     files_dict = {}
     
-    # Direct search first (most reliable)
+    # 1. Direct Pyrogram search (most reliable)
     logger.info("📡 Direct Pyrogram search...")
-    direct = await direct_search_channels(query, limit=100)
+    direct = await direct_search_channels(query, limit=150)
     
     for post in direct['posts']:
         norm_title = post['normalized_title']
@@ -496,10 +517,10 @@ async def search_movies(query, limit=12, page=1):
                 'file_name': file['file_name']
             }
     
-    # MongoDB backup
+    # 2. MongoDB backup
     if posts_col is not None and files_col is not None:
         try:
-            logger.info("💾 MongoDB search...")
+            logger.info("💾 MongoDB backup search...")
             
             cursor = posts_col.find({'$text': {'$search': query}}).sort('date', -1).limit(200)
             mongo_posts = 0
@@ -538,11 +559,11 @@ async def search_movies(query, limit=12, page=1):
                     }
                     mongo_files += 1
             
-            logger.info(f"  ✓ +{mongo_posts} posts, +{mongo_files} files")
+            logger.info(f"  ✓ MongoDB: +{mongo_posts} posts, +{mongo_files} files")
         except Exception as e:
-            logger.error(f"  ✗ {e}")
+            logger.error(f"  ✗ MongoDB error: {e}")
     
-    # Merge
+    # Merge results
     merged = {}
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data
@@ -568,7 +589,7 @@ async def search_movies(query, limit=12, page=1):
     total = len(results_list)
     paginated = results_list[offset:offset + limit]
     
-    logger.info(f"✅ {total} results | Page {page}: {len(paginated)} items")
+    logger.info(f"✅ Total: {total} | Page {page}: {len(paginated)} items")
     
     return {
         'results': paginated,
@@ -583,16 +604,21 @@ async def search_movies(query, limit=12, page=1):
     }
 
 async def get_home_movies():
-    """Load recent movies with aggressive posters"""
+    """FIXED: Load recent movies with PRIORITY from main channel"""
     if posts_col is None:
         return []
     
-    logger.info("🏠 Loading recent movies...")
+    logger.info("🏠 Loading recent movies for home page...")
     movies = []
     seen = set()
     
     try:
-        cursor = posts_col.find().sort('indexed_at', -1).limit(60)
+        # PRIORITY: Get from main channel first (-1001891090100)
+        main_channel_id = -1001891090100
+        logger.info(f"  📌 Priority: {channel_name(main_channel_id)}")
+        
+        cursor = posts_col.find({'channel_id': main_channel_id}).sort('indexed_at', -1).limit(40)
+        main_count = 0
         async for doc in cursor:
             tk = doc['title'].lower().strip()
             if tk not in seen:
@@ -600,35 +626,61 @@ async def get_home_movies():
                 movies.append({
                     'title': doc['title'], 
                     'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'], 
-                    'is_new': doc.get('is_new', False)
+                    'is_new': doc.get('is_new', False),
+                    'channel': doc.get('channel_name', 'SK4FiLM Main')
                 })
-            if len(movies) >= 24:
-                break
+                main_count += 1
         
-        logger.info(f"  ✓ {len(movies)} movies")
+        logger.info(f"  ✅ Main channel: {main_count} movies")
+        
+        # Then get from other channels if needed
+        if len(movies) < 24:
+            logger.info(f"  📝 Getting more from other channels...")
+            cursor = posts_col.find({'channel_id': {'$ne': main_channel_id}}).sort('indexed_at', -1).limit(30)
+            other_count = 0
+            async for doc in cursor:
+                tk = doc['title'].lower().strip()
+                if tk not in seen:
+                    seen.add(tk)
+                    movies.append({
+                        'title': doc['title'], 
+                        'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'], 
+                        'is_new': doc.get('is_new', False),
+                        'channel': doc.get('channel_name', 'SK4FiLM')
+                    })
+                    other_count += 1
+                    if len(movies) >= 24:
+                        break
+            
+            logger.info(f"  ✅ Other channels: {other_count} movies")
+        
+        logger.info(f"  ✓ Total unique movies: {len(movies)}")
+        
     except Exception as e:
-        logger.error(f"  ✗ {e}")
+        logger.error(f"  ✗ Error: {e}")
     
-    logger.info(f"🎨 Fetching posters...")
-    async with aiohttp.ClientSession() as session:
-        for i in range(0, len(movies), 3):
-            batch = movies[i:i + 3]
-            tasks = [get_poster_aggressive(m['title'], session) for m in batch]
-            posters = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            for movie, poster_result in zip(batch, posters):
-                if isinstance(poster_result, dict) and poster_result.get('success'):
-                    movie['poster_url'] = poster_result['poster_url']
-                    movie['poster_source'] = poster_result['source']
-                    movie['has_poster'] = True
-                else:
-                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                    movie['poster_source'] = 'FALLBACK'
-                    movie['has_poster'] = True
-            
-            await asyncio.sleep(0.1)
+    # Fetch posters
+    if movies:
+        logger.info(f"🎨 Fetching posters for {len(movies)} movies...")
+        async with aiohttp.ClientSession() as session:
+            for i in range(0, len(movies), 3):
+                batch = movies[i:i + 3]
+                tasks = [get_poster_aggressive(m['title'], session) for m in batch]
+                posters = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                for movie, poster_result in zip(batch, posters):
+                    if isinstance(poster_result, dict) and poster_result.get('success'):
+                        movie['poster_url'] = poster_result['poster_url']
+                        movie['poster_source'] = poster_result['source']
+                        movie['has_poster'] = True
+                    else:
+                        movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                        movie['poster_source'] = 'FALLBACK'
+                        movie['has_poster'] = True
+                
+                await asyncio.sleep(0.1)
     
-    logger.info(f"✅ {len(movies)} movies loaded")
+    logger.info(f"✅ Home page ready with {len(movies)} movies")
     return movies
 
 @app.route('/')
@@ -644,8 +696,13 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v2.5',
-        'database': {'total_posts': tp, 'total_files': tf, 'new_posts': tn, 'channel_wise': ch_stats},
+        'service': 'SK4FiLM v2.6 - Fixed Channel Priority',
+        'database': {
+            'total_posts': tp, 
+            'total_files': tf, 
+            'new_posts': tn, 
+            'channel_wise': ch_stats
+        },
         'bot_status': 'online' if bot_started else 'starting',
         'poster_stats': movie_db['stats']
     })
@@ -658,11 +715,16 @@ async def health():
 async def api_movies():
     try:
         if not bot_started:
-            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
+            return jsonify({'status': 'error', 'message': 'Bot starting...'}), 503
         movies = await get_home_movies()
-        return jsonify({'status': 'success', 'movies': movies, 'total': len(movies), 'bot_username': Config.BOT_USERNAME})
+        return jsonify({
+            'status': 'success', 
+            'movies': movies, 
+            'total': len(movies), 
+            'bot_username': Config.BOT_USERNAME
+        })
     except Exception as e:
-        logger.error(f"API /movies: {e}")
+        logger.error(f"API /movies error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/search')
@@ -675,12 +737,18 @@ async def api_search():
         if not q:
             return jsonify({'status': 'error', 'message': 'Query required'}), 400
         if not bot_started:
-            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
+            return jsonify({'status': 'error', 'message': 'Bot starting...'}), 503
         
         result = await search_movies(q, l, p)
-        return jsonify({'status': 'success', 'query': q, 'results': result['results'], 'pagination': result['pagination'], 'bot_username': Config.BOT_USERNAME})
+        return jsonify({
+            'status': 'success', 
+            'query': q, 
+            'results': result['results'], 
+            'pagination': result['pagination'], 
+            'bot_username': Config.BOT_USERNAME
+        })
     except Exception as e:
-        logger.error(f"API /search: {e}")
+        logger.error(f"API /search error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/poster')
@@ -710,7 +778,7 @@ async def setup_bot():
         if len(message.command) > 1:
             fid = message.command[1]
             logger.info(f"="*60)
-            logger.info(f"📥 User {uid} | {fid}")
+            logger.info(f"📥 File request | User: {uid} | ID: {fid}")
             
             is_subscribed = await check_force_sub(uid)
             
@@ -726,7 +794,10 @@ async def setup_bot():
                 
                 await message.reply_text(
                     "⚠️ **Join channel first**\n\nAfter joining, try again",
-                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join", url=invite_link)], [InlineKeyboardButton("🔄 Try Again", url=f"https://t.me/{Config.BOT_USERNAME}?start={fid}")]])
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📢 Join Channel", url=invite_link)],
+                        [InlineKeyboardButton("🔄 Try Again", url=f"https://t.me/{Config.BOT_USERNAME}?start={fid}")]
+                    ])
                 )
                 return
             
@@ -736,12 +807,15 @@ async def setup_bot():
                     channel_id = int(parts[0])
                     message_id = int(parts[1])
                     quality = parts[2] if len(parts) > 2 else "Unknown"
-                    logger.info(f"✅ Ch {channel_id} | Msg {message_id} | {quality}")
+                    logger.info(f"✅ Parsed | Channel: {channel_id} | Msg: {message_id} | Quality: {quality}")
                 else:
-                    raise ValueError("Invalid")
+                    raise ValueError("Invalid file ID format")
             except Exception as e:
-                logger.error(f"❌ Parse: {e}")
-                await message.reply_text("❌ **Invalid ID**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 Search", url=Config.WEBSITE_URL)]]))
+                logger.error(f"❌ Parse error: {e}")
+                await message.reply_text(
+                    "❌ **Invalid file ID**",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 Search Movies", url=Config.WEBSITE_URL)]])
+                )
                 return
             
             try:
@@ -750,22 +824,34 @@ async def setup_bot():
                 file_message = await bot.get_messages(channel_id, message_id)
                 
                 if not file_message or (not file_message.document and not file_message.video):
-                    raise Exception("No file")
+                    raise Exception("No file found")
                 
                 if file_message.document:
                     file_name = file_message.document.file_name
                     file_size = file_message.document.file_size
                     file_id = file_message.document.file_id
-                    sent = await bot.send_document(uid, file_id, caption=f"🎬 {quality}\n📦 {format_size(file_size)}")
+                    sent = await bot.send_document(
+                        uid, file_id, 
+                        caption=f"🎬 **{quality}**\n📦 {format_size(file_size)}"
+                    )
                 else:
                     file_name = file_message.video.file_name or "video.mp4"
                     file_size = file_message.video.file_size
                     file_id = file_message.video.file_id
-                    sent = await bot.send_video(uid, file_id, caption=f"🎬 {quality}\n📦 {format_size(file_size)}")
+                    sent = await bot.send_video(
+                        uid, file_id, 
+                        caption=f"🎬 **{quality}**\n📦 {format_size(file_size)}"
+                    )
                 
                 await pm.delete()
                 
-                success = await message.reply_text(f"✅ **Sent!**\n\n📁 `{file_name}`\n📊 {quality}\n📦 {format_size(file_size)}\n\n⚠️ **Auto-delete in {Config.AUTO_DELETE_TIME//60} min**")
+                success = await message.reply_text(
+                    f"✅ **File sent successfully!**\n\n"
+                    f"📁 `{file_name}`\n"
+                    f"📊 {quality}\n"
+                    f"📦 {format_size(file_size)}\n\n"
+                    f"⚠️ **Auto-delete in {Config.AUTO_DELETE_TIME//60} minutes**"
+                )
                 
                 logger.info(f"✅ SUCCESS: {file_name}")
                 logger.info(f"="*60)
@@ -774,25 +860,32 @@ async def setup_bot():
                     await asyncio.sleep(Config.AUTO_DELETE_TIME)
                     try:
                         await sent.delete()
-                        await success.edit_text("🗑️ **Deleted**")
+                        await success.edit_text("🗑️ **File deleted after timeout**")
                     except:
                         pass
                     
             except Exception as e:
-                logger.error(f"❌ {e}")
-                await pm.edit_text(f"❌ **Failed**\n\n`{str(e)}`")
+                logger.error(f"❌ Send error: {e}")
+                await pm.edit_text(f"❌ **Failed to send file**\n\n`{str(e)}`")
             
             return
         
-        await message.reply_text("🎬 **SK4FiLM**\n\nSearch movies", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
+        await message.reply_text(
+            "🎬 **Welcome to SK4FiLM Bot**\n\n"
+            "Search and download movies from our website",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)]])
+        )
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index']))
     async def text_handler(client, message):
-        await message.reply_text("👋 Use website", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Go", url=Config.WEBSITE_URL)]]))
+        await message.reply_text(
+            "👋 Please use our website to search movies",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Go to Website", url=Config.WEBSITE_URL)]])
+        )
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
-        msg = await message.reply_text("🔄 Indexing...")
+        msg = await message.reply_text("🔄 **Starting indexing...**")
         await index_all_files()
         
         tp = await posts_col.count_documents({}) if posts_col is not None else 0
@@ -802,9 +895,15 @@ async def setup_bot():
         ch_stats = []
         for cid in Config.TEXT_CHANNEL_IDS:
             cnt = await posts_col.count_documents({'channel_id': cid}) if posts_col is not None else 0
-            ch_stats.append(f"{channel_name(cid)}: {cnt}")
+            ch_stats.append(f"• {channel_name(cid)}: **{cnt}** posts")
         
-        await msg.edit_text(f"✅ **Complete**\n\n📝 {tp}\n📁 {tf}\n🆕 {tn}\n\n" + "\n".join(ch_stats))
+        await msg.edit_text(
+            f"✅ **Indexing Complete!**\n\n"
+            f"📝 Total Posts: **{tp}**\n"
+            f"📁 Total Files: **{tf}**\n"
+            f"🆕 New Posts: **{tn}**\n\n"
+            f"**Channel Breakdown:**\n" + "\n".join(ch_stats)
+        )
     
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
@@ -815,7 +914,7 @@ async def setup_bot():
         ch_stats = []
         for cid in Config.TEXT_CHANNEL_IDS:
             cnt = await posts_col.count_documents({'channel_id': cid}) if posts_col is not None else 0
-            ch_stats.append(f"• {channel_name(cid)}: **{cnt}**")
+            ch_stats.append(f"• {channel_name(cid)}: **{cnt}** posts")
         
         qualities = {}
         if files_col is not None:
@@ -823,13 +922,19 @@ async def setup_bot():
                 q = doc.get('quality', 'Unknown')
                 qualities[q] = qualities.get(q, 0) + 1
         
-        quality_stats = [f"• {q}: **{count}**" for q, count in sorted(qualities.items())]
+        quality_stats = [f"• {q}: **{count}** files" for q, count in sorted(qualities.items())]
         
         stats_text = (
-            f"📊 **Stats**\n\n📝 **Posts:** {tp}\n📁 **Files:** {tf}\n🆕 **New:** {tn}\n\n"
-            f"**Channels:**\n" + "\n".join(ch_stats) + "\n\n"
-            f"**Qualities:**\n" + "\n".join(quality_stats) + "\n\n"
-            f"**Posters:**\nOMDB: {movie_db['stats']['omdb']}\nTMDB: {movie_db['stats']['tmdb']}\nIMPAwards: {movie_db['stats']['impawards']}\nCustom: {movie_db['stats']['custom']}"
+            f"📊 **System Statistics**\n\n"
+            f"📝 **Total Posts:** {tp}\n"
+            f"📁 **Total Files:** {tf}\n"
+            f"🆕 **New Posts:** {tn}\n\n"
+            f"**Channel Breakdown:**\n" + "\n".join(ch_stats) + "\n\n"
+            f"**Quality Distribution:**\n" + "\n".join(quality_stats) + "\n\n"
+            f"**Poster Stats:**\n"
+            f"• OMDB: **{movie_db['stats']['omdb']}**\n"
+            f"• TMDB: **{movie_db['stats']['tmdb']}**\n"
+            f"• Custom: **{movie_db['stats']['custom']}**"
         )
         
         await message.reply_text(stats_text)
@@ -837,37 +942,60 @@ async def setup_bot():
 async def init():
     global User, bot, bot_started, auto_index_task
     try:
-        logger.info("🔄 Init...")
+        logger.info("🔄 Initializing SK4FiLM Bot...")
         await init_mongodb()
         
-        User = Client("user", api_id=Config.API_ID, api_hash=Config.API_HASH, session_string=Config.USER_SESSION_STRING, workdir="/tmp", sleep_threshold=60)
-        bot = Client("bot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, workdir="/tmp", sleep_threshold=60)
+        User = Client(
+            "user", 
+            api_id=Config.API_ID, 
+            api_hash=Config.API_HASH, 
+            session_string=Config.USER_SESSION_STRING, 
+            workdir="/tmp", 
+            sleep_threshold=60
+        )
+        
+        bot = Client(
+            "bot", 
+            api_id=Config.API_ID, 
+            api_hash=Config.API_HASH, 
+            bot_token=Config.BOT_TOKEN, 
+            workdir="/tmp", 
+            sleep_threshold=60
+        )
         
         await User.start()
         await bot.start()
         await setup_bot()
         
         me = await bot.get_me()
-        logger.info(f"✅ @{me.username}")
+        logger.info(f"✅ Bot started: @{me.username}")
         bot_started = True
         
+        logger.info("📥 Starting initial indexing...")
         await index_all_files()
+        
+        logger.info("🔄 Starting auto-index loop...")
         auto_index_task = asyncio.create_task(auto_index_loop())
         
         return True
     except Exception as e:
-        logger.error(f"❌ {e}")
+        logger.error(f"❌ Initialization failed: {e}")
         return False
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM v2.5 Final - Fixed Search + Recent + Posters")
+    logger.info("🚀 SK4FiLM v2.6 - Fixed Channel Priority + Enhanced Search")
     logger.info("="*70)
+    
     await init()
+    
     cfg = HyperConfig()
     cfg.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     cfg.loglevel = "warning"
-    logger.info(f"🌐 Port {Config.WEB_SERVER_PORT}")
+    
+    logger.info(f"🌐 Web server starting on port {Config.WEB_SERVER_PORT}")
+    logger.info("="*70)
+    
     await serve(app, cfg)
 
 if __name__ == "__main__":
