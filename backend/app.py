@@ -64,18 +64,16 @@ async def init_mongodb():
         db = mongo_client.sk4film
         files_col = db.files
         
-        # Create indexes with conflict handling
         try:
             await files_col.create_index([("title", "text")])
-        except Exception as e:
-            logger.debug(f"Text index exists: {e}")
+        except:
+            pass
         
         try:
             await files_col.create_index([("normalized_title", 1)])
-        except Exception as e:
-            logger.debug(f"Normalized index exists: {e}")
+        except:
+            pass
         
-        # Drop conflicting unique index and recreate
         try:
             await files_col.drop_index("message_id_1_channel_id_1")
             logger.info("  Dropped old unique index")
@@ -88,13 +86,13 @@ async def init_mongodb():
                 unique=True,
                 name="msg_ch_unique_idx"
             )
-        except Exception as e:
-            logger.debug(f"Unique index exists: {e}")
+        except:
+            pass
         
         try:
             await files_col.create_index([("indexed_at", -1)])
-        except Exception as e:
-            logger.debug(f"Date index exists: {e}")
+        except:
+            pass
         
         logger.info("✅ MongoDB OK")
         return True
@@ -243,23 +241,19 @@ async def check_force_sub(user_id):
     except:
         return True
 
-async def index_files_only():
-    """Use USER client for file indexing"""
-    if not User or not bot_started or files_col is None:
-        logger.warning("⚠️ Cannot index")
+async def index_files_background():
+    """Background file indexing - non-blocking"""
+    if not User or files_col is None:
+        logger.warning("⚠️ Cannot index in background")
         return
     
-    logger.info("="*70)
-    logger.info("📁 INDEXING FILES (User Client)")
-    logger.info("="*70)
-    
-    indexed_files = 0
+    logger.info("📁 Starting background file indexing...")
     
     try:
         count = 0
-        logger.info(f"📁 Indexing from {Config.FILE_CHANNEL_ID}...")
+        batch = []
+        batch_size = 50
         
-        # Use USER client (not bot) to avoid BOT_METHOD_INVALID
         async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID):
             if msg.document or msg.video:
                 title = extract_title_from_file(msg)
@@ -269,39 +263,51 @@ async def index_files_only():
                     file_name = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
                     quality = detect_quality(file_name)
                     
-                    try:
-                        await files_col.update_one(
-                            {'channel_id': Config.FILE_CHANNEL_ID, 'message_id': msg.id},
-                            {'$set': {
-                                'title': title,
-                                'normalized_title': normalize_title(title),
-                                'file_id': file_id,
-                                'channel_id': Config.FILE_CHANNEL_ID,
-                                'message_id': msg.id,
-                                'quality': quality,
-                                'file_size': file_size,
-                                'file_name': file_name,
-                                'caption': msg.caption or '',
-                                'date': msg.date,
-                                'indexed_at': datetime.now()
-                            }},
-                            upsert=True
-                        )
-                        count += 1
-                        indexed_files += 1
-                        
-                        if count % 100 == 0:
-                            logger.info(f"    ⏳ {count} files...")
-                            
-                    except Exception as e:
-                        if "duplicate" not in str(e).lower():
-                            logger.error(f"    ❌ {e}")
+                    batch.append({
+                        'channel_id': Config.FILE_CHANNEL_ID,
+                        'message_id': msg.id,
+                        'title': title,
+                        'normalized_title': normalize_title(title),
+                        'file_id': file_id,
+                        'quality': quality,
+                        'file_size': file_size,
+                        'file_name': file_name,
+                        'caption': msg.caption or '',
+                        'date': msg.date,
+                        'indexed_at': datetime.now()
+                    })
+                    
+                    count += 1
+                    
+                    if len(batch) >= batch_size:
+                        try:
+                            for doc in batch:
+                                await files_col.update_one(
+                                    {'channel_id': doc['channel_id'], 'message_id': doc['message_id']},
+                                    {'$set': doc},
+                                    upsert=True
+                                )
+                            logger.info(f"    ✅ Indexed {count} files...")
+                            batch = []
+                        except Exception as e:
+                            logger.error(f"Batch error: {e}")
+                            batch = []
         
-        logger.info(f"✅ {count} files indexed")
-        logger.info("="*70)
+        if batch:
+            try:
+                for doc in batch:
+                    await files_col.update_one(
+                        {'channel_id': doc['channel_id'], 'message_id': doc['message_id']},
+                        {'$set': doc},
+                        upsert=True
+                    )
+            except Exception as e:
+                logger.error(f"Final batch error: {e}")
+        
+        logger.info(f"✅ Background indexing complete: {count} files")
         
     except Exception as e:
-        logger.error(f"❌ Indexing error: {e}")
+        logger.error(f"❌ Background indexing error: {e}")
 
 async def get_poster_guaranteed(title, session):
     """100% GUARANTEED with ALL sources"""
@@ -449,7 +455,6 @@ async def get_poster_guaranteed(title, session):
     return res
 
 async def get_live_posts(channel_id, limit=50):
-    """LIVE fetch with error handling"""
     if not User:
         return []
     
@@ -481,7 +486,6 @@ async def get_live_posts(channel_id, limit=50):
     return posts
 
 async def search_movies_live(query, limit=12, page=1):
-    """LIVE search with full error handling"""
     offset = (page - 1) * limit
     logger.info(f"🔴 SEARCH: '{query}' | Page: {page}")
     
@@ -489,7 +493,6 @@ async def search_movies_live(query, limit=12, page=1):
     posts_dict = {}
     files_dict = {}
     
-    # LIVE search with error handling
     for channel_id in Config.TEXT_CHANNEL_IDS:
         try:
             cname = channel_name(channel_id)
@@ -521,7 +524,6 @@ async def search_movies_live(query, limit=12, page=1):
         except Exception as e:
             logger.error(f"    ❌ Channel error: {e}")
     
-    # Files
     try:
         logger.info("📁 Files...")
         count = 0
@@ -555,7 +557,6 @@ async def search_movies_live(query, limit=12, page=1):
     except Exception as e:
         logger.error(f"  ❌ Files error: {e}")
     
-    # Merge
     merged = {}
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data
@@ -596,7 +597,6 @@ async def search_movies_live(query, limit=12, page=1):
     }
 
 async def get_home_movies_live():
-    """30 movies with error handling"""
     logger.info("🏠 30 movies with 100% posters...")
     
     posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=50)
@@ -632,7 +632,6 @@ async def get_home_movies_live():
                     movie['poster_rating'] = poster_result.get('rating', '0.0')
                     movie['has_poster'] = True
                 else:
-                    # Fallback if error
                     movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
                     movie['poster_source'] = 'CUSTOM'
                     movie['poster_rating'] = '0.0'
@@ -649,7 +648,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v3.2 - Fixed',
+        'service': 'SK4FiLM v3.3 - Quick Start',
         'database': {'total_files': tf, 'live_mode': 'Posts LIVE, Files cached'},
         'bot_status': 'online' if bot_started else 'starting',
         'poster_stats': movie_db['stats']
@@ -658,6 +657,30 @@ async def root():
 @app.route('/health')
 async def health():
     return jsonify({'status': 'ok' if bot_started else 'starting'})
+
+@app.route('/api/index_status')
+async def api_index_status():
+    try:
+        if files_col is None:
+            return jsonify({'status': 'error', 'message': 'Database not ready'}), 503
+        
+        total = await files_col.count_documents({})
+        latest = await files_col.find_one({}, sort=[('indexed_at', -1)])
+        last_indexed = "Never"
+        if latest and latest.get('indexed_at'):
+            dt = latest['indexed_at']
+            if isinstance(dt, datetime):
+                mins_ago = int((datetime.now() - dt).total_seconds() / 60)
+                last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
+        
+        return jsonify({
+            'status': 'success',
+            'total_indexed': total,
+            'last_indexed': last_indexed,
+            'bot_status': 'online' if bot_started else 'starting'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/movies')
 async def api_movies():
@@ -763,20 +786,27 @@ async def setup_bot():
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
-        msg = await message.reply_text("🔄 **Indexing...**")
-        await index_files_only()
-        
-        tf = await files_col.count_documents({}) if files_col is not None else 0
-        await msg.edit_text(f"✅ **Complete!**\n\n📁 Files: **{tf}**\n🔴 Posts: LIVE")
+        msg = await message.reply_text("🔄 **Starting background indexing...**")
+        asyncio.create_task(index_files_background())
+        await msg.edit_text("✅ **Indexing started in background!**\n\nUse /stats to check progress")
     
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
         tf = await files_col.count_documents({}) if files_col is not None else 0
         
+        latest = await files_col.find_one({}, sort=[('indexed_at', -1)])
+        last_indexed = "Never"
+        if latest and latest.get('indexed_at'):
+            dt = latest['indexed_at']
+            if isinstance(dt, datetime):
+                mins_ago = int((datetime.now() - dt).total_seconds() / 60)
+                last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
+        
         stats_text = (
-            f"📊 **Stats**\n\n"
-            f"📁 **Files:** {tf}\n"
-            f"🔴 **Posts:** LIVE\n\n"
+            f"📊 **System Statistics**\n\n"
+            f"📁 **Files Indexed:** {tf}\n"
+            f"🕐 **Last Indexed:** {last_indexed}\n"
+            f"🔴 **Posts:** LIVE (no database)\n\n"
             f"**Poster Sources:**\n"
             f"• OMDB: {movie_db['stats']['omdb']}\n"
             f"• TMDB: {movie_db['stats']['tmdb']}\n"
@@ -784,14 +814,14 @@ async def setup_bot():
             f"• JustWatch: {movie_db['stats']['justwatch']}\n"
             f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
             f"• Custom: {movie_db['stats']['custom']}\n\n"
-            f"**Total:** {sum(movie_db['stats'].values())}"
+            f"**Total Posters:** {sum(movie_db['stats'].values())}"
         )
         await message.reply_text(stats_text)
 
 async def init():
     global User, bot, bot_started
     try:
-        logger.info("🔄 Init...")
+        logger.info("🔄 Quick Init (non-blocking)...")
         await init_mongodb()
         
         User = Client("user", api_id=Config.API_ID, api_hash=Config.API_HASH, session_string=Config.USER_SESSION_STRING, workdir="/tmp", sleep_threshold=60)
@@ -805,8 +835,8 @@ async def init():
         logger.info(f"✅ @{me.username}")
         bot_started = True
         
-        logger.info("📁 Indexing files...")
-        await index_files_only()
+        logger.info("🚀 Server ready! Starting background indexing...")
+        asyncio.create_task(index_files_background())
         
         return True
     except Exception as e:
@@ -815,12 +845,12 @@ async def init():
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM v3.2 - FIXED VERSION")
+    logger.info("🚀 SK4FiLM v3.3 - INSTANT START + Background Indexing")
+    logger.info("⚡ Quick start: <5 seconds")
     logger.info("🔴 Posts: LIVE (no database)")
-    logger.info("📁 Files: Cached (unlimited)")
+    logger.info("📁 Files: Background indexed")
     logger.info("🎨 Posters: 6 sources + fallback (100%)")
     logger.info("📺 Home: 30 movies")
-    logger.info("✅ Fixed: MongoDB index, Bot methods, Error handling")
     logger.info("="*70)
     
     await init()
@@ -829,7 +859,7 @@ async def main():
     cfg.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     cfg.loglevel = "warning"
     
-    logger.info(f"🌐 Port {Config.WEB_SERVER_PORT}")
+    logger.info(f"🌐 Server started on port {Config.WEB_SERVER_PORT}")
     await serve(app, cfg)
 
 if __name__ == "__main__":
