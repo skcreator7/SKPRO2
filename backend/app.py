@@ -64,10 +64,37 @@ async def init_mongodb():
         db = mongo_client.sk4film
         files_col = db.files
         
-        await files_col.create_index([("title", "text")])
-        await files_col.create_index([("normalized_title", 1)])
-        await files_col.create_index([("message_id", 1), ("channel_id", 1)], unique=True)
-        await files_col.create_index([("indexed_at", -1)])
+        # Create indexes with conflict handling
+        try:
+            await files_col.create_index([("title", "text")])
+        except Exception as e:
+            logger.debug(f"Text index exists: {e}")
+        
+        try:
+            await files_col.create_index([("normalized_title", 1)])
+        except Exception as e:
+            logger.debug(f"Normalized index exists: {e}")
+        
+        # Drop conflicting unique index and recreate
+        try:
+            await files_col.drop_index("message_id_1_channel_id_1")
+            logger.info("  Dropped old unique index")
+        except:
+            pass
+        
+        try:
+            await files_col.create_index(
+                [("message_id", 1), ("channel_id", 1)], 
+                unique=True,
+                name="msg_ch_unique_idx"
+            )
+        except Exception as e:
+            logger.debug(f"Unique index exists: {e}")
+        
+        try:
+            await files_col.create_index([("indexed_at", -1)])
+        except Exception as e:
+            logger.debug(f"Date index exists: {e}")
         
         logger.info("✅ MongoDB OK")
         return True
@@ -217,12 +244,13 @@ async def check_force_sub(user_id):
         return True
 
 async def index_files_only():
-    if not bot or not bot_started or files_col is None:
+    """Use USER client for file indexing"""
+    if not User or not bot_started or files_col is None:
         logger.warning("⚠️ Cannot index")
         return
     
     logger.info("="*70)
-    logger.info("📁 INDEXING FILES (Unlimited)")
+    logger.info("📁 INDEXING FILES (User Client)")
     logger.info("="*70)
     
     indexed_files = 0
@@ -231,7 +259,8 @@ async def index_files_only():
         count = 0
         logger.info(f"📁 Indexing from {Config.FILE_CHANNEL_ID}...")
         
-        async for msg in bot.get_chat_history(Config.FILE_CHANNEL_ID):
+        # Use USER client (not bot) to avoid BOT_METHOD_INVALID
+        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID):
             if msg.document or msg.video:
                 title = extract_title_from_file(msg)
                 if title:
@@ -265,13 +294,14 @@ async def index_files_only():
                             logger.info(f"    ⏳ {count} files...")
                             
                     except Exception as e:
-                        logger.error(f"    ❌ {e}")
+                        if "duplicate" not in str(e).lower():
+                            logger.error(f"    ❌ {e}")
         
         logger.info(f"✅ {count} files indexed")
         logger.info("="*70)
         
     except Exception as e:
-        logger.error(f"❌ {e}")
+        logger.error(f"❌ Indexing error: {e}")
 
 async def get_poster_guaranteed(title, session):
     """100% GUARANTEED with ALL sources"""
@@ -419,6 +449,7 @@ async def get_poster_guaranteed(title, session):
     return res
 
 async def get_live_posts(channel_id, limit=50):
+    """LIVE fetch with error handling"""
     if not User:
         return []
     
@@ -445,11 +476,12 @@ async def get_live_posts(channel_id, limit=50):
         
         logger.info(f"  ✅ {count} posts")
     except Exception as e:
-        logger.error(f"  ❌ {e}")
+        logger.error(f"  ❌ Error: {e}")
     
     return posts
 
 async def search_movies_live(query, limit=12, page=1):
+    """LIVE search with full error handling"""
     offset = (page - 1) * limit
     logger.info(f"🔴 SEARCH: '{query}' | Page: {page}")
     
@@ -457,60 +489,71 @@ async def search_movies_live(query, limit=12, page=1):
     posts_dict = {}
     files_dict = {}
     
-    # LIVE search both channels
+    # LIVE search with error handling
     for channel_id in Config.TEXT_CHANNEL_IDS:
         try:
             cname = channel_name(channel_id)
             logger.info(f"  🔴 {cname}...")
             count = 0
             
-            async for msg in User.search_messages(channel_id, query=query):
-                if msg.text and len(msg.text) > 15:
-                    title = extract_title_smart(msg.text)
-                    if title and query_lower in title.lower():
-                        norm_title = normalize_title(title)
-                        if norm_title not in posts_dict:
-                            posts_dict[norm_title] = {
-                                'title': title,
-                                'content': format_post(msg.text),
-                                'channel': cname,
-                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
-                                'is_new': is_new(msg.date) if msg.date else False,
-                                'has_file': False,
-                                'quality_options': {}
-                            }
-                            count += 1
+            try:
+                async for msg in User.search_messages(channel_id, query=query, limit=200):
+                    if msg.text and len(msg.text) > 15:
+                        title = extract_title_smart(msg.text)
+                        if title and query_lower in title.lower():
+                            norm_title = normalize_title(title)
+                            if norm_title not in posts_dict:
+                                posts_dict[norm_title] = {
+                                    'title': title,
+                                    'content': format_post(msg.text),
+                                    'channel': cname,
+                                    'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
+                                    'is_new': is_new(msg.date) if msg.date else False,
+                                    'has_file': False,
+                                    'quality_options': {}
+                                }
+                                count += 1
+            except Exception as e:
+                logger.error(f"    ❌ Search error: {e}")
             
             logger.info(f"    ✅ {count} posts")
             
         except Exception as e:
-            logger.error(f"    ❌ {e}")
+            logger.error(f"    ❌ Channel error: {e}")
     
     # Files
     try:
         logger.info("📁 Files...")
         count = 0
         
-        cursor = files_col.find({'$text': {'$search': query}})
-        async for doc in cursor:
-            norm_title = doc.get('normalized_title', normalize_title(doc['title']))
-            quality = doc['quality']
-            
-            if norm_title not in files_dict:
-                files_dict[norm_title] = {'title': doc['title'], 'quality_options': {}, 'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date']}
-            
-            if quality not in files_dict[norm_title]['quality_options']:
-                files_dict[norm_title]['quality_options'][quality] = {
-                    'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
-                    'file_size': doc['file_size'],
-                    'file_name': doc['file_name']
-                }
-                count += 1
+        if files_col is not None:
+            cursor = files_col.find({'$text': {'$search': query}})
+            async for doc in cursor:
+                try:
+                    norm_title = doc.get('normalized_title', normalize_title(doc['title']))
+                    quality = doc['quality']
+                    
+                    if norm_title not in files_dict:
+                        files_dict[norm_title] = {
+                            'title': doc['title'], 
+                            'quality_options': {}, 
+                            'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date']
+                        }
+                    
+                    if quality not in files_dict[norm_title]['quality_options']:
+                        files_dict[norm_title]['quality_options'][quality] = {
+                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                            'file_size': doc['file_size'],
+                            'file_name': doc['file_name']
+                        }
+                        count += 1
+                except Exception as e:
+                    logger.debug(f"File processing error: {e}")
         
         logger.info(f"  ✅ {count}")
         
     except Exception as e:
-        logger.error(f"  ❌ {e}")
+        logger.error(f"  ❌ Files error: {e}")
     
     # Merge
     merged = {}
@@ -553,6 +596,7 @@ async def search_movies_live(query, limit=12, page=1):
     }
 
 async def get_home_movies_live():
+    """30 movies with error handling"""
     logger.info("🏠 30 movies with 100% posters...")
     
     posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=50)
@@ -579,13 +623,20 @@ async def get_home_movies_live():
         logger.info("🎨 Fetching posters...")
         async with aiohttp.ClientSession() as session:
             tasks = [get_poster_guaranteed(m['title'], session) for m in movies]
-            posters = await asyncio.gather(*tasks)
+            posters = await asyncio.gather(*tasks, return_exceptions=True)
             
             for movie, poster_result in zip(movies, posters):
-                movie['poster_url'] = poster_result['poster_url']
-                movie['poster_source'] = poster_result['source']
-                movie['poster_rating'] = poster_result.get('rating', '0.0')
-                movie['has_poster'] = True
+                if isinstance(poster_result, dict):
+                    movie['poster_url'] = poster_result['poster_url']
+                    movie['poster_source'] = poster_result['source']
+                    movie['poster_rating'] = poster_result.get('rating', '0.0')
+                    movie['has_poster'] = True
+                else:
+                    # Fallback if error
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'CUSTOM'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
         
         logger.info("  ✅ 100% posters")
     
@@ -598,7 +649,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v3.1 - All Poster Sources',
+        'service': 'SK4FiLM v3.2 - Fixed',
         'database': {'total_files': tf, 'live_mode': 'Posts LIVE, Files cached'},
         'bot_status': 'online' if bot_started else 'starting',
         'poster_stats': movie_db['stats']
@@ -759,16 +810,17 @@ async def init():
         
         return True
     except Exception as e:
-        logger.error(f"❌ {e}")
+        logger.error(f"❌ Init error: {e}")
         return False
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM v3.1 - All Poster Sources + Live")
+    logger.info("🚀 SK4FiLM v3.2 - FIXED VERSION")
     logger.info("🔴 Posts: LIVE (no database)")
     logger.info("📁 Files: Cached (unlimited)")
     logger.info("🎨 Posters: 6 sources + fallback (100%)")
     logger.info("📺 Home: 30 movies")
+    logger.info("✅ Fixed: MongoDB index, Bot methods, Error handling")
     logger.info("="*70)
     
     await init()
