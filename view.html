@@ -1,53 +1,443 @@
-@app.route('/api/post')
-async def api_post():
-    """Get specific post details"""
-    try:
-        channel_id = int(request.args.get('channel', 0))
-        message_id = int(request.args.get('message', 0))
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Details - SK4FiLM</title>
+    <meta name="description" content="View full movie details and information">
+    
+    <!-- Google AdSense -->
+    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #ff0000;
+            --secondary-color: #0066ff;
+            --accent-color: #00ccff;
+            --bg-dark: #0a0a0f;
+            --card-bg: rgba(30, 41, 59, 0.9);
+        }
         
-        logger.info(f"📄 Post request: channel={channel_id}, message={message_id}")
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        if not channel_id or not message_id:
-            return jsonify({'status': 'error', 'message': 'Invalid parameters'}), 400
+        body {
+            font-family: 'Josefin Sans', sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #f8f9fa;
+            min-height: 100vh;
+            padding-top: 80px;
+        }
         
-        if not bot_started or not User:
-            return jsonify({'status': 'error', 'message': 'Service starting...'}), 503
+        /* Navbar */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
         
-        # Fetch message from Telegram
-        try:
-            msg = await User.get_messages(channel_id, message_id)
-            
-            if not msg or not msg.text:
-                logger.warning(f"  ❌ Post not found or no text")
-                return jsonify({'status': 'error', 'message': 'Post not found'}), 404
-            
-            title = extract_title_smart(msg.text)
-            if not title:
-                title = "Movie Post"
-            
-            logger.info(f"  ✅ Found post: {title}")
-            
-            post_data = {
-                'title': title,
-                'content': format_post(msg.text),  # This formats the post content with HTML
-                'channel': channel_name(channel_id),
-                'channel_id': channel_id,
-                'message_id': message_id,
-                'date': msg.date.isoformat() if msg.date else None,
-                'is_new': is_new(msg.date) if msg.date else False,
-                'has_post': True
+        .navbar-brand {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .logo-img {
+            height: 40px;
+            width: 40px;
+            border-radius: 8px;
+            margin-right: 10px;
+        }
+        
+        /* Post Container */
+        .post-container {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(0, 204, 255, 0.3);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        
+        .post-title {
+            color: var(--accent-color);
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 2rem;
+            line-height: 1.3;
+        }
+        
+        .post-meta {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid rgba(0, 204, 255, 0.2);
+        }
+        
+        .meta-badge {
+            background: rgba(0, 204, 255, 0.2);
+            color: var(--accent-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: 1px solid rgba(0, 204, 255, 0.3);
+        }
+        
+        .new-badge {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(40, 167, 69, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(40, 167, 69, 0.8); }
+        }
+        
+        /* Post Content */
+        .post-content {
+            background: rgba(20, 30, 48, 0.8);
+            border-radius: 15px;
+            padding: 2rem;
+            color: rgba(255, 255, 255, 0.95);
+            line-height: 1.8;
+            font-size: 1.05rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .post-content p {
+            margin-bottom: 1rem;
+        }
+        
+        .post-content a {
+            color: var(--accent-color);
+            text-decoration: none;
+            border-bottom: 1px solid var(--accent-color);
+            transition: all 0.3s ease;
+        }
+        
+        .post-content a:hover {
+            color: #00e6ff;
+            border-color: #00e6ff;
+        }
+        
+        .post-content h1, .post-content h2, .post-content h3 {
+            color: var(--accent-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .post-content ul, .post-content ol {
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .post-content li {
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Back Button */
+        .btn-back {
+            background: rgba(108, 117, 125, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-back:hover {
+            background: #6c757d;
+            color: white;
+        }
+        
+        /* Loading */
+        .spinner-border {
+            width: 4rem;
+            height: 4rem;
+            border-width: 0.4rem;
+        }
+        
+        .loading-container {
+            text-align: center;
+            padding: 5rem 2rem;
+        }
+        
+        /* Error State */
+        .error-container {
+            text-align: center;
+            padding: 5rem 2rem;
+        }
+        
+        .error-container i {
+            font-size: 5rem;
+            color: #ff4757;
+            margin-bottom: 2rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .post-container {
+                padding: 1.5rem;
             }
             
-            return jsonify({
-                'status': 'success',
-                'post': post_data,
-                'bot_username': Config.BOT_USERNAME
-            })
+            .post-title {
+                font-size: 1.8rem;
+            }
             
-        except Exception as e:
-            logger.error(f"  ❌ Post fetch error: {e}")
-            return jsonify({'status': 'error', 'message': 'Failed to fetch post'}), 500
+            .post-content {
+                padding: 1.5rem;
+                font-size: 1rem;
+            }
+            
+            .post-meta {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
+                <span>SK4FiLM</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="btn-back" href="javascript:history.back()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-4">
+        <div id="postContainer">
+            <!-- Loading State -->
+            <div class="loading-container">
+                <div class="spinner-border text-info" role="status"></div>
+                <p class="text-info mt-3">Loading post details...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Configuration
+        const API_BASE = 'https://sk4film.koyeb.app';
         
-    except Exception as e:
-        logger.error(f"❌ API /post error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        console.log('🌐 API Base:', API_BASE);
+        
+        // Load Post on Page Load
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const channelId = urlParams.get('channel');
+            const messageId = urlParams.get('message');
+            
+            console.log('📄 Loading post:', { channelId, messageId });
+            
+            if (channelId && messageId) {
+                loadPost(channelId, messageId);
+            } else {
+                showError('Invalid post link - missing parameters');
+            }
+        });
+        
+        // Load Post from API
+        async function loadPost(channelId, messageId) {
+            try {
+                const apiUrl = `${API_BASE}/api/post?channel=${channelId}&message=${messageId}`;
+                console.log('🔍 API Call:', apiUrl);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                console.log('📡 Response:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Data:', data);
+                    
+                    if (data.status === 'success' && data.post) {
+                        displayPost(data.post);
+                    } else {
+                        console.log('API returned error:', data.message);
+                        showFallback(channelId, messageId);
+                    }
+                } else {
+                    console.log('API not available, using fallback');
+                    showFallback(channelId, messageId);
+                }
+            } catch (error) {
+                console.error('❌ Error:', error);
+                showFallback(channelId, messageId);
+            }
+        }
+        
+        // Display Post (WITHOUT Telegram Button)
+        function displayPost(post) {
+            console.log('📄 Displaying post:', post);
+            
+            const container = document.getElementById('postContainer');
+            
+            // Format content
+            let content = post.content || '<p>Full movie details available.</p>';
+            
+            // If content doesn't have HTML tags, format it
+            if (!content.includes('<')) {
+                content = content
+                    .split('\n')
+                    .map(line => line.trim() ? `<p>${escapeHtml(line)}</p>` : '')
+                    .join('');
+            }
+            
+            container.innerHTML = `
+                <div class="post-container">
+                    <h1 class="post-title">${escapeHtml(post.title)}</h1>
+                    
+                    ${post.channel || post.date || post.is_new ? `
+                        <div class="post-meta">
+                            ${post.channel ? `
+                                <span class="meta-badge">
+                                    <i class="fas fa-tv me-2"></i>${escapeHtml(post.channel)}
+                                </span>
+                            ` : ''}
+                            
+                            ${post.date ? `
+                                <span class="meta-badge">
+                                    <i class="far fa-calendar me-2"></i>${formatDate(post.date)}
+                                </span>
+                            ` : ''}
+                            
+                            ${post.is_new ? `
+                                <span class="new-badge">
+                                    <i class="fas fa-star me-2"></i>NEW
+                                </span>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="post-content">
+                        ${content}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show Fallback (WITHOUT Telegram Button)
+        function showFallback(channelId, messageId) {
+            console.log('📄 Showing fallback view');
+            
+            const container = document.getElementById('postContainer');
+            
+            container.innerHTML = `
+                <div class="post-container">
+                    <h1 class="post-title">Movie Post</h1>
+                    
+                    <div class="post-content">
+                        <p style="text-align: center; font-size: 1.2rem; color: rgba(255,255,255,0.8);">
+                            <i class="fas fa-film me-2"></i>
+                            Movie details not available at the moment.
+                        </p>
+                        <p style="text-align: center; color: rgba(255,255,255,0.6);">
+                            Please try searching again or contact support.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show Error
+        function showError(message) {
+            console.error('❌ Error:', message);
+            
+            const container = document.getElementById('postContainer');
+            
+            container.innerHTML = `
+                <div class="error-container">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h2>Post Not Found</h2>
+                    <p class="text-muted">${escapeHtml(message)}</p>
+                    <div class="mt-4">
+                        <a href="/" class="btn-back" style="padding: 12px 25px;">
+                            <i class="fas fa-home"></i> Go to Home
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Format Date
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                
+                if (diffHours < 24) {
+                    return `${diffHours}h ago`;
+                } else if (diffHours < 48) {
+                    return 'Yesterday';
+                } else {
+                    return date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                    });
+                }
+            } catch (e) {
+                return dateString;
+            }
+        }
+        
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
