@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Movie Details - SK4FiLM</title>
-    <meta name="description" content="View movie details and download options">
+    <meta name="description" content="View full movie details">
     
     <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-5244164301170945">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     
-    <!-- CSS Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -108,120 +107,28 @@
             border: 2px solid rgba(0, 204, 255, 0.3);
         }
         
-        .post-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
         .post-title {
             font-size: 2.5rem;
             font-weight: 700;
             color: var(--accent);
-            margin-bottom: 20px;
-        }
-        
-        .post-meta {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        
-        .meta-badge {
-            background: rgba(0, 204, 255, 0.2);
-            color: var(--accent);
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            border: 1px solid rgba(0, 204, 255, 0.3);
-        }
-        
-        .new-badge {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            animation: newPulse 2s infinite;
-        }
-        
-        @keyframes newPulse {
-            0%, 100% { box-shadow: 0 4px 15px rgba(40, 167, 69, 0.6); }
-            50% { box-shadow: 0 6px 25px rgba(40, 167, 69, 0.9); }
+            margin-bottom: 30px;
+            text-align: center;
         }
         
         .post-content {
             background: rgba(30, 41, 59, 0.8);
             border-radius: 15px;
             padding: 30px;
-            margin-bottom: 30px;
             color: rgba(255, 255, 255, 0.9);
             line-height: 1.8;
             font-size: 1.1rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        .post-content h1, .post-content h2, .post-content h3 {
-            color: var(--accent);
-            margin-top: 20px;
-            margin-bottom: 15px;
-        }
-        
         .post-content a {
             color: var(--accent);
             text-decoration: none;
             border-bottom: 1px solid var(--accent);
-        }
-        
-        .post-content a:hover {
-            color: #00e6ff;
-            border-color: #00e6ff;
-        }
-        
-        .download-section {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
-            border: 2px solid rgba(102, 126, 234, 0.4);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-        }
-        
-        .download-title {
-            color: var(--accent);
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 25px;
-            text-align: center;
-        }
-        
-        .quality-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        
-        .btn-download {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            font-size: 1.1rem;
-        }
-        
-        .btn-download:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.5);
-            color: white;
         }
         
         .btn-telegram {
@@ -261,27 +168,6 @@
             100% { transform: rotate(360deg); }
         }
         
-        .error-message {
-            text-align: center;
-            padding: 80px 20px;
-        }
-        
-        .error-message i {
-            font-size: 5rem;
-            color: #ff4757;
-            margin-bottom: 30px;
-        }
-        
-        .error-message h2 {
-            color: white;
-            margin-bottom: 20px;
-        }
-        
-        .error-message p {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 1.1rem;
-        }
-        
         .back-btn {
             background: rgba(108, 117, 125, 0.3);
             color: white;
@@ -309,20 +195,10 @@
             .post-title {
                 font-size: 1.8rem;
             }
-            
-            .post-meta {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .quality-grid {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav class="top-navbar">
         <div class="container">
             <div class="navbar-content">
@@ -346,14 +222,12 @@
 
     <div class="container">
         <div id="postContainer">
-            <!-- Loading spinner -->
             <div class="loading-spinner"></div>
         </div>
     </div>
 
     <script>
-        const API_BASE = 'https://sk4film.koyeb.app'; // Your backend URL
-        let BOT_USERNAME = 'sk4filmbot';
+        const API_BASE = 'https://sk4film.koyeb.app';
 
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -369,22 +243,18 @@
 
         async function loadPost(channelId, messageId) {
             try {
-                // For now, we'll fetch from search results based on channel/message
-                // You can add a dedicated API endpoint later
                 const response = await fetch(`${API_BASE}/api/post?channel=${channelId}&message=${messageId}`);
                 
                 if (response.ok) {
                     const data = await response.json();
                     if (data.status === 'success') {
-                        BOT_USERNAME = data.bot_username || 'sk4filmbot';
                         displayPost(data.post);
-                    } else {
-                        showError(data.message || 'Post not found');
+                        return;
                     }
-                } else {
-                    // Fallback: Show basic info with Telegram link
-                    showBasicPost(channelId, messageId);
                 }
+                
+                // Fallback: Show Telegram link
+                showBasicPost(channelId, messageId);
             } catch (error) {
                 console.error('Load error:', error);
                 showBasicPost(channelId, messageId);
@@ -393,38 +263,14 @@
 
         function displayPost(post) {
             const container = document.getElementById('postContainer');
-            const hasFile = post.has_file === true;
-            const isNew = post.is_new === true;
             
-            let html = `
+            container.innerHTML = `
                 <div class="post-container animate__animated animate__fadeIn">
-                    <div class="post-header">
-                        <h1 class="post-title">${escapeHtml(post.title)}</h1>
-                        
-                        <div class="post-meta">
-                            ${post.channel ? `<span class="meta-badge"><i class="fas fa-tv me-2"></i>${escapeHtml(post.channel)}</span>` : ''}
-                            ${post.date ? `<span class="meta-badge"><i class="far fa-calendar me-2"></i>${formatDate(post.date)}</span>` : ''}
-                            ${isNew ? '<span class="new-badge"><i class="fas fa-star me-2"></i>NEW RELEASE</span>' : ''}
-                        </div>
-                    </div>
+                    <h1 class="post-title">${escapeHtml(post.title)}</h1>
                     
                     <div class="post-content">
                         ${post.content || '<p>Full movie details available on Telegram.</p>'}
                     </div>
-                    
-                    ${hasFile ? `
-                        <div class="download-section">
-                            <h2 class="download-title">
-                                <i class="fas fa-download me-2"></i>Download Options
-                            </h2>
-                            <div class="quality-grid">
-                                ${generateQualityButtons(post.quality_options)}
-                            </div>
-                            <div style="text-align: center; margin-top: 25px; color: rgba(255,255,255,0.7);">
-                                <i class="fas fa-info-circle me-2"></i>Click quality to download via Telegram bot
-                            </div>
-                        </div>
-                    ` : ''}
                     
                     <div style="text-align: center;">
                         <a href="${getChannelLink(post.channel_id, post.message_id)}" 
@@ -435,8 +281,6 @@
                     </div>
                 </div>
             `;
-            
-            container.innerHTML = html;
         }
 
         function showBasicPost(channelId, messageId) {
@@ -444,17 +288,12 @@
             
             container.innerHTML = `
                 <div class="post-container animate__animated animate__fadeIn">
-                    <div class="post-header">
-                        <h1 class="post-title">Movie Post</h1>
-                        <div class="post-meta">
-                            <span class="meta-badge"><i class="fas fa-tv me-2"></i>SK4FiLM</span>
-                        </div>
-                    </div>
+                    <h1 class="post-title">Movie Post</h1>
                     
                     <div class="post-content">
                         <p style="text-align: center; font-size: 1.2rem;">
                             <i class="fas fa-film me-2"></i>
-                            View full movie details and download options on Telegram.
+                            View full movie details on Telegram.
                         </p>
                     </div>
                     
@@ -469,40 +308,12 @@
             `;
         }
 
-        function generateQualityButtons(qualityOptions) {
-            if (!qualityOptions || Object.keys(qualityOptions).length === 0) {
-                return '<p style="text-align: center; color: rgba(255,255,255,0.7);">No download options available</p>';
-            }
-            
-            let buttons = '';
-            const qualities = ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'];
-            
-            qualities.forEach(quality => {
-                if (qualityOptions[quality]) {
-                    const fileId = qualityOptions[quality].file_id;
-                    const fileSize = formatSize(qualityOptions[quality].file_size);
-                    
-                    buttons += `
-                        <a href="https://t.me/${BOT_USERNAME}?start=${fileId}" 
-                           target="_blank" 
-                           class="btn-download"
-                           title="Size: ${fileSize}">
-                            <i class="fas fa-download"></i>
-                            <span>${quality}<br><small>${fileSize}</small></span>
-                        </a>
-                    `;
-                }
-            });
-            
-            return buttons;
-        }
-
         function showError(message) {
             document.getElementById('postContainer').innerHTML = `
-                <div class="error-message animate__animated animate__fadeIn">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <h2>Post Not Found</h2>
-                    <p>${escapeHtml(message)}</p>
+                <div style="text-align: center; padding: 80px 20px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 5rem; color: #ff4757;"></i>
+                    <h2 style="color: white; margin: 30px 0 20px;">Post Not Found</h2>
+                    <p style="color: rgba(255,255,255,0.7); font-size: 1.1rem;">${escapeHtml(message)}</p>
                     <div style="margin-top: 30px;">
                         <a href="/" class="btn-telegram">
                             <i class="fas fa-home"></i> Go to Home
@@ -513,46 +324,12 @@
         }
 
         function getChannelLink(channelId, messageId) {
-            if (!channelId || !messageId) {
-                return '#';
-            }
-            
+            if (!channelId || !messageId) return '#';
             const channelIdStr = Math.abs(channelId).toString();
             if (channelIdStr.startsWith('100')) {
                 return `https://t.me/c/${channelIdStr.substring(3)}/${messageId}`;
             } else {
                 return `https://t.me/${channelId}/${messageId}`;
-            }
-        }
-
-        function formatSize(bytes) {
-            if (!bytes) return 'Unknown';
-            const mb = bytes / (1024 * 1024);
-            const gb = bytes / (1024 * 1024 * 1024);
-            
-            if (gb >= 1) {
-                return gb.toFixed(2) + ' GB';
-            } else {
-                return mb.toFixed(2) + ' MB';
-            }
-        }
-
-        function formatDate(dateString) {
-            try {
-                const date = new Date(dateString);
-                const now = new Date();
-                const diffTime = Math.abs(now - date);
-                const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-                
-                if (diffHours < 24) {
-                    return `${diffHours}h ago`;
-                } else if (diffHours < 48) {
-                    return 'Yesterday';
-                } else {
-                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                }
-            } catch (e) {
-                return dateString;
             }
         }
 
