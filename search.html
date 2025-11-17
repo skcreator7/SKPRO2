@@ -3,20 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Results - SK4FiLM</title>
+    <title>Search - SK4FiLM</title>
+    <meta name="description" content="Search and download latest movies">
     
+    <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-5244164301170945">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     
     <style>
         :root {
             --primary: #ff0000;
             --secondary: #0066ff;
             --accent: #00ccff;
+            --text: #f8f9fa;
         }
         
         * {
@@ -29,111 +33,202 @@
             background: url('https://i.postimg.cc/T2mcBGtv/pxfuel-2.jpg') no-repeat center center fixed;
             background-size: cover;
             min-height: 100vh;
-            font-family: 'Poppins', sans-serif;
-            color: #f8f9fa;
-            padding-top: 140px;
+            font-family: 'Josefin Sans', sans-serif;
+            color: var(--text);
+            padding-top: 80px;
+            padding-bottom: 30px;
         }
         
         body::before {
             content: '';
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(10, 10, 10, 0.8);
+            background: rgba(10, 10, 10, 0.85);
             z-index: -1;
         }
         
         .top-navbar {
             background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
             position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
             width: 100%;
             z-index: 1000;
-            padding: 15px 0;
-            backdrop-filter: blur(10px);
+            padding: 12px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-img {
+            height: 40px;
+            width: 40px;
+            margin-right: 8px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        }
+        
+        .brand-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.3rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+        }
+        
+        .brand-subtitle {
+            font-size: 0.6rem;
+            color: var(--accent);
+            font-style: italic;
         }
         
         .search-section {
             background: rgba(15, 23, 42, 0.9);
-            position: fixed;
-            top: 70px;
-            width: 100%;
-            z-index: 900;
-            padding: 15px 0;
             backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 2px solid rgba(0, 204, 255, 0.3);
         }
         
-        .main-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
         }
         
-        .result-item {
-            background: rgba(30, 41, 59, 0.9);
-            border: 1px solid rgba(255,255,255,0.15);
+        .search-input {
+            flex: 1;
+            background: rgba(60, 65, 90, 0.9);
+            border: 2px solid var(--accent);
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.1rem;
             border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 25px;
-            position: relative;
+            outline: none;
             transition: all 0.3s ease;
         }
         
-        .result-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: linear-gradient(45deg, var(--primary), var(--accent));
-            border-radius: 15px 0 0 15px;
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
         }
         
-        .movie-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--accent);
-            margin-bottom: 20px;
-            padding: 15px;
-            background: rgba(0, 136, 204, 0.1);
-            border-radius: 10px;
-            border-left: 4px solid var(--accent);
-            word-wrap: break-word;
+        .search-input:focus {
+            box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
+            border-color: #00e6ff;
         }
         
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .btn-watch, .btn-download {
-            flex: 1;
-            min-width: 200px;
-            padding: 15px 30px;
+        .search-btn {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
             border: none;
-            border-radius: 25px;
+            padding: 15px 30px;
+            border-radius: 15px;
+            cursor: pointer;
             font-weight: 600;
             font-size: 1.1rem;
-            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .search-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(255, 0, 0, 0.6);
+        }
+        
+        .loading-spinner {
+            width: 3.5rem;
+            height: 3.5rem;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid #28a745;
+            border-right: 5px solid #ffc107;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            margin: 50px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* PERFECT CARD LAYOUT - Same on Mobile & Desktop */
+        .result-card {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 150px;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 204, 255, 0.3);
+            border-color: var(--accent);
+        }
+        
+        .result-title {
+            color: var(--accent);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+        
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: auto;
+        }
+        
+        .btn-action {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            text-align: center;
         }
         
         .btn-watch {
-            background: linear-gradient(45deg, #0088cc, #00ccff);
+            background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
         }
         
-        .btn-watch:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 136, 204, 0.5);
+        .btn-watch:hover:not(:disabled) {
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+            color: white;
         }
         
         .btn-download {
@@ -141,29 +236,49 @@
             color: white;
         }
         
-        .btn-download:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.5);
+        .btn-download:hover:not(:disabled) {
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5);
+            color: white;
         }
         
-        .btn-download:disabled {
-            background: linear-gradient(45deg, #6c757d, #5a6268);
+        .btn-action:disabled {
+            background: #495057;
             cursor: not-allowed;
             opacity: 0.6;
         }
         
-        .quality-section {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 2px solid rgba(255, 255, 255, 0.1);
-            display: none;
-            animation: slideDown 0.3s ease-out;
+        .btn-action:disabled:hover {
+            transform: none;
+            box-shadow: none;
         }
         
-        @keyframes slideDown {
+        /* EXPANDABLE QUALITY OPTIONS */
+        .quality-dropdown {
+            position: relative;
+            flex: 1;
+        }
+        
+        .quality-options {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(20, 30, 48, 0.98);
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+            z-index: 100;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(-10px);
+                transform: translateY(10px);
             }
             to {
                 opacity: 1;
@@ -171,476 +286,469 @@
             }
         }
         
-        .quality-section.show {
+        .quality-dropdown.active .quality-options {
             display: block;
         }
         
-        .quality-title {
-            color: var(--accent);
-            font-size: 1.1rem;
+        .quality-option {
+            display: block;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
             font-weight: 600;
-            margin-bottom: 15px;
+            transition: all 0.3s ease;
             text-align: center;
         }
         
-        .quality-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            justify-content: center;
-        }
-        
-        .quality-item {
-            background: linear-gradient(45deg, rgba(40, 167, 69, 0.2), rgba(32, 201, 151, 0.2));
-            border: 2px solid rgba(40, 167, 69, 0.5);
-            border-radius: 12px;
-            padding: 12px 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            min-width: 120px;
-            flex: 0 0 auto;
-        }
-        
-        .quality-item:hover {
-            background: linear-gradient(45deg, rgba(40, 167, 69, 0.4), rgba(32, 201, 151, 0.4));
-            border-color: #28a745;
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
-        }
-        
-        .quality-item:active {
-            transform: translateY(0);
-        }
-        
-        .quality-badge {
-            background: linear-gradient(45deg, #28a745, #20c997);
+        .quality-option:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.5);
             color: white;
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 1rem;
-            white-space: nowrap;
         }
         
-        .quality-size {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.85rem;
+        .quality-option:last-child {
+            margin-bottom: 0;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .page-btn {
+            background: rgba(0, 204, 255, 0.2);
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
             font-weight: 600;
-            white-space: nowrap;
+            transition: all 0.3s ease;
+            min-width: 45px;
+        }
+        
+        .page-btn:hover:not(:disabled) {
+            background: var(--accent);
+            color: #1a1a2e;
+            transform: scale(1.05);
+        }
+        
+        .page-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .page-btn.active {
+            background: var(--accent);
+            color: #1a1a2e;
+        }
+        
+        .page-dots {
+            color: var(--accent);
+            padding: 0 8px;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .no-results i {
+            font-size: 4rem;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+        
+        .nav-home-btn {
+            background: rgba(108, 117, 125, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-home-btn:hover {
+            background: #6c757d;
+            color: white;
         }
         
         @media (max-width: 768px) {
-            body { 
-                padding-top: 115px; 
+            .search-box {
+                flex-direction: column;
             }
             
-            .main-container {
-                padding: 12px;
+            .search-btn {
+                width: 100%;
             }
             
-            .result-item {
-                padding: 18px;
-                margin-bottom: 20px;
+            .result-title {
+                font-size: 1.3rem;
             }
             
-            .movie-title {
-                font-size: 1.05rem;
-                padding: 12px;
-                margin-bottom: 15px;
+            .result-actions {
+                flex-direction: column;
             }
             
-            .action-buttons { 
-                gap: 10px;
+            .btn-action {
+                width: 100%;
             }
             
-            .btn-watch, .btn-download { 
-                flex: 1;
-                min-width: 140px;
-                padding: 12px 20px;
-                font-size: 0.95rem;
+            .quality-options {
+                left: 0;
+                right: 0;
             }
-            
-            .quality-title {
-                font-size: 0.95rem;
-                margin-bottom: 12px;
-            }
-            
-            .quality-buttons {
-                gap: 8px;
-                overflow-x: auto;
-                overflow-y: hidden;
-                padding: 5px 0;
-                justify-content: flex-start;
-                -webkit-overflow-scrolling: touch;
-                scroll-snap-type: x proximity;
-            }
-            
-            .quality-item {
-                min-width: 100px;
-                padding: 10px 16px;
-                flex-shrink: 0;
-                scroll-snap-align: start;
-            }
-            
-            .quality-badge {
-                font-size: 0.9rem;
-                padding: 5px 12px;
-            }
-            
-            .quality-size {
-                font-size: 0.75rem;
-            }
-            
-            .quality-buttons::-webkit-scrollbar {
-                height: 4px;
-            }
-            
-            .quality-buttons::-webkit-scrollbar-track {
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 2px;
-            }
-            
-            .quality-buttons::-webkit-scrollbar-thumb {
-                background: var(--accent);
-                border-radius: 2px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            body {
-                padding-top: 110px;
-            }
-            
-            .result-item {
-                padding: 15px;
-            }
-            
-            .movie-title {
-                font-size: 1rem;
-                padding: 10px;
-            }
-            
-            .btn-watch, .btn-download {
-                min-width: 130px;
-                padding: 11px 18px;
-                font-size: 0.9rem;
-            }
-            
-            .quality-item {
-                min-width: 90px;
-                padding: 8px 14px;
-            }
-            
-            .quality-badge {
-                font-size: 0.85rem;
-                padding: 4px 10px;
-            }
-            
-            .quality-size {
-                font-size: 0.7rem;
-            }
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
-
 <body>
+    <!-- Navbar -->
     <nav class="top-navbar">
-        <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center;">
-            <a href="/" style="display: flex; align-items: center; color: white; text-decoration: none;">
-                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" style="height: 40px; margin-right: 12px; border-radius: 6px;">
-                <div style="font-size: 1.5rem; background: linear-gradient(90deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">SK4FiLM</div>
-            </a>
-            <a href="/" style="background: rgba(255, 255, 255, 0.1); color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none;">
-                <i class="fas fa-home me-1"></i>Home
-            </a>
+        <div class="container">
+            <div class="navbar-content">
+                <div class="logo-section">
+                    <a href="/" style="display: flex; align-items: center; color: white; text-decoration: none;">
+                        <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+                        <div>
+                            <div class="brand-text">SK4FiLM</div>
+                            <div class="brand-subtitle">House of Entertainment</div>
+                        </div>
+                    </a>
+                </div>
+                <div>
+                    <a href="/" class="nav-home-btn">
+                        <i class="fas fa-home"></i> Home
+                    </a>
+                </div>
+            </div>
         </div>
     </nav>
 
-    <div class="search-section">
-        <div style="max-width: 800px; margin: 0 auto; padding: 0 20px;">
-            <div style="display: flex; gap: 12px;">
-                <input type="text" id="searchInput" placeholder="Search movies..." style="background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.2); color: white; padding: 12px 20px; flex: 1; border-radius: 25px;">
-                <button onclick="doSearch()" style="background: linear-gradient(45deg, var(--primary), var(--secondary)); border: none; border-radius: 25px; padding: 12px 24px; color: white; font-weight: 600;">
-                    <i class="fas fa-search me-1"></i>Search
+    <div class="container">
+        <!-- Search Section -->
+        <div class="search-section animate__animated animate__fadeInDown">
+            <h1 style="color: var(--accent); margin-bottom: 20px; text-align: center;">
+                <i class="fas fa-search me-2"></i>Search Movies
+            </h1>
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="searchInput" 
+                    placeholder="Search for movies..."
+                    onkeypress="if(event.key==='Enter') performSearch()"
+                >
+                <button class="search-btn" onclick="performSearch()">
+                    <i class="fas fa-search me-2"></i>Search
                 </button>
             </div>
-        </div>
-    </div>
-
-    <div class="main-container">
-        <div id="searchStats" style="display: none; background: rgba(15, 23, 42, 0.8); border-radius: 15px; padding: 20px; margin-bottom: 25px; text-align: center;">
-            <div style="color: var(--accent); font-size: 1.2rem; margin-bottom: 10px;">Search Results</div>
-            <div id="searchQuery"></div>
-            <div id="resultsCount" style="margin-top: 10px; color: #28a745;"></div>
+            <div id="searchInfo" style="text-align: center; color: rgba(255, 255, 255, 0.7);"></div>
         </div>
 
-        <div style="background: rgba(15, 23, 42, 0.8); border-radius: 15px; padding: 25px;">
-            <div id="searchResults">
-                <div style="text-align: center; padding: 50px 20px;">
-                    <i class="fas fa-search fa-4x mb-4" style="color: var(--accent);"></i>
-                    <h4>Search Movies</h4>
-                    <p style="color: rgba(255, 255, 255, 0.8);">Enter movie name to search</p>
-                </div>
-            </div>
-        </div>
+        <!-- Results Section -->
+        <div id="resultsContainer"></div>
+
+        <!-- Pagination -->
+        <div id="paginationContainer"></div>
     </div>
 
     <script>
-        const BACKEND_URL = 'https://sk4film.koyeb.app';
+        const API_BASE = 'https://sk4film.koyeb.app';
+        let currentPage = 1;
+        let currentQuery = '';
         let BOT_USERNAME = 'sk4filmbot';
-        let searchResultsData = [];
-        
-        console.log('%c🎬 SK4FiLM SEARCH v2.0', 'color: #28a745; font-size: 18px; font-weight: bold;');
-        
-        function doSearch() {
-            const input = document.getElementById('searchInput');
-            const query = input.value.trim();
+        const RESULTS_PER_PAGE = 10;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const query = urlParams.get('q');
+            const page = parseInt(urlParams.get('page')) || 1;
+            
             if (query) {
-                performSearch(query);
+                document.getElementById('searchInput').value = query;
+                currentQuery = query;
+                currentPage = page;
+                performSearch(page);
             }
-        }
-        
-        async function performSearch(query) {
-            const container = document.getElementById('searchResults');
-            container.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <div style="width: 3rem; height: 3rem; border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                    <div style="color: var(--accent);">Searching...</div>
+        });
+
+        async function performSearch(page = 1) {
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            currentQuery = query;
+            currentPage = page;
+            
+            const url = new URL(window.location);
+            url.searchParams.set('q', query);
+            url.searchParams.set('page', page);
+            window.history.pushState({}, '', url);
+            
+            document.getElementById('resultsContainer').innerHTML = `
+                <div style="text-align: center; padding: 60px 20px;">
+                    <div class="loading-spinner"></div>
+                    <h4 style="color: #28a745; margin-top: 20px;">
+                        <i class="fas fa-search me-2"></i>Searching for "${query}"...
+                    </h4>
                 </div>
             `;
             
+            document.getElementById('searchInfo').innerHTML = '';
+            document.getElementById('paginationContainer').innerHTML = '';
+            
             try {
-                console.log('🔍 Searching:', query);
-                const response = await fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}&limit=20`);
+                const response = await fetch(`${API_BASE}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`);
                 const data = await response.json();
                 
-                console.log('📦 Response:', data);
-                
-                if (data.status === 'success' && data.results?.length > 0) {
+                if (data.status === 'success') {
                     BOT_USERNAME = data.bot_username || 'sk4filmbot';
-                    searchResultsData = data.results;
-                    displayResults(data.results, query, data.pagination);
+                    displayResults(data.results, data.pagination);
                 } else {
-                    showNoResults(query);
+                    showError(data.message || 'Search failed');
                 }
             } catch (error) {
-                console.error('❌ Error:', error);
-                showError();
+                console.error('Search error:', error);
+                showError('Failed to connect to server. Please try again.');
             }
         }
-        
-        function displayResults(results, query, pagination) {
-            document.getElementById('searchQuery').innerHTML = `Results for "<strong>${query}</strong>"`;
-            document.getElementById('resultsCount').textContent = `${pagination.total_results} Results Found`;
-            document.getElementById('searchStats').style.display = 'block';
+
+        function displayResults(results, pagination) {
+            const container = document.getElementById('resultsContainer');
+            
+            if (!results || results.length === 0) {
+                container.innerHTML = `
+                    <div class="no-results animate__animated animate__fadeIn">
+                        <i class="fas fa-film"></i>
+                        <h3>No Results Found</h3>
+                        <p>Try searching with different keywords</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            document.getElementById('searchInfo').innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} for "<strong>${escapeHtml(currentQuery)}</strong>"
+                <span style="opacity: 0.7;"> | Page ${pagination.current_page} of ${pagination.total_pages}</span>
+            `;
             
             let html = '';
             results.forEach((result, index) => {
-                const displayTitle = result.title || 'Unknown';
-                const hasFile = result.has_file || false;
-                const qualityOptions = result.quality_options || {};
-                const qualities = Object.keys(qualityOptions);
-                
-                const order = {'2160p': 5, '2160p HEVC': 5, '1080p': 4, '1080p HEVC': 4, '720p': 3, '720p HEVC': 3, '480p': 2, '480p HEVC': 2};
-                qualities.sort((a, b) => (order[b] || 0) - (order[a] || 0));
-                
-                let qualityButtonsHTML = '';
-                qualities.forEach(quality => {
-                    const option = qualityOptions[quality];
-                    const fileSize = option.file_size ? (option.file_size / (1024 * 1024)).toFixed(2) : '?';
-                    const fileId = option.file_id || '';
-                    
-                    qualityButtonsHTML += `
-                        <div class="quality-item" onclick='selectQuality("${escapeJS(fileId)}", "${escapeJS(quality)}")'>
-                            <div class="quality-badge">[${quality}]</div>
-                            <div class="quality-size">${fileSize} MB</div>
-                        </div>
-                    `;
-                });
+                const hasPost = result.has_post !== false;
+                const hasFile = result.has_file === true;
                 
                 html += `
-                    <div class="result-item" id="result-${index}">
-                        <div class="movie-title">
-                            <i class="fas fa-film me-2"></i>${escapeHTML(displayTitle)}
-                        </div>
+                    <div class="result-card animate__animated animate__fadeIn" style="animation-delay: ${index * 0.05}s;">
+                        <!-- TITLE AT TOP -->
+                        <h2 class="result-title">${escapeHtml(result.title)}</h2>
                         
-                        <div class="action-buttons">
-                            <button class="btn-watch" onclick="watchPost(${index})">
-                                <i class="fas fa-eye fa-lg"></i>
-                                <span>Watch Post</span>
-                            </button>
-                            
-                            ${hasFile && qualities.length > 0 ? `
-                                <button class="btn-download" onclick="toggleQualitySection(${index})">
-                                    <i class="fas fa-download fa-lg"></i>
-                                    <span>Download (${qualities.length})</span>
-                                </button>
+                        <!-- BUTTONS AT BOTTOM -->
+                        <div class="result-actions">
+                            ${hasPost ? `
+                                <a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" 
+                                   class="btn-action btn-watch">
+                                    <i class="fas fa-eye"></i> Watch
+                                </a>
                             ` : `
-                                <button class="btn-download" disabled>
-                                    <i class="fas fa-times-circle fa-lg"></i>
-                                    <span>Not Available</span>
+                                <button class="btn-action btn-watch" disabled title="Post not available">
+                                    <i class="fas fa-eye-slash"></i> Unavailable
+                                </button>
+                            `}
+                            
+                            ${hasFile ? `
+                                <div class="quality-dropdown" id="dropdown-${index}">
+                                    <button class="btn-action btn-download" onclick="toggleQuality(${index}, event)">
+                                        <i class="fas fa-download"></i> Download
+                                    </button>
+                                    <div class="quality-options">
+                                        ${generateQualityLinks(result.quality_options)}
+                                    </div>
+                                </div>
+                            ` : `
+                                <button class="btn-action btn-download" disabled title="No file available">
+                                    <i class="fas fa-times"></i> No File
                                 </button>
                             `}
                         </div>
-                        
-                        ${hasFile && qualities.length > 0 ? `
-                            <div class="quality-section" id="quality-${index}">
-                                <div class="quality-title">
-                                    <i class="fas fa-sliders-h me-2"></i>Select Quality
-                                </div>
-                                <div class="quality-buttons">
-                                    ${qualityButtonsHTML}
-                                </div>
-                            </div>
-                        ` : ''}
                     </div>
                 `;
             });
             
-            document.getElementById('searchResults').innerHTML = html;
-            console.log('✅ Results displayed');
-        }
-        
-        function toggleQualitySection(index) {
-            const qualitySection = document.getElementById(`quality-${index}`);
+            container.innerHTML = html;
+            displayPagination(pagination);
             
-            document.querySelectorAll('.quality-section').forEach(section => {
-                if (section.id !== `quality-${index}`) {
-                    section.classList.remove('show');
+            // Scroll to top on page change
+            if (page > 1) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function toggleQuality(index, event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById(`dropdown-${index}`);
+            
+            // Close all other dropdowns
+            document.querySelectorAll('.quality-dropdown').forEach(el => {
+                if (el.id !== `dropdown-${index}`) {
+                    el.classList.remove('active');
                 }
             });
             
-            if (qualitySection) {
-                qualitySection.classList.toggle('show');
-                
-                if (qualitySection.classList.contains('show')) {
-                    setTimeout(() => {
-                        qualitySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 100);
-                }
-            }
+            // Toggle current dropdown
+            dropdown.classList.toggle('active');
         }
-        
-        function watchPost(index) {
-            console.log('👁️ Watch:', index);
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.quality-dropdown')) {
+                document.querySelectorAll('.quality-dropdown').forEach(el => {
+                    el.classList.remove('active');
+                });
+            }
+        });
+
+        function generateQualityLinks(qualityOptions) {
+            if (!qualityOptions || Object.keys(qualityOptions).length === 0) {
+                return '<p style="color: rgba(255,255,255,0.7); padding: 10px; text-align: center;">No files available</p>';
+            }
             
-            const result = searchResultsData[index];
-            if (!result) {
-                alert('Error: Result not found');
+            let links = '';
+            const qualities = ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'];
+            
+            qualities.forEach(quality => {
+                if (qualityOptions[quality]) {
+                    const fileId = qualityOptions[quality].file_id;
+                    const fileSize = formatSize(qualityOptions[quality].file_size);
+                    
+                    links += `
+                        <a href="https://t.me/${BOT_USERNAME}?start=${fileId}" 
+                           target="_blank" 
+                           class="quality-option"
+                           onclick="event.stopPropagation();">
+                            <i class="fas fa-download me-2"></i>${quality} <small>(${fileSize})</small>
+                        </a>
+                    `;
+                }
+            });
+            
+            return links;
+        }
+
+        function displayPagination(pagination) {
+            if (!pagination || pagination.total_pages <= 1) {
                 return;
             }
             
-            try {
-                const postData = {
-                    title: result.title || 'Movie',
-                    content: result.content || '<p style="text-align:center;padding:50px;color:#ccc;">No additional content available.</p>',
-                    channel: result.channel || 'SK4FiLM',
-                    date: result.date || new Date().toISOString(),
-                    is_new: result.is_new || false,
-                    has_file: result.has_file || false,
-                    quality_options: result.quality_options || {}
-                };
-                
-                const jsonStr = JSON.stringify(postData);
-                const encoded = btoa(encodeURIComponent(jsonStr));
-                const viewUrl = window.location.origin + '/view.html?d=' + encoded;
-                
-                sessionStorage.setItem('watchPost', jsonStr);
-                localStorage.setItem('watchPost', jsonStr);
-                
-                if (viewUrl.length > 2000) {
-                    window.open(window.location.origin + '/view.html', '_blank');
-                } else {
-                    window.open(viewUrl, '_blank');
+            const container = document.getElementById('paginationContainer');
+            const currentPage = pagination.current_page;
+            const totalPages = pagination.total_pages;
+            
+            let html = '<div class="pagination">';
+            
+            // Previous button
+            html += `
+                <button class="page-btn" onclick="performSearch(${currentPage - 1})" 
+                        ${!pagination.has_previous ? 'disabled' : ''}
+                        title="Previous page">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+            
+            // Page numbers with smart ellipsis
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            
+            if (endPage - startPage < maxVisible - 1) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+            
+            // First page
+            if (startPage > 1) {
+                html += `
+                    <button class="page-btn" onclick="performSearch(1)">1</button>
+                `;
+                if (startPage > 2) {
+                    html += '<span class="page-dots">...</span>';
                 }
-                
-            } catch (error) {
-                console.error('❌ Error:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-        
-        function selectQuality(fileId, quality) {
-            console.log('✅ Selected:', quality, '| File ID:', fileId);
-            
-            if (!fileId || fileId === 'undefined') {
-                alert('❌ File ID not available');
-                return;
             }
             
-            const msg = document.createElement('div');
-            msg.innerHTML = `
-                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #28a745, #20c997); padding: 25px 40px; border-radius: 20px; z-index: 10001; text-align: center; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
-                    <i class="fas fa-check-circle fa-2x mb-2"></i>
-                    <h4 style="margin: 8px 0;">[${quality}]</h4>
-                    <p style="opacity: 0.9; margin: 0;">Opening bot...</p>
-                </div>
-            `;
-            document.body.appendChild(msg);
+            // Page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <button class="page-btn ${i === currentPage ? 'active' : ''}" 
+                            onclick="performSearch(${i})">
+                        ${i}
+                    </button>
+                `;
+            }
             
-            const botLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-            console.log('🤖 Opening:', botLink);
+            // Last page
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += '<span class="page-dots">...</span>';
+                }
+                html += `
+                    <button class="page-btn" onclick="performSearch(${totalPages})">${totalPages}</button>
+                `;
+            }
             
-            setTimeout(() => {
-                document.body.removeChild(msg);
-                window.open(botLink, '_blank');
-            }, 1000);
+            // Next button
+            html += `
+                <button class="page-btn" onclick="performSearch(${currentPage + 1})" 
+                        ${!pagination.has_next ? 'disabled' : ''}
+                        title="Next page">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+            
+            html += '</div>';
+            container.innerHTML = html;
         }
-        
-        function showNoResults(query) {
-            document.getElementById('searchResults').innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                    <h4>No Results</h4>
-                    <p>No results for "${escapeHTML(query)}"</p>
+
+        function showError(message) {
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="no-results animate__animated animate__fadeIn">
+                    <i class="fas fa-exclamation-triangle" style="color: #ff4757;"></i>
+                    <h3>Error</h3>
+                    <p>${escapeHtml(message)}</p>
                 </div>
             `;
         }
-        
-        function showError() {
-            document.getElementById('searchResults').innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                    <h4>Search Error</h4>
-                    <p>Backend may be starting...</p>
-                </div>
-            `;
+
+        function formatSize(bytes) {
+            if (!bytes) return 'Unknown';
+            const mb = bytes / (1024 * 1024);
+            const gb = bytes / (1024 * 1024 * 1024);
+            
+            if (gb >= 1) {
+                return gb.toFixed(2) + ' GB';
+            } else {
+                return mb.toFixed(1) + ' MB';
+            }
         }
-        
-        function escapeHTML(text) {
+
+        function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
-        function escapeJS(text) {
-            if (!text) return '';
-            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '').replace(/\r/g, '');
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            const query = new URLSearchParams(window.location.search).get('query');
-            const input = document.getElementById('searchInput');
-            if (input) {
-                input.value = query || '';
-                input.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') doSearch();
-                });
-            }
-            if (query) performSearch(query);
-        });
-        
-        console.log('✅ Search page ready');
     </script>
 </body>
 </html>
