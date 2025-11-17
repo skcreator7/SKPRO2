@@ -839,7 +839,7 @@
             img.onload = function() {
                 img.classList.remove('poster-loading');
                 posterCache.set(cacheKey, img.src);
-                console.log(`✅ Poster loaded: ${movie.title} (Source: ${movie.poster_source || 'Direct'})`);
+                console.log(`✅ Poster loaded: ${movie.title}`);
             };
 
             img.src = posterURL;
@@ -1046,7 +1046,7 @@
                                         class="hq-poster poster-loading" 
                                         alt="${escapeHTML(title)}"
                                         loading="lazy"
-                                        data-movie='${JSON.stringify({title: title, year: movie.year || '', poster_url: movie.poster_url, poster_source: movie.poster_source})}'
+                                        data-movie='${JSON.stringify({title: title, year: movie.year || '', poster_url: movie.poster_url})}'
                                     >
                                 ` : `
                                     <div class="hq-poster poster-error">
@@ -1068,11 +1068,6 @@
                             
                             <div class="hq-info">
                                 <h6 class="hq-title">${escapeHTML(title)}</h6>
-                                ${movie.poster_source ? `
-                                    <small style="color: #888; font-size: 0.7rem;">
-                                        Source: ${movie.poster_source}
-                                    </small>
-                                ` : ''}
                             </div>
                         </div>
                     </div>
