@@ -160,9 +160,43 @@
         .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
         .empty-state {text-align:center;padding:4rem 2rem;}
         .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
+        /* Ad Container */
+        .ad-container {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        .top-ad-container {
+            margin: 1rem 0 2rem 0;
+            text-align: center;
+        }
+        /* Disclaimer Styles */
+        .disclaimer {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 2rem;
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        .disclaimer strong {
+            color: #ff4757;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
         @media (max-width: 768px) {
             .result-actions{grid-template-columns: 1fr 1fr;}
             .btn-watch, .btn-download-main {font-size: 0.9rem; padding: 10px 15px;}
+            .disclaimer {
+                margin: 2rem 1rem 0 1rem;
+                font-size: 0.85rem;
+            }
+            .top-ad-container {
+                margin: 1rem 0;
+            }
         }
         @media (max-width: 576px) {
             .quality-buttons-row {flex-direction:column;}
@@ -186,9 +220,35 @@
 
 <!-- Main Content -->
 <div class="container my-4">
+    <!-- Top Ad -->
+    <div class="top-ad-container">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '567936a964b0784aedd11f237d26bee0',
+                'format' : 'iframe',
+                'height' : 250,
+                'width' : 300,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+    </div>
+
     <div id="resultsInfo"></div>
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
+    
+    <!-- Bottom Ad Container -->
+    <div class="ad-container">
+        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+    </div>
+    
+    <!-- Disclaimer Section -->
+    <div class="disclaimer">
+        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
+        This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
