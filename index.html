@@ -796,29 +796,29 @@
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         
-        console.log('🎬 SK4FiLM v5.0 - Multi-Source Poster System');
+        console.log('🎬 SK4FiLM v6.0 - ALL SOURCES POSTER SYSTEM');
 
         // ==== Enhanced Poster Loading System ====
         const posterCache = new Map();
 
-        // Multi-source poster URL builder with all sources
+        // Multi-source poster URL builder with ALL sources
         function buildPosterURL(movie) {
             const title = movie.title || '';
             const year = movie.year || '';
             
-            // If backend provides poster URL, use it with multi-source fallback
-            if (movie.poster_url) {
-                return `${BACKEND_URL}/api/poster/multi?url=${encodeURIComponent(movie.poster_url)}&title=${encodeURIComponent(title)}&year=${year}`;
+            // If backend provides poster URL, use it directly
+            if (movie.poster_url && movie.poster_url.startsWith('http')) {
+                return movie.poster_url;
             }
             
-            // Direct multi-source fetch
-            return `${BACKEND_URL}/api/poster/fetch?title=${encodeURIComponent(title)}&year=${year}`;
+            // Fallback to our custom poster generator
+            return `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}&year=${year}`;
         }
 
         async function loadPosterWithFallback(img, movie, container) {
             const cacheKey = `${movie.title}_${movie.year}`;
             
-            // Check cache
+            // Check cache first
             if (posterCache.has(cacheKey)) {
                 img.src = posterCache.get(cacheKey);
                 img.classList.remove('poster-loading');
@@ -829,20 +829,17 @@
             
             img.onerror = function() {
                 console.warn(`Poster failed for: ${movie.title}`);
-                container.innerHTML = `
-                    <div class="poster-error hq-poster">
-                        <div>
-                            <i class="fas fa-film fa-4x mb-3"></i><br>
-                            <strong>${escapeHTML(movie.title)}</strong>
-                        </div>
-                    </div>
-                `;
+                // Fallback to custom poster
+                const fallbackURL = `${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title)}&year=${movie.year || ''}`;
+                img.src = fallbackURL;
+                img.classList.remove('poster-loading');
+                posterCache.set(cacheKey, fallbackURL);
             };
 
             img.onload = function() {
                 img.classList.remove('poster-loading');
                 posterCache.set(cacheKey, img.src);
-                console.log(`✅ Poster loaded: ${movie.title}`);
+                console.log(`✅ Poster loaded: ${movie.title} (Source: ${movie.poster_source || 'Direct'})`);
             };
 
             img.src = posterURL;
@@ -1008,16 +1005,21 @@
         // ==== Movie Loading Functions ====
         async function loadHomeMovies() {
             try {
+                console.log('🎬 Loading movies from backend...');
                 const response = await fetch(`${BACKEND_URL}/api/movies`);
                 const data = await response.json();
                 
+                console.log('📊 Backend response:', data);
+                
                 if (data.status === 'success' && data.movies?.length > 0) {
+                    console.log(`✅ Loaded ${data.movies.length} movies`);
                     displayHomeMovies(data.movies);
                 } else {
+                    console.error('❌ No movies found in response');
                     showError();
                 }
             } catch (error) {
-                console.error('Error loading movies:', error);
+                console.error('❌ Error loading movies:', error);
                 showError();
             }
         }
@@ -1028,8 +1030,9 @@
             
             movies.forEach((movie, index) => {
                 const title = movie.title || 'Unknown';
-                const hasPoster = movie.has_poster && movie.poster_url;
+                const hasPoster = movie.has_poster !== false; // Assume poster exists unless explicitly false
                 const isNew = movie.is_new;
+                const rating = movie.poster_rating || '0.0';
                 const uniqueId = `movie-${index}-${Date.now()}`;
                 
                 html += `
@@ -1043,7 +1046,7 @@
                                         class="hq-poster poster-loading" 
                                         alt="${escapeHTML(title)}"
                                         loading="lazy"
-                                        data-movie='${JSON.stringify({title: title, year: movie.year || '', poster_url: movie.poster_url})}'
+                                        data-movie='${JSON.stringify({title: title, year: movie.year || '', poster_url: movie.poster_url, poster_source: movie.poster_source})}'
                                     >
                                 ` : `
                                     <div class="hq-poster poster-error">
@@ -1057,8 +1060,19 @@
                             
                             ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
                             
+                            ${rating !== '0.0' ? `
+                                <div class="rating-badge">
+                                    <i class="fas fa-star me-1"></i>${rating}
+                                </div>
+                            ` : ''}
+                            
                             <div class="hq-info">
                                 <h6 class="hq-title">${escapeHTML(title)}</h6>
+                                ${movie.poster_source ? `
+                                    <small style="color: #888; font-size: 0.7rem;">
+                                        Source: ${movie.poster_source}
+                                    </small>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -1080,6 +1094,7 @@
                 <div class="col-12" style="text-align: center; padding: 60px;">
                     <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
                     <h3>Error loading movies</h3>
+                    <p class="text-muted mb-3">Please check if the backend server is running</p>
                     <button onclick="loadHomeMovies()" style="background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; margin-top: 20px;">
                         <i class="fas fa-redo me-2"></i>Retry
                     </button>
@@ -1106,7 +1121,8 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v5.0 FINAL - Multi-Source Posters + Responsive Ads');
+            console.log('🚀 SK4FiLM v6.0 FINAL - ALL SOURCES POSTERS + RESPONSIVE ADS');
+            console.log('🎯 Poster Sources: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB');
             
             loadHomeMovies();
             
