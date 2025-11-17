@@ -1,443 +1,363 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie Details - SK4FiLM</title>
-    <meta name="description" content="View full movie details and information">
-    
-    <!-- Google AdSense -->
-    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
+    <title>View Post - SK4FiLM</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
     <style>
-        :root {
-            --primary-color: #ff0000;
-            --secondary-color: #0066ff;
-            --accent-color: #00ccff;
-            --bg-dark: #0a0a0f;
-            --card-bg: rgba(30, 41, 59, 0.9);
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: 'Josefin Sans', sans-serif;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
-            color: #f8f9fa;
+            background: url('https://i.postimg.cc/T2mcBGtv/pxfuel-2.jpg') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
-            padding-top: 80px;
+            font-family: 'Poppins', sans-serif;
+            color: #f8f9fa;
+            padding: 25px;
         }
         
-        /* Navbar */
-        .navbar {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.85);
+            z-index: -1;
         }
         
-        .navbar-brand {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 1.5rem;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .logo-img {
-            height: 40px;
-            width: 40px;
-            border-radius: 8px;
-            margin-right: 10px;
-        }
-        
-        /* Post Container */
-        .post-container {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 2.5rem;
-            margin-bottom: 2rem;
+        .post-box {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(45, 55, 72, 0.96));
+            border-radius: 25px;
+            padding: 45px;
+            max-width: 950px;
+            margin: 0 auto;
             border: 2px solid rgba(0, 204, 255, 0.3);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
         }
         
         .post-title {
-            color: var(--accent-color);
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
+            color: #00ccff;
+            margin-bottom: 30px;
             text-align: center;
-            margin-bottom: 2rem;
-            line-height: 1.3;
+            word-wrap: break-word;
+            line-height: 1.4;
         }
         
-        .post-meta {
+        .badge-row {
             display: flex;
+            gap: 12px;
             justify-content: center;
-            gap: 20px;
             flex-wrap: wrap;
-            margin-bottom: 2rem;
-            padding-bottom: 2rem;
-            border-bottom: 2px solid rgba(0, 204, 255, 0.2);
+            margin-bottom: 30px;
+            padding-bottom: 25px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
         }
         
-        .meta-badge {
-            background: rgba(0, 204, 255, 0.2);
-            color: var(--accent-color);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
+        .badge {
+            background: rgba(0, 136, 204, 0.2);
+            color: #00ccff;
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-size: 0.95rem;
             border: 1px solid rgba(0, 204, 255, 0.3);
         }
         
-        .new-badge {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 700;
-            animation: pulse 2s infinite;
+        .badge-new {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            border-color: rgba(255, 71, 87, 0.5);
         }
         
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 15px rgba(40, 167, 69, 0.5); }
-            50% { box-shadow: 0 0 25px rgba(40, 167, 69, 0.8); }
+        .badge-file {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border-color: rgba(40, 167, 69, 0.5);
         }
         
-        /* Post Content */
         .post-content {
-            background: rgba(20, 30, 48, 0.8);
-            border-radius: 15px;
-            padding: 2rem;
-            color: rgba(255, 255, 255, 0.95);
-            line-height: 1.8;
-            font-size: 1.05rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .post-content p {
-            margin-bottom: 1rem;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 18px;
+            padding: 35px;
+            margin: 35px 0;
+            line-height: 1.9;
+            font-size: 1.1rem;
+            color: #ffffff;
+            word-wrap: break-word;
+            max-height: 60vh;
+            overflow-y: auto;
         }
         
         .post-content a {
-            color: var(--accent-color);
+            color: #00ccff;
             text-decoration: none;
-            border-bottom: 1px solid var(--accent-color);
-            transition: all 0.3s ease;
+            font-weight: 600;
         }
         
         .post-content a:hover {
-            color: #00e6ff;
-            border-color: #00e6ff;
+            text-decoration: underline;
         }
         
-        .post-content h1, .post-content h2, .post-content h3 {
-            color: var(--accent-color);
-            margin-top: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .post-content ul, .post-content ol {
-            padding-left: 2rem;
-            margin-bottom: 1rem;
-        }
-        
-        .post-content li {
-            margin-bottom: 0.5rem;
-        }
-        
-        /* Back Button */
-        .btn-back {
-            background: rgba(108, 117, 125, 0.3);
+        .back-btn {
+            background: linear-gradient(45deg, #0088cc, #00ccff);
             color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: 600;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
             transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
         }
         
-        .btn-back:hover {
-            background: #6c757d;
-            color: white;
+        .back-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 136, 204, 0.6);
         }
         
-        /* Loading */
-        .spinner-border {
-            width: 4rem;
-            height: 4rem;
-            border-width: 0.4rem;
-        }
-        
-        .loading-container {
-            text-align: center;
-            padding: 5rem 2rem;
-        }
-        
-        /* Error State */
-        .error-container {
-            text-align: center;
-            padding: 5rem 2rem;
-        }
-        
-        .error-container i {
-            font-size: 5rem;
-            color: #ff4757;
-            margin-bottom: 2rem;
-        }
-        
-        /* Responsive */
         @media (max-width: 768px) {
-            .post-container {
-                padding: 1.5rem;
-            }
-            
-            .post-title {
-                font-size: 1.8rem;
-            }
-            
-            .post-content {
-                padding: 1.5rem;
-                font-size: 1rem;
-            }
-            
-            .post-meta {
-                flex-direction: column;
-                align-items: center;
-            }
+            .post-box { padding: 30px 20px; }
+            .post-title { font-size: 1.5rem; }
+            .post-content { padding: 25px; }
         }
     </style>
 </head>
+
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="/">
-                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
-                <span>SK4FiLM</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="btn-back" href="javascript:history.back()">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </a>
-                    </li>
-                </ul>
+    <div class="post-box">
+        <div id="mainContent">
+            <div style="text-align: center; padding: 60px 20px;">
+                <i class="fas fa-spinner fa-spin fa-3x" style="color: #00ccff;"></i>
+                <p style="margin-top: 25px; font-size: 1.1rem;">Loading post...</p>
             </div>
         </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="container my-4">
-        <div id="postContainer">
-            <!-- Loading State -->
-            <div class="loading-container">
-                <div class="spinner-border text-info" role="status"></div>
-                <p class="text-info mt-3">Loading post details...</p>
-            </div>
+        
+        <div style="text-align: center; margin-top: 35px;">
+            <button class="back-btn" onclick="goBack()">
+                <i class="fas fa-arrow-left me-2"></i>Close
+            </button>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
-        // Configuration
-        const API_BASE = 'https://sk4film.koyeb.app';
+        console.log('%c📄 VIEW PAGE v2.0', 'color: #00ccff; font-size: 20px; font-weight: bold;');
+        console.log('🔗 URL:', window.location.href);
         
-        console.log('🌐 API Base:', API_BASE);
-        
-        // Load Post on Page Load
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const channelId = urlParams.get('channel');
-            const messageId = urlParams.get('message');
-            
-            console.log('📄 Loading post:', { channelId, messageId });
-            
-            if (channelId && messageId) {
-                loadPost(channelId, messageId);
-            } else {
-                showError('Invalid post link - missing parameters');
-            }
-        });
-        
-        // Load Post from API
-        async function loadPost(channelId, messageId) {
+        function loadPost() {
             try {
-                const apiUrl = `${API_BASE}/api/post?channel=${channelId}&message=${messageId}`;
-                console.log('🔍 API Call:', apiUrl);
+                console.log('📥 Loading post data...');
                 
-                const response = await fetch(apiUrl, {
-                    method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
+                // METHOD 1: URL Parameter (Primary)
+                const params = new URLSearchParams(window.location.search);
+                const dataParam = params.get('d');
                 
-                console.log('📡 Response:', response.status);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ Data:', data);
-                    
-                    if (data.status === 'success' && data.post) {
-                        displayPost(data.post);
-                    } else {
-                        console.log('API returned error:', data.message);
-                        showFallback(channelId, messageId);
+                if (dataParam) {
+                    console.log('✅ Using URL parameter method');
+                    try {
+                        const decoded = decodeURIComponent(atob(dataParam));
+                        const post = JSON.parse(decoded);
+                        console.log('📋 Post data:', post);
+                        displayPost(post);
+                        return;
+                    } catch (e) {
+                        console.error('❌ URL decode error:', e);
                     }
-                } else {
-                    console.log('API not available, using fallback');
-                    showFallback(channelId, messageId);
                 }
-            } catch (error) {
-                console.error('❌ Error:', error);
-                showFallback(channelId, messageId);
-            }
-        }
-        
-        // Display Post (WITHOUT Telegram Button)
-        function displayPost(post) {
-            console.log('📄 Displaying post:', post);
-            
-            const container = document.getElementById('postContainer');
-            
-            // Format content
-            let content = post.content || '<p>Full movie details available.</p>';
-            
-            // If content doesn't have HTML tags, format it
-            if (!content.includes('<')) {
-                content = content
-                    .split('\n')
-                    .map(line => line.trim() ? `<p>${escapeHtml(line)}</p>` : '')
-                    .join('');
-            }
-            
-            container.innerHTML = `
-                <div class="post-container">
-                    <h1 class="post-title">${escapeHtml(post.title)}</h1>
-                    
-                    ${post.channel || post.date || post.is_new ? `
-                        <div class="post-meta">
-                            ${post.channel ? `
-                                <span class="meta-badge">
-                                    <i class="fas fa-tv me-2"></i>${escapeHtml(post.channel)}
-                                </span>
-                            ` : ''}
-                            
-                            ${post.date ? `
-                                <span class="meta-badge">
-                                    <i class="far fa-calendar me-2"></i>${formatDate(post.date)}
-                                </span>
-                            ` : ''}
-                            
-                            ${post.is_new ? `
-                                <span class="new-badge">
-                                    <i class="fas fa-star me-2"></i>NEW
-                                </span>
-                            ` : ''}
-                        </div>
-                    ` : ''}
-                    
-                    <div class="post-content">
-                        ${content}
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Show Fallback (WITHOUT Telegram Button)
-        function showFallback(channelId, messageId) {
-            console.log('📄 Showing fallback view');
-            
-            const container = document.getElementById('postContainer');
-            
-            container.innerHTML = `
-                <div class="post-container">
-                    <h1 class="post-title">Movie Post</h1>
-                    
-                    <div class="post-content">
-                        <p style="text-align: center; font-size: 1.2rem; color: rgba(255,255,255,0.8);">
-                            <i class="fas fa-film me-2"></i>
-                            Movie details not available at the moment.
-                        </p>
-                        <p style="text-align: center; color: rgba(255,255,255,0.6);">
-                            Please try searching again or contact support.
-                        </p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Show Error
-        function showError(message) {
-            console.error('❌ Error:', message);
-            
-            const container = document.getElementById('postContainer');
-            
-            container.innerHTML = `
-                <div class="error-container">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <h2>Post Not Found</h2>
-                    <p class="text-muted">${escapeHtml(message)}</p>
-                    <div class="mt-4">
-                        <a href="/" class="btn-back" style="padding: 12px 25px;">
-                            <i class="fas fa-home"></i> Go to Home
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Format Date
-        function formatDate(dateString) {
-            try {
-                const date = new Date(dateString);
-                const now = new Date();
-                const diffTime = Math.abs(now - date);
-                const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
                 
-                if (diffHours < 24) {
-                    return `${diffHours}h ago`;
-                } else if (diffHours < 48) {
-                    return 'Yesterday';
+                // METHOD 2: sessionStorage (Backup)
+                const stored = sessionStorage.getItem('watchPost');
+                if (stored) {
+                    console.log('✅ Using sessionStorage method');
+                    const post = JSON.parse(stored);
+                    displayPost(post);
+                    return;
+                }
+                
+                // METHOD 3: localStorage (Last resort)
+                const localStored = localStorage.getItem('watchPost');
+                if (localStored) {
+                    console.log('✅ Using localStorage method');
+                    const post = JSON.parse(localStored);
+                    displayPost(post);
+                    return;
+                }
+                
+                // No data found
+                console.error('❌ No data found in any method');
+                showError();
+                
+            } catch (error) {
+                console.error('❌ Critical error:', error);
+                showError();
+            }
+        }
+        
+        function displayPost(post) {
+            console.log('🎬 Displaying post:', post.title);
+            
+            // Build badges
+            let badgesHTML = `
+                <div class="badge">
+                    <i class="fab fa-telegram me-1"></i>${escapeHTML(post.channel || 'SK4FiLM')}
+                </div>
+                <div class="badge">
+                    <i class="fas fa-calendar me-1"></i>${formatDate(post.date)}
+                </div>
+            `;
+            
+            if (post.is_new) {
+                badgesHTML += `
+                    <div class="badge badge-new">
+                        <i class="fas fa-fire me-1"></i>NEW
+                    </div>
+                `;
+            }
+            
+            if (post.has_file && post.quality_options) {
+                const qualities = Object.keys(post.quality_options);
+                if (qualities.length > 0) {
+                    badgesHTML += `
+                        <div class="badge badge-file">
+                            <i class="fas fa-download me-1"></i>${qualities.length} Qualities
+                        </div>
+                    `;
+                }
+            }
+            
+            // Build content
+            let content = post.content || '';
+            
+            // If content is empty or too short
+            if (!content || content.trim().length < 20) {
+                console.warn('⚠️ Content is empty, using placeholder');
+                content = `
+                    <div style="text-align: center; padding: 40px 20px;">
+                        <i class="fas fa-info-circle fa-3x mb-4" style="color: #00ccff;"></i>
+                        <h4 style="color: #00ccff; margin-bottom: 20px;">${escapeHTML(post.title)}</h4>
+                        <p style="color: rgba(255,255,255,0.8); font-size: 1.05rem; line-height: 1.8;">
+                            This is a movie information post.<br>
+                            Full content details are not available at this time.
+                        </p>
+                        ${post.has_file ? `
+                            <div style="margin-top: 30px; padding: 25px; background: rgba(40,167,69,0.1); border-radius: 15px; border: 1px solid rgba(40,167,69,0.3);">
+                                <p style="color: #28a745; font-size: 1.1rem; margin-bottom: 10px;">
+                                    <i class="fas fa-check-circle me-2"></i>Download Available
+                                </p>
+                                <p style="color: rgba(255,255,255,0.7); margin: 0;">
+                                    Qualities: <strong style="color: #28a745;">${Object.keys(post.quality_options || {}).join(', ')}</strong>
+                                </p>
+                            </div>
+                        ` : ''}
+                        <p style="color: rgba(255,255,255,0.5); margin-top: 30px; font-size: 0.9rem;">
+                            <i class="fas fa-arrow-left me-1"></i>Go back to search for more details
+                        </p>
+                    </div>
+                `;
+            }
+            
+            // Display everything
+            const html = `
+                <div class="post-title">
+                    <i class="fas fa-film me-3"></i>${escapeHTML(post.title)}
+                </div>
+                
+                <div class="badge-row">
+                    ${badgesHTML}
+                </div>
+                
+                <div class="post-content">
+                    ${content}
+                </div>
+            `;
+            
+            document.getElementById('mainContent').innerHTML = html;
+            console.log('✅ Post displayed successfully');
+        }
+        
+        function showError() {
+            console.log('🚨 Showing error message');
+            document.getElementById('mainContent').innerHTML = `
+                <div style="text-align: center; padding: 60px 20px;">
+                    <i class="fas fa-exclamation-triangle fa-4x text-warning mb-4"></i>
+                    <h3 style="color: #ffc107; margin-bottom: 20px;">Unable to Load Post</h3>
+                    <p style="color: rgba(255,255,255,0.8); font-size: 1.05rem; line-height: 1.8; margin-bottom: 30px;">
+                        Post data is not available.<br>
+                        This might happen if you directly accessed this page<br>
+                        or the data has expired.
+                    </p>
+                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                        <a href="/" style="background: linear-gradient(45deg, #0088cc, #00ccff); color: white; text-decoration: none; padding: 15px 35px; border-radius: 25px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-home"></i>Go to Home
+                        </a>
+                        <button onclick="window.history.back()" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 15px 35px; border-radius: 25px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-arrow-left"></i>Go Back
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function goBack() {
+            console.log('⬅️ Back button clicked');
+            
+            // Clear storage
+            sessionStorage.removeItem('watchPost');
+            localStorage.removeItem('watchPost');
+            localStorage.removeItem('watchPostTime');
+            
+            // Try to close window first
+            window.close();
+            
+            // Fallback to history.back()
+            setTimeout(() => {
+                if (!window.closed) {
+                    console.log('Window not closed, using history.back()');
+                    window.history.back();
+                }
+            }, 100);
+        }
+        
+        function formatDate(dateStr) {
+            try {
+                const date = new Date(dateStr);
+                const now = new Date();
+                const diff = now - date;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                
+                if (hours < 24) {
+                    return `${hours} hours ago`;
                 } else {
                     return date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
                         month: 'short', 
-                        day: 'numeric', 
-                        year: 'numeric' 
+                        day: 'numeric'
                     });
                 }
-            } catch (e) {
-                return dateString;
+            } catch {
+                return 'Recently';
             }
         }
         
-        // Escape HTML
-        function escapeHtml(text) {
+        function escapeHTML(text) {
             if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
+        
+        // Load post when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM ready, loading post in 100ms...');
+            setTimeout(loadPost, 100);
+        });
+        
+        console.log('✅ View page script loaded');
     </script>
 </body>
 </html>
