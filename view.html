@@ -1,343 +1,53 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie Details - SK4FiLM</title>
-    <meta name="description" content="View full movie details">
-    
-    <!-- Google AdSense -->
-    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --primary: #ff0000;
-            --secondary: #0066ff;
-            --accent: #00ccff;
-            --text: #f8f9fa;
-        }
+@app.route('/api/post')
+async def api_post():
+    """Get specific post details"""
+    try:
+        channel_id = int(request.args.get('channel', 0))
+        message_id = int(request.args.get('message', 0))
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        logger.info(f"📄 Post request: channel={channel_id}, message={message_id}")
         
-        body {
-            background: url('https://i.postimg.cc/T2mcBGtv/pxfuel-2.jpg') no-repeat center center fixed;
-            background-size: cover;
-            min-height: 100vh;
-            font-family: 'Josefin Sans', sans-serif;
-            color: var(--text);
-            padding-top: 80px;
-        }
+        if not channel_id or not message_id:
+            return jsonify({'status': 'error', 'message': 'Invalid parameters'}), 400
         
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(10, 10, 10, 0.85);
-            z-index: -1;
-        }
+        if not bot_started or not User:
+            return jsonify({'status': 'error', 'message': 'Service starting...'}), 503
         
-        .top-navbar {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            z-index: 1000;
-            padding: 12px 0;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        
-        .navbar-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 15px;
-        }
-        
-        .logo-section {
-            display: flex;
-            align-items: center;
-        }
-        
-        .logo-img {
-            height: 40px;
-            width: 40px;
-            margin-right: 8px;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
-        }
-        
-        .brand-text {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.3rem;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            line-height: 1.2;
-        }
-        
-        .brand-subtitle {
-            font-size: 0.6rem;
-            color: var(--accent);
-            font-style: italic;
-        }
-        
-        .post-container {
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            border: 2px solid rgba(0, 204, 255, 0.3);
-        }
-        
-        .post-title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--accent);
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .post-content {
-            background: rgba(30, 41, 59, 0.8);
-            border-radius: 15px;
-            padding: 30px;
-            color: rgba(255, 255, 255, 0.9);
-            line-height: 1.8;
-            font-size: 1.1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .post-content a {
-            color: var(--accent);
-            text-decoration: none;
-            border-bottom: 1px solid var(--accent);
-        }
-        
-        .btn-telegram {
-            background: linear-gradient(45deg, #0088cc, #229ED9);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.1rem;
-            margin: 20px auto;
-        }
-        
-        .btn-telegram:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 25px rgba(0, 136, 204, 0.5);
-            color: white;
-        }
-        
-        .loading-spinner {
-            width: 4rem;
-            height: 4rem;
-            border: 6px solid rgba(255, 255, 255, 0.3);
-            border-top: 6px solid #28a745;
-            border-right: 6px solid #ffc107;
-            border-radius: 50%;
-            animation: spin 1.2s linear infinite;
-            margin: 100px auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .back-btn {
-            background: rgba(108, 117, 125, 0.3);
-            color: white;
-            padding: 12px 25px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .back-btn:hover {
-            background: #6c757d;
-            color: white;
-            transform: translateX(-5px);
-        }
-        
-        @media (max-width: 768px) {
-            .post-container {
-                padding: 20px;
+        # Fetch message from Telegram
+        try:
+            msg = await User.get_messages(channel_id, message_id)
+            
+            if not msg or not msg.text:
+                logger.warning(f"  ❌ Post not found or no text")
+                return jsonify({'status': 'error', 'message': 'Post not found'}), 404
+            
+            title = extract_title_smart(msg.text)
+            if not title:
+                title = "Movie Post"
+            
+            logger.info(f"  ✅ Found post: {title}")
+            
+            post_data = {
+                'title': title,
+                'content': format_post(msg.text),  # This formats the post content with HTML
+                'channel': channel_name(channel_id),
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'date': msg.date.isoformat() if msg.date else None,
+                'is_new': is_new(msg.date) if msg.date else False,
+                'has_post': True
             }
             
-            .post-title {
-                font-size: 1.8rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <nav class="top-navbar">
-        <div class="container">
-            <div class="navbar-content">
-                <div class="logo-section">
-                    <a href="/" style="display: flex; align-items: center; color: white; text-decoration: none;">
-                        <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
-                        <div>
-                            <div class="brand-text">SK4FiLM</div>
-                            <div class="brand-subtitle">House of Entertainment</div>
-                        </div>
-                    </a>
-                </div>
-                <div>
-                    <a href="javascript:history.back()" class="back-btn">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container">
-        <div id="postContainer">
-            <div class="loading-spinner"></div>
-        </div>
-    </div>
-
-    <script>
-        const API_BASE = 'https://sk4film.koyeb.app';
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const channelId = urlParams.get('channel');
-            const messageId = urlParams.get('message');
+            return jsonify({
+                'status': 'success',
+                'post': post_data,
+                'bot_username': Config.BOT_USERNAME
+            })
             
-            if (channelId && messageId) {
-                loadPost(channelId, messageId);
-            } else {
-                showError('Invalid post link');
-            }
-        });
-
-        async function loadPost(channelId, messageId) {
-            try {
-                const response = await fetch(`${API_BASE}/api/post?channel=${channelId}&message=${messageId}`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.status === 'success') {
-                        displayPost(data.post);
-                        return;
-                    }
-                }
-                
-                // Fallback: Show Telegram link
-                showBasicPost(channelId, messageId);
-            } catch (error) {
-                console.error('Load error:', error);
-                showBasicPost(channelId, messageId);
-            }
-        }
-
-        function displayPost(post) {
-            const container = document.getElementById('postContainer');
-            
-            container.innerHTML = `
-                <div class="post-container animate__animated animate__fadeIn">
-                    <h1 class="post-title">${escapeHtml(post.title)}</h1>
-                    
-                    <div class="post-content">
-                        ${post.content || '<p>Full movie details available on Telegram.</p>'}
-                    </div>
-                    
-                    <div style="text-align: center;">
-                        <a href="${getChannelLink(post.channel_id, post.message_id)}" 
-                           target="_blank" 
-                           class="btn-telegram">
-                            <i class="fab fa-telegram"></i> View on Telegram
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
-
-        function showBasicPost(channelId, messageId) {
-            const container = document.getElementById('postContainer');
-            
-            container.innerHTML = `
-                <div class="post-container animate__animated animate__fadeIn">
-                    <h1 class="post-title">Movie Post</h1>
-                    
-                    <div class="post-content">
-                        <p style="text-align: center; font-size: 1.2rem;">
-                            <i class="fas fa-film me-2"></i>
-                            View full movie details on Telegram.
-                        </p>
-                    </div>
-                    
-                    <div style="text-align: center;">
-                        <a href="${getChannelLink(channelId, messageId)}" 
-                           target="_blank" 
-                           class="btn-telegram">
-                            <i class="fab fa-telegram"></i> View on Telegram
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
-
-        function showError(message) {
-            document.getElementById('postContainer').innerHTML = `
-                <div style="text-align: center; padding: 80px 20px;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 5rem; color: #ff4757;"></i>
-                    <h2 style="color: white; margin: 30px 0 20px;">Post Not Found</h2>
-                    <p style="color: rgba(255,255,255,0.7); font-size: 1.1rem;">${escapeHtml(message)}</p>
-                    <div style="margin-top: 30px;">
-                        <a href="/" class="btn-telegram">
-                            <i class="fas fa-home"></i> Go to Home
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
-
-        function getChannelLink(channelId, messageId) {
-            if (!channelId || !messageId) return '#';
-            const channelIdStr = Math.abs(channelId).toString();
-            if (channelIdStr.startsWith('100')) {
-                return `https://t.me/c/${channelIdStr.substring(3)}/${messageId}`;
-            } else {
-                return `https://t.me/${channelId}/${messageId}`;
-            }
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-    </script>
-</body>
-</html>
+        except Exception as e:
+            logger.error(f"  ❌ Post fetch error: {e}")
+            return jsonify({'status': 'error', 'message': 'Failed to fetch post'}), 500
+        
+    except Exception as e:
+        logger.error(f"❌ API /post error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
