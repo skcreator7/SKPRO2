@@ -34,6 +34,7 @@
             color: var(--text);
             padding-top: 69px;
             overflow-x: hidden;
+            transition: padding-top 0.3s ease;
         }
         
         body::before {
@@ -45,6 +46,10 @@
             height: 100%;
             background: rgba(10, 10, 10, 0.7);
             z-index: -1;
+        }
+        
+        body.search-active {
+            padding-top: 154px;
         }
         
         /* Navigation */
@@ -311,6 +316,10 @@
                 padding-top: 90px;
             }
             
+            body.search-active {
+                padding-top: 90px;
+            }
+            
             .navbar-content {
                 padding: 0;
             }
@@ -366,79 +375,6 @@
                 left: auto;
                 width: 280px;
             }
-        }
-        
-        /* ===== AD CONTAINERS - NO SPACE ===== */
-        .ad-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto;
-            padding: 0;
-            background: transparent;
-            overflow: hidden;
-        }
-
-        .ad-container.desktop {
-            min-height: 90px;
-        }
-
-        .ad-container.mobile {
-            min-height: 50px;
-        }
-
-        .ad-container.footer {
-            min-height: 90px;
-            margin-top: 20px;
-        }
-
-        #adTopDesktop {
-            width: 100%;
-            max-width: 728px;
-            height: 90px;
-        }
-
-        #adTopMobile {
-            width: 100%;
-            max-width: 320px;
-            height: 50px;
-        }
-
-        #adInlineContent {
-            width: 100%;
-            max-width: 300px;
-            height: 250px;
-            margin: 20px auto;
-        }
-
-        #adFooterDesktop {
-            width: 100%;
-            max-width: 728px;
-            height: 90px;
-        }
-
-        @media (max-width: 991px) {
-            #adTopDesktop,
-            #adFooterDesktop {
-                display: none !important;
-            }
-        }
-
-        @media (min-width: 992px) {
-            #adTopMobile {
-                display: none !important;
-            }
-        }
-
-        .ad-placeholder {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.5);
-            font-size: 0.8rem;
-            border: 1px dashed rgba(255,255,255,0.3);
-            border-radius: 4px;
         }
         
         .section-box {
@@ -632,6 +568,62 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* ===== Ad Containers - Responsive & Centered ===== */
+        .ad-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 15px auto;
+            padding: 10px 0;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #adTopDesktop {
+            min-height: 90px;
+            width: 100%;
+            max-width: 728px;
+        }
+
+        #adTopMobile {
+            min-height: 50px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        #adInlineContent {
+            min-height: 250px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        #adFooterDesktop {
+            min-height: 90px;
+            width: 100%;
+            max-width: 728px;
+        }
+
+        @media (max-width: 991px) {
+            #adTopDesktop,
+            #adFooterDesktop {
+                display: none !important;
+            }
+        }
+
+        @media (min-width: 992px) {
+            #adTopMobile {
+                display: none !important;
+            }
+        }
+
+        .ad-container iframe {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -710,25 +702,14 @@
             </button>
         </div>
     </div>
-
-    <!-- Top Ads - NO SPACE -->
-    <div class="ad-container desktop">
-        <div id="adTopDesktop">
-            <div class="ad-placeholder" style="width:728px;height:90px;">
-                Desktop Top Banner (728×90)
-            </div>
-        </div>
-    </div>
-
-    <div class="ad-container mobile">
-        <div id="adTopMobile">
-            <div class="ad-placeholder" style="width:320px;height:50px;">
-                Mobile Top Banner (320×50)
-            </div>
-        </div>
-    </div>
     
     <div class="container">
+        <!-- Top Ads -->
+        <div class="ad-container">
+            <div id="adTopDesktop"></div>
+            <div id="adTopMobile"></div>
+        </div>
+
         <!-- Latest Movies -->
         <div class="section-box animate__animated animate__fadeIn">
             <div style="margin-bottom: 35px;">
@@ -751,11 +732,7 @@
 
         <!-- Inline Content Ad -->
         <div class="ad-container">
-            <div id="adInlineContent">
-                <div class="ad-placeholder" style="width:300px;height:250px;">
-                    Inline Content (300×250)
-                </div>
-            </div>
+            <div id="adInlineContent"></div>
         </div>
 
         <!-- Tutorial Videos -->
@@ -801,12 +778,8 @@
 
     <!-- Footer Desktop Ad -->
     <footer class="mt-5 pb-4">
-        <div class="ad-container footer">
-            <div id="adFooterDesktop">
-                <div class="ad-placeholder" style="width:728px;height:90px;">
-                    Footer Desktop Banner (728×90)
-                </div>
-            </div>
+        <div class="ad-container">
+            <div id="adFooterDesktop"></div>
         </div>
     </footer>
 
@@ -872,85 +845,90 @@
             img.src = posterURL;
         }
 
-        // ==== Ads: SIMPLE DIRECT LOADING ====
-        function loadAdsDirectly() {
-            console.log('🚀 Loading ads directly...');
+        // ==== Ads: load only on first user click ====
+        let adsInitialized = false;
+
+        function loadAdScript(containerId, atOptionsConfig, src) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.warn(`Ad container ${containerId} not found`);
+                return;
+            }
             
-            // Mobile Top Banner (320×50)
-            const mobileTopScript = document.createElement('script');
-            mobileTopScript.innerHTML = `
-                atOptions = {
-                    'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
-                    'format' : 'iframe',
-                    'height' : 50,
-                    'width' : 320,
-                    'params' : {}
-                };
-            `;
-            document.head.appendChild(mobileTopScript);
+            container.innerHTML = '';
             
-            const mobileTopInvoke = document.createElement('script');
-            mobileTopInvoke.src = '//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js';
-            document.getElementById('adTopMobile').appendChild(mobileTopInvoke);
+            const optScript = document.createElement('script');
+            optScript.type = 'text/javascript';
+            optScript.text = 'atOptions = ' + JSON.stringify(atOptionsConfig) + ';';
             
-            // Desktop Top Banner (728×90)
-            const desktopTopScript = document.createElement('script');
-            desktopTopScript.innerHTML = `
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            `;
-            document.head.appendChild(desktopTopScript);
+            const invokeScript = document.createElement('script');
+            invokeScript.type = 'text/javascript';
+            invokeScript.src = src;
+            invokeScript.async = true;
             
-            const desktopTopInvoke = document.createElement('script');
-            desktopTopInvoke.src = '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js';
-            document.getElementById('adTopDesktop').appendChild(desktopTopInvoke);
+            container.appendChild(optScript);
+            container.appendChild(invokeScript);
             
-            // Footer Desktop Banner (728×90) - Same as top
-            const footerScript = document.createElement('script');
-            footerScript.innerHTML = `
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            `;
-            document.head.appendChild(footerScript);
-            
-            const footerInvoke = document.createElement('script');
-            footerInvoke.src = '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js';
-            document.getElementById('adFooterDesktop').appendChild(footerInvoke);
-            
-            // Inline Content (300×250)
-            const inlineScript = document.createElement('script');
-            inlineScript.innerHTML = `
-                atOptions = {
-                    'key' : '567936a964b0784aedd11f237d26bee0',
-                    'format' : 'iframe',
-                    'height' : 250,
-                    'width' : 300,
-                    'params' : {}
-                };
-            `;
-            document.head.appendChild(inlineScript);
-            
-            const inlineInvoke = document.createElement('script');
-            inlineInvoke.src = '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js';
-            document.getElementById('adInlineContent').appendChild(inlineInvoke);
-            
-            // Popup Ad
-            const popupScript = document.createElement('script');
-            popupScript.src = '//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js';
-            document.body.appendChild(popupScript);
-            
-            console.log('✅ All ads loaded successfully');
+            console.log(`✅ Ad loaded: ${containerId}`);
         }
+
+        function loadPopupAd() {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = '//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js';
+            document.body.appendChild(script);
+            console.log('✅ Popup ad loaded');
+        }
+
+        function initAdsOnce() {
+            if (adsInitialized) return;
+            adsInitialized = true;
+            
+            console.log('🚀 Initializing ads...');
+
+            const isDesktop = window.innerWidth >= 992;
+
+            if (isDesktop) {
+                loadAdScript('adTopDesktop', {
+                    key: '3118cf3c0d1d908e59d96fac6de40e1f',
+                    format: 'iframe',
+                    height: 90,
+                    width: 728,
+                    params: {}
+                }, '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js');
+
+                loadAdScript('adFooterDesktop', {
+                    key: '3118cf3c0d1d908e59d96fac6de40e1f',
+                    format: 'iframe',
+                    height: 90,
+                    width: 728,
+                    params: {}
+                }, '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js');
+            } else {
+                loadAdScript('adTopMobile', {
+                    key: 'c628de75b51e4c70d2f3bebebbaaf335',
+                    format: 'iframe',
+                    height: 50,
+                    width: 320,
+                    params: {}
+                }, '//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js');
+            }
+
+            loadAdScript('adInlineContent', {
+                key: '567936a964b0784aedd11f237d26bee0',
+                format: 'iframe',
+                height: 250,
+                width: 300,
+                params: {}
+            }, '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js');
+
+            loadPopupAd();
+        }
+
+        document.addEventListener('click', function initAds() {
+            initAdsOnce();
+            document.removeEventListener('click', initAds);
+        }, { once: true });
 
         // ==== Navigation Functions ====
         function toggleSearch() {
