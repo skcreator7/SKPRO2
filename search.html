@@ -39,56 +39,27 @@
             background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .logo-img {
             height: 40px;
             width: 40px;
             border-radius: 8px;
-            margin-right: 10px;
         }
-        .search-section {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border: 2px solid rgba(0, 204, 255, 0.3);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
-        .search-title {
-            color: var(--accent-color);
-            font-size: 2rem;
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        .search-input {
-            background: rgba(60, 65, 90, 0.9);
-            border: 2px solid var(--accent-color);
-            color: white;
-            padding: 15px 20px;
-            font-size: 1.1rem;
-            border-radius: 15px;
-            transition: all 0.3s ease;
-        }
-        .search-input:focus {
-            background: rgba(60, 65, 90, 1);
-            border-color: #00e6ff;
-            box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
-            color: white;
-        }
-        .search-input::placeholder { color: rgba(255,255,255,0.6);}
-        .btn-search {
+        .btn-back-home {
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             border: none;
-            padding: 15px 30px;
-            font-size: 1.1rem;
+            padding: 8px 20px;
             font-weight: 600;
-            border-radius: 15px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
             transition: transform 0.3s ease;
         }
-        .btn-search:hover {
+        .btn-back-home:hover {
             transform: scale(1.05);
-            box-shadow: 0 6px 25px rgba(255, 0, 0, 0.6);
         }
         .result-card {
             background: var(--card-bg);
@@ -176,150 +147,166 @@
             opacity:0.9;
             margin-top:2px;
         }
+        /* Arrow Animation */
+        .btn-download-main i.fa-chevron-down { transition: transform 0.3s ease;}
+        /* Pagination & State */
+        .pagination {margin-top:2rem;}
+        .page-link {background:rgba(0,204,255,0.2); color:var(--accent-color); border:2px solid var(--accent-color);}
+        .page-link:hover, .page-item.active .page-link {
+            background:var(--accent-color); border-color:var(--accent-color); color:#0a0a0f;
+        }
+        .page-item.disabled .page-link {opacity:0.4;}
+        .results-info {text-align:center;color:rgba(255,255,255,0.7);margin-bottom:1rem;font-size:0.9rem;}
+        .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
+        .empty-state {text-align:center;padding:4rem 2rem;}
+        .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
+        @media (max-width: 768px) {
+            .result-actions{grid-template-columns: 1fr 1fr;}
+            .btn-watch, .btn-download-main {font-size: 0.9rem; padding: 10px 15px;}
+        }
+        @media (max-width: 576px) {
+            .quality-buttons-row {flex-direction:column;}
+            .quality-option {width:100%;}
+        }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar fixed-top">
-        <div class="container d-flex align-items-center" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-            <a href="index.html" class="navbar-brand d-flex align-items-center">
-                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img me-2" style="height: 40px; width: 40px;">
-                SK4FiLM
-            </a>
-        </div>
-    </nav>
+<!-- Navbar -->
+<nav class="navbar fixed-top">
+    <div class="container d-flex align-items-center justify-content-between">
+        <a href="index.html" class="navbar-brand">
+            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+            SK4FiLM
+        </a>
+        <button class="btn-back-home" onclick="window.location.href='index.html'">
+            <i class="fas fa-arrow-left me-2"></i>Back Home
+        </button>
+    </div>
+</nav>
 
-    <!-- Main Content -->
-    <div class="container my-4">
-        <div class="search-section">
-            <h1 class="search-title"><i class="fas fa-search me-2"></i>Search Movies</h1>
-            <div class="row g-3">
-                <div class="col-md-9">
-                    <input 
-                        type="text" 
-                        class="form-control search-input" 
-                        id="searchInput" 
-                        placeholder="Enter movie name..."
-                        onkeypress="if(event.key==='Enter') performSearch(1)"
-                    >
+<!-- Main Content -->
+<div class="container my-4">
+    <div id="resultsInfo"></div>
+    <div id="resultsContainer"></div>
+    <div id="paginationContainer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = 'https://sk4film.koyeb.app';
+const RESULTS_PER_PAGE = 10;
+let currentQuery = '';
+let currentPage = 1;
+let BOT_USERNAME = 'sk4filmbot';
+const resultsContainer = document.getElementById('resultsContainer');
+const resultsInfo = document.getElementById('resultsInfo');
+const paginationContainer = document.getElementById('paginationContainer');
+
+async function performSearch(page=1) {
+    if(!currentQuery) {
+        showError("Please enter a search query");
+        return;
+    }
+    currentPage = page;
+    const url = new URL(window.location);
+    url.searchParams.set('query', currentQuery);
+    url.searchParams.set('page', page);
+    window.history.pushState({},'',url);
+    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "'+escapeHtml(currentQuery)+'"...</p></div>';
+    resultsInfo.innerHTML = ''; 
+    paginationContainer.innerHTML = '';
+    try {
+        const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+        const response = await fetch(apiUrl, {method:'GET',mode:'cors',headers:{'Content-Type':'application/json'}});
+        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if(data.status==="success"){
+            BOT_USERNAME = data.bot_username || BOT_USERNAME;
+            displayResults(data.results,data.pagination);
+        } else {
+            showError(data.message || "Search failed");
+        }
+    } catch(e){
+        showError("Connection error: "+e.message);
+    }
+}
+
+function displayResults(results, pagination) {
+    if(!results||results.length===0){
+        resultsContainer.innerHTML='<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
+        return;
+    }
+    resultsInfo.innerHTML=`<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results!==1?'s':''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
+    let html='';
+    results.forEach((result,index)=>{
+        const hasPost = result.has_post!==false;
+        const hasFile = result.has_file===true;
+        const qualityOptions = result.quality_options||{};
+        const hasQualities = Object.keys(qualityOptions).length>0;
+        html += `
+        <div class="result-card">
+            <h3 class="result-title">${escapeHtml(result.title)}</h3>
+            <div class="result-actions">
+                ${hasPost?`<a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch"><i class="fas fa-eye me-2"></i>Watch</a>`:`<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
+                <div class="btn-download-wrapper">
+                    ${hasFile&&hasQualities?`<button class="btn btn-download-main" onclick="toggleQuality(${index})"><i class="fas fa-download me-2"></i>Download<i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i></button>`:`<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
                 </div>
-                <div class="col-md-3">
-                    <button class="btn btn-search w-100" onclick="performSearch(1)">
-                        <i class="fas fa-search me-2"></i>Search
-                    </button>
-                </div>
+                ${hasFile&&hasQualities?`<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>`:''}
             </div>
         </div>
-        <div id="resultsInfo"></div>
-        <div id="resultsContainer"></div>
-        <div id="paginationContainer"></div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        const API_BASE = 'https://sk4film.koyeb.app';
-        const RESULTS_PER_PAGE = 10;
-        let currentQuery = '';
-        let currentPage = 1;
-        let BOT_USERNAME = 'sk4filmbot';
-        const searchInput = document.getElementById('searchInput');
-        const resultsContainer = document.getElementById('resultsContainer');
-        const resultsInfo = document.getElementById('resultsInfo');
-        const paginationContainer = document.getElementById('paginationContainer');
-        async function performSearch(page=1) {
-            const query = searchInput.value.trim();
-            if(!query) {alert('Please enter a search query');return;}
-            currentQuery = query;
-            currentPage = page;
-            // Update URL
-            const url = new URL(window.location);
-            url.searchParams.set('query',query); 
-            url.searchParams.set('page',page);
-            window.history.pushState({},'',url);
-            resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "'+escapeHtml(query)+'"...</p></div>';
-            resultsInfo.innerHTML = ''; paginationContainer.innerHTML='';
-            try {
-                const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-                const response = await fetch(apiUrl, {method:'GET',mode:'cors',headers:{'Content-Type':'application/json'}});
-                if(!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-                if(data.status==="success"){
-                    BOT_USERNAME = data.bot_username || BOT_USERNAME;
-                    displayResults(data.results,data.pagination);
-                } else showError(data.message||"Search failed");
-            } catch(e){showError("Connection error: "+e.message);}
+        `;
+    });
+    resultsContainer.innerHTML=html;
+    if(pagination&&pagination.total_pages>1) displayPagination(pagination);
+    if(pagination.current_page>1) window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function toggleQuality(index){
+    const dropdown=document.getElementById(`quality-${index}`),arrow=document.getElementById(`arrow-${index}`);
+    document.querySelectorAll('.quality-dropdown').forEach((el,i)=>{
+        if(el.id!==`quality-${index}`){el.classList.remove('show');const otherA=document.getElementById(`arrow-${i}`);if(otherA)otherA.style.transform='rotate(0deg)';}
+    });
+    dropdown.classList.toggle('show');
+    arrow.style.transform=dropdown.classList.contains('show')?'rotate(180deg)':'rotate(0deg)';
+}
+
+function generateQualityOptions(qualityOptions){
+    if(!qualityOptions||Object.keys(qualityOptions).length===0)return'<p class="text-center text-muted mb-0">No files available</p>';
+    let html='<div class="quality-buttons-row">';
+    ['2160p HEVC','2160p','1080p HEVC','1080p','720p HEVC','720p','480p HEVC','480p'].forEach(quality=>{
+        if(qualityOptions[quality]){
+            const f=qualityOptions[quality],fileId=f.file_id,fileSize=formatSize(f.file_size);
+            html+=`<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option"><i class="fas fa-download me-1"></i>${quality}<small>${fileSize}</small></a>`;
         }
-        function displayResults(results, pagination) {
-            if(!results||results.length===0){
-                resultsContainer.innerHTML='<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';return;
-            }
-            resultsInfo.innerHTML=`<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results!==1?'s':''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
-            let html='';
-            results.forEach((result,index)=>{
-                const hasPost = result.has_post!==false;
-                const hasFile = result.has_file===true;
-                const qualityOptions = result.quality_options||{};
-                const hasQualities = Object.keys(qualityOptions).length>0;
-                html += `
-                <div class="result-card">
-                    <h3 class="result-title">${escapeHtml(result.title)}</h3>
-                    <div class="result-actions">
-                        ${hasPost?`<a href="view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch"><i class="fas fa-eye me-2"></i>Watch</a>`:`<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
-                        <div class="btn-download-wrapper">
-                            ${hasFile&&hasQualities?`<button class="btn btn-download-main" onclick="toggleQuality(${index})"><i class="fas fa-download me-2"></i>Download<i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i></button>`:`<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
-                        </div>
-                        ${hasFile&&hasQualities?`<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>`:''}
-                    </div>
-                </div>
-                `;
-            });
-            resultsContainer.innerHTML=html;
-            if(pagination&&pagination.total_pages>1) displayPagination(pagination);
-            if(pagination.current_page>1) window.scrollTo({top:0,behavior:'smooth'});
-        }
-        function toggleQuality(index){
-            const dropdown=document.getElementById(`quality-${index}`),arrow=document.getElementById(`arrow-${index}`);
-            document.querySelectorAll('.quality-dropdown').forEach((el,i)=>{
-                if(el.id!==`quality-${index}`){el.classList.remove('show');const otherA=document.getElementById(`arrow-${i}`);if(otherA)otherA.style.transform='rotate(0deg)';}
-            });
-            dropdown.classList.toggle('show');
-            arrow.style.transform=dropdown.classList.contains('show')?'rotate(180deg)':'rotate(0deg)';
-        }
-        function generateQualityOptions(qualityOptions){
-            if(!qualityOptions||Object.keys(qualityOptions).length===0)return'<p class="text-center text-muted mb-0">No files available</p>';
-            let html='<div class="quality-buttons-row">';
-            ['2160p HEVC','2160p','1080p HEVC','1080p','720p HEVC','720p','480p HEVC','480p'].forEach(quality=>{
-                if(qualityOptions[quality]){
-                    const f=qualityOptions[quality],fileId=f.file_id,fileSize=formatSize(f.file_size);
-                    html+=`<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option"><i class="fas fa-download me-1"></i>${quality}<small>${fileSize}</small></a>`;
-                }
-            });
-            html+='</div>';return html;
-        }
-        function displayPagination(pagination){
-            let html='<nav><ul class="pagination justify-content-center">';
-            const {current_page,total_pages,has_previous,has_next}=pagination,maxVisible=5;
-            html+=`<li class="page-item ${!has_previous?'disabled':''}"><a class="page-link" href="#" onclick="${has_previous?`performSearch(${current_page-1});return false;`:'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
-            let startPage=Math.max(1,current_page-2),endPage=Math.min(total_pages,startPage+maxVisible-1);if(endPage-startPage<maxVisible-1){startPage=Math.max(1,endPage-maxVisible+1);}
-            if(startPage>1){html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;if(startPage>2){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';} }
-            for(let i=startPage;i<=endPage;i++){html+=`<li class="page-item ${i===current_page?'active':''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;}
-            if(endPage<total_pages){if(endPage<total_pages-1){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';}html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;}
-            html+=`<li class="page-item ${!has_next?'disabled':''}"><a class="page-link" href="#" onclick="${has_next?`performSearch(${current_page+1});return false;`:'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
-            html+='</ul></nav>';paginationContainer.innerHTML=html;
-        }
-        function showError(message){resultsContainer.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-triangle text-danger"></i><h4>Error</h4><p class="text-muted">${escapeHtml(message)}</p></div>`;}
-        function formatSize(bytes){if(!bytes)return'Unknown';const gb=bytes/1073741824,mb=bytes/1048576;return gb>=1?gb.toFixed(2)+' GB':mb.toFixed(1)+' MB';}
-        function escapeHtml(text){if(!text)return'';const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
-        window.addEventListener('DOMContentLoaded',()=>{
-            const urlParams=new URLSearchParams(window.location.search);
-            const query=urlParams.get('query');
-            const page=parseInt(urlParams.get('page'))||1;
-            if(query){
-                searchInput.value=query;
-                currentQuery=query;
-                currentPage=page;
-                performSearch(page);
-            }
-        });
-    </script>
+    });
+    html+='</div>';return html;
+}
+
+function displayPagination(pagination){
+    let html='<nav><ul class="pagination justify-content-center">';
+    const {current_page,total_pages,has_previous,has_next}=pagination,maxVisible=5;
+    html+=`<li class="page-item ${!has_previous?'disabled':''}"><a class="page-link" href="#" onclick="${has_previous?`performSearch(${current_page-1});return false;`:'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
+    let startPage=Math.max(1,current_page-2),endPage=Math.min(total_pages,startPage+maxVisible-1);if(endPage-startPage<maxVisible-1){startPage=Math.max(1,endPage-maxVisible+1);}
+    if(startPage>1){html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;if(startPage>2){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';} }
+    for(let i=startPage;i<=endPage;i++){html+=`<li class="page-item ${i===current_page?'active':''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;}
+    if(endPage<total_pages){if(endPage<total_pages-1){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';}html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;}
+    html+=`<li class="page-item ${!has_next?'disabled':''}"><a class="page-link" href="#" onclick="${has_next?`performSearch(${current_page+1});return false;`:'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
+    html+='</ul></nav>';paginationContainer.innerHTML=html;
+}
+
+function showError(message){resultsContainer.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-triangle text-danger"></i><h4>Error</h4><p class="text-muted">${escapeHtml(message)}</p></div>`;}
+function formatSize(bytes){if(!bytes)return'Unknown';const gb=bytes/1073741824,mb=bytes/1048576;return gb>=1?gb.toFixed(2)+' GB':mb.toFixed(1)+' MB';}
+function escapeHtml(text){if(!text)return'';const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
+
+window.addEventListener('DOMContentLoaded',()=>{
+    const urlParams=new URLSearchParams(window.location.search);
+    const query=urlParams.get('query');
+    const page=parseInt(urlParams.get('page'))||1;
+    if(query){
+        currentQuery=query;
+        performSearch(page);
+    }
+});
+</script>
 </body>
 </html>
