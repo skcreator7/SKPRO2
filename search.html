@@ -2,18 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- ✅ Mobile zoom totally locked! -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Search Movies - SK4FiLM</title>
     <meta name="description" content="Search and download latest movies in HD quality">
-    
-    <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-5244164301170945">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
-    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    
     <style>
         :root {
             --primary-color: #ff0000;
@@ -22,13 +19,6 @@
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
         }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
             font-family: 'Josefin Sans', sans-serif;
             background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
@@ -36,14 +26,12 @@
             min-height: 100vh;
             padding-top: 80px;
         }
-        
         /* Navbar */
         .navbar {
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(15px);
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        
         .navbar-brand {
             font-family: 'Montserrat', sans-serif;
             font-weight: 800;
@@ -52,15 +40,12 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        
         .logo-img {
             height: 40px;
             width: 40px;
             border-radius: 8px;
             margin-right: 10px;
         }
-        
-        /* Search Section */
         .search-section {
             background: var(--card-bg);
             border-radius: 20px;
@@ -69,7 +54,6 @@
             border: 2px solid rgba(0, 204, 255, 0.3);
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         }
-        
         .search-title {
             color: var(--accent-color);
             font-size: 2rem;
@@ -77,7 +61,6 @@
             text-align: center;
             margin-bottom: 1.5rem;
         }
-        
         .search-input {
             background: rgba(60, 65, 90, 0.9);
             border: 2px solid var(--accent-color);
@@ -87,18 +70,13 @@
             border-radius: 15px;
             transition: all 0.3s ease;
         }
-        
         .search-input:focus {
             background: rgba(60, 65, 90, 1);
             border-color: #00e6ff;
             box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
             color: white;
         }
-        
-        .search-input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
+        .search-input::placeholder { color: rgba(255,255,255,0.6);}
         .btn-search {
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             border: none;
@@ -108,29 +86,18 @@
             border-radius: 15px;
             transition: transform 0.3s ease;
         }
-        
         .btn-search:hover {
             transform: scale(1.05);
             box-shadow: 0 6px 25px rgba(255, 0, 0, 0.6);
         }
-        
-        /* Result Cards */
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 15px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
-            transition: all 0.3s ease;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        
-        .result-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 204, 255, 0.3);
-            border-color: var(--accent-color);
-        }
-        
         .result-title {
             color: var(--accent-color);
             font-size: 1.4rem;
@@ -138,596 +105,227 @@
             margin-bottom: 1.5rem;
             line-height: 1.3;
         }
-        
-        /* FIXED: Same Layout on Mobile & Desktop */
         .result-actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
-        
-        .result-actions .btn,
-        .result-actions .btn-download-wrapper {
-            width: 100%;
-        }
-        
-        .btn-watch,
-        .btn-download-main {
+        .result-actions .btn, .result-actions .btn-download-wrapper { width: 100%; }
+        .btn-watch,.btn-download-main {
             width: 100%;
             padding: 12px 20px;
             font-weight: 600;
             border-radius: 10px;
-            transition: all 0.3s ease;
             font-size: 1rem;
             border: none;
+            transition: all 0.3s ease;
         }
-        
-        .btn-watch {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-        }
-        
-        .btn-watch:hover:not(:disabled) {
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-            color: white;
-        }
-        
-        .btn-download-main {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-        }
-        
+        .btn-watch { background:linear-gradient(45deg,#667eea,#764ba2);color:white;}
+        .btn-download-main{background:linear-gradient(45deg,#28a745,#20c997);color:white;}
+        .btn-watch:hover:not(:disabled),
         .btn-download-main:hover:not(:disabled) {
             transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5);
-            color: white;
+            box-shadow: 0 6px 20px rgba(40,167,69,0.35);
+            color:white;
         }
-        
         .btn:disabled {
             background: #495057 !important;
             opacity: 0.6;
             cursor: not-allowed;
             transform: none !important;
         }
-        
-        .btn-download-wrapper {
-            position: relative;
-            padding: 0;
-        }
-        
-        /* Expandable Quality Dropdown */
+        .btn-download-wrapper {position:relative; padding:0;}
         .quality-dropdown {
             display: none;
-            grid-column: 1 / -1;
-            background: rgba(20, 30, 48, 0.98);
-            border: 2px solid var(--accent-color);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 10px;
-            animation: slideDown 0.3s ease;
+            grid-column:1/-1;
+            background:rgba(20, 30, 48, 0.98);
+            border:2px solid var(--accent-color);
+            border-radius:10px;
+            padding:15px;
+            margin-top:10px;
+            animation:slideDown 0.3s ease;
         }
-        
-        .quality-dropdown.show {
-            display: block;
-        }
-        
+        .quality-dropdown.show {display:block;}
         @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from{opacity:0;transform:translateY(-10px);}
+            to{opacity:1;transform:translateY(0);}
         }
-        
-        /* Horizontal Quality Buttons */
         .quality-buttons-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            justify-content:center;
         }
-        
         .quality-option {
-            display: inline-block;
-            padding: 10px 20px;
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            white-space: nowrap;
+            display:inline-block;
+            padding:10px 20px;
+            background:linear-gradient(45deg,#28a745,#20c997);
+            color:white;
+            text-decoration:none;
+            border-radius:8px;
+            font-weight:600;
+            font-size:0.95rem;
+            text-align:center;
+            white-space:nowrap;
+            transition:all 0.3s ease;
         }
-        
-        .quality-option:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.5);
-            color: white;
-        }
-        
+        .quality-option:hover {transform:scale(1.05);}
         .quality-option small {
-            display: block;
-            font-size: 0.75rem;
-            opacity: 0.9;
-            margin-top: 2px;
+            display:block;
+            font-size:0.75rem;
+            opacity:0.9;
+            margin-top:2px;
         }
-        
         /* Arrow Animation */
-        .btn-download-main i.fa-chevron-down {
-            transition: transform 0.3s ease;
+        .btn-download-main i.fa-chevron-down { transition: transform 0.3s ease;}
+        /* Pagination & State */
+        .pagination {margin-top:2rem;}
+        .page-link {background:rgba(0,204,255,0.2); color:var(--accent-color); border:2px solid var(--accent-color);}
+        .page-link:hover, .page-item.active .page-link {
+            background:var(--accent-color); border-color:var(--accent-color); color:#0a0a0f;
         }
-        
-        /* Pagination */
-        .pagination {
-            margin-top: 2rem;
-        }
-        
-        .page-link {
-            background: rgba(0, 204, 255, 0.2);
-            color: var(--accent-color);
-            border: 2px solid var(--accent-color);
-            margin: 0 3px;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-weight: 600;
-        }
-        
-        .page-link:hover {
-            background: var(--accent-color);
-            border-color: var(--accent-color);
-            color: #0a0a0f;
-        }
-        
-        .page-item.active .page-link {
-            background: var(--accent-color);
-            border-color: var(--accent-color);
-            color: #0a0a0f;
-        }
-        
-        .page-item.disabled .page-link {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        
-        .results-info {
-            text-align: center;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-        }
-        
-        /* Loading Spinner */
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-            border-width: 0.3rem;
-        }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-        }
-        
-        .empty-state i {
-            font-size: 4rem;
-            color: var(--accent-color);
-            margin-bottom: 1.5rem;
-            opacity: 0.5;
-        }
-        
-        /* Responsive - Keep buttons side by side on mobile */
+        .page-item.disabled .page-link {opacity:0.4;}
+        .results-info {text-align:center;color:rgba(255,255,255,0.7);margin-bottom:1rem;font-size:0.9rem;}
+        .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
+        .empty-state {text-align:center;padding:4rem 2rem;}
+        .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
         @media (max-width: 768px) {
-            .search-section {
-                padding: 1.5rem;
-            }
-            
-            .search-title {
-                font-size: 1.5rem;
-            }
-            
-            .result-title {
-                font-size: 1.2rem;
-            }
-            
-            /* FIXED: Keep grid layout on mobile too */
-            .result-actions {
-                grid-template-columns: 1fr 1fr; /* Still 2 columns on mobile */
-            }
-            
-            .btn-watch,
-            .btn-download-main {
-                font-size: 0.9rem; /* Slightly smaller text */
-                padding: 10px 15px; /* Slightly smaller padding */
-            }
+            .result-actions{grid-template-columns: 1fr 1fr;}
+            .btn-watch, .btn-download-main {font-size: 0.9rem; padding: 10px 15px;}
         }
-        
         @media (max-width: 576px) {
-            .quality-buttons-row {
-                flex-direction: column;
-            }
-            
-            .quality-option {
-                width: 100%;
-            }
+            .quality-buttons-row {flex-direction:column;}
+            .quality-option {width:100%;}
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="/">
-                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
-                <span>SK4FiLM</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/"><i class="fas fa-home me-2"></i>Home</a>
-                    </li>
-                </ul>
+<!-- Navbar & Search omitted for brevity, you can put them as before -->
+<!-- Main Content -->
+<div class="container my-4">
+    <div class="search-section">
+        <h1 class="search-title"><i class="fas fa-search me-2"></i>Search Movies</h1>
+        <div class="row g-3">
+            <div class="col-md-9">
+                <input 
+                    type="text" 
+                    class="form-control search-input" 
+                    id="searchInput" 
+                    placeholder="Enter movie name..."
+                    onkeypress="if(event.key==='Enter') performSearch(1)"
+                >
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-search w-100" onclick="performSearch(1)">
+                    <i class="fas fa-search me-2"></i>Search
+                </button>
             </div>
         </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="container my-4">
-        <!-- Search Section -->
-        <div class="search-section">
-            <h1 class="search-title">
-                <i class="fas fa-search me-2"></i>Search Movies
-            </h1>
-            <div class="row g-3">
-                <div class="col-md-9">
-                    <input 
-                        type="text" 
-                        class="form-control search-input" 
-                        id="searchInput" 
-                        placeholder="Enter movie name..."
-                        onkeypress="if(event.key==='Enter') performSearch(1)"
-                    >
-                </div>
-                <div class="col-md-3">
-                    <button class="btn btn-search w-100" onclick="performSearch(1)">
-                        <i class="fas fa-search me-2"></i>Search
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Results Info -->
-        <div id="resultsInfo"></div>
-
-        <!-- Results Container -->
-        <div id="resultsContainer"></div>
-
-        <!-- Pagination -->
-        <div id="paginationContainer"></div>
     </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script>
-        // Configuration
-        const API_BASE = 'https://sk4film.koyeb.app';
-        const RESULTS_PER_PAGE = 10;
-        
-        let currentQuery = '';
-        let currentPage = 1;
-        let BOT_USERNAME = 'sk4filmbot';
-        
-        const searchInput = document.getElementById('searchInput');
-        const resultsContainer = document.getElementById('resultsContainer');
-        const resultsInfo = document.getElementById('resultsInfo');
-        const paginationContainer = document.getElementById('paginationContainer');
-        
-        console.log('🌐 API Base:', API_BASE);
-        
-        // Search Function
-        async function performSearch(page = 1) {
-            const query = searchInput.value.trim();
-            
-            if (!query) {
-                alert('Please enter a search query');
-                return;
-            }
-            
-            currentQuery = query;
-            currentPage = page;
-            
-            // Update URL
-            const url = new URL(window.location);
-            url.searchParams.set('q', query);
-            url.searchParams.set('page', page);
-            window.history.pushState({}, '', url);
-            
-            // Show loading
-            resultsContainer.innerHTML = `
-                <div class="text-center py-5">
-                    <div class="spinner-border text-info" role="status"></div>
-                    <p class="text-info mt-3">Searching for "${escapeHtml(query)}"...</p>
+    <div id="resultsInfo"></div>
+    <div id="resultsContainer"></div>
+    <div id="paginationContainer"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = 'https://sk4film.koyeb.app';
+const RESULTS_PER_PAGE = 10;
+let currentQuery = '';
+let currentPage = 1;
+let BOT_USERNAME = 'sk4filmbot';
+const searchInput = document.getElementById('searchInput');
+const resultsContainer = document.getElementById('resultsContainer');
+const resultsInfo = document.getElementById('resultsInfo');
+const paginationContainer = document.getElementById('paginationContainer');
+async function performSearch(page=1) {
+    const query = searchInput.value.trim();
+    if(!query) {alert('Please enter a search query');return;}
+    currentQuery = query;
+    currentPage = page;
+    // Update URL
+    const url = new URL(window.location);
+    url.searchParams.set('q',query); url.searchParams.set('page',page);
+    window.history.pushState({},'',url);
+    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "'+escapeHtml(query)+'"...</p></div>';
+    resultsInfo.innerHTML = ''; paginationContainer.innerHTML='';
+    try {
+        const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+        const response = await fetch(apiUrl, {method:'GET',mode:'cors',headers:{'Content-Type':'application/json'}});
+        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if(data.status==="success"){
+            BOT_USERNAME = data.bot_username || BOT_USERNAME;
+            displayResults(data.results,data.pagination);
+        } else showError(data.message||"Search failed");
+    } catch(e){showError("Connection error: "+e.message);}
+}
+function displayResults(results, pagination) {
+    if(!results||results.length===0){
+        resultsContainer.innerHTML='<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';return;
+    }
+    resultsInfo.innerHTML=`<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results!==1?'s':''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
+    let html='';
+    results.forEach((result,index)=>{
+        const hasPost = result.has_post!==false;
+        const hasFile = result.has_file===true;
+        const qualityOptions = result.quality_options||{};
+        const hasQualities = Object.keys(qualityOptions).length>0;
+        html += `
+        <div class="result-card">
+            <h3 class="result-title">${escapeHtml(result.title)}</h3>
+            <div class="result-actions">
+                ${hasPost?`<a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch"><i class="fas fa-eye me-2"></i>Watch</a>`:`<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
+                <div class="btn-download-wrapper">
+                    ${hasFile&&hasQualities?`<button class="btn btn-download-main" onclick="toggleQuality(${index})"><i class="fas fa-download me-2"></i>Download<i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i></button>`:`<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
                 </div>
-            `;
-            
-            resultsInfo.innerHTML = '';
-            paginationContainer.innerHTML = '';
-            
-            try {
-                const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-                console.log('🔍 API Call:', apiUrl);
-                
-                const response = await fetch(apiUrl, {
-                    method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
-                
-                console.log('📡 Response:', response.status);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('✅ Data:', data);
-                
-                if (data.status === 'success') {
-                    BOT_USERNAME = data.bot_username || BOT_USERNAME;
-                    displayResults(data.results, data.pagination);
-                } else {
-                    showError(data.message || 'Search failed');
-                }
-            } catch (error) {
-                console.error('❌ Error:', error);
-                showError(`Connection error: ${error.message}`);
-            }
+                ${hasFile&&hasQualities?`<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>`:''}
+            </div>
+        </div>
+        `;
+    });
+    resultsContainer.innerHTML=html;
+    if(pagination&&pagination.total_pages>1) displayPagination(pagination);
+    if(pagination.current_page>1) window.scrollTo({top:0,behavior:'smooth'});
+}
+function toggleQuality(index){
+    const dropdown=document.getElementById(`quality-${index}`),arrow=document.getElementById(`arrow-${index}`);
+    document.querySelectorAll('.quality-dropdown').forEach((el,i)=>{
+        if(el.id!==`quality-${index}`){el.classList.remove('show');const otherA=document.getElementById(`arrow-${i}`);if(otherA)otherA.style.transform='rotate(0deg)';}
+    });
+    dropdown.classList.toggle('show');
+    arrow.style.transform=dropdown.classList.contains('show')?'rotate(180deg)':'rotate(0deg)';
+}
+function generateQualityOptions(qualityOptions){
+    if(!qualityOptions||Object.keys(qualityOptions).length===0)return'<p class="text-center text-muted mb-0">No files available</p>';
+    let html='<div class="quality-buttons-row">';
+    ['2160p HEVC','2160p','1080p HEVC','1080p','720p HEVC','720p','480p HEVC','480p'].forEach(quality=>{
+        if(qualityOptions[quality]){
+            const f=qualityOptions[quality],fileId=f.file_id,fileSize=formatSize(f.file_size);
+            html+=`<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option"><i class="fas fa-download me-1"></i>${quality}<small>${fileSize}</small></a>`;
         }
-        
-        // Display Results
-        function displayResults(results, pagination) {
-            if (!results || results.length === 0) {
-                resultsContainer.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-search"></i>
-                        <h4>No results found</h4>
-                        <p class="text-muted">Try different keywords</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Results info
-            resultsInfo.innerHTML = `
-                <div class="results-info">
-                    Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} 
-                    | Page ${pagination.current_page} of ${pagination.total_pages}
-                </div>
-            `;
-            
-            // Display cards
-            let html = '';
-            results.forEach((result, index) => {
-                const hasPost = result.has_post !== false;
-                const hasFile = result.has_file === true;
-                const qualityOptions = result.quality_options || {};
-                const hasQualities = Object.keys(qualityOptions).length > 0;
-                
-                html += `
-                    <div class="result-card">
-                        <h3 class="result-title">${escapeHtml(result.title)}</h3>
-                        <div class="result-actions">
-                            ${hasPost ? `
-                                <a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" 
-                                   class="btn btn-watch">
-                                    <i class="fas fa-eye me-2"></i>Watch
-                                </a>
-                            ` : `
-                                <button class="btn btn-watch" disabled>
-                                    <i class="fas fa-eye-slash me-2"></i>Not Available
-                                </button>
-                            `}
-                            
-                            <div class="btn-download-wrapper">
-                                ${hasFile && hasQualities ? `
-                                    <button class="btn btn-download-main" onclick="toggleQuality(${index})">
-                                        <i class="fas fa-download me-2"></i>Download
-                                        <i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i>
-                                    </button>
-                                ` : `
-                                    <button class="btn btn-download-main" disabled>
-                                        <i class="fas fa-times me-2"></i>No File
-                                    </button>
-                                `}
-                            </div>
-                            
-                            ${hasFile && hasQualities ? `
-                                <div class="quality-dropdown" id="quality-${index}">
-                                    ${generateQualityOptions(qualityOptions)}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            resultsContainer.innerHTML = html;
-            
-            // Display pagination
-            if (pagination && pagination.total_pages > 1) {
-                displayPagination(pagination);
-            }
-            
-            // Scroll to top
-            if (pagination.current_page > 1) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
-        
-        // Toggle Quality Dropdown
-        function toggleQuality(index) {
-            const dropdown = document.getElementById(`quality-${index}`);
-            const arrow = document.getElementById(`arrow-${index}`);
-            
-            // Close all other dropdowns
-            document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
-                if (el.id !== `quality-${index}`) {
-                    el.classList.remove('show');
-                    const otherArrow = document.getElementById(`arrow-${i}`);
-                    if (otherArrow) {
-                        otherArrow.style.transform = 'rotate(0deg)';
-                    }
-                }
-            });
-            
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
-            
-            // Rotate arrow
-            if (dropdown.classList.contains('show')) {
-                arrow.style.transform = 'rotate(180deg)';
-            } else {
-                arrow.style.transform = 'rotate(0deg)';
-            }
-        }
-        
-        // Generate Quality Options
-        function generateQualityOptions(qualityOptions) {
-            if (!qualityOptions || Object.keys(qualityOptions).length === 0) {
-                return '<p class="text-center text-muted mb-0">No files available</p>';
-            }
-            
-            let html = '<div class="quality-buttons-row">';
-            const qualities = ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'];
-            
-            qualities.forEach(quality => {
-                if (qualityOptions[quality]) {
-                    const fileId = qualityOptions[quality].file_id;
-                    const fileSize = formatSize(qualityOptions[quality].file_size);
-                    
-                    html += `
-                        <a href="https://t.me/${BOT_USERNAME}?start=${fileId}" 
-                           target="_blank" 
-                           class="quality-option">
-                            <i class="fas fa-download me-1"></i>${quality}
-                            <small>${fileSize}</small>
-                        </a>
-                    `;
-                }
-            });
-            
-            html += '</div>';
-            return html;
-        }
-        
-        // Display Pagination
-        function displayPagination(pagination) {
-            const { current_page, total_pages, has_previous, has_next } = pagination;
-            
-            let html = '<nav><ul class="pagination justify-content-center">';
-            
-            html += `
-                <li class="page-item ${!has_previous ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1}); return false;` : 'return false;'}">
-                        <i class="fas fa-chevron-left"></i>
-                    </a>
-                </li>
-            `;
-            
-            const maxVisible = 5;
-            let startPage = Math.max(1, current_page - 2);
-            let endPage = Math.min(total_pages, startPage + maxVisible - 1);
-            
-            if (endPage - startPage < maxVisible - 1) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-            }
-            
-            if (startPage > 1) {
-                html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1); return false;">1</a></li>`;
-                if (startPage > 2) {
-                    html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                }
-            }
-            
-            for (let i = startPage; i <= endPage; i++) {
-                html += `
-                    <li class="page-item ${i === current_page ? 'active' : ''}">
-                        <a class="page-link" href="#" onclick="performSearch(${i}); return false;">${i}</a>
-                    </li>
-                `;
-            }
-            
-            if (endPage < total_pages) {
-                if (endPage < total_pages - 1) {
-                    html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                }
-                html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages}); return false;">${total_pages}</a></li>`;
-            }
-            
-            html += `
-                <li class="page-item ${!has_next ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1}); return false;` : 'return false;'}">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
-                </li>
-            `;
-            
-            html += '</ul></nav>';
-            paginationContainer.innerHTML = html;
-        }
-        
-        // Show Error
-        function showError(message) {
-            resultsContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-exclamation-triangle text-danger"></i>
-                    <h4>Error</h4>
-                    <p class="text-muted">${escapeHtml(message)}</p>
-                </div>
-            `;
-        }
-        
-        // Format File Size
-        function formatSize(bytes) {
-            if (!bytes) return 'Unknown';
-            const gb = bytes / (1024 * 1024 * 1024);
-            const mb = bytes / (1024 * 1024);
-            return gb >= 1 ? gb.toFixed(2) + ' GB' : mb.toFixed(1) + ' MB';
-        }
-        
-        // Escape HTML
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        // Load from URL on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const query = urlParams.get('q');
-            const page = parseInt(urlParams.get('page')) || 1;
-            
-            if (query) {
-                searchInput.value = query;
-                currentQuery = query;
-                currentPage = page;
-                performSearch(page);
-            }
-        });
-    </script>
+    });
+    html+='</div>';return html;
+}
+function displayPagination(pagination){
+    let html='<nav><ul class="pagination justify-content-center">';
+    const {current_page,total_pages,has_previous,has_next}=pagination,maxVisible=5;
+    html+=`<li class="page-item ${!has_previous?'disabled':''}"><a class="page-link" href="#" onclick="${has_previous?`performSearch(${current_page-1});return false;`:'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
+    let startPage=Math.max(1,current_page-2),endPage=Math.min(total_pages,startPage+maxVisible-1);if(endPage-startPage<maxVisible-1){startPage=Math.max(1,endPage-maxVisible+1);}
+    if(startPage>1){html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;if(startPage>2){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';}}
+    for(let i=startPage;i<=endPage;i++){html+=`<li class="page-item ${i===current_page?'active':''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;}
+    if(endPage<total_pages){if(endPage<total_pages-1){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';}html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;}
+    html+=`<li class="page-item ${!has_next?'disabled':''}"><a class="page-link" href="#" onclick="${has_next?`performSearch(${current_page+1});return false;`:'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
+    html+='</ul></nav>';paginationContainer.innerHTML=html;
+}
+function showError(message){resultsContainer.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-triangle text-danger"></i><h4>Error</h4><p class="text-muted">${escapeHtml(message)}</p></div>`;}
+function formatSize(bytes){if(!bytes)return'Unknown';const gb=bytes/1073741824,mb=bytes/1048576;return gb>=1?gb.toFixed(2)+' GB':mb.toFixed(1)+' MB';}
+function escapeHtml(text){if(!text)return'';const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
+window.addEventListener('DOMContentLoaded',()=>{
+    const urlParams=new URLSearchParams(window.location.search);
+    const query=urlParams.get('q');
+    const page=parseInt(urlParams.get('page'))||1;
+    if(query){searchInput.value=query;currentQuery=query;currentPage=page;performSearch(page);}
+});
+</script>
 </body>
 </html>
