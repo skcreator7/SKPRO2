@@ -14,7 +14,6 @@ import re
 import math
 import aiohttp
 import urllib.parse
-import random
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -116,58 +115,6 @@ movie_db = {
         'cache_hits': 0
     }
 }
-
-# 🎬 EASTER EGG CONTENT 🎬
-MOVIE_EXCUSES = [
-    "🎭 OMDB is currently starring in 'Server Down: The Sequel'",
-    "🎬 TMDB took a coffee break (they're on attempt #47 of making the perfect espresso)",
-    "🎥 IMPAwards is being dramatic again... classic IMPAwards",
-    "🍿 JustWatch is justifying why they need another retry",
-    "📽️ Letterboxd wrote a 2000-word essay on why they can't fetch right now",
-    "🎞️ All APIs are in a production meeting arguing about poster aspect ratios",
-    "🎪 The internet is buffering... much like our patience",
-    "🎨 Our custom SVG generator is practicing its art skills (it's getting REALLY good)",
-]
-
-RETRY_WISDOM = [
-    "☕ Attempt #{n}: Because {n-1} wasn't enough apparently",
-    "🔄 Attempt #{n}: Third time's a charm... or fourth... or fifth...",
-    "⏰ Attempt #{n}: We're not stubborn, we're... persistent",
-    "🎯 Attempt #{n}: Eventually, the server has to respond. It's the law.",
-    "🚀 Attempt #{n}: Houston, we have a retry",
-    "🎲 Attempt #{n}: Rolling the API dice again",
-    "💪 Attempt #{n}: Never give up, never surrender!",
-    "🎵 Attempt #{n}: 'Try, try again' - Ancient Developer Proverb",
-]
-
-POSTER_SUCCESS_STYLES = [
-    "✨ LEGENDARY",
-    "🔥 FIRE",
-    "💎 DIAMOND TIER",
-    "👑 ROYAL",
-    "⚡ SPEED DEMON",
-    "🌟 STELLAR",
-    "🎯 BULLSEYE",
-    "🏆 CHAMPION",
-]
-
-def get_retry_message(attempt, max_retries, source):
-    """Inject personality into retry attempts"""
-    if attempt == 0:
-        return f"🎬 {source}: Rolling out the red carpet..."
-    elif attempt == max_retries - 1:
-        return f"⚠️ {source}: This is our last shot! 🎯"
-    else:
-        wisdom = random.choice(RETRY_WISDOM).replace("{n}", str(attempt + 1)).replace("{n-1}", str(attempt))
-        return f"{wisdom} ({source})"
-
-def get_failure_excuse():
-    """Because every API failure deserves a dramatic excuse"""
-    return random.choice(MOVIE_EXCUSES)
-
-def get_success_style():
-    """Celebrate those poster wins!"""
-    return random.choice(POSTER_SUCCESS_STYLES)
 
 def normalize_title(title):
     if not title:
@@ -286,36 +233,37 @@ def is_new(date):
     except:
         return False
 
-async def check_force_sub(user_id, max_retries=3):
-    """Enhanced force subscription check with retry mechanism"""
+async def check_force_sub_immediate(user_id, max_retries=5):
+    """IMMEDIATE force subscription check with instant verification"""
     for attempt in range(max_retries):
         try:
-            logger.info(f"🔍 Checking subscription for user {user_id} (Attempt {attempt + 1}/{max_retries})")
+            logger.info(f"🔍 IMMEDIATE SUB CHECK: User {user_id} (Attempt {attempt + 1}/{max_retries})")
             
+            # Very short delay for Telegram to update membership status
             if attempt > 0:
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)  # Reduced from 2 seconds to 1 second
             
             member = await bot.get_chat_member(Config.FORCE_SUB_CHANNEL, user_id)
             is_member = member.status in ["member", "administrator", "creator"]
             
-            logger.info(f"  {'✅' if is_member else '❌'} Status: {member.status}")
+            logger.info(f"  {'✅ IMMEDIATE ACCESS' if is_member else '❌ NOT SUBSCRIBED'} | Status: {member.status}")
             
             if is_member:
-                return True
+                return True, member.status
                 
         except UserNotParticipant:
             logger.info(f"  ❌ User {user_id} not in channel (Attempt {attempt + 1})")
             if attempt == max_retries - 1:
-                return False
+                return False, "not_joined"
         except (ChatAdminRequired, ChannelPrivate):
             logger.warning(f"  ⚠️ Bot permission issue - allowing access")
-            return True
+            return True, "admin_required"
         except Exception as e:
             logger.error(f"  ❌ Force sub error (Attempt {attempt + 1}): {e}")
             if attempt == max_retries - 1:
-                return True
+                return True, "error_allowed"  # Allow on final error to avoid blocking users
     
-    return False
+    return False, "max_retries_exceeded"
 
 async def index_files_background():
     """Background file indexing - non-blocking"""
@@ -386,9 +334,10 @@ async def index_files_background():
         logger.error(f"❌ Background indexing error: {e}")
 
 async def get_poster_guaranteed(title, session, max_retries=3):
-    """100% GUARANTEED poster with retry mechanism and ALL sources (NOW WITH EASTER EGG!)"""
+    """100% GUARANTEED POSTER with RETRY MECHANISM and ALL SOURCES"""
     ck = title.lower().strip()
     
+    # Check cache first
     if ck in movie_db['poster_cache']:
         c, ct = movie_db['poster_cache'][ck]
         if (datetime.now() - ct).seconds < 3600:
@@ -400,13 +349,16 @@ async def get_poster_guaranteed(title, session, max_retries=3):
     year = year_match.group() if year_match else None
     clean_title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
     
-    logger.info(f"  🎨 Fetching poster: {title}")
+    logger.info(f"  🎨 FETCHING POSTER: {title}")
     
+    # Try all sources with retry mechanism
     for attempt in range(max_retries):
-        # OMDB
+        logger.info(f"    🔄 Attempt {attempt + 1}/{max_retries}")
+        
+        # 1. OMDB - Most reliable
         for api_key in Config.OMDB_KEYS:
             try:
-                logger.info(get_retry_message(attempt, max_retries, "OMDB"))
+                logger.info(f"      🔍 Trying OMDB...")
                 url = f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={api_key}"
                 async with session.get(url, timeout=8) as r:
                     if r.status == 200:
@@ -416,89 +368,79 @@ async def get_poster_guaranteed(title, session, max_retries=3):
                             res = {'poster_url': poster_url, 'source': 'OMDB', 'rating': data.get('imdbRating', '0.0')}
                             movie_db['poster_cache'][ck] = (res, datetime.now())
                             movie_db['stats']['omdb'] += 1
-                            logger.info(f"    {get_success_style()} OMDB: {title}")
+                            logger.info(f"      ✅ OMDB SUCCESS: {title}")
                             return res
+                logger.info(f"      ❌ OMDB failed, trying TMDB HIGH QUALITY...")
             except Exception as e:
-                logger.debug(f"    {get_failure_excuse()}")
+                logger.info(f"      ⚠️ OMDB attempt failed: {e}")
                 continue
         
-        # TMDB
+        # 2. TMDB HIGH QUALITY
         for api_key in Config.TMDB_KEYS:
             try:
-                logger.info(get_retry_message(attempt, max_retries, "TMDB"))
+                logger.info(f"      🔍 Trying TMDB HIGH QUALITY...")
                 url = "https://api.themoviedb.org/3/search/movie"
                 params = {'api_key': api_key, 'query': title}
                 async with session.get(url, params=params, timeout=8) as r:
                     if r.status == 200:
                         data = await r.json()
                         if data.get('results') and len(data['results']) > 0:
-                            result = data['results'][0]
-                            poster_path = result.get('poster_path')
-                            if poster_path:
-                                poster_url = f"https://image.tmdb.org/t/p/w780{poster_path}"
-                                res = {'poster_url': poster_url, 'source': 'TMDB', 'rating': str(result.get('vote_average', 0.0))}
-                                movie_db['poster_cache'][ck] = (res, datetime.now())
-                                movie_db['stats']['tmdb'] += 1
-                                logger.info(f"    {get_success_style()} TMDB: {title}")
-                                return res
+                            # Try original quality first
+                            for result in data['results'][:3]:
+                                poster_path = result.get('poster_path')
+                                if poster_path:
+                                    # Try original quality first
+                                    poster_url = f"https://image.tmdb.org/t/p/original{poster_path}"
+                                    res = {'poster_url': poster_url, 'source': 'TMDB-HD', 'rating': str(result.get('vote_average', 0.0))}
+                                    movie_db['poster_cache'][ck] = (res, datetime.now())
+                                    movie_db['stats']['tmdb'] += 1
+                                    logger.info(f"      ✅ TMDB HIGH QUALITY SUCCESS: {title}")
+                                    return res
+                logger.info(f"      ❌ TMDB failed, trying JustWatch HIGH QUALITY...")
             except Exception as e:
-                logger.debug(f"    {get_failure_excuse()}")
+                logger.info(f"      ⚠️ TMDB attempt failed: {e}")
                 continue
         
-        # IMPAwards
-        if year:
-            try:
-                logger.info(get_retry_message(attempt, max_retries, "IMPAwards"))
-                slug = clean_title.lower()
-                slug = re.sub(r'[^\w\s]', '', slug)
-                slug = slug.replace(' ', '_')
-                
-                formats = [
-                    f"https://www.impawards.com/{year}/posters/{slug}.jpg",
-                    f"https://www.impawards.com/{year}/posters/{slug}_ver2.jpg",
-                    f"https://www.impawards.com/{year}/posters/{slug}_xlg.jpg",
-                    f"https://www.impawards.com/{year}/posters/{slug}_ver3.jpg"
-                ]
-                
-                for poster_url in formats:
-                    try:
-                        async with session.head(poster_url, timeout=5) as r:
-                            if r.status == 200:
-                                res = {'poster_url': poster_url, 'source': 'IMPAwards', 'rating': '0.0'}
-                                movie_db['poster_cache'][ck] = (res, datetime.now())
-                                movie_db['stats']['impawards'] += 1
-                                logger.info(f"    {get_success_style()} IMPAwards: {title}")
-                                return res
-                    except:
-                        continue
-            except Exception as e:
-                logger.debug(f"    {get_failure_excuse()}")
-        
-        # JustWatch
+        # 3. JustWatch HIGH QUALITY
         try:
-            logger.info(get_retry_message(attempt, max_retries, "JustWatch"))
+            logger.info(f"      🔍 Trying JustWatch HIGH QUALITY...")
             slug = clean_title.lower().replace(' ', '-')
             slug = re.sub(r'[^\w\-]', '', slug)
             justwatch_url = f"https://www.justwatch.com/us/movie/{slug}"
             
-            async with session.get(justwatch_url, timeout=8, headers={'User-Agent': 'Mozilla/5.0'}) as r:
+            async with session.get(justwatch_url, timeout=8, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }) as r:
                 if r.status == 200:
                     html_content = await r.text()
-                    poster_match = re.search(r'<meta property="og:image" content="([^"]+)"', html_content)
-                    if poster_match:
-                        poster_url = poster_match.group(1)
-                        if poster_url and poster_url.startswith('http'):
-                            res = {'poster_url': poster_url, 'source': 'JustWatch', 'rating': '0.0'}
-                            movie_db['poster_cache'][ck] = (res, datetime.now())
-                            movie_db['stats']['justwatch'] += 1
-                            logger.info(f"    {get_success_style()} JustWatch: {title}")
-                            return res
+                    # Try multiple patterns for poster
+                    patterns = [
+                        r'<meta property="og:image" content="([^"]+)"',
+                        r'<img[^>]*class="[^"]*picture[^"]*"[^>]*src="([^"]+)"',
+                        r'background-image:\s*url\(([^)]+)\)'
+                    ]
+                    
+                    for pattern in patterns:
+                        poster_match = re.search(pattern, html_content)
+                        if poster_match:
+                            poster_url = poster_match.group(1)
+                            if poster_url and poster_url.startswith('http'):
+                                # Ensure HTTPS and high quality
+                                poster_url = poster_url.replace('http://', 'https://')
+                                if 'jw-img' in poster_url:
+                                    poster_url = poster_url.replace('{format}', 'original')
+                                res = {'poster_url': poster_url, 'source': 'JustWatch-HD', 'rating': '0.0'}
+                                movie_db['poster_cache'][ck] = (res, datetime.now())
+                                movie_db['stats']['justwatch'] += 1
+                                logger.info(f"      ✅ JustWatch HIGH QUALITY SUCCESS: {title}")
+                                return res
+            logger.info(f"      ❌ JustWatch failed, trying Letterboxd HIGH QUALITY...")
         except Exception as e:
-            logger.debug(f"    {get_failure_excuse()}")
+            logger.info(f"      ⚠️ JustWatch attempt failed: {e}")
         
-        # Letterboxd
+        # 4. Letterboxd HIGH QUALITY
         try:
-            logger.info(get_retry_message(attempt, max_retries, "Letterboxd"))
+            logger.info(f"      🔍 Trying Letterboxd HIGH QUALITY...")
             slug = clean_title.lower().replace(' ', '-')
             slug = re.sub(r'[^\w\-]', '', slug)
             if year:
@@ -506,52 +448,77 @@ async def get_poster_guaranteed(title, session, max_retries=3):
             
             letterboxd_url = f"https://letterboxd.com/film/{slug}/"
             
-            async with session.get(letterboxd_url, timeout=8, headers={'User-Agent': 'Mozilla/5.0'}) as r:
+            async with session.get(letterboxd_url, timeout=8, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }) as r:
                 if r.status == 200:
                     html_content = await r.text()
                     poster_match = re.search(r'<meta property="og:image" content="([^"]+)"', html_content)
                     if poster_match:
                         poster_url = poster_match.group(1)
                         if poster_url and poster_url.startswith('http'):
+                            # Get highest quality version
                             poster_url = poster_url.replace('-0-500-0-750', '-0-1000-0-1500')
-                            res = {'poster_url': poster_url, 'source': 'Letterboxd', 'rating': '0.0'}
+                            poster_url = poster_url.replace('-0-230-0-345', '-0-1000-0-1500')
+                            poster_url = poster_url.replace('https://a.ltrbxd.com/', 'https://a.ltrbxd.com/resized/')
+                            res = {'poster_url': poster_url, 'source': 'Letterboxd-HD', 'rating': '0.0'}
                             movie_db['poster_cache'][ck] = (res, datetime.now())
                             movie_db['stats']['letterboxd'] += 1
-                            logger.info(f"    {get_success_style()} Letterboxd: {title}")
+                            logger.info(f"      ✅ Letterboxd HIGH QUALITY SUCCESS: {title}")
                             return res
+            logger.info(f"      ❌ Letterboxd failed, trying IMPAwards HIGH QUALITY...")
         except Exception as e:
-            logger.debug(f"    {get_failure_excuse()}")
+            logger.info(f"      ⚠️ Letterboxd attempt failed: {e}")
         
-        # TMDB HD
-        for api_key in Config.TMDB_KEYS:
+        # 5. IMPAwards HIGH QUALITY
+        if year:
             try:
-                url = "https://api.themoviedb.org/3/search/movie"
-                params = {'api_key': api_key, 'query': title}
-                async with session.get(url, params=params, timeout=8) as r:
-                    if r.status == 200:
-                        data = await r.json()
-                        if data.get('results'):
-                            for result in data['results'][:3]:
-                                poster_path = result.get('poster_path')
-                                if poster_path:
-                                    poster_url = f"https://image.tmdb.org/t/p/original{poster_path}"
-                                    res = {'poster_url': poster_url, 'source': 'TMDB-HD', 'rating': str(result.get('vote_average', 0.0))}
-                                    movie_db['poster_cache'][ck] = (res, datetime.now())
-                                    movie_db['stats']['tmdb'] += 1
-                                    logger.info(f"    {get_success_style()} TMDB-HD: {title}")
-                                    return res
+                logger.info(f"      🔍 Trying IMPAwards HIGH QUALITY...")
+                slug = clean_title.lower()
+                slug = re.sub(r'[^\w\s]', '', slug)
+                slug = slug.replace(' ', '_')
+                
+                # Try multiple formats for highest quality
+                formats = [
+                    f"https://www.impawards.com/{year}/posters/{slug}_xlg.jpg",  # Extra large
+                    f"https://www.impawards.com/{year}/posters/{slug}_ver7.jpg", # Version 7
+                    f"https://www.impawards.com/{year}/posters/{slug}_ver6.jpg", # Version 6
+                    f"https://www.impawards.com/{year}/posters/{slug}_ver5.jpg", # Version 5
+                    f"https://www.impawards.com/{year}/posters/{slug}_ver4.jpg", # Version 4
+                    f"https://www.impawards.com/{year}/posters/{slug}_ver3.jpg", # Version 3
+                    f"https://www.impawards.com/{year}/posters/{slug}_ver2.jpg", # Version 2
+                    f"https://www.impawards.com/{year}/posters/{slug}.jpg",      # Original
+                ]
+                
+                for poster_url in formats:
+                    try:
+                        async with session.head(poster_url, timeout=5) as r:
+                            if r.status == 200:
+                                res = {'poster_url': poster_url, 'source': 'IMPAwards-HD', 'rating': '0.0'}
+                                movie_db['poster_cache'][ck] = (res, datetime.now())
+                                movie_db['stats']['impawards'] += 1
+                                logger.info(f"      ✅ IMPAwards HIGH QUALITY SUCCESS: {title}")
+                                return res
+                    except:
+                        continue
+                logger.info(f"      ❌ IMPAwards failed, all sources exhausted")
             except Exception as e:
-                logger.debug(f"    {get_failure_excuse()}")
-                continue
+                logger.info(f"      ⚠️ IMPAwards attempt failed: {e}")
         
+        # Wait before retry (shorter wait for faster response)
         if attempt < max_retries - 1:
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
     
-    # Custom fallback
-    logger.info(f"    🎨 All sources exhausted, deploying custom SVG masterpiece: {title}")
+    # 6. GUARANTEED FALLBACK - Custom SVG generator (100% WORKING)
+    logger.info(f"    ⚠️ ALL SOURCES FAILED, USING CUSTOM POSTER: {title}")
     movie_db['stats']['custom'] += 1
-    res = {'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}", 'source': 'CUSTOM', 'rating': '0.0'}
+    res = {
+        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year if year else ''}", 
+        'source': 'CUSTOM', 
+        'rating': '0.0'
+    }
     movie_db['poster_cache'][ck] = (res, datetime.now())
+    logger.info(f"    ✅ CUSTOM POSTER GENERATED: {title}")
     return res
 
 async def get_live_posts(channel_id, limit=50):
@@ -594,6 +561,7 @@ async def search_movies_live(query, limit=12, page=1):
     posts_dict = {}
     files_dict = {}
     
+    # Search text channels
     for channel_id in Config.TEXT_CHANNEL_IDS:
         try:
             cname = channel_name(channel_id)
@@ -628,6 +596,7 @@ async def search_movies_live(query, limit=12, page=1):
         except Exception as e:
             logger.error(f"    ❌ Channel error: {e}")
     
+    # Search files
     try:
         logger.info("📁 Files...")
         count = 0
@@ -703,7 +672,7 @@ async def search_movies_live(query, limit=12, page=1):
     }
 
 async def get_home_movies_live():
-    logger.info("🏠 Fetching 30 movies with 100% poster guarantee...")
+    logger.info("🏠 Fetching 30 movies with 100% POSTER GUARANTEE...")
     
     posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=50)
     
@@ -723,350 +692,436 @@ async def get_home_movies_live():
             if len(movies) >= 30:
                 break
     
-    logger.info(f"  ✓ {len(movies)} movies ready for poster fetch")
+    logger.info(f"  ✓ {len(movies)} movies ready for 100% GUARANTEED POSTER FETCH")
     
     if movies:
+        logger.info("🎨 FETCHING POSTERS WITH 100% GUARANTEE...")
         async with aiohttp.ClientSession() as session:
-            tasks = [get_poster_guaranteed(m['title'], session) for m in movies]
+            tasks = [get_poster_guaranteed(m['title'], session, max_retries=3) for m in movies]
             posters = await asyncio.gather(*tasks, return_exceptions=True)
             
-            for i, poster in enumerate(posters):
-                if isinstance(poster, dict):
-                    movies[i]['poster'] = poster['poster_url']
-                    movies[i]['source'] = poster.get('source', 'Unknown')
-                    movies[i]['rating'] = poster.get('rating', '0.0')
+            success_count = 0
+            for i, (movie, poster_result) in enumerate(zip(movies, posters)):
+                if isinstance(poster_result, dict):
+                    movie['poster_url'] = poster_result['poster_url']
+                    movie['poster_source'] = poster_result['source']
+                    movie['poster_rating'] = poster_result.get('rating', '0.0')
+                    movie['has_poster'] = True
+                    success_count += 1
                 else:
-                    movies[i]['poster'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movies[i]['title'])}"
-                    movies[i]['source'] = 'CUSTOM'
-                    movies[i]['rating'] = '0.0'
+                    # 100% FALLBACK GUARANTEE
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'CUSTOM'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
+                    movie_db['stats']['custom'] += 1
+        
+        logger.info(f"  ✅ 100% POSTERS READY ({success_count}/{len(movies)} from sources)")
     
-    logger.info(f"✅ {len(movies)} movies with posters")
+    logger.info(f"✅ {len(movies)} movies ready with 100% GUARANTEED POSTERS")
     return movies
 
-# 🎬 EASTER EGG HANDLER 🎬
-async def secret_poster_stats_animation():
-    """Easter egg that shows poster fetching stats with maximum personality"""
+@app.route('/')
+async def root():
+    tf = await files_col.count_documents({}) if files_col is not None else 0
     
-    stats_copy = movie_db['stats'].copy()
-    
-    response = "🎬 <b>SK4FiLM POSTER FETCHING CHAMPIONSHIPS</b> 🏆\n\n"
-    response += "<i>Calculating the impossible...</i>\n"
-    await asyncio.sleep(0.5)
-    
-    response += "\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    
-    total_attempts = sum([stats_copy.get(k, 0) for k in ['omdb', 'tmdb', 'impawards', 'justwatch', 'letterboxd', 'custom']])
-    
-    if total_attempts == 0:
-        return response + "🤔 No posters fetched yet. Did someone break the bot again?\n\n<code>Hint: Try searching for some movies first!</code>"
-    
-    # Source rankings with personality
-    sources = [
-        ('OMDB', stats_copy.get('omdb', 0), '🥇'),
-        ('TMDB', stats_copy.get('tmdb', 0), '🥈'),
-        ('IMPAwards', stats_copy.get('impawards', 0), '🥉'),
-        ('JustWatch', stats_copy.get('justwatch', 0), '🎪'),
-        ('Letterboxd', stats_copy.get('letterboxd', 0), '📽️'),
-        ('Custom SVG', stats_copy.get('custom', 0), '🎨'),
-    ]
-    
-    response += "📊 <b>SOURCE LEADERBOARD:</b>\n\n"
-    
-    for name, count, emoji in sorted(sources, key=lambda x: x[1], reverse=True):
-        if count > 0:
-            percentage = (count / total_attempts * 100)
-            bar_length = int(percentage / 5)
-            bar = "█" * bar_length + "░" * (20 - bar_length)
-            
-            if name == 'Custom SVG' and count > 0:
-                comment = " <- Our safety net 🕸️"
-            elif percentage > 50:
-                comment = f" <- {random.choice(['CRUSHING IT', 'MVP', 'THE GOAT', 'UNSTOPPABLE'])}"
-            elif percentage > 25:
-                comment = " <- Solid effort"
-            else:
-                comment = " <- Trying its best"
-            
-            response += f"{emoji} <b>{name}</b>: {count} ({percentage:.1f}%)\n"
-            response += f"   {bar}{comment}\n\n"
-    
-    # Cache stats
-    cache_hits = stats_copy.get('cache_hits', 0)
-    if cache_hits > 0:
-        cache_percentage = (cache_hits / (total_attempts + cache_hits) * 100)
-        response += f"💾 <b>Cache Hits:</b> {cache_hits} ({cache_percentage:.1f}%)\n"
-        response += f"   Translation: We saved {cache_hits * 3} seconds of your life\n\n"
-    
-    # Fun facts
-    response += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    response += "🎭 <b>FUN FACTS:</b>\n\n"
-    
-    if stats_copy.get('custom', 0) > 0:
-        response += f"• Our custom SVG generator created {stats_copy['custom']} masterpieces\n"
-        response += "  (Picasso is shaking)\n\n"
-    
-    if stats_copy.get('omdb', 0) > stats_copy.get('tmdb', 0):
-        response += "• OMDB is winning the API popularity contest\n"
-        response += "  TMDB is somewhere crying in the corner\n\n"
-    elif stats_copy.get('tmdb', 0) > stats_copy.get('omdb', 0):
-        response += "• TMDB is flexing on OMDB right now\n"
-        response += "  OMDB needs to step up its game\n\n"
-    
-    success_rate = ((total_attempts - stats_copy.get('custom', 0)) / total_attempts * 100) if total_attempts > 0 else 0
-    if success_rate > 95:
-        response += f"• {success_rate:.1f}% success rate - We're basically wizards 🧙‍♂️\n\n"
-    elif success_rate > 80:
-        response += f"• {success_rate:.1f}% success rate - Not bad for a Monday\n\n"
-    else:
-        response += f"• {success_rate:.1f}% success rate - APIs are having a bad day\n\n"
-    
-    # Total attempts
-    response += f"• Total poster fetches: {total_attempts}\n"
-    response += f"  That's a lot of movie art! 🎨\n\n"
-    
-    # Final message
-    response += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    response += "💪 <i>Remember: We don't give up on posters.</i>\n"
-    response += "🎯 <i>We retry until the APIs surrender.</i>\n"
-    response += "🎬 <i>That's the SK4FiLM way.</i>\n\n"
-    response += f"<code>Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</code>"
-    
-    return response
+    return jsonify({
+        'status': 'healthy',
+        'service': 'SK4FiLM v4.0 - IMMEDIATE VERIFICATION + 100% POSTERS',
+        'database': {'total_files': tf, 'live_mode': 'Posts LIVE, Files cached'},
+        'bot_status': 'online' if bot_started else 'starting',
+        'features': {
+            'force_sub_immediate': 'ENABLED',
+            'poster_guarantee': '100% WORKING',
+            'retry_mechanism': 'ENHANCED'
+        },
+        'poster_stats': movie_db['stats']
+    })
 
-# 🎬 BOT INITIALIZATION AND HANDLERS 🎬
+@app.route('/health')
+async def health():
+    return jsonify({'status': 'ok' if bot_started else 'starting'})
 
-async def start_bot():
-    global User, bot, bot_started
-    
-    if bot_started:
-        logger.warning("⚠️ Bot already running")
-        return
-    
+@app.route('/api/index_status')
+async def api_index_status():
     try:
-        logger.info("🤖 Starting User Client...")
-        User = Client(
-            "sk4film_user",
-            api_id=Config.API_ID,
-            api_hash=Config.API_HASH,
-            session_string=Config.USER_SESSION_STRING
-        )
-        await User.start()
-        me = await User.get_me()
-        logger.info(f"✅ User Client: @{me.username}")
+        if files_col is None:
+            return jsonify({'status': 'error', 'message': 'Database not ready'}), 503
         
-        logger.info("🤖 Starting Bot Client...")
-        bot = Client(
-            "sk4film_bot",
-            api_id=Config.API_ID,
-            api_hash=Config.API_HASH,
-            bot_token=Config.BOT_TOKEN
-        )
-        await bot.start()
-        bot_me = await bot.get_me()
-        logger.info(f"✅ Bot Client: @{bot_me.username}")
+        total = await files_col.count_documents({})
+        latest = await files_col.find_one({}, sort=[('indexed_at', -1)])
+        last_indexed = "Never"
+        if latest and latest.get('indexed_at'):
+            dt = latest['indexed_at']
+            if isinstance(dt, datetime):
+                mins_ago = int((datetime.now() - dt).total_seconds() / 60)
+                last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
         
-        # Initialize MongoDB
-        await init_mongodb()
-        
-        # Start background indexing
-        asyncio.create_task(index_files_background())
-        
-        bot_started = True
-        logger.info("✅ All systems operational!")
-        
+        return jsonify({
+            'status': 'success',
+            'total_indexed': total,
+            'last_indexed': last_indexed,
+            'bot_status': 'online' if bot_started else 'starting',
+            'features': 'IMMEDIATE VERIFICATION + 100% POSTERS'
+        })
     except Exception as e:
-        logger.error(f"❌ Bot startup failed: {e}")
-        raise
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# 🎬 EASTER EGG BOT HANDLER 🎬
-@bot.on_message(filters.command(["debug_posters", "posterstats", "stats"]) & filters.private)
-async def handle_poster_stats(client, message):
-    """🎬 SECRET EASTER EGG: Shows poster fetching stats with style"""
-    
+@app.route('/api/movies')
+async def api_movies():
     try:
-        loading_msg = await message.reply("🎬 Accessing the SKret vault... 🔐")
+        if not bot_started:
+            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
         
-        await asyncio.sleep(1)
-        await loading_msg.edit("🎭 Waking up the APIs... ☕")
-        
-        await asyncio.sleep(1)
-        await loading_msg.edit("📊 Crunching the numbers... 🔢")
-        
-        await asyncio.sleep(1)
-        
-        stats_message = await secret_poster_stats_animation()
-        await loading_msg.edit(stats_message, parse_mode="html", disable_web_page_preview=True)
-        
+        movies = await get_home_movies_live()
+        return jsonify({
+            'status': 'success', 
+            'movies': movies, 
+            'total': len(movies), 
+            'bot_username': Config.BOT_USERNAME, 
+            'mode': 'LIVE',
+            'poster_guarantee': '100% WORKING',
+            'poster_stats': movie_db['stats']
+        })
     except Exception as e:
-        logger.error(f"Easter egg error: {e}")
-        await message.reply("🎬 Oops! The stats got stage fright. Try again!")
+        logger.error(f"API /movies: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# Regular bot handlers
-@bot.on_message(filters.command("start") & filters.private)
-async def start_handler(client, message):
-    """Start command handler"""
-    user_id = message.from_user.id
-    
-    # Check force subscription
-    if not await check_force_sub(user_id):
+@app.route('/api/search')
+async def api_search():
+    try:
+        q = request.args.get('query', '').strip()
+        p = int(request.args.get('page', 1))
+        l = int(request.args.get('limit', 12))
+        
+        if not q:
+            return jsonify({'status': 'error', 'message': 'Query required'}), 400
+        if not bot_started:
+            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
+        
+        result = await search_movies_live(q, l, p)
+        return jsonify({
+            'status': 'success', 
+            'query': q, 
+            'results': result['results'], 
+            'pagination': result['pagination'], 
+            'bot_username': Config.BOT_USERNAME, 
+            'mode': 'LIVE',
+            'features': 'IMMEDIATE VERIFICATION + 100% POSTERS'
+        })
+    except Exception as e:
+        logger.error(f"API /search: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/post')
+async def api_post():
+    try:
+        channel_id = request.args.get('channel', '').strip()
+        message_id = request.args.get('message', '').strip()
+        
+        if not channel_id or not message_id:
+            return jsonify({'status':'error', 'message':'Missing channel or message parameter'}), 400
+        
+        if not bot_started or not User:
+            return jsonify({'status':'error', 'message':'Bot not ready yet'}), 503
+        
         try:
-            invite_link = await bot.create_chat_invite_link(Config.FORCE_SUB_CHANNEL)
-            await message.reply(
-                f"⚠️ Please join our channel first:\n\n{invite_link.invite_link}",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Join Channel", url=invite_link.invite_link)],
-                    [InlineKeyboardButton("Try Again", callback_data="check_sub")]
-                ])
-            )
-            return
+            channel_id = int(channel_id)
+            message_id = int(message_id)
+        except ValueError:
+            return jsonify({'status':'error', 'message':'Invalid channel or message ID'}), 400
+        
+        logger.info(f"📄 Fetching post: Channel {channel_id}, Message {message_id}")
+        
+        try:
+            msg = await User.get_messages(channel_id, message_id)
+        except Exception as e:
+            logger.error(f"  ❌ Failed to fetch message: {e}")
+            return jsonify({'status':'error', 'message':'Failed to fetch message from Telegram'}), 404
+        
+        if not msg or not msg.text:
+            return jsonify({'status':'error', 'message':'Message not found or has no text content'}), 404
+        
+        title = extract_title_smart(msg.text)
+        if not title:
+            title = msg.text.split('\n')[0][:60] if msg.text else "Movie Post"
+        
+        normalized_title = normalize_title(title)
+        quality_options = {}
+        has_file = False
+        
+        if files_col is not None:
+            try:
+                cursor = files_col.find({'normalized_title': normalized_title})
+                async for doc in cursor:
+                    quality = doc.get('quality', '480p')
+                    if quality not in quality_options:
+                        quality_options[quality] = {
+                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                            'file_size': doc.get('file_size', 0),
+                            'file_name': doc.get('file_name', 'video.mp4')
+                        }
+                        has_file = True
+            except Exception as e:
+                logger.error(f"  ⚠️ File search error: {e}")
+        
+        post_data = {
+            'title': title,
+            'content': format_post(msg.text),
+            'channel': channel_name(channel_id),
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+            'is_new': is_new(msg.date) if msg.date else False,
+            'has_file': has_file,
+            'quality_options': quality_options,
+            'views': getattr(msg, 'views', 0)
+        }
+        
+        logger.info(f"  ✅ Post fetched: {title}")
+        
+        return jsonify({'status': 'success', 'post': post_data, 'bot_username': Config.BOT_USERNAME})
+    
+    except Exception as e:
+        logger.error(f"❌ API /post error: {e}")
+        return jsonify({'status':'error', 'message': str(e)}), 500
+
+@app.route('/api/poster')
+async def api_poster():
+    url = request.args.get('url', '').strip()
+    if url and url.startswith('http'):
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'}) as r:
+                    if r.status == 200:
+                        return Response(await r.read(), mimetype=r.headers.get('content-type', 'image/jpeg'), headers={'Cache-Control': 'public, max-age=7200'})
         except:
             pass
     
-    welcome_text = (
-        f"🎬 <b>Welcome to SK4FiLM Bot!</b>\n\n"
-        f"🔍 Search for movies and get direct download links\n"
-        f"🎥 High quality content in multiple formats\n\n"
-        f"<b>Commands:</b>\n"
-        f"/search - Search for movies\n"
-        f"/help - Get help\n\n"
-        f"<i>Just send me a movie name to search!</i>"
-    )
+    t = request.args.get('title', 'Movie')
+    y = request.args.get('year', '')
+    d = t[:18] + "..." if len(t) > 18 else t
+    colors = [('#667eea','#764ba2'),('#f093fb','#f5576c'),('#4facfe','#00f2fe'),('#43e97b','#38f9d7'),('#fa709a','#fee140')]
+    c = colors[hash(t) % len(colors)]
+    svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:{c[0]}"/><stop offset="100%" style="stop-color:{c[1]}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#bg)" rx="20"/><circle cx="150" cy="180" r="50" fill="rgba(255,255,255,0.2)"/><text x="50%" y="200" text-anchor="middle" fill="#fff" font-size="50">🎬</text><text x="50%" y="270" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">{html.escape(d)}</text>{f'<text x="50%" y="300" text-anchor="middle" fill="#fff" font-size="14">{html.escape(y)}</text>' if y else ''}<rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/><text x="50%" y="405" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">SK4FiLM</text></svg>'''
+    return Response(svg, mimetype='image/svg+xml', headers={'Cache-Control': 'public, max-age=3600'})
+
+async def setup_bot():
+    @bot.on_message(filters.command("start") & filters.private)
+    async def start_handler(client, message):
+        uid = message.from_user.id
+        
+        if len(message.command) > 1:
+            fid = message.command[1]
+            logger.info(f"📥 File request | User: {uid} | ID: {fid}")
+            
+            # IMMEDIATE FORCE SUBSCRIPTION CHECK WITH INSTANT VERIFICATION
+            is_subscribed, status = await check_force_sub_immediate(uid, max_retries=5)
+            
+            if not is_subscribed:
+                try:
+                    ch = await bot.get_chat(Config.FORCE_SUB_CHANNEL)
+                    invite_link = f"https://t.me/{ch.username}" if ch.username else await bot.export_chat_invite_link(Config.FORCE_SUB_CHANNEL)
+                except:
+                    invite_link = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
+                
+                # Enhanced message with immediate verification
+                await message.reply_text(
+                    "⚠️ **ACCESS REQUIRED!**\n\n"
+                    "🔒 You need to join our channel to download files.\n\n"
+                    "🚀 **INSTANT ACCESS:**\n"
+                    "1️⃣ Join the channel below\n"
+                    "2️⃣ Click '✅ I HAVE JOINED' button\n"
+                    "3️⃣ Get immediate access!\n\n"
+                    "⚡ No waiting - verified instantly!",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📢 JOIN CHANNEL", url=invite_link)],
+                        [InlineKeyboardButton("✅ I HAVE JOINED", url=f"https://t.me/{Config.BOT_USERNAME}?start={fid}")],
+                        [InlineKeyboardButton("🔄 VERIFY NOW", url=f"https://t.me/{Config.BOT_USERNAME}?start={fid}")]
+                    ])
+                )
+                logger.info(f"  ❌ Access denied for user {uid} | Status: {status}")
+                return
+            
+            logger.info(f"  ✅ User {uid} IMMEDIATELY VERIFIED as subscribed | Status: {status}")
+            
+            try:
+                parts = fid.split('_')
+                channel_id = int(parts[0])
+                message_id = int(parts[1])
+                quality = parts[2] if len(parts) > 2 else "Unknown"
+            except:
+                await message.reply_text("❌ **Invalid link**\n\nPlease get a fresh link from the website.")
+                return
+            
+            try:
+                pm = await message.reply_text(f"⏳ **PREPARING [{quality}]...**")
+                
+                # Fetch file from channel
+                file_message = await bot.get_messages(channel_id, message_id)
+                
+                if not file_message or (not file_message.document and not file_message.video):
+                    await pm.edit_text("❌ **File not found**\n\nThe file may have been deleted or moved.")
+                    return
+                
+                # Send file
+                if file_message.document:
+                    sent = await bot.send_document(
+                        uid, 
+                        file_message.document.file_id, 
+                        caption=f"🎬 **{quality}**\n📦 Size: {format_size(file_message.document.file_size)}\n\n⚠️ Auto-delete in {Config.AUTO_DELETE_TIME//60} minutes"
+                    )
+                else:
+                    sent = await bot.send_video(
+                        uid, 
+                        file_message.video.file_id, 
+                        caption=f"🎬 **{quality}**\n📦 Size: {format_size(file_message.video.file_size)}\n\n⚠️ Auto-delete in {Config.AUTO_DELETE_TIME//60} minutes"
+                    )
+                
+                await pm.delete()
+                await message.reply_text(
+                    f"✅ **FILE SENT SUCCESSFULLY!**\n\n"
+                    f"📹 Quality: {quality}\n"
+                    f"⏰ Will be deleted in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                    f"💡 Download quickly!"
+                )
+                
+                logger.info(f"  ✅ File sent to user {uid}")
+                
+                # Auto-delete after specified time
+                if Config.AUTO_DELETE_TIME > 0:
+                    await asyncio.sleep(Config.AUTO_DELETE_TIME)
+                    try:
+                        await sent.delete()
+                        logger.info(f"  🗑️ Auto-deleted file for user {uid}")
+                    except:
+                        pass
+                        
+            except Exception as e:
+                logger.error(f"  ❌ Send error: {e}")
+                try:
+                    await pm.edit_text(f"❌ **Failed to send file**\n\n`{str(e)}`\n\nPlease try again or contact support.")
+                except:
+                    await message.reply_text(f"❌ **Failed to send file**\n\n`{str(e)}`")
+            return
+        
+        # Welcome message for /start without parameters
+        await message.reply_text(
+            "🎬 **WELCOME TO SK4FiLM BOT!** 🎬\n\n"
+            "🌐 **Use our website to search and download movies**\n\n"
+            "⚡ **ENHANCED FEATURES:**\n"
+            "• 🔍 Smart search\n"
+            "• 📺 Multiple quality options\n"
+            "• ⚡ Instant verification\n"
+            "• 🎨 100% poster guarantee\n"
+            "• 🔒 Secure downloads\n\n"
+            "👇 **Get started:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
+                [InlineKeyboardButton("📢 JOIN CHANNEL", url=f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1")]
+            ])
+        )
     
-    await message.reply(
-        welcome_text,
-        parse_mode="html",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)],
-            [InlineKeyboardButton("📢 Channel", url=f"https://t.me/{Config.BOT_USERNAME}")]
-        ])
-    )
-
-@bot.on_message(filters.command("help") & filters.private)
-async def help_handler(client, message):
-    """Help command handler"""
-    help_text = (
-        "🎬 <b>SK4FiLM Bot Help</b>\n\n"
-        "<b>How to use:</b>\n"
-        "• Send movie name to search\n"
-        "• Click on results to get files\n"
-        "• Enjoy your movie!\n\n"
-        "<b>Commands:</b>\n"
-        "/start - Start the bot\n"
-        "/search <movie> - Search for movies\n"
-        "/help - Show this message\n\n"
-        "<i>Need support? Contact @SK4FiLM</i>"
-    )
+    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index']))
+    async def text_handler(client, message):
+        logger.info(f"💬 Direct message from user {message.from_user.id}: {message.text[:50]}")
+        await message.reply_text(
+            "👋 **HI THERE!**\n\n"
+            "🔍 **Please use our website to search movies**\n\n"
+            "This bot only sends files via website links.\n\n"
+            "👇 **Visit website to search:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)]
+            ])
+        )
     
-    await message.reply(help_text, parse_mode="html")
+    @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
+    async def index_handler(client, message):
+        msg = await message.reply_text("🔄 **Starting background indexing...**")
+        asyncio.create_task(index_files_background())
+        await msg.edit_text("✅ **Indexing started in background!**\n\nUse /stats to check progress")
+    
+    @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
+    async def stats_handler(client, message):
+        tf = await files_col.count_documents({}) if files_col is not None else 0
+        
+        latest = await files_col.find_one({}, sort=[('indexed_at', -1)]) if files_col else None
+        last_indexed = "Never"
+        if latest and latest.get('indexed_at'):
+            dt = latest['indexed_at']
+            if isinstance(dt, datetime):
+                mins_ago = int((datetime.now() - dt).total_seconds() / 60)
+                last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
+        
+        total_posters = sum(movie_db['stats'].values())
+        cache_rate = (movie_db['stats']['cache_hits'] / total_posters * 100) if total_posters > 0 else 0
+        
+        stats_text = (
+            f"📊 **SYSTEM STATISTICS**\n\n"
+            f"📁 **Files Indexed:** {tf}\n"
+            f"🕐 **Last Indexed:** {last_indexed}\n"
+            f"🔴 **Posts:** LIVE (no database)\n\n"
+            f"**🎨 POSTER SOURCES (100% GUARANTEE):**\n"
+            f"• OMDB: {movie_db['stats']['omdb']}\n"
+            f"• TMDB: {movie_db['stats']['tmdb']}\n"
+            f"• IMPAwards: {movie_db['stats']['impawards']}\n"
+            f"• JustWatch: {movie_db['stats']['justwatch']}\n"
+            f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
+            f"• Custom SVG: {movie_db['stats']['custom']}\n"
+            f"• Cache Hits: {movie_db['stats']['cache_hits']}\n\n"
+            f"**Total Posters:** {total_posters}\n"
+            f"**Cache Rate:** {cache_rate:.1f}%\n\n"
+            f"**⚡ ENHANCED FEATURES:**\n"
+            f"• ✅ Immediate verification\n"
+            f"• ✅ 100% poster guarantee\n"
+            f"• ✅ Retry mechanism"
+        )
+        await message.reply_text(stats_text)
 
-# 🎬 WEB API ROUTES 🎬
-
-@app.route("/")
-async def home():
-    return jsonify({
-        "status": "online",
-        "service": "SK4FiLM API",
-        "version": "2.0",
-        "easter_egg": "Try /api/stats for poster fetching statistics! 🎬"
-    })
-
-@app.route("/api/movies")
-async def api_movies():
-    """Get home movies"""
+async def init():
+    global User, bot, bot_started
     try:
-        movies = await get_home_movies_live()
-        return jsonify({"success": True, "movies": movies, "count": len(movies)})
+        logger.info("🔄 QUICK INIT (NON-BLOCKING)...")
+        await init_mongodb()
+        
+        User = Client("user", api_id=Config.API_ID, api_hash=Config.API_HASH, session_string=Config.USER_SESSION_STRING, workdir="/tmp", sleep_threshold=60)
+        bot = Client("bot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, workdir="/tmp", sleep_threshold=60)
+        
+        await User.start()
+        await bot.start()
+        await setup_bot()
+        
+        me = await bot.get_me()
+        logger.info(f"✅ BOT STARTED: @{me.username}")
+        bot_started = True
+        
+        logger.info("🚀 SERVER READY! Starting background indexing...")
+        asyncio.create_task(index_files_background())
+        
+        return True
     except Exception as e:
-        logger.error(f"API error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/search")
-async def api_search():
-    """Search movies"""
-    try:
-        query = request.args.get("q", "")
-        page = int(request.args.get("page", 1))
-        limit = int(request.args.get("limit", 12))
-        
-        if not query:
-            return jsonify({"success": False, "error": "Query required"}), 400
-        
-        results = await search_movies_live(query, limit=limit, page=page)
-        return jsonify({"success": True, **results})
-        
-    except Exception as e:
-        logger.error(f"Search error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/stats")
-async def api_stats():
-    """🎬 EASTER EGG: Poster fetching stats API endpoint"""
-    try:
-        stats_copy = movie_db['stats'].copy()
-        total = sum([stats_copy.get(k, 0) for k in ['omdb', 'tmdb', 'impawards', 'justwatch', 'letterboxd', 'custom']])
-        
-        return jsonify({
-            "success": True,
-            "easter_egg": "🎬 You found the secret stats endpoint!",
-            "stats": stats_copy,
-            "total_fetches": total,
-            "success_rate": f"{((total - stats_copy.get('custom', 0)) / total * 100):.1f}%" if total > 0 else "0%",
-            "message": "We never give up on posters. That's the SK4FiLM way. 🎯"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/poster")
-async def api_poster():
-    """Generate custom SVG poster"""
-    title = request.args.get("title", "Movie")
-    
-    svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-            </linearGradient>
-        </defs>
-        <rect width="300" height="450" fill="url(#grad)"/>
-        <text x="150" y="200" font-family="Arial" font-size="24" fill="white" text-anchor="middle" font-weight="bold">
-            🎬
-        </text>
-        <text x="150" y="240" font-family="Arial" font-size="16" fill="white" text-anchor="middle" style="word-wrap: break-word">
-            {html.escape(title[:30])}
-        </text>
-        <text x="150" y="270" font-family="Arial" font-size="12" fill="rgba(255,255,255,0.7)" text-anchor="middle">
-            SK4FiLM
-        </text>
-    </svg>'''
-    
-    return Response(svg, mimetype='image/svg+xml')
-
-# 🎬 MAIN EXECUTION 🎬
+        logger.error(f"❌ INIT ERROR: {e}")
+        return False
 
 async def main():
-    """Main application entry point"""
-    logger.info("🎬 SK4FiLM Bot Starting...")
-    logger.info("🥚 Easter Egg: Type /debug_posters or /posterstats in bot for surprise!")
+    logger.info("="*70)
+    logger.info("🚀 SK4FiLM v4.0 - IMMEDIATE VERIFICATION + 100% POSTERS")
+    logger.info("⚡ Enhanced Features:")
+    logger.info("   • IMMEDIATE force sub verification (5 retries, 1s delay)")
+    logger.info("   • 100% POSTER GUARANTEE with retry mechanism")
+    logger.info("   • HIGH QUALITY sources: OMDB → TMDB → JustWatch → Letterboxd → IMPAwards")
+    logger.info("   • INSTANT verification after user subscribes")
+    logger.info("   • CUSTOM fallback posters (100% working)")
+    logger.info("="*70)
     
-    # Start bot
-    await start_bot()
+    await init()
     
-    # Configure web server
-    config = HyperConfig()
-    config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
-    config.use_reloader = False
+    cfg = HyperConfig()
+    cfg.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
+    cfg.loglevel = "warning"
     
-    logger.info(f"🌐 Web server starting on port {Config.WEB_SERVER_PORT}")
-    logger.info(f"🎯 API Stats endpoint: {Config.BACKEND_URL}/api/stats")
-    
-    # Start web server
-    await serve(app, config)
+    logger.info(f"🌐 SERVER STARTED ON PORT {Config.WEB_SERVER_PORT}")
+    await serve(app, cfg)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("👋 Shutting down gracefully...")
-    except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
+    asyncio.run(main())
