@@ -200,7 +200,15 @@
     </style>
 </head>
 <body>
-<!-- Navbar & Search omitted for brevity, you can put them as before -->
+<!-- Navbar -->
+<nav class="navbar fixed-top">
+    <div class="container d-flex align-items-center" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <a href="index.html" class="navbar-brand d-flex align-items-center">
+            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img me-2" style="height: 40px; width: 40px;">
+            SK4FiLM
+        </a>
+    </div>
+</nav>
 <!-- Main Content -->
 <div class="container my-4">
     <div class="search-section">
@@ -244,7 +252,8 @@ async function performSearch(page=1) {
     currentPage = page;
     // Update URL
     const url = new URL(window.location);
-    url.searchParams.set('q',query); url.searchParams.set('page',page);
+    url.searchParams.set('query',query); 
+    url.searchParams.set('page',page);
     window.history.pushState({},'',url);
     resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "'+escapeHtml(query)+'"...</p></div>';
     resultsInfo.innerHTML = ''; paginationContainer.innerHTML='';
@@ -311,7 +320,7 @@ function displayPagination(pagination){
     const {current_page,total_pages,has_previous,has_next}=pagination,maxVisible=5;
     html+=`<li class="page-item ${!has_previous?'disabled':''}"><a class="page-link" href="#" onclick="${has_previous?`performSearch(${current_page-1});return false;`:'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
     let startPage=Math.max(1,current_page-2),endPage=Math.min(total_pages,startPage+maxVisible-1);if(endPage-startPage<maxVisible-1){startPage=Math.max(1,endPage-maxVisible+1);}
-    if(startPage>1){html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;if(startPage>2){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';}}
+    if(startPage>1){html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;if(startPage>2){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';} }
     for(let i=startPage;i<=endPage;i++){html+=`<li class="page-item ${i===current_page?'active':''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;}
     if(endPage<total_pages){if(endPage<total_pages-1){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';}html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;}
     html+=`<li class="page-item ${!has_next?'disabled':''}"><a class="page-link" href="#" onclick="${has_next?`performSearch(${current_page+1});return false;`:'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
@@ -322,9 +331,14 @@ function formatSize(bytes){if(!bytes)return'Unknown';const gb=bytes/1073741824,m
 function escapeHtml(text){if(!text)return'';const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
 window.addEventListener('DOMContentLoaded',()=>{
     const urlParams=new URLSearchParams(window.location.search);
-    const query=urlParams.get('q');
+    const query=urlParams.get('query');
     const page=parseInt(urlParams.get('page'))||1;
-    if(query){searchInput.value=query;currentQuery=query;currentPage=page;performSearch(page);}
+    if(query){
+        searchInput.value=query;
+        currentQuery=query;
+        currentPage=page;
+        performSearch(page);
+    }
 });
 </script>
 </body>
