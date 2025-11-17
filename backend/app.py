@@ -21,9 +21,9 @@ logging.getLogger('asyncio').setLevel(logging.WARNING)
 
 class Config:
     API_ID = int(os.environ.get("API_ID", "0"))
-    API_HASH = os.environ.get("API_HASH", "")
-    USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+    API_HASH = os.environ.get("API_HASH", ""))
+    USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", ""))
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", ""))
     MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
     
     MAIN_CHANNEL_ID = -1001891090100
@@ -805,7 +805,7 @@ async def api_post():
 
 @app.route('/api/poster')
 async def api_poster():
-    """100% WORKING CUSTOM POSTER GENERATOR"""
+    """100% WORKING CUSTOM POSTER GENERATOR - FIXED SYNTAX"""
     try:
         t = request.args.get('title', 'Movie')
         y = request.args.get('year', '')
@@ -827,21 +827,28 @@ async def api_poster():
         # Pick a color scheme based on title hash
         scheme = color_schemes[hash(t) % len(color_schemes)]
         
+        # FIXED: Use separate variables to avoid f-string syntax error
+        text_color = scheme['text']
+        bg1_color = scheme['bg1']
+        bg2_color = scheme['bg2']
+        
+        year_text = f'<text x="150" y="305" text-anchor="middle" fill="{text_color}" font-size="14" font-family="Arial">{html.escape(y)}</text>' if y else ''
+        
         svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:{scheme['bg1']};stop-opacity:1"/>
-                    <stop offset="100%" style="stop-color:{scheme['bg2']};stop-opacity:1"/>
+                    <stop offset="0%" style="stop-color:{bg1_color};stop-opacity:1"/>
+                    <stop offset="100%" style="stop-color:{bg2_color};stop-opacity:1"/>
                 </linearGradient>
             </defs>
             <rect width="100%" height="100%" fill="url(#bg)"/>
-            <rect x="10" y="10" width="280" height="430" fill="none" stroke="{scheme['text']}" stroke-width="2" stroke-opacity="0.3" rx="10"/>
+            <rect x="10" y="10" width="280" height="430" fill="none" stroke="{text_color}" stroke-width="2" stroke-opacity="0.3" rx="10"/>
             <circle cx="150" cy="180" r="60" fill="rgba(255,255,255,0.1)"/>
-            <text x="150" y="185" text-anchor="middle" fill="{scheme['text']}" font-size="60" font-family="Arial">🎬</text>
-            <text x="150" y="280" text-anchor="middle" fill="{scheme['text']}" font-size="16" font-weight="bold" font-family="Arial">{html.escape(d)}</text>
-            {f'<text x="150" y="305" text-anchor="middle" fill="{scheme['text']}" font-size="14" font-family="Arial">{html.escape(y)}</text>' if y else ''}
+            <text x="150" y="185" text-anchor="middle" fill="{text_color}" font-size="60" font-family="Arial">🎬</text>
+            <text x="150" y="280" text-anchor="middle" fill="{text_color}" font-size="16" font-weight="bold" font-family="Arial">{html.escape(d)}</text>
+            {year_text}
             <rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/>
-            <text x="150" y="405" text-anchor="middle" fill="{scheme['text']}" font-size="16" font-weight="bold" font-family="Arial">SK4FiLM</text>
+            <text x="150" y="405" text-anchor="middle" fill="{text_color}" font-size="16" font-weight="bold" font-family="Arial">SK4FiLM</text>
         </svg>'''
         
         return Response(svg, mimetype='image/svg+xml', headers={
