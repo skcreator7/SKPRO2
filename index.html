@@ -442,6 +442,38 @@
             transform: scale(1.05);
             filter: brightness(1.1);
         }
+
+        /* Poster loading states */
+        .poster-loading {
+            position: relative;
+            background: linear-gradient(135deg, #1a1a2e, #2d3748);
+        }
+
+        .poster-loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .poster-error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
         
         .new-badge {
             position: absolute;
@@ -549,35 +581,30 @@
             overflow: hidden;
         }
 
-        /* Desktop Top Banner 728x90 */
         #adTopDesktop {
             min-height: 90px;
             width: 100%;
             max-width: 728px;
         }
 
-        /* Mobile Top Banner 320x50 */
         #adTopMobile {
             min-height: 50px;
             width: 100%;
             max-width: 320px;
         }
 
-        /* Inline Content Ad 300x250 */
         #adInlineContent {
             min-height: 250px;
             width: 100%;
             max-width: 300px;
         }
 
-        /* Footer Desktop Ad 728x90 */
         #adFooterDesktop {
             min-height: 90px;
             width: 100%;
             max-width: 728px;
         }
 
-        /* Hide/Show based on screen size */
         @media (max-width: 991px) {
             #adTopDesktop,
             #adFooterDesktop {
@@ -591,7 +618,6 @@
             }
         }
 
-        /* Ad iframe responsive */
         .ad-container iframe {
             max-width: 100%;
             height: auto;
@@ -678,7 +704,7 @@
     </div>
     
     <div class="container">
-        <!-- Top Ads - Desktop 728x90 / Mobile 320x50 -->
+        <!-- Top Ads -->
         <div class="ad-container">
             <div id="adTopDesktop"></div>
             <div id="adTopMobile"></div>
@@ -704,7 +730,7 @@
             </div>
         </div>
 
-        <!-- Inline Content Ad 300x250 - Highest Earning -->
+        <!-- Inline Content Ad -->
         <div class="ad-container">
             <div id="adInlineContent"></div>
         </div>
@@ -750,7 +776,7 @@
         </div>
     </div>
 
-    <!-- Footer Desktop Ad 728x90 - Bonus Earnings -->
+    <!-- Footer Desktop Ad -->
     <footer class="mt-5 pb-4">
         <div class="ad-container">
             <div id="adFooterDesktop"></div>
@@ -770,7 +796,57 @@
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         
-        console.log('🎬 SK4FiLM v4.5 - Responsive Ads Edition');
+        console.log('🎬 SK4FiLM v5.0 - Multi-Source Poster System');
+
+        // ==== Enhanced Poster Loading System ====
+        const posterCache = new Map();
+
+        // Multi-source poster URL builder with all sources
+        function buildPosterURL(movie) {
+            const title = movie.title || '';
+            const year = movie.year || '';
+            
+            // If backend provides poster URL, use it with multi-source fallback
+            if (movie.poster_url) {
+                return `${BACKEND_URL}/api/poster/multi?url=${encodeURIComponent(movie.poster_url)}&title=${encodeURIComponent(title)}&year=${year}`;
+            }
+            
+            // Direct multi-source fetch
+            return `${BACKEND_URL}/api/poster/fetch?title=${encodeURIComponent(title)}&year=${year}`;
+        }
+
+        async function loadPosterWithFallback(img, movie, container) {
+            const cacheKey = `${movie.title}_${movie.year}`;
+            
+            // Check cache
+            if (posterCache.has(cacheKey)) {
+                img.src = posterCache.get(cacheKey);
+                img.classList.remove('poster-loading');
+                return;
+            }
+
+            const posterURL = buildPosterURL(movie);
+            
+            img.onerror = function() {
+                console.warn(`Poster failed for: ${movie.title}`);
+                container.innerHTML = `
+                    <div class="poster-error hq-poster">
+                        <div>
+                            <i class="fas fa-film fa-4x mb-3"></i><br>
+                            <strong>${escapeHTML(movie.title)}</strong>
+                        </div>
+                    </div>
+                `;
+            };
+
+            img.onload = function() {
+                img.classList.remove('poster-loading');
+                posterCache.set(cacheKey, img.src);
+                console.log(`✅ Poster loaded: ${movie.title}`);
+            };
+
+            img.src = posterURL;
+        }
 
         // ==== Ads: load only on first user click ====
         let adsInitialized = false;
@@ -782,15 +858,12 @@
                 return;
             }
             
-            // Clear any existing content
             container.innerHTML = '';
             
-            // Create options script
             const optScript = document.createElement('script');
             optScript.type = 'text/javascript';
             optScript.text = 'atOptions = ' + JSON.stringify(atOptionsConfig) + ';';
             
-            // Create invoke script
             const invokeScript = document.createElement('script');
             invokeScript.type = 'text/javascript';
             invokeScript.src = src;
@@ -799,7 +872,7 @@
             container.appendChild(optScript);
             container.appendChild(invokeScript);
             
-            console.log(`✅ Ad loaded in: ${containerId}`);
+            console.log(`✅ Ad loaded: ${containerId}`);
         }
 
         function loadPopupAd() {
@@ -818,74 +891,49 @@
 
             const isDesktop = window.innerWidth >= 992;
 
-            // Desktop top banner 728x90
             if (isDesktop) {
-                loadAdScript(
-                    'adTopDesktop',
-                    {
-                        key: '3118cf3c0d1d908e59d96fac6de40e1f',
-                        format: 'iframe',
-                        height: 90,
-                        width: 728,
-                        params: {}
-                    },
-                    '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js'
-                );
+                loadAdScript('adTopDesktop', {
+                    key: '3118cf3c0d1d908e59d96fac6de40e1f',
+                    format: 'iframe',
+                    height: 90,
+                    width: 728,
+                    params: {}
+                }, '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js');
 
-                // Footer desktop banner 728x90
-                loadAdScript(
-                    'adFooterDesktop',
-                    {
-                        key: '3118cf3c0d1d908e59d96fac6de40e1f',
-                        format: 'iframe',
-                        height: 90,
-                        width: 728,
-                        params: {}
-                    },
-                    '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js'
-                );
+                loadAdScript('adFooterDesktop', {
+                    key: '3118cf3c0d1d908e59d96fac6de40e1f',
+                    format: 'iframe',
+                    height: 90,
+                    width: 728,
+                    params: {}
+                }, '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js');
             } else {
-                // Mobile top banner 320x50
-                loadAdScript(
-                    'adTopMobile',
-                    {
-                        key: 'c628de75b51e4c70d2f3bebebbaaf335',
-                        format: 'iframe',
-                        height: 50,
-                        width: 320,
-                        params: {}
-                    },
-                    '//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js'
-                );
+                loadAdScript('adTopMobile', {
+                    key: 'c628de75b51e4c70d2f3bebebbaaf335',
+                    format: 'iframe',
+                    height: 50,
+                    width: 320,
+                    params: {}
+                }, '//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js');
             }
 
-            // Inline content ad 300x250 (all devices) - Best CTR
-            loadAdScript(
-                'adInlineContent',
-                {
-                    key: '567936a964b0784aedd11f237d26bee0',
-                    format: 'iframe',
-                    height: 250,
-                    width: 300,
-                    params: {}
-                },
-                '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js'
-            );
+            loadAdScript('adInlineContent', {
+                key: '567936a964b0784aedd11f237d26bee0',
+                format: 'iframe',
+                height: 250,
+                width: 300,
+                params: {}
+            }, '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js');
 
-            // Popup ad - High RPM
             loadPopupAd();
         }
 
-        function onFirstUserClick() {
+        document.addEventListener('click', function initAds() {
             initAdsOnce();
-            document.removeEventListener('click', onFirstUserClick);
-        }
+            document.removeEventListener('click', initAds);
+        }, { once: true });
 
-        // Initialize ads on first click
-        document.addEventListener('click', onFirstUserClick, { once: true });
-
-        // ================== Existing code ==================
-
+        // ==== Navigation Functions ====
         function toggleSearch() {
             const searchContainer = document.getElementById('searchContainer');
             const menuDropdown = document.getElementById('menuDropdown');
@@ -901,9 +949,7 @@
             
             if (searchContainer.classList.contains('active')) {
                 body.classList.add('search-active');
-                setTimeout(() => {
-                    document.getElementById('inlineSearchInput').focus();
-                }, 100);
+                setTimeout(() => document.getElementById('inlineSearchInput').focus(), 100);
             } else {
                 body.classList.remove('search-active');
             }
@@ -951,9 +997,7 @@
             } else {
                 input.style.borderColor = '#ff0000';
                 input.focus();
-                setTimeout(() => {
-                    input.style.borderColor = 'var(--accent)';
-                }, 2000);
+                setTimeout(() => input.style.borderColor = 'var(--accent)', 2000);
             }
         }
         
@@ -961,6 +1005,7 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
+        // ==== Movie Loading Functions ====
         async function loadHomeMovies() {
             try {
                 const response = await fetch(`${BACKEND_URL}/api/movies`);
@@ -985,25 +1030,30 @@
                 const title = movie.title || 'Unknown';
                 const hasPoster = movie.has_poster && movie.poster_url;
                 const isNew = movie.is_new;
+                const uniqueId = `movie-${index}-${Date.now()}`;
                 
                 html += `
                     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
                         <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.08}s">
                             <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}')"></div>
                             
-                            ${hasPoster ? `
-                                <img src="${movie.poster_url.startsWith('/api/') ? BACKEND_URL + movie.poster_url : BACKEND_URL + '/api/poster?url=' + encodeURIComponent(movie.poster_url)}" 
-                                     class="hq-poster" 
-                                     alt="${escapeHTML(title)}"
-                                     loading="lazy">
-                            ` : `
-                                <div class="hq-poster" style="display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px;">
-                                    <div>
-                                        <i class="fas fa-film fa-4x mb-3"></i><br>
-                                        <strong>${escapeHTML(title)}</strong>
+                            <div id="${uniqueId}">
+                                ${hasPoster ? `
+                                    <img 
+                                        class="hq-poster poster-loading" 
+                                        alt="${escapeHTML(title)}"
+                                        loading="lazy"
+                                        data-movie='${JSON.stringify({title: title, year: movie.year || '', poster_url: movie.poster_url})}'
+                                    >
+                                ` : `
+                                    <div class="hq-poster poster-error">
+                                        <div>
+                                            <i class="fas fa-film fa-4x mb-3"></i><br>
+                                            <strong>${escapeHTML(title)}</strong>
+                                        </div>
                                     </div>
-                                </div>
-                            `}
+                                `}
+                            </div>
                             
                             ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
                             
@@ -1016,6 +1066,13 @@
             });
             
             container.innerHTML = html;
+            
+            // Load posters with enhanced multi-source system
+            document.querySelectorAll('.hq-poster.poster-loading').forEach(img => {
+                const movieData = JSON.parse(img.getAttribute('data-movie'));
+                const container = img.parentElement;
+                loadPosterWithFallback(img, movieData, container);
+            });
         }
         
         function showError() {
@@ -1049,7 +1106,7 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v4.5 FINAL - Responsive Ads Edition');
+            console.log('🚀 SK4FiLM v5.0 FINAL - Multi-Source Posters + Responsive Ads');
             
             loadHomeMovies();
             
