@@ -139,7 +139,7 @@
             line-height: 1.3;
         }
         
-        /* Same Size Buttons Layout */
+        /* FIXED: Same Layout on Mobile & Desktop */
         .result-actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -322,7 +322,7 @@
             opacity: 0.5;
         }
         
-        /* Responsive */
+        /* Responsive - Keep buttons side by side on mobile */
         @media (max-width: 768px) {
             .search-section {
                 padding: 1.5rem;
@@ -336,8 +336,15 @@
                 font-size: 1.2rem;
             }
             
+            /* FIXED: Keep grid layout on mobile too */
             .result-actions {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr 1fr; /* Still 2 columns on mobile */
+            }
+            
+            .btn-watch,
+            .btn-download-main {
+                font-size: 0.9rem; /* Slightly smaller text */
+                padding: 10px 15px; /* Slightly smaller padding */
             }
         }
         
@@ -596,7 +603,7 @@
             }
         }
         
-        // Generate Quality Options (Horizontal Layout)
+        // Generate Quality Options
         function generateQualityOptions(qualityOptions) {
             if (!qualityOptions || Object.keys(qualityOptions).length === 0) {
                 return '<p class="text-center text-muted mb-0">No files available</p>';
@@ -631,7 +638,6 @@
             
             let html = '<nav><ul class="pagination justify-content-center">';
             
-            // Previous button
             html += `
                 <li class="page-item ${!has_previous ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1}); return false;` : 'return false;'}">
@@ -640,7 +646,6 @@
                 </li>
             `;
             
-            // Smart page numbers
             const maxVisible = 5;
             let startPage = Math.max(1, current_page - 2);
             let endPage = Math.min(total_pages, startPage + maxVisible - 1);
@@ -649,19 +654,13 @@
                 startPage = Math.max(1, endPage - maxVisible + 1);
             }
             
-            // First page
             if (startPage > 1) {
-                html += `
-                    <li class="page-item">
-                        <a class="page-link" href="#" onclick="performSearch(1); return false;">1</a>
-                    </li>
-                `;
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1); return false;">1</a></li>`;
                 if (startPage > 2) {
                     html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
                 }
             }
             
-            // Page numbers
             for (let i = startPage; i <= endPage; i++) {
                 html += `
                     <li class="page-item ${i === current_page ? 'active' : ''}">
@@ -670,19 +669,13 @@
                 `;
             }
             
-            // Last page
             if (endPage < total_pages) {
                 if (endPage < total_pages - 1) {
                     html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
                 }
-                html += `
-                    <li class="page-item">
-                        <a class="page-link" href="#" onclick="performSearch(${total_pages}); return false;">${total_pages}</a>
-                    </li>
-                `;
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages}); return false;">${total_pages}</a></li>`;
             }
             
-            // Next button
             html += `
                 <li class="page-item ${!has_next ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1}); return false;` : 'return false;'}">
