@@ -387,15 +387,6 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .ad-container {
-            background: rgba(30, 41, 59, 0.9);
-            border-radius: 12px;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
         .movie-card {
             background: rgba(30, 41, 59, 0.9);
             border: 1px solid rgba(255,255,255,0.1);
@@ -500,80 +491,6 @@
             line-height: 1.4;
         }
         
-        /* Popup Ad Styles */
-        .popup-ad-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 5000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.5s ease-in;
-        }
-        
-        .popup-ad-overlay.active {
-            display: flex;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        .popup-ad-container {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 90%;
-            max-height: 90%;
-            position: relative;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-            overflow: auto;
-            text-align: center;
-        }
-        
-        .popup-close-btn {
-            background: #ff4757;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-        
-        .popup-close-btn:hover {
-            background: #ff3838;
-        }
-        
-        .popup-ad-content {
-            min-height: 300px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-        
-        .continue-popup-btn {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 18px;
-            font-weight: 700;
-            font-size: 1.1rem;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-        }
-        
         .visitor-container {
             position: fixed;
             bottom: 15px;
@@ -619,13 +536,12 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        /* Responsive Ad Adjustments */
-        @media (max-width: 768px) {
-            .ad-container {
-                padding: 10px;
-            }
+
+        .ad-slot {
+            text-align: center;
         }
+
+        /* ऐड-संबंधित CSS हटाया गया */
     </style>
 </head>
 <body>
@@ -706,32 +622,10 @@
     </div>
     
     <div class="container">
-        <!-- Top Ad Placement (Header के नीचे) -->
-        <div class="ad-container">
-            <div id="top-ad-desktop">
-                <script type="text/javascript"> 
-                    atOptions = {
-                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                        'format' : 'iframe',
-                        'height' : 90,
-                        'width' : 728,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-            </div>
-            <div id="top-ad-mobile" style="display: none;">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
-                        'format' : 'iframe',
-                        'height' : 50,
-                        'width' : 320,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
-            </div>
+        <!-- Top Ads -->
+        <div id="ad-top-wrapper" class="mb-3">
+            <div id="adTopDesktop" class="d-none d-lg-block ad-slot"></div>
+            <div id="adTopMobile" class="d-block d-lg-none ad-slot"></div>
         </div>
 
         <!-- Latest Movies -->
@@ -754,19 +648,8 @@
             </div>
         </div>
 
-        <!-- Content Ad (Movies और Tutorials के बीच) -->
-        <div class="ad-container">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : '567936a964b0784aedd11f237d26bee0',
-                    'format' : 'iframe',
-                    'height' : 250,
-                    'width' : 300,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-        </div>
+        <!-- Inline Content Ad -->
+        <div id="adInlineContent" class="my-4 ad-slot"></div>
 
         <!-- Tutorial Videos -->
         <div class="section-box animate__animated animate__fadeIn">
@@ -807,21 +690,12 @@
         <div style="background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; padding: 15px; margin-top: 30px; text-align: center; color: #ff6b6b;">
             <p style="margin: 0;"><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p>
         </div>
-
-        <!-- Footer Ad -->
-        <div class="ad-container">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-        </div>
     </div>
+
+    <!-- Footer Desktop Ad -->
+    <footer class="mt-4">
+        <div id="adFooterDesktop" class="d-none d-lg-block ad-slot"></div>
+    </footer>
 
     <!-- Visitor Counter -->
     <div class="visitor-container">
@@ -833,31 +707,108 @@
         </div>
     </div>
 
-    <!-- Popup Ad Overlay -->
-    <div class="popup-ad-overlay" id="popupAdOverlay">
-        <div class="popup-ad-container">
-            <button class="popup-close-btn" onclick="closePopupAdAndProceed()">×</button>
-            <div class="popup-ad-content">
-                <!-- Popup Ad Script Loads Here on Trigger -->
-                <div id="popup-ad-slot"></div>
-            </div>
-            <button class="continue-popup-btn" onclick="closePopupAdAndProceed()" id="popupContinueBtn" disabled>Continue</button>
-        </div>
-    </div>
-
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
-        let popupTriggered = false; // Prevent multiple popups
         
-        console.log('🎬 SK4FiLM v4.5 - With Targeted Ad Placements');
-        
-        // Top Ad Responsive Toggle
-        function toggleTopAd() {
-            const isMobile = window.innerWidth <= 768;
-            document.getElementById('top-ad-desktop').style.display = isMobile ? 'none' : 'block';
-            document.getElementById('top-ad-mobile').style.display = isMobile ? 'block' : 'none';
+        console.log('🎬 SK4FiLM v4.4 - Clean Version (No Ads)');
+
+        // ==== Ads: load only on first user click ====
+
+        let adsInitialized = false;
+
+        function loadAdScript(containerId, atOptionsConfig, src) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const optScript = document.createElement('script');
+            optScript.type = 'text/javascript';
+            optScript.innerHTML = 'atOptions = ' + JSON.stringify(atOptionsConfig) + ';';
+            const invokeScript = document.createElement('script');
+            invokeScript.type = 'text/javascript';
+            invokeScript.src = src;
+            invokeScript.async = true;
+            container.appendChild(optScript);
+            container.appendChild(invokeScript);
         }
-        
+
+        function loadPopupAd() {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = '//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js';
+            document.body.appendChild(script);
+        }
+
+        function initAdsOnce() {
+            if (adsInitialized) return;
+            adsInitialized = true;
+
+            const isDesktop = window.innerWidth >= 992;
+
+            // Desktop top + footer 728x90
+            if (isDesktop) {
+                loadAdScript(
+                    'adTopDesktop',
+                    {
+                        key: '3118cf3c0d1d908e59d96fac6de40e1f',
+                        format: 'iframe',
+                        height: 90,
+                        width: 728,
+                        params: {}
+                    },
+                    '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js'
+                );
+
+                loadAdScript(
+                    'adFooterDesktop',
+                    {
+                        key: '3118cf3c0d1d908e59d96fac6de40e1f',
+                        format: 'iframe',
+                        height: 90,
+                        width: 728,
+                        params: {}
+                    },
+                    '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js'
+                );
+            } else {
+                // Mobile top 320x50
+                loadAdScript(
+                    'adTopMobile',
+                    {
+                        key: 'c628de75b51e4c70d2f3bebebbaaf335',
+                        format: 'iframe',
+                        height: 50,
+                        width: 320,
+                        params: {}
+                    },
+                    '//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js'
+                );
+            }
+
+            // Inline 300x250 (all devices)
+            loadAdScript(
+                'adInlineContent',
+                {
+                    key: '567936a964b0784aedd11f237d26bee0',
+                    format: 'iframe',
+                    height: 250,
+                    width: 300,
+                    params: {}
+                },
+                '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js'
+            );
+
+            // Popup ad – only once, on first click
+            loadPopupAd();
+        }
+
+        function onFirstUserClick() {
+            initAdsOnce();
+            document.removeEventListener('click', onFirstUserClick);
+        }
+
+        document.addEventListener('click', onFirstUserClick);
+
+        // ================== Existing code ==================
+
         function toggleSearch() {
             const searchContainer = document.getElementById('searchContainer');
             const menuDropdown = document.getElementById('menuDropdown');
@@ -919,13 +870,7 @@
             const query = input.value.trim();
             
             if (query && query.length >= 2) {
-                if (!popupTriggered) {
-                    showPopupAd(() => {
-                        window.location.href = `search.html?query=${encodeURIComponent(query)}`;
-                    });
-                } else {
-                    window.location.href = `search.html?query=${encodeURIComponent(query)}`;
-                }
+                window.location.href = `search.html?query=${encodeURIComponent(query)}`;
             } else {
                 input.style.borderColor = '#ff0000';
                 input.focus();
@@ -935,54 +880,9 @@
             }
         }
         
+        // ऐड-संबंधित फंक्शन हटाए गए - अब सीधा सर्च
         function handleMovieClick(movieTitle) {
-            if (!popupTriggered) {
-                showPopupAd(() => {
-                    window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
-                });
-            } else {
-                window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
-            }
-        }
-        
-        // Popup Ad Function (User Click Trigger Only)
-        function showPopupAd(callback) {
-            if (popupTriggered) return callback();
-            
-            popupTriggered = true;
-            const overlay = document.getElementById('popupAdOverlay');
-            const slot = document.getElementById('popup-ad-slot');
-            const continueBtn = document.getElementById('popupContinueBtn');
-            
-            // Load Popup Ad Script
-            const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = '//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js';
-            slot.innerHTML = '';
-            slot.appendChild(script);
-            
-            overlay.classList.add('active');
-            
-            let countdown = 5;
-            const timer = setInterval(() => {
-                countdown--;
-                if (countdown <= 0) {
-                    clearInterval(timer);
-                    continueBtn.disabled = false;
-                    continueBtn.innerHTML = 'Continue to Search';
-                }
-            }, 1000);
-            
-            window.currentAdCallback = callback;
-        }
-        
-        function closePopupAdAndProceed() {
-            const overlay = document.getElementById('popupAdOverlay');
-            overlay.classList.remove('active');
-            if (window.currentAdCallback) {
-                window.currentAdCallback();
-                delete window.currentAdCallback;
-            }
+            window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
         async function loadHomeMovies() {
@@ -1055,21 +955,26 @@
         
         function escapeHTML(text) {
             if (!text) return '';
-            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
         
         function escapeJS(text) {
             if (!text) return '';
-            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+            return text
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"');
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v4.5 FINAL - Ads Integrated');
+            console.log('🚀 SK4FiLM v4.4 FINAL - Clean No Ads Version (with first-click ads)');
             
             loadHomeMovies();
-            toggleTopAd();
-            
-            window.addEventListener('resize', toggleTopAd);
             
             setInterval(() => {
                 const counter = document.getElementById('visitorCount');
