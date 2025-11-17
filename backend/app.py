@@ -233,13 +233,22 @@ def is_new(date):
         return False
 
 async def check_force_sub(user_id):
+    """Enhanced force subscription check"""
     try:
+        logger.info(f"🔍 Checking subscription for user {user_id}")
         member = await bot.get_chat_member(Config.FORCE_SUB_CHANNEL, user_id)
-        return member.status in ["member", "administrator", "creator"]
+        is_member = member.status in ["member", "administrator", "creator"]
+        logger.info(f"  {'✅' if is_member else '❌'} Status: {member.status}")
+        return is_member
     except UserNotParticipant:
+        logger.info(f"  ❌ User {user_id} not in channel")
         return False
-    except:
-        return True
+    except (ChatAdminRequired, ChannelPrivate):
+        logger.warning(f"  ⚠️ Bot permission issue")
+        return True  # Allow if bot can't check
+    except Exception as e:
+        logger.error(f"  ❌ Force sub error: {e}")
+        return True  # Allow on error
 
 async def index_files_background():
     """Background file indexing - non-blocking"""
@@ -486,6 +495,7 @@ async def get_live_posts(channel_id, limit=50):
     return posts
 
 async def search_movies_live(query, limit=12, page=1):
+    """Enhanced search with post availability tracking"""
     offset = (page - 1) * limit
     logger.info(f"🔴 SEARCH: '{query}' | Page: {page}")
     
@@ -493,6 +503,7 @@ async def search_movies_live(query, limit=12, page=1):
     posts_dict = {}
     files_dict = {}
     
+    # Search text channels
     for channel_id in Config.TEXT_CHANNEL_IDS:
         try:
             cname = channel_name(channel_id)
@@ -510,9 +521,12 @@ async def search_movies_live(query, limit=12, page=1):
                                     'title': title,
                                     'content': format_post(msg.text),
                                     'channel': cname,
+                                    'channel_id': channel_id,
+                                    'message_id': msg.id,
                                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
                                     'is_new': is_new(msg.date) if msg.date else False,
                                     'has_file': False,
+                                    'has_post': True,  # ✅ Post exists
                                     'quality_options': {}
                                 }
                                 count += 1
@@ -524,6 +538,7 @@ async def search_movies_live(query, limit=12, page=1):
         except Exception as e:
             logger.error(f"    ❌ Channel error: {e}")
     
+    # Search files
     try:
         logger.info("📁 Files...")
         count = 0
@@ -552,20 +567,23 @@ async def search_movies_live(query, limit=12, page=1):
                 except Exception as e:
                     logger.debug(f"File processing error: {e}")
         
-        logger.info(f"  ✅ {count}")
+        logger.info(f"  ✅ {count} files")
         
     except Exception as e:
         logger.error(f"  ❌ Files error: {e}")
     
+    # Merge results
     merged = {}
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data
     
     for norm_title, file_data in files_dict.items():
         if norm_title in merged:
+            # File + Post = Show both
             merged[norm_title]['has_file'] = True
             merged[norm_title]['quality_options'] = file_data['quality_options']
         else:
+            # File only (no post) = Hide Watch button
             merged[norm_title] = {
                 'title': file_data['title'],
                 'content': f"<p>{file_data['title']}</p>",
@@ -573,6 +591,7 @@ async def search_movies_live(query, limit=12, page=1):
                 'date': file_data['date'],
                 'is_new': False,
                 'has_file': True,
+                'has_post': False,  # ✅ No post, only file
                 'quality_options': file_data['quality_options']
             }
     
@@ -648,7 +667,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v3.3 - Quick Start',
+        'service': 'SK4FiLM v3.4 - Enhanced',
         'database': {'total_files': tf, 'live_mode': 'Posts LIVE, Files cached'},
         'bot_status': 'online' if bot_started else 'starting',
         'poster_stats': movie_db['stats']
@@ -738,7 +757,9 @@ async def setup_bot():
         
         if len(message.command) > 1:
             fid = message.command[1]
+            logger.info(f"📥 File request | User: {uid} | ID: {fid}")
             
+            # ✅ STRICT FORCE SUB CHECK
             is_subscribed = await check_force_sub(uid)
             
             if not is_subscribed:
@@ -748,8 +769,19 @@ async def setup_bot():
                 except:
                     invite_link = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
                 
-                await message.reply_text("⚠️ **Join first**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join", url=invite_link)], [InlineKeyboardButton("🔄 Try", url=f"https://t.me/{Config.BOT_USERNAME}?start={fid}")]]))
+                await message.reply_text(
+                    "⚠️ **Access Denied!**\n\n"
+                    "❌ You must join our official channel to download files.\n\n"
+                    "👇 **Join channel first:**",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📢 Join Channel", url=invite_link)],
+                        [InlineKeyboardButton("🔄 Try Again", url=f"https://t.me/{Config.BOT_USERNAME}?start={fid}")]
+                    ])
+                )
+                logger.info(f"  ❌ Access denied for user {uid}")
                 return
+            
+            logger.info(f"  ✅ User {uid} subscribed")
             
             try:
                 parts = fid.split('_')
@@ -757,7 +789,7 @@ async def setup_bot():
                 message_id = int(parts[1])
                 quality = parts[2] if len(parts) > 2 else "Unknown"
             except:
-                await message.reply_text("❌ **Invalid**")
+                await message.reply_text("❌ **Invalid link**")
                 return
             
             try:
@@ -770,7 +802,9 @@ async def setup_bot():
                     sent = await bot.send_video(uid, file_message.video.file_id, caption=f"🎬 {quality}\n📦 {format_size(file_message.video.file_size)}")
                 
                 await pm.delete()
-                await message.reply_text(f"✅ **Sent!**\n\n⚠️ Auto-delete in {Config.AUTO_DELETE_TIME//60} min")
+                await message.reply_text(f"✅ **Sent successfully!**\n\n⚠️ Auto-delete in {Config.AUTO_DELETE_TIME//60} minutes")
+                
+                logger.info(f"  ✅ File sent to user {uid}")
                 
                 if Config.AUTO_DELETE_TIME > 0:
                     await asyncio.sleep(Config.AUTO_DELETE_TIME)
@@ -779,10 +813,35 @@ async def setup_bot():
                     except:
                         pass
             except Exception as e:
-                await pm.edit_text(f"❌ **Failed**\n`{str(e)}`")
+                logger.error(f"  ❌ Send error: {e}")
+                await pm.edit_text(f"❌ **Failed to send file**\n`{str(e)}`")
             return
         
-        await message.reply_text("🎬 **SK4FiLM**\n\nSearch movies", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Website", url=Config.WEBSITE_URL)]]))
+        # ✅ WELCOME MESSAGE - Redirect to website
+        await message.reply_text(
+            "🎬 **Welcome to SK4FiLM Bot!**\n\n"
+            "🌐 **Use our website to search and download movies**\n\n"
+            "Bot only delivers files via website links.\n\n"
+            "👇 **Visit website:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)],
+                [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1")]
+            ])
+        )
+    
+    # ✅ DIRECT MESSAGE HANDLER - Redirect to website
+    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index']))
+    async def text_handler(client, message):
+        logger.info(f"💬 Direct message from user {message.from_user.id}: {message.text[:50]}")
+        await message.reply_text(
+            "👋 **Hi there!**\n\n"
+            "🔍 **Please use our website to search movies**\n\n"
+            "This bot only sends files via website links.\n\n"
+            "👇 **Visit website to search:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 Visit Website", url=Config.WEBSITE_URL)]
+            ])
+        )
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
@@ -845,12 +904,13 @@ async def init():
 
 async def main():
     logger.info("="*70)
-    logger.info("🚀 SK4FiLM v3.3 - INSTANT START + Background Indexing")
+    logger.info("🚀 SK4FiLM v3.4 - ENHANCED VERSION")
     logger.info("⚡ Quick start: <5 seconds")
     logger.info("🔴 Posts: LIVE (no database)")
     logger.info("📁 Files: Background indexed")
     logger.info("🎨 Posters: 6 sources + fallback (100%)")
     logger.info("📺 Home: 30 movies")
+    logger.info("✅ Features: Force sub, Website redirect, Smart search")
     logger.info("="*70)
     
     await init()
