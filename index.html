@@ -537,11 +537,67 @@
             100% { transform: rotate(360deg); }
         }
 
-        .ad-slot {
-            text-align: center;
+        /* ===== Ad Containers - Responsive & Centered ===== */
+        .ad-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 15px auto;
+            padding: 10px 0;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
-        /* ऐड-संबंधित CSS हटाया गया */
+        /* Desktop Top Banner 728x90 */
+        #adTopDesktop {
+            min-height: 90px;
+            width: 100%;
+            max-width: 728px;
+        }
+
+        /* Mobile Top Banner 320x50 */
+        #adTopMobile {
+            min-height: 50px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        /* Inline Content Ad 300x250 */
+        #adInlineContent {
+            min-height: 250px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* Footer Desktop Ad 728x90 */
+        #adFooterDesktop {
+            min-height: 90px;
+            width: 100%;
+            max-width: 728px;
+        }
+
+        /* Hide/Show based on screen size */
+        @media (max-width: 991px) {
+            #adTopDesktop,
+            #adFooterDesktop {
+                display: none !important;
+            }
+        }
+
+        @media (min-width: 992px) {
+            #adTopMobile {
+                display: none !important;
+            }
+        }
+
+        /* Ad iframe responsive */
+        .ad-container iframe {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -622,10 +678,10 @@
     </div>
     
     <div class="container">
-        <!-- Top Ads -->
-        <div id="ad-top-wrapper" class="mb-3">
-            <div id="adTopDesktop" class="d-none d-lg-block ad-slot"></div>
-            <div id="adTopMobile" class="d-block d-lg-none ad-slot"></div>
+        <!-- Top Ads - Desktop 728x90 / Mobile 320x50 -->
+        <div class="ad-container">
+            <div id="adTopDesktop"></div>
+            <div id="adTopMobile"></div>
         </div>
 
         <!-- Latest Movies -->
@@ -648,8 +704,10 @@
             </div>
         </div>
 
-        <!-- Inline Content Ad -->
-        <div id="adInlineContent" class="my-4 ad-slot"></div>
+        <!-- Inline Content Ad 300x250 - Highest Earning -->
+        <div class="ad-container">
+            <div id="adInlineContent"></div>
+        </div>
 
         <!-- Tutorial Videos -->
         <div class="section-box animate__animated animate__fadeIn">
@@ -692,9 +750,11 @@
         </div>
     </div>
 
-    <!-- Footer Desktop Ad -->
-    <footer class="mt-4">
-        <div id="adFooterDesktop" class="d-none d-lg-block ad-slot"></div>
+    <!-- Footer Desktop Ad 728x90 - Bonus Earnings -->
+    <footer class="mt-5 pb-4">
+        <div class="ad-container">
+            <div id="adFooterDesktop"></div>
+        </div>
     </footer>
 
     <!-- Visitor Counter -->
@@ -710,24 +770,36 @@
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         
-        console.log('🎬 SK4FiLM v4.4 - Clean Version (No Ads)');
+        console.log('🎬 SK4FiLM v4.5 - Responsive Ads Edition');
 
         // ==== Ads: load only on first user click ====
-
         let adsInitialized = false;
 
         function loadAdScript(containerId, atOptionsConfig, src) {
             const container = document.getElementById(containerId);
-            if (!container) return;
+            if (!container) {
+                console.warn(`Ad container ${containerId} not found`);
+                return;
+            }
+            
+            // Clear any existing content
+            container.innerHTML = '';
+            
+            // Create options script
             const optScript = document.createElement('script');
             optScript.type = 'text/javascript';
-            optScript.innerHTML = 'atOptions = ' + JSON.stringify(atOptionsConfig) + ';';
+            optScript.text = 'atOptions = ' + JSON.stringify(atOptionsConfig) + ';';
+            
+            // Create invoke script
             const invokeScript = document.createElement('script');
             invokeScript.type = 'text/javascript';
             invokeScript.src = src;
             invokeScript.async = true;
+            
             container.appendChild(optScript);
             container.appendChild(invokeScript);
+            
+            console.log(`✅ Ad loaded in: ${containerId}`);
         }
 
         function loadPopupAd() {
@@ -735,15 +807,18 @@
             script.type = 'text/javascript';
             script.src = '//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js';
             document.body.appendChild(script);
+            console.log('✅ Popup ad loaded');
         }
 
         function initAdsOnce() {
             if (adsInitialized) return;
             adsInitialized = true;
+            
+            console.log('🚀 Initializing ads...');
 
             const isDesktop = window.innerWidth >= 992;
 
-            // Desktop top + footer 728x90
+            // Desktop top banner 728x90
             if (isDesktop) {
                 loadAdScript(
                     'adTopDesktop',
@@ -757,6 +832,7 @@
                     '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js'
                 );
 
+                // Footer desktop banner 728x90
                 loadAdScript(
                     'adFooterDesktop',
                     {
@@ -769,7 +845,7 @@
                     '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js'
                 );
             } else {
-                // Mobile top 320x50
+                // Mobile top banner 320x50
                 loadAdScript(
                     'adTopMobile',
                     {
@@ -783,7 +859,7 @@
                 );
             }
 
-            // Inline 300x250 (all devices)
+            // Inline content ad 300x250 (all devices) - Best CTR
             loadAdScript(
                 'adInlineContent',
                 {
@@ -796,7 +872,7 @@
                 '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js'
             );
 
-            // Popup ad – only once, on first click
+            // Popup ad - High RPM
             loadPopupAd();
         }
 
@@ -805,7 +881,8 @@
             document.removeEventListener('click', onFirstUserClick);
         }
 
-        document.addEventListener('click', onFirstUserClick);
+        // Initialize ads on first click
+        document.addEventListener('click', onFirstUserClick, { once: true });
 
         // ================== Existing code ==================
 
@@ -880,7 +957,6 @@
             }
         }
         
-        // ऐड-संबंधित फंक्शन हटाए गए - अब सीधा सर्च
         function handleMovieClick(movieTitle) {
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
@@ -896,6 +972,7 @@
                     showError();
                 }
             } catch (error) {
+                console.error('Error loading movies:', error);
                 showError();
             }
         }
@@ -972,7 +1049,7 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v4.4 FINAL - Clean No Ads Version (with first-click ads)');
+            console.log('🚀 SK4FiLM v4.5 FINAL - Responsive Ads Edition');
             
             loadHomeMovies();
             
