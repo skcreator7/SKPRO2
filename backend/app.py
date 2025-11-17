@@ -245,10 +245,10 @@ async def check_force_sub(user_id):
         return False
     except (ChatAdminRequired, ChannelPrivate):
         logger.warning(f"  ⚠️ Bot permission issue")
-        return True  # Allow if bot can't check
+        return True
     except Exception as e:
         logger.error(f"  ❌ Force sub error: {e}")
-        return True  # Allow on error
+        return True
 
 async def index_files_background():
     """Background file indexing - non-blocking"""
@@ -526,7 +526,7 @@ async def search_movies_live(query, limit=12, page=1):
                                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
                                     'is_new': is_new(msg.date) if msg.date else False,
                                     'has_file': False,
-                                    'has_post': True,  # ✅ Post exists
+                                    'has_post': True,
                                     'quality_options': {}
                                 }
                                 count += 1
@@ -579,11 +579,9 @@ async def search_movies_live(query, limit=12, page=1):
     
     for norm_title, file_data in files_dict.items():
         if norm_title in merged:
-            # File + Post = Show both
             merged[norm_title]['has_file'] = True
             merged[norm_title]['quality_options'] = file_data['quality_options']
         else:
-            # File only (no post) = Hide Watch button
             merged[norm_title] = {
                 'title': file_data['title'],
                 'content': f"<p>{file_data['title']}</p>",
@@ -591,7 +589,7 @@ async def search_movies_live(query, limit=12, page=1):
                 'date': file_data['date'],
                 'is_new': False,
                 'has_file': True,
-                'has_post': False,  # ✅ No post, only file
+                'has_post': False,
                 'quality_options': file_data['quality_options']
             }
     
@@ -731,6 +729,79 @@ async def api_search():
         logger.error(f"API /search: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/post')
+async def api_post():
+    try:
+        channel_id = request.args.get('channel', '').strip()
+        message_id = request.args.get('message', '').strip()
+        
+        if not channel_id or not message_id:
+            return jsonify({'status':'error', 'message':'Missing channel or message parameter'}), 400
+        
+        if not bot_started or not User:
+            return jsonify({'status':'error', 'message':'Bot not ready yet'}), 503
+        
+        try:
+            channel_id = int(channel_id)
+            message_id = int(message_id)
+        except ValueError:
+            return jsonify({'status':'error', 'message':'Invalid channel or message ID'}), 400
+        
+        logger.info(f"📄 Fetching post: Channel {channel_id}, Message {message_id}")
+        
+        try:
+            msg = await User.get_messages(channel_id, message_id)
+        except Exception as e:
+            logger.error(f"  ❌ Failed to fetch message: {e}")
+            return jsonify({'status':'error', 'message':'Failed to fetch message from Telegram'}), 404
+        
+        if not msg or not msg.text:
+            return jsonify({'status':'error', 'message':'Message not found or has no text content'}), 404
+        
+        title = extract_title_smart(msg.text)
+        if not title:
+            title = msg.text.split('\n')[0][:60] if msg.text else "Movie Post"
+        
+        normalized_title = normalize_title(title)
+        quality_options = {}
+        has_file = False
+        
+        if files_col is not None:
+            try:
+                cursor = files_col.find({'normalized_title': normalized_title})
+                async for doc in cursor:
+                    quality = doc.get('quality', '480p')
+                    if quality not in quality_options:
+                        quality_options[quality] = {
+                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                            'file_size': doc.get('file_size', 0),
+                            'file_name': doc.get('file_name', 'video.mp4')
+                        }
+                        has_file = True
+            except Exception as e:
+                logger.error(f"  ⚠️ File search error: {e}")
+        
+        post_data = {
+            'title': title,
+            'content': format_post(msg.text),
+            'channel': channel_name(channel_id),
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+            'is_new': is_new(msg.date) if msg.date else False,
+            'has_file': has_file,
+            'quality_options': quality_options,
+            'views': getattr(msg, 'views', 0)
+        }
+        
+        logger.info(f"  ✅ Post fetched: {title}")
+        
+        return jsonify({'status': 'success', 'post': post_data, 'bot_username': Config.BOT_USERNAME})
+    
+    except Exception as e:
+        logger.error(f"❌ API /post error: {e}")
+        return jsonify({'status':'error', 'message': str(e)}), 500
+
 @app.route('/api/poster')
 async def api_poster():
     url = request.args.get('url', '').strip()
@@ -759,7 +830,6 @@ async def setup_bot():
             fid = message.command[1]
             logger.info(f"📥 File request | User: {uid} | ID: {fid}")
             
-            # ✅ STRICT FORCE SUB CHECK
             is_subscribed = await check_force_sub(uid)
             
             if not is_subscribed:
@@ -817,7 +887,6 @@ async def setup_bot():
                 await pm.edit_text(f"❌ **Failed to send file**\n`{str(e)}`")
             return
         
-        # ✅ WELCOME MESSAGE - Redirect to website
         await message.reply_text(
             "🎬 **Welcome to SK4FiLM Bot!**\n\n"
             "🌐 **Use our website to search and download movies**\n\n"
@@ -829,7 +898,6 @@ async def setup_bot():
             ])
         )
     
-    # ✅ DIRECT MESSAGE HANDLER - Redirect to website
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index']))
     async def text_handler(client, message):
         logger.info(f"💬 Direct message from user {message.from_user.id}: {message.text[:50]}")
