@@ -169,6 +169,13 @@
             margin: 1rem 0 2rem 0;
             text-align: center;
         }
+        .inline-ad-container {
+            margin: 1.5rem 0;
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
         /* Disclaimer Styles */
         .disclaimer {
             background: rgba(255, 0, 0, 0.1);
@@ -195,6 +202,9 @@
                 font-size: 0.85rem;
             }
             .top-ad-container {
+                margin: 1rem 0;
+            }
+            .inline-ad-container {
                 margin: 1rem 0;
             }
         }
@@ -315,6 +325,24 @@ function displayResults(results, pagination) {
             </div>
         </div>
         `;
+        
+        // Add ad after every 3 results
+        if ((index + 1) % 3 === 0 && index !== results.length - 1) {
+            html += `
+            <div class="inline-ad-container">
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : '30cb560d31adc2000a625cea0100dd2a',
+                        'format' : 'iframe',
+                        'height' : 60,
+                        'width' : 468,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/30cb560d31adc2000a625cea0100dd2a/invoke.js"></script>
+            </div>
+            `;
+        }
     });
     resultsContainer.innerHTML=html;
     if(pagination&&pagination.total_pages>1) displayPagination(pagination);
