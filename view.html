@@ -7,9 +7,11 @@
 <meta name="description" content="View full movie details and information" />
 <meta name="google-adsense-account" content="ca-pub-5244164301170945">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet" />
+
 <style>
 :root {
   --primary-color: #ff0000;
@@ -33,7 +35,6 @@ body::before {
   background: rgba(10, 10, 10, 0.85);
   z-index: -1;
 }
-/* Navbar */
 .navbar {
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(15px);
@@ -73,7 +74,6 @@ body::before {
 .btn-back-home:hover {
   transform: scale(1.05);
 }
-/* Main Layout */
 .main-container {
   display: flex;
   gap: 20px;
@@ -81,20 +81,13 @@ body::before {
   margin: 0 auto;
   padding: 0 15px;
 }
-/* Sidebar Ads */
 .sidebar-ad {
   width: 160px;
   flex-shrink: 0;
 }
-.sidebar-ad.top-ad {
-  position: sticky;
-  top: 100px;
-}
-.sidebar-ad.bottom-ad {
-  position: sticky;
-  top: 100px;
-}
-/* Post Content */
+.sidebar-ad.top-ad { position: sticky; top: 100px; }
+.sidebar-ad.bottom-ad { position: sticky; top: 100px; }
+
 .post-content-area {
   flex: 1;
   min-width: 0;
@@ -105,7 +98,6 @@ body::before {
   color: #00ccff;
   margin-bottom: 30px;
   text-align: center;
-  word-wrap: break-word;
   line-height: 1.4;
 }
 .badge-row {
@@ -122,36 +114,21 @@ body::before {
   color: #00ccff;
   padding: 10px 20px;
   border-radius: 15px;
-  font-size: 0.95rem;
   border: 1px solid rgba(0, 204, 255, 0.3);
 }
-.badge-new {
-  background: rgba(255, 71, 87, 0.2);
-  color: #ff4757;
-}
-.badge-file {
-  background: rgba(40, 167, 69, 0.2);
-  color: #28a745;
-}
+.badge-new { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+.badge-file { background: rgba(40, 167, 69, 0.2); color: #28a745; }
+
 .post-content {
   background: rgba(0, 0, 0, 0.35);
   border-radius: 18px;
   padding: 35px;
   margin: 35px 0;
-  line-height: 1.9;
   font-size: 1.1rem;
   color: #ffffff;
-  word-wrap: break-word;
-  /* Removed max-height and overflow for full page scroll */
 }
-.post-content a {
-  color: #00ccff;
-  text-decoration: none;
-  font-weight: 600;
-}
-.post-content a:hover {
-  text-decoration: underline;
-}
+.post-content a { color: #00ccff; font-weight: 600; }
+
 .back-btn {
   background: linear-gradient(45deg, #0088cc, #00ccff);
   color: white;
@@ -164,51 +141,26 @@ body::before {
   transition: all 0.3s ease;
   display: block;
   margin: 30px auto;
-  max-width: 200px;
-  text-align: center;
 }
 .back-btn:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 30px rgba(0, 136, 204, 0.6);
 }
 @media (max-width: 768px) {
-  body {
-    padding-top: 80px;
-  }
-  .main-container {
-    flex-direction: column;
-    gap: 15px;
-  }
-  .sidebar-ad {
-    width: 100%;
-    text-align: center;
-  }
-  .sidebar-ad.top-ad,
-  .sidebar-ad.bottom-ad {
-    position: static;
-  }
-  .post-title { 
-    font-size: 1.5rem; 
-  }
-  .post-content { 
-    padding: 25px; 
-  }
-  .navbar-brand {
-    font-size: 1.3rem;
-  }
-  .logo-img {
-    height: 35px;
-    width: 35px;
-  }
+  .main-container { flex-direction: column; }
+  .sidebar-ad { width: 100%; text-align:center; }
+  .post-title { font-size: 1.5rem; }
+  .post-content { padding: 25px; }
 }
 </style>
 </head>
+
 <body>
-<!-- Navbar -->
+
 <nav class="navbar">
   <div class="container d-flex align-items-center justify-content-between">
     <a href="index.html" class="navbar-brand">
-      <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+      <img src="https://iili.io/KOlfc41.png" class="logo-img">
       SK4FiLM
     </a>
     <button class="btn-back-home" onclick="window.location.href='index.html'">
@@ -217,49 +169,35 @@ body::before {
   </div>
 </nav>
 
-<!-- Main Content -->
 <div class="main-container">
-  <!-- Left Sidebar Ad (Top) -->
+
   <div class="sidebar-ad top-ad">
     <script type="text/javascript">
-      atOptions = {
-        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
-        'format' : 'iframe',
-        'height' : 300,
-        'width' : 160,
-        'params' : {}
-      };
+      atOptions = { 'key':'dd8949e06e88ce3bb397fd3159be4e3e','format':'iframe','height':300,'width':160,'params':{} };
     </script>
-    <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
+    <script src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
   </div>
 
-  <!-- Post Content - No Box -->
   <div class="post-content-area">
     <div id="mainContent">
-      <div style="text-align: center; padding: 60px 20px;">
-        <i class="fas fa-spinner fa-spin fa-3x" style="color: #00ccff;"></i>
-        <p style="margin-top: 25px; font-size: 1.1rem;">Loading post...</p>
+      <div style="text-align:center; padding: 60px 20px;">
+        <i class="fas fa-spinner fa-spin fa-3x" style="color:#00ccff;"></i>
+        <p style="margin-top:25px;">Loading post...</p>
       </div>
     </div>
-    
+
     <button class="back-btn" onclick="goBack()">
       <i class="fas fa-arrow-left me-2"></i>Close
     </button>
   </div>
 
-  <!-- Right Sidebar Ad (Bottom) -->
   <div class="sidebar-ad bottom-ad">
     <script type="text/javascript">
-      atOptions = {
-        'key' : '5eeff77465f7a3e836837a43aaf6e8e7',
-        'format' : 'iframe',
-        'height' : 600,
-        'width' : 160,
-        'params' : {}
-      };
+      atOptions = { 'key':'5eeff77465f7a3e836837a43aaf6e8e7','format':'iframe','height':600,'width':160,'params':{} };
     </script>
-    <script type="text/javascript" src="//marksdespitelinear.com/5eeff77465f7a3e836837a43aaf6e8e7/invoke.js"></script>
+    <script src="//marksdespitelinear.com/5eeff77465f7a3e836837a43aaf6e8e7/invoke.js"></script>
   </div>
+
 </div>
 
 <script>
@@ -277,12 +215,9 @@ body::before {
       const date = new Date(dateStr);
       const now = new Date();
       const diff = now - date;
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      if (hours < 24) {
-        return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-      } else {
-        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-      }
+      const hours = Math.floor(diff / 3600000);
+      return hours < 24 ? `${hours} hour${hours!==1?'s':''} ago`
+        : date.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
     } catch {
       return 'Recently';
     }
@@ -291,76 +226,70 @@ body::before {
   function displayPost(post) {
     const container = document.getElementById('mainContent');
     let content = post.content || '<p>Full movie details available.</p>';
+
     const containsHTML = /<\/?[a-z][\s\S]*>/i.test(content);
     if (!containsHTML) {
-      content = content
-        .split('\n')
+      content = content.split('\n')
         .map(line => line.trim() ? `<p>${escapeHTML(line)}</p>` : '')
         .join('');
     }
+
     let badges = `
       <div class="badge"><i class="fab fa-telegram me-1"></i>${escapeHTML(post.channel || 'SK4FiLM')}</div>
       <div class="badge"><i class="fas fa-calendar me-1"></i>${formatDate(post.date)}</div>
     `;
-    if (post.is_new) {
-      badges += `<div class="badge badge-new"><i class="fas fa-fire me-1"></i> NEW</div>`;
-    }
+    if (post.is_new) badges += `<div class="badge badge-new"><i class="fas fa-fire me-1"></i> NEW</div>`;
     if (post.has_file && post.quality_options) {
-      const qualityCount = Object.keys(post.quality_options).length;
-      if (qualityCount > 0) {
-        badges += `<div class="badge badge-file"><i class="fas fa-download me-1"></i> ${qualityCount} Qualities</div>`;
-      }
+      const count = Object.keys(post.quality_options).length;
+      if (count > 0)
+        badges += `<div class="badge badge-file"><i class="fas fa-download me-1"></i> ${count} Qualities</div>`;
     }
+
     container.innerHTML = `
       <h1 class="post-title">${escapeHTML(post.title)}</h1>
       <div class="badge-row">${badges}</div>
       <div class="post-content">${content}</div>
-    `;
-  }
 
-  function showError() {
-    const container = document.getElementById('mainContent');
-    container.innerHTML = `
-      <div style="text-align:center; padding: 60px;">
-        <i class="fas fa-exclamation-triangle fa-4x text-warning mb-3"></i>
-        <h3 style="color:#ffc107;">Unable to Load Post</h3>
-        <p style="color:rgba(255,255,255,0.8); font-size:1.05rem;">
-          Post data is not available.<br>
-          This might happen if you directly accessed this page or the data has expired.
-        </p>
+      <!-- High CTR Ad Below Post Content -->
+      <div style="margin:35px 0; text-align:center;">
+        <script src="https://fpyf8.com/88/tag.min.js" 
+                data-zone="186169" 
+                async 
+                data-cfasync="false">
+        </script>
       </div>
     `;
   }
 
-  function goBack() {
-    window.history.back();
+  function showError() {
+    document.getElementById('mainContent').innerHTML = `
+      <div style="text-align:center; padding:60px;">
+        <i class="fas fa-exclamation-triangle fa-4x text-warning mb-3"></i>
+        <h3 style="color:#ffc107;">Unable to Load Post</h3>
+        <p style="color:rgba(255,255,255,0.8);">Post data is not available.</p>
+      </div>`;
   }
+
+  function goBack() { window.history.back(); }
 
   async function loadPost() {
     const params = new URLSearchParams(window.location.search);
     const channelId = params.get('channel');
     const messageId = params.get('message');
-    if (!channelId || !messageId) {
-      showError();
-      return;
-    }
+    if (!channelId || !messageId) return showError();
+
     try {
       const response = await fetch(`${API_BASE}/api/post?channel=${channelId}&message=${messageId}`);
-      if (!response.ok) {
-        showError();
-        return;
-      }
       const data = await response.json();
-      if (data.status === 'success' && data.post) {
-        displayPost(data.post);
-      } else {
-        showError();
-      }
-    } catch(error) {
+      if (data.status === 'success' && data.post) displayPost(data.post);
+      else showError();
+    } catch {
       showError();
     }
   }
-  document.addEventListener('DOMContentLoaded', () => loadPost());
+
+  document.addEventListener('DOMContentLoaded', loadPost);
 </script>
+
 </body>
 </html>
