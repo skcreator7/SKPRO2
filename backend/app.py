@@ -29,7 +29,17 @@ class Config:
     MAIN_CHANNEL_ID = -1001891090100
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
     FILE_CHANNEL_ID = -1001768249569
-    FORCE_SUB_CHANNEL = -1002555323872
+    
+    # Telegram Channel Links
+    MAIN_CHANNEL_LINK = "https://t.me/sk4film"
+    UPDATES_CHANNEL_LINK = "https://t.me/sk4film_updates"
+    CHANNEL_USERNAME = "sk4film"  # Without @
+    
+    # URL Shortener Verification (6 hours validity)
+    URL_SHORTENER_API = os.environ.get("URL_SHORTENER_API", "https://your-shortener-api.com/verify")
+    URL_SHORTENER_KEY = os.environ.get("URL_SHORTENER_KEY", "")
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "false").lower() == "true"
+    VERIFICATION_DURATION = 6 * 60 * 60  # 6 hours in seconds
     
     WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
     BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
@@ -53,17 +63,20 @@ async def add_headers(response):
 mongo_client = None
 db = None
 files_col = None
+verification_col = None
 
 async def init_mongodb():
-    global mongo_client, db, files_col
+    global mongo_client, db, files_col, verification_col
     try:
-        logger.info("🔌 MongoDB (Files Only)...")
+        logger.info("🔌 MongoDB (Files + Verification)...")
         mongo_client = AsyncIOMotorClient(Config.MONGODB_URI, serverSelectionTimeoutMS=10000)
         await mongo_client.admin.command('ping')
         
         db = mongo_client.sk4film
         files_col = db.files
+        verification_col = db.verifications
         
+        # Files collection indexes
         try:
             await files_col.create_index([("title", "text")])
         except:
@@ -71,12 +84,6 @@ async def init_mongodb():
         
         try:
             await files_col.create_index([("normalized_title", 1)])
-        except:
-            pass
-        
-        try:
-            await files_col.drop_index("message_id_1_channel_id_1")
-            logger.info("  Dropped old unique index")
         except:
             pass
         
@@ -91,6 +98,17 @@ async def init_mongodb():
         
         try:
             await files_col.create_index([("indexed_at", -1)])
+        except:
+            pass
+        
+        # Verification collection indexes
+        try:
+            await verification_col.create_index([("user_id", 1)], unique=True)
+        except:
+            pass
+        
+        try:
+            await verification_col.create_index([("verified_at", 1)], expireAfterSeconds=Config.VERIFICATION_DURATION)
         except:
             pass
         
@@ -234,36 +252,94 @@ def is_new(date):
     except:
         return False
 
-async def check_force_sub_immediate(user_id, max_retries=5):
-    """IMMEDIATE force subscription check with instant verification"""
-    for attempt in range(max_retries):
-        try:
-            logger.info(f"🔍 IMMEDIATE SUB CHECK: User {user_id} (Attempt {attempt + 1}/{max_retries})")
-            
-            if attempt > 0:
-                await asyncio.sleep(1)
-            
-            member = await bot.get_chat_member(Config.FORCE_SUB_CHANNEL, user_id)
-            is_member = member.status in ["member", "administrator", "creator"]
-            
-            logger.info(f"  {'✅ IMMEDIATE ACCESS' if is_member else '❌ NOT SUBSCRIBED'} | Status: {member.status}")
-            
-            if is_member:
-                return True, member.status
-                
-        except UserNotParticipant:
-            logger.info(f"  ❌ User {user_id} not in channel (Attempt {attempt + 1})")
-            if attempt == max_retries - 1:
-                return False, "not_joined"
-        except (ChatAdminRequired, ChannelPrivate):
-            logger.warning(f"  ⚠️ Bot permission issue - allowing access")
-            return True, "admin_required"
-        except Exception as e:
-            logger.error(f"  ❌ Force sub error (Attempt {attempt + 1}): {e}")
-            if attempt == max_retries - 1:
-                return True, "error_allowed"
+async def check_url_shortener_verification(user_id):
+    """Check if user has valid URL shortener verification (6 hours)"""
+    if not Config.VERIFICATION_REQUIRED:
+        return True, "verification_not_required"
     
-    return False, "max_retries_exceeded"
+    try:
+        logger.info(f"🔗 Checking URL Shortener Verification: User {user_id}")
+        
+        # Check MongoDB for existing verification
+        verification = await verification_col.find_one({"user_id": user_id})
+        
+        if verification:
+            verified_at = verification.get('verified_at')
+            if isinstance(verified_at, datetime):
+                time_elapsed = (datetime.now() - verified_at).total_seconds()
+                if time_elapsed < Config.VERIFICATION_DURATION:
+                    logger.info(f"  ✅ User {user_id} has valid verification ({int((Config.VERIFICATION_DURATION - time_elapsed)/60)} minutes remaining)")
+                    return True, "verified"
+                else:
+                    # Remove expired verification
+                    await verification_col.delete_one({"user_id": user_id})
+                    logger.info(f"  ⚠️ User {user_id} verification expired")
+                    return False, "expired"
+        
+        logger.info(f"  ❌ User {user_id} not verified")
+        return False, "not_verified"
+        
+    except Exception as e:
+        logger.error(f"  ❌ Verification check error: {e}")
+        return False, "error"
+
+async def verify_user_with_url_shortener(user_id, verification_url=None):
+    """Verify user through URL shortener service"""
+    if not Config.VERIFICATION_REQUIRED:
+        return True, "verification_not_required"
+    
+    try:
+        logger.info(f"🔗 Verifying User {user_id} via URL Shortener")
+        
+        # If no URL provided, generate one
+        if not verification_url:
+            verification_url = await generate_verification_url(user_id)
+        
+        # Call URL shortener API to verify
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                'user_id': user_id,
+                'verification_url': verification_url,
+                'api_key': Config.URL_SHORTENER_KEY
+            }
+            
+            async with session.post(Config.URL_SHORTENER_API, json=payload, timeout=10) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    
+                    if result.get('verified') == True:
+                        # Store verification in MongoDB with 6-hour expiry
+                        await verification_col.update_one(
+                            {"user_id": user_id},
+                            {
+                                "$set": {
+                                    "verified_at": datetime.now(),
+                                    "verification_url": verification_url,
+                                    "verified_by": "url_shortener"
+                                }
+                            },
+                            upsert=True
+                        )
+                        logger.info(f"  ✅ User {user_id} successfully verified")
+                        return True, "verified"
+                    else:
+                        logger.info(f"  ❌ User {user_id} verification failed: {result.get('message', 'Unknown error')}")
+                        return False, result.get('message', 'verification_failed')
+                else:
+                    logger.error(f"  ❌ URL Shortener API error: {response.status}")
+                    return False, "api_error"
+                    
+    except Exception as e:
+        logger.error(f"  ❌ URL Shortener verification error: {e}")
+        return False, "error"
+
+async def generate_verification_url(user_id):
+    """Generate verification URL for user"""
+    base_url = Config.WEBSITE_URL or Config.BACKEND_URL
+    verification_token = f"verify_{user_id}_{int(datetime.now().timestamp())}"
+    
+    # You can implement your own token generation logic here
+    return f"{base_url}/verify?token={verification_token}&user_id={user_id}"
 
 async def index_files_background():
     """Background file indexing - non-blocking"""
@@ -790,6 +866,7 @@ async def search_movies_live(query, limit=12, page=1):
             'has_previous': page > 1
         }
     }
+}
 
 async def get_home_movies_live():
     logger.info("🏠 Fetching 30 movies with ALL SOURCES POSTERS...")
@@ -865,14 +942,13 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v6.0 - ALL SOURCES POSTERS',
+        'service': 'SK4FiLM v6.0 - URL SHORTENER VERIFICATION',
         'database': {'total_files': tf, 'live_mode': 'Posts LIVE, Files cached'},
         'bot_status': 'online' if bot_started else 'starting',
-        'features': {
-            'poster_sources': 'Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB',
-            'poster_guarantee': '100% WORKING',
-            'smart_caching': 'ENABLED',
-            'high_quality': 'GUARANTEED'
+        'verification': {
+            'required': Config.VERIFICATION_REQUIRED,
+            'duration_hours': Config.VERIFICATION_DURATION / 3600,
+            'enabled': Config.VERIFICATION_REQUIRED
         },
         'poster_stats': movie_db['stats']
     })
@@ -880,6 +956,64 @@ async def root():
 @app.route('/health')
 async def health():
     return jsonify({'status': 'ok' if bot_started else 'starting'})
+
+@app.route('/api/verify_user', methods=['POST'])
+async def api_verify_user():
+    """API endpoint to verify user via URL shortener"""
+    try:
+        data = await request.get_json()
+        user_id = data.get('user_id')
+        verification_url = data.get('verification_url')
+        
+        if not user_id:
+            return jsonify({'status': 'error', 'message': 'User ID required'}), 400
+        
+        is_verified, message = await verify_user_with_url_shortener(user_id, verification_url)
+        
+        return jsonify({
+            'status': 'success' if is_verified else 'error',
+            'verified': is_verified,
+            'message': message,
+            'user_id': user_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Verification API error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/check_verification/<int:user_id>')
+async def api_check_verification(user_id):
+    """API endpoint to check user verification status"""
+    try:
+        is_verified, message = await check_url_shortener_verification(user_id)
+        
+        return jsonify({
+            'status': 'success',
+            'verified': is_verified,
+            'message': message,
+            'user_id': user_id,
+            'verification_required': Config.VERIFICATION_REQUIRED
+        })
+        
+    except Exception as e:
+        logger.error(f"Verification check error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/generate_verification_url/<int:user_id>')
+async def api_generate_verification_url(user_id):
+    """API endpoint to generate verification URL"""
+    try:
+        verification_url = await generate_verification_url(user_id)
+        
+        return jsonify({
+            'status': 'success',
+            'verification_url': verification_url,
+            'user_id': user_id
+        })
+        
+    except Exception as e:
+        logger.error(f"URL generation error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/index_status')
 async def api_index_status():
@@ -1080,8 +1214,6 @@ async def api_poster():
         </svg>'''
         return Response(simple_svg, mimetype='image/svg+xml')
 
-# ... (setup_bot, init, main functions remain the same as previous working version)
-
 async def setup_bot():
     @bot.on_message(filters.command("start") & filters.private)
     async def start_handler(client, message):
@@ -1092,38 +1224,38 @@ async def setup_bot():
             fid = message.command[1]
             logger.info(f"📥 File request | User: {uid} | File ID: {fid}")
             
-            is_subscribed, status = await check_force_sub_immediate(uid, max_retries=5)
-            
-            if not is_subscribed:
-                try:
-                    ch = await bot.get_chat(Config.FORCE_SUB_CHANNEL)
-                    invite_link = f"https://t.me/{ch.username}" if ch.username else f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
-                except Exception as e:
-                    logger.error(f"Channel link error: {e}")
-                    invite_link = f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1"
+            # Check URL Shortener Verification
+            if Config.VERIFICATION_REQUIRED:
+                is_verified, status = await check_url_shortener_verification(uid)
                 
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📢 JOIN CHANNEL", url=invite_link)],
-                    [InlineKeyboardButton("🔄 TRY AGAIN", url=f"https://t.me/{Config.BOT_USERNAME}?start={fid}")]
-                ])
-                
-                await message.reply_text(
-                    f"👋 **Hello {user_name}!**\n\n"
-                    "🔒 **Access Required**\n"
-                    "To download files, you need to join our channel.\n\n"
-                    "🚀 **Quick Steps:**\n"
-                    "1. Click **JOIN CHANNEL** below\n"
-                    "2. Wait for channel to open\n" 
-                    "3. Click **JOIN** button in channel\n"
-                    "4. Come back and click **TRY AGAIN**\n\n"
-                    "⚡ **Instant verification!**",
-                    reply_markup=keyboard,
-                    disable_web_page_preview=True
-                )
-                logger.info(f"  ❌ Access denied for user {uid} | Status: {status}")
-                return
+                if not is_verified:
+                    verification_url = await generate_verification_url(uid)
+                    
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                        [InlineKeyboardButton("🔄 CHECK VERIFICATION", callback_data=f"check_verify_{uid}")],
+                        [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)]
+                    ])
+                    
+                    await message.reply_text(
+                        f"👋 **Hello {user_name}!**\n\n"
+                        "🔒 **Verification Required**\n"
+                        "To download files, you need to complete URL verification.\n\n"
+                        "🚀 **Quick Steps:**\n"
+                        "1. Click **VERIFY NOW** below\n"
+                        "2. Complete the verification process\n"
+                        "3. Come back and click **CHECK VERIFICATION**\n"
+                        "4. Start downloading!\n\n"
+                        "⏰ **Verification valid for 6 hours**\n"
+                        f"🔗 **Verification URL:** `{verification_url}`\n\n"
+                        "📢 **Join our channel for latest updates!**",
+                        reply_markup=keyboard,
+                        disable_web_page_preview=True
+                    )
+                    logger.info(f"  ❌ Access denied for user {uid} | Status: {status}")
+                    return
             
-            logger.info(f"  ✅ User {uid} VERIFIED | Status: {status}")
+            logger.info(f"  ✅ User {uid} VERIFIED | Proceeding with download")
             
             try:
                 parts = fid.split('_')
@@ -1190,35 +1322,189 @@ async def setup_bot():
                     pass
             return
         
+        # Welcome message with channel links
         welcome_text = (
             f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
             "🌐 **Use our website to browse and download movies:**\n"
             f"{Config.WEBSITE_URL}\n\n"
+        )
+        
+        if Config.VERIFICATION_REQUIRED:
+            welcome_text += (
+                "🔒 **URL Verification Required**\n"
+                "• Complete one-time verification\n"
+                "• Valid for 6 hours\n"
+                "• Secure and fast\n\n"
+            )
+        
+        welcome_text += (
             "✨ **Features:**\n"
             "• 🎥 Latest movies & shows\n" 
             "• 📺 Multiple quality options\n"
             "• ⚡ Fast downloads\n"
             "• 🔒 Secure & reliable\n\n"
+            "📢 **Join our channels for updates:**\n"
+            "• Main Channel: Latest movies\n"
+            "• Updates Channel: News & announcements\n\n"
             "👇 **Get started below:**"
         )
         
-        keyboard = InlineKeyboardMarkup([
+        buttons = []
+        if Config.VERIFICATION_REQUIRED:
+            verification_url = await generate_verification_url(uid)
+            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", url=verification_url)])
+        
+        buttons.extend([
             [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
-            [InlineKeyboardButton("📢 JOIN CHANNEL", url=f"https://t.me/c/{str(Config.FORCE_SUB_CHANNEL)[4:]}/1")]
+            [
+                InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+            ]
         ])
+        
+        keyboard = InlineKeyboardMarkup(buttons)
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index']))
+    @bot.on_callback_query(filters.regex(r"^check_verify_"))
+    async def check_verify_callback(client, callback_query):
+        user_id = callback_query.from_user.id
+        try:
+            is_verified, status = await check_url_shortener_verification(user_id)
+            
+            if is_verified:
+                await callback_query.message.edit_text(
+                    "✅ **Verification Successful!**\n\n"
+                    "You can now download files from the website.\n\n"
+                    f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
+                    "⏰ **Verification valid for 6 hours**\n\n"
+                    "📢 **Join our channels for latest updates:**",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                        [
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ])
+                )
+            else:
+                verification_url = await generate_verification_url(user_id)
+                await callback_query.message.edit_text(
+                    "❌ **Not Verified Yet**\n\n"
+                    "Please complete the verification process first.\n\n"
+                    f"🔗 **Verification URL:** `{verification_url}`\n\n"
+                    "📢 **Join our channels while you verify:**",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                        [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")],
+                        [
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ]),
+                    disable_web_page_preview=True
+                )
+                
+        except Exception as e:
+            await callback_query.answer("Error checking verification", show_alert=True)
+    
+    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify']))
     async def text_handler(client, message):
         user_name = message.from_user.first_name or "User"
         await message.reply_text(
             f"👋 **Hi {user_name}!**\n\n"
             "🔍 **Please use our website to search for movies:**\n\n"
             f"{Config.WEBSITE_URL}\n\n"
+            "📢 **Join our channels for latest updates:**\n"
+            "• Main Channel: @sk4film_main\n"
+            "• Updates Channel: @sk4film_updates\n\n"
             "This bot only handles file downloads via website links.",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                [
+                    InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                    InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                ]
+            ]),
+            disable_web_page_preview=True
+        )
+    
+    @bot.on_message(filters.command("verify") & filters.private)
+    async def verify_command(client, message):
+        user_id = message.from_user.id
+        user_name = message.from_user.first_name or "User"
+        
+        if Config.VERIFICATION_REQUIRED:
+            is_verified, status = await check_url_shortener_verification(user_id)
+            
+            if is_verified:
+                time_remaining = "6 hours"  # You can calculate exact time if needed
+                await message.reply_text(
+                    f"✅ **Already Verified, {user_name}!**\n\n"
+                    f"Your verification is active and valid for {time_remaining}.\n\n"
+                    "You can download files from the website now! 🎬\n\n"
+                    "📢 **Join our channels for latest updates:**",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                        [
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ])
+                )
+            else:
+                verification_url = await generate_verification_url(user_id)
+                await message.reply_text(
+                    f"🔗 **Verification Required, {user_name}**\n\n"
+                    "To download files, please complete the URL verification:\n\n"
+                    f"**Verification URL:** `{verification_url}`\n\n"
+                    "⏰ **Valid for 6 hours after verification**\n\n"
+                    "📢 **Join our channels while you verify:**",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                        [
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ]),
+                    disable_web_page_preview=True
+                )
+        else:
+            await message.reply_text(
+                "ℹ️ **Verification Not Required**\n\n"
+                "URL shortener verification is currently disabled.\n"
+                "You can download files directly from the website.\n\n"
+                "📢 **Join our channels for latest updates:**",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                    [
+                        InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                        InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                    ]
+                ])
+            )
+    
+    @bot.on_message(filters.command("channel") & filters.private)
+    async def channel_command(client, message):
+        """Direct command to get channel links"""
+        await message.reply_text(
+            "📢 **SK4FiLM Channels**\n\n"
+            "Join our channels for the latest movies and updates:\n\n"
+            "🎬 **Main Channel:**\n"
+            "• Latest movie releases\n"
+            "• High quality files\n"
+            "• Daily updates\n\n"
+            "📢 **Updates Channel:**\n"
+            "• News & announcements\n"
+            "• Feature updates\n"
+            "• Important information\n\n"
+            "👇 **Click below to join:**",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("🎬 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                    InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                ],
+                [InlineKeyboardButton("🌐 WEBSITE", url=Config.WEBSITE_URL)]
             ]),
             disable_web_page_preview=True
         )
@@ -1251,7 +1537,8 @@ async def setup_bot():
             f"• ✅ All sources working\n"
             f"• ✅ High quality posters\n"
             f"• ✅ Smart caching\n"
-            f"• ✅ 100% guarantee"
+            f"• ✅ 100% guarantee\n\n"
+            f"**🔗 Verification:** {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}"
         )
         await message.reply_text(stats_text)
 
@@ -1294,10 +1581,11 @@ async def init():
 
 async def main():
     logger.info("="*60)
-    logger.info("🎬 SK4FiLM v6.0 - ALL SOURCES POSTERS")
-    logger.info("✅ Poster Priority: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB")
-    logger.info("✅ 100% Poster Guarantee - All sources working")
-    logger.info("✅ High Quality Images + Smart Caching")
+    logger.info("🎬 SK4FiLM v6.0 - URL SHORTENER VERIFICATION")
+    logger.info(f"✅ Verification: {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}")
+    logger.info("✅ Force Subscription: REMOVED")
+    logger.info("✅ Channel Links: ADDED")
+    logger.info("✅ All Poster Sources: WORKING")
     logger.info("="*60)
     
     success = await init()
