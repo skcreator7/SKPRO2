@@ -32,7 +32,7 @@ class Config:
     
     # Telegram Channel Links
     MAIN_CHANNEL_LINK = "https://t.me/sk4film"
-    UPDATES_CHANNEL_LINK = "https://t.me/sk4film_updates"
+    UPDATES_CHANNEL_LINK = "https://t.me/sk4film_Request"
     CHANNEL_USERNAME = "sk4film"  # Without @
     
     # URL Shortener Verification (6 hours validity)
@@ -1275,21 +1275,21 @@ async def setup_bot():
                         sent = await bot.send_document(
                             uid, 
                             file_message.document.file_id, 
-                            caption=f"🎬 **Download Complete!**\n\n"
+                            caption=f"♻ **ᴘʟᴇᴀꜱᴇ ꜰᴏʀᴡᴀʀᴅ ᴛʜɪꜱ ꜰɪʟᴇ/ᴠɪᴅᴇᴏ ᴛᴏ ʏᴏᴜʀ ꜱᴀᴠᴇᴅ ᴍᴇꜱꜱᴀɢᴇꜱ ᴀɴᴅ ꜱᴛᴀʀᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜᴇʀᴇ**\n\n"
                                    f"📹 Quality: {quality}\n"
                                    f"📦 Size: {format_size(file_message.document.file_size)}\n\n"
                                    f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"Enjoy! 🍿"
+                                   f"@SK4FiLM 🍿"
                         )
                     else:
                         sent = await bot.send_video(
                             uid, 
                             file_message.video.file_id, 
-                            caption=f"🎬 **Download Complete!**\n\n"
+                            caption=f"♻ **ᴘʟᴇᴀꜱᴇ ꜰᴏʀᴡᴀʀᴅ ᴛʜɪꜱ ꜰɪʟᴇ/ᴠɪᴅᴇᴏ ᴛᴏ ʏᴏᴜʀ ꜱᴀᴠᴇᴅ ᴍᴇꜱꜱᴀɢᴇꜱ ᴀɴᴅ ꜱᴛᴀʀᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜᴇʀᴇ**\n\n"
                                    f"📹 Quality: {quality}\n" 
                                    f"📦 Size: {format_size(file_message.video.file_size)}\n\n"
                                    f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"Enjoy! 🍿"
+                                   f"@SK4FiLM 🍿"
                         )
                     
                     await pm.delete()
@@ -1356,8 +1356,8 @@ async def setup_bot():
         buttons.extend([
             [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
             [
-                InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
             ]
         ])
         
@@ -1373,16 +1373,16 @@ async def setup_bot():
             
             if is_verified:
                 await callback_query.message.edit_text(
-                    "✅ **Verification Successful!**\n\n"
-                    "You can now download files from the website.\n\n"
-                    f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
-                    "⏰ **Verification valid for 6 hours**\n\n"
-                    "📢 **Join our channels for latest updates:**",
+                    "✅ **Vᴇʀɪꜰɪᴄᴀᴛɪᴏɴ Sᴜᴄᴄᴇꜱꜱꜰᴜʟ!**\n\n"
+                    "Yᴏᴜ Cᴀɴ Nᴏᴡ Dᴏᴡɴʟᴏᴀᴅ Fɪʟᴇꜱ Fʀᴏᴍ Tʜᴇ Wᴇʙꜱɪᴛᴇ.\n\n"
+                    f"🌐 **Wᴇʙꜱɪᴛᴇ:** {Config.WEBSITE_URL}\n\n"
+                    "⏰ **Vᴇʀɪꜰɪᴄᴀᴛɪᴏɴ Vᴀʟɪᴅ Fᴏʀ 6 Hᴏᴜʀꜱ**\n\n"
+                    "📢 **Jᴏɪɴ ᴏᴜʀ Cʜᴀɴɴᴇʟꜱ**",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
@@ -1397,8 +1397,8 @@ async def setup_bot():
                         [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
                         [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
                         ]
                     ]),
                     disable_web_page_preview=True
@@ -1412,17 +1412,14 @@ async def setup_bot():
         user_name = message.from_user.first_name or "User"
         await message.reply_text(
             f"👋 **Hi {user_name}!**\n\n"
-            "🔍 **Please use our website to search for movies:**\n\n"
+            "🔍 **Pʟᴇᴀꜱᴇ Uꜱᴇ Oᴜʀ Wᴇʙꜱɪᴛᴇ ᴛᴏ Sᴇᴀʀᴄʜ Fᴏʀ Mᴏᴠɪᴇꜱ:**\n\n"
             f"{Config.WEBSITE_URL}\n\n"
-            "📢 **Join our channels for latest updates:**\n"
-            "• Main Channel: @sk4film_main\n"
-            "• Updates Channel: @sk4film_updates\n\n"
             "This bot only handles file downloads via website links.",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                 [
-                    InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                    InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                    InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                    InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
                 ]
             ]),
             disable_web_page_preview=True
@@ -1446,8 +1443,8 @@ async def setup_bot():
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
@@ -1462,8 +1459,8 @@ async def setup_bot():
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
                         ]
                     ]),
                     disable_web_page_preview=True
@@ -1477,8 +1474,8 @@ async def setup_bot():
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                     [
-                        InlineKeyboardButton("📢 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                        InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                        InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                        InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
                     ]
                 ])
             )
@@ -1493,15 +1490,11 @@ async def setup_bot():
             "• Latest movie releases\n"
             "• High quality files\n"
             "• Daily updates\n\n"
-            "📢 **Updates Channel:**\n"
-            "• News & announcements\n"
-            "• Feature updates\n"
-            "• Important information\n\n"
             "👇 **Click below to join:**",
             reply_markup=InlineKeyboardMarkup([
                 [
                     InlineKeyboardButton("🎬 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
-                    InlineKeyboardButton("📢 UPDATES CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                    InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
                 ],
                 [InlineKeyboardButton("🌐 WEBSITE", url=Config.WEBSITE_URL)]
             ]),
