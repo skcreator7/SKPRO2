@@ -866,7 +866,6 @@ async def search_movies_live(query, limit=12, page=1):
             'has_previous': page > 1
         }
     }
-}
 
 async def get_home_movies_live():
     logger.info("🏠 Fetching 30 movies with ALL SOURCES POSTERS...")
