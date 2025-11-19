@@ -594,7 +594,11 @@
             width: 300px;
         }
 
-        #adContentBanner {
+        .content-banner-ad {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
             height: 300px;
             width: 160px;
         }
@@ -669,8 +673,8 @@
         }
 
         .popup-ad-container {
-            width: 100%;
-            height: 100%;
+            width: 300px;
+            height: 250px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -811,32 +815,8 @@
         <!-- Inline Content Ad -->
         <div class="ad-container">
             <div id="adInlineContent">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : '567936a964b0784aedd11f237d26bee0',
-                        'format' : 'iframe',
-                        'height' : 250,
-                        'width' : 300,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-            </div>
-        </div>
-
-        <!-- Content Banner Ad (160x300) -->
-        <div class="ad-container">
-            <div id="adContentBanner">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
-                        'format' : 'iframe',
-                        'height' : 300,
-                        'width' : 160,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
+                <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+                <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
             </div>
         </div>
 
@@ -916,10 +896,17 @@
         </button>
         <div class="popup-content">
             <div class="popup-ad-container" id="popupAdContainer">
-                <div class="ad-placeholder">
-                    <i class="fas fa-ad fa-3x mb-3"></i>
-                    <p>Loading advertisement...</p>
-                </div>
+                <!-- 300x250 Banner Ad for Popup -->
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : '567936a964b0784aedd11f237d26bee0',
+                        'format' : 'iframe',
+                        'height' : 250,
+                        'width' : 300,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
             </div>
         </div>
     </div>
@@ -980,9 +967,6 @@
         function showHalfScreenPopup() {
             const popup = document.getElementById('halfScreenPopup');
             
-            // Load the half-screen ad
-            loadHalfScreenAd();
-            
             // Show popup with smooth animation
             popup.classList.add('active');
         }
@@ -992,26 +976,6 @@
             
             // Hide popup with smooth animation
             popup.classList.remove('active');
-        }
-        
-        function loadHalfScreenAd() {
-            const container = document.getElementById('popupAdContainer');
-            if (!container) return;
-            
-            // Clear any existing content
-            container.innerHTML = '';
-            
-            // Load the half-screen ad script
-            const script = document.createElement('script');
-            script.textContent = `
-                (function(s){
-                    s.dataset.zone='10206831',
-                    s.src='https://groleegni.net/vignette.min.js'
-                })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))
-            `;
-            
-            container.appendChild(script);
-            console.log('✅ Half-screen ad loaded');
         }
 
         // ==== Navigation Functions ====
@@ -1086,7 +1050,7 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
-        // ==== Movie Loading Functions ====
+        // ==== Movie Loading Functions with Content Banner - FIXED ====
         async function loadHomeMovies() {
             try {
                 console.log('🎬 Loading movies from backend...');
@@ -1119,6 +1083,7 @@
                 const rating = movie.poster_rating || '0.0';
                 const uniqueId = `movie-${index}-${Date.now()}`;
                 
+                // Add movie card
                 html += `
                     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
                         <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.08}s">
@@ -1156,6 +1121,26 @@
                         </div>
                     </div>
                 `;
+                
+                // Add content banner after every 6 movies (after the 6th, 12th, 18th, etc.)
+                if ((index + 1) % 6 === 0 && (index + 1) < movies.length) {
+                    html += `
+                        <div class="col-12">
+                            <div class="content-banner-ad">
+                                <script type="text/javascript">
+                                    atOptions = {
+                                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
+                                        'format' : 'iframe',
+                                        'height' : 300,
+                                        'width' : 160,
+                                        'params' : {}
+                                    };
+                                    document.write('<scr' + 'ipt type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></scr' + 'ipt>');
+                                </script>
+                            </div>
+                        </div>
+                    `;
+                }
             });
             
             container.innerHTML = html;
@@ -1166,6 +1151,19 @@
                 const container = img.parentElement;
                 loadPosterWithFallback(img, movieData, container);
             });
+            
+            // Execute the banner scripts after they are added to DOM
+            setTimeout(() => {
+                const scripts = container.querySelectorAll('script');
+                scripts.forEach(script => {
+                    if (script.textContent.includes('dd8949e06e88ce3bb397fd3159be4e3e')) {
+                        const newScript = document.createElement('script');
+                        newScript.type = 'text/javascript';
+                        newScript.src = '//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js';
+                        script.parentNode.appendChild(newScript);
+                    }
+                });
+            }, 100);
         }
         
         function showError() {
