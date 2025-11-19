@@ -580,6 +580,7 @@
             background: rgba(15, 23, 42, 0.3);
             border-radius: 8px;
             overflow: hidden;
+            min-height: 90px;
         }
 
         #adTopDesktop {
@@ -722,47 +723,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
         }
 
-        /* Trigger Button for Popup */
-        .popup-trigger {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(45deg, var(--primary), var(--secondary));
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
-            z-index: 100;
-            transition: all 0.3s ease;
-            display: none;
-        }
-
-        .popup-trigger:hover {
-            transform: translateX(-50%) scale(1.05);
-            box-shadow: 0 6px 20px rgba(255, 0, 0, 0.6);
-        }
-
-        .popup-trigger.show {
-            display: block;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {
-                transform: translateX(-50%) translateY(0);
-            }
-            40% {
-                transform: translateX(-50%) translateY(-10px);
-            }
-            60% {
-                transform: translateX(-50%) translateY(-5px);
-            }
+        .ad-placeholder {
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            padding: 20px;
         }
     </style>
 </head>
@@ -846,8 +814,32 @@
     <div class="container">
         <!-- Top Ads -->
         <div class="ad-container">
-            <div id="adTopDesktop"></div>
-            <div id="adTopMobile"></div>
+            <div id="adTopDesktop">
+                <!-- Top Desktop Banner (728x90) -->
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+                        'format' : 'iframe',
+                        'height' : 90,
+                        'width' : 728,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+            </div>
+            <div id="adTopMobile">
+                <!-- Mobile Top Banner (320x50) -->
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
+                        'format' : 'iframe',
+                        'height' : 50,
+                        'width' : 320,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
+            </div>
         </div>
 
         <!-- Latest Movies -->
@@ -872,12 +864,36 @@
 
         <!-- Inline Content Ad -->
         <div class="ad-container">
-            <div id="adInlineContent"></div>
+            <div id="adInlineContent">
+                <!-- Inline Content Ad (300x250) -->
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : '567936a964b0784aedd11f237d26bee0',
+                        'format' : 'iframe',
+                        'height' : 250,
+                        'width' : 300,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+            </div>
         </div>
 
         <!-- Content Banner Ad (160x300) -->
         <div class="ad-container">
-            <div id="adContentBanner"></div>
+            <div id="adContentBanner">
+                <!-- Content Banner (160x300) -->
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
+                        'format' : 'iframe',
+                        'height' : 300,
+                        'width' : 160,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
+            </div>
         </div>
 
         <!-- Tutorial Videos -->
@@ -924,7 +940,19 @@
     <!-- Footer Desktop Ad -->
     <footer class="mt-5 pb-4">
         <div class="ad-container">
-            <div id="adFooterDesktop"></div>
+            <div id="adFooterDesktop">
+                <!-- Footer Banner (728x90) -->
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+                        'format' : 'iframe',
+                        'height' : 90,
+                        'width' : 728,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+            </div>
         </div>
     </footer>
 
@@ -938,11 +966,6 @@
         </div>
     </div>
 
-    <!-- Popup Trigger Button -->
-    <button class="popup-trigger" id="popupTrigger">
-        <i class="fas fa-gift me-2"></i>Special Offer
-    </button>
-
     <!-- Half-Screen Popup -->
     <div class="popup-overlay" id="popupOverlay"></div>
     <div class="half-screen-popup" id="halfScreenPopup">
@@ -955,6 +978,10 @@
         <div class="popup-content">
             <div class="popup-ad-container" id="popupAdContainer">
                 <!-- Half-screen ad will be loaded here -->
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad fa-3x mb-3"></i>
+                    <p>Loading advertisement...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -1011,50 +1038,43 @@
             img.src = posterURL;
         }
 
-        // ==== Ads: load only on first user click ====
-        let adsInitialized = false;
-
-        function loadAdScript(containerId, atOptionsConfig, src) {
-            const container = document.getElementById(containerId);
-            if (!container) {
-                console.warn(`Ad container ${containerId} not found`);
-                return;
-            }
+        // ==== Half-Screen Popup Functions ====
+        function showHalfScreenPopup() {
+            const overlay = document.getElementById('popupOverlay');
+            const popup = document.getElementById('halfScreenPopup');
             
-            container.innerHTML = '';
+            // Load the half-screen ad
+            loadHalfScreenAd();
             
-            const optScript = document.createElement('script');
-            optScript.type = 'text/javascript';
-            optScript.text = 'atOptions = ' + JSON.stringify(atOptionsConfig) + ';';
+            // Show overlay and popup
+            overlay.classList.add('active');
+            popup.classList.add('active');
             
-            const invokeScript = document.createElement('script');
-            invokeScript.type = 'text/javascript';
-            invokeScript.src = src;
-            invokeScript.async = true;
-            
-            container.appendChild(optScript);
-            container.appendChild(invokeScript);
-            
-            console.log(`✅ Ad loaded: ${containerId}`);
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
         }
-
-        function loadPopupAd() {
-            const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = '//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js';
-            document.body.appendChild(script);
-            console.log('✅ Popup ad loaded');
+        
+        function hideHalfScreenPopup() {
+            const overlay = document.getElementById('popupOverlay');
+            const popup = document.getElementById('halfScreenPopup');
+            
+            // Hide overlay and popup
+            overlay.classList.remove('active');
+            popup.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
         }
-
+        
         function loadHalfScreenAd() {
             const container = document.getElementById('popupAdContainer');
             if (!container) return;
             
             container.innerHTML = '';
             
+            // Load the half-screen ad script
             const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.text = `
+            script.textContent = `
                 (function(s){
                     s.dataset.zone='10206831',
                     s.src='https://groleegni.net/vignette.min.js'
@@ -1064,69 +1084,6 @@
             container.appendChild(script);
             console.log('✅ Half-screen ad loaded');
         }
-
-        function initAdsOnce() {
-            if (adsInitialized) return;
-            adsInitialized = true;
-            
-            console.log('🚀 Initializing ads...');
-
-            const isDesktop = window.innerWidth >= 992;
-
-            if (isDesktop) {
-                loadAdScript('adTopDesktop', {
-                    key: '3118cf3c0d1d908e59d96fac6de40e1f',
-                    format: 'iframe',
-                    height: 90,
-                    width: 728,
-                    params: {}
-                }, '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js');
-
-                loadAdScript('adFooterDesktop', {
-                    key: '3118cf3c0d1d908e59d96fac6de40e1f',
-                    format: 'iframe',
-                    height: 90,
-                    width: 728,
-                    params: {}
-                }, '//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js');
-            } else {
-                loadAdScript('adTopMobile', {
-                    key: 'c628de75b51e4c70d2f3bebebbaaf335',
-                    format: 'iframe',
-                    height: 50,
-                    width: 320,
-                    params: {}
-                }, '//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js');
-            }
-
-            loadAdScript('adInlineContent', {
-                key: '567936a964b0784aedd11f237d26bee0',
-                format: 'iframe',
-                height: 250,
-                width: 300,
-                params: {}
-            }, '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js');
-
-            loadAdScript('adContentBanner', {
-                key: 'dd8949e06e88ce3bb397fd3159be4e3e',
-                format: 'iframe',
-                height: 300,
-                width: 160,
-                params: {}
-            }, '//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js');
-
-            loadPopupAd();
-            
-            // Show popup trigger after a delay
-            setTimeout(() => {
-                document.getElementById('popupTrigger').classList.add('show');
-            }, 5000);
-        }
-
-        document.addEventListener('click', function initAds() {
-            initAdsOnce();
-            document.removeEventListener('click', initAds);
-        }, { once: true });
 
         // ==== Navigation Functions ====
         function toggleSearch() {
@@ -1198,36 +1155,6 @@
         
         function handleMovieClick(movieTitle) {
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
-        }
-        
-        // ==== Half-Screen Popup Functions ====
-        function showHalfScreenPopup() {
-            const overlay = document.getElementById('popupOverlay');
-            const popup = document.getElementById('halfScreenPopup');
-            const trigger = document.getElementById('popupTrigger');
-            
-            // Load the half-screen ad
-            loadHalfScreenAd();
-            
-            // Show overlay and popup
-            overlay.classList.add('active');
-            popup.classList.add('active');
-            trigger.classList.remove('show');
-            
-            // Prevent body scroll
-            document.body.style.overflow = 'hidden';
-        }
-        
-        function hideHalfScreenPopup() {
-            const overlay = document.getElementById('popupOverlay');
-            const popup = document.getElementById('halfScreenPopup');
-            
-            // Hide overlay and popup
-            overlay.classList.remove('active');
-            popup.classList.remove('active');
-            
-            // Restore body scroll
-            document.body.style.overflow = '';
         }
         
         // ==== Movie Loading Functions ====
@@ -1348,9 +1275,11 @@
             console.log('🎯 Poster Sources: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB');
             
             // Set up popup event listeners
-            document.getElementById('popupTrigger').addEventListener('click', showHalfScreenPopup);
             document.getElementById('popupClose').addEventListener('click', hideHalfScreenPopup);
             document.getElementById('popupOverlay').addEventListener('click', hideHalfScreenPopup);
+            
+            // Show half-screen popup automatically after 3 seconds
+            setTimeout(showHalfScreenPopup, 3000);
             
             loadHomeMovies();
             
