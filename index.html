@@ -4,7 +4,7 @@
     <meta name="monetag" content="84e885eb3638b33068291c3903261787">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SK4FiLM - Latest Movies</title>
+    <title>SK4FiLM - Latest Movies | Download HD Movies</title>
     <meta name="description" content="Search and download latest movies with multiple quality options">
     
     <!-- CSS Libraries -->
@@ -600,6 +600,12 @@
             max-width: 300px;
         }
 
+        #adContentBanner {
+            min-height: 300px;
+            width: 100%;
+            max-width: 160px;
+        }
+
         #adFooterDesktop {
             min-height: 90px;
             width: 100%;
@@ -624,6 +630,139 @@
             height: auto;
             display: block;
             margin: 0 auto;
+        }
+
+        /* Half-Screen Popup Styles */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .popup-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .half-screen-popup {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50vh;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .half-screen-popup.active {
+            transform: translateY(0);
+        }
+
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0, 102, 255, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .popup-title {
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .popup-close {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .popup-close:hover {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff6b6b;
+        }
+
+        .popup-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .popup-ad-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Trigger Button for Popup */
+        .popup-trigger {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
+            z-index: 100;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .popup-trigger:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 0, 0, 0.6);
+        }
+
+        .popup-trigger.show {
+            display: block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateX(-50%) translateY(0);
+            }
+            40% {
+                transform: translateX(-50%) translateY(-10px);
+            }
+            60% {
+                transform: translateX(-50%) translateY(-5px);
+            }
         }
     </style>
 </head>
@@ -736,6 +875,11 @@
             <div id="adInlineContent"></div>
         </div>
 
+        <!-- Content Banner Ad (160x300) -->
+        <div class="ad-container">
+            <div id="adContentBanner"></div>
+        </div>
+
         <!-- Tutorial Videos -->
         <div class="section-box animate__animated animate__fadeIn">
             <h2 style="color: var(--accent); text-align: center; margin-bottom: 30px;">
@@ -791,6 +935,27 @@
         </div>
         <div class="visitor-count">
             <span id="visitorCount">1247</span>
+        </div>
+    </div>
+
+    <!-- Popup Trigger Button -->
+    <button class="popup-trigger" id="popupTrigger">
+        <i class="fas fa-gift me-2"></i>Special Offer
+    </button>
+
+    <!-- Half-Screen Popup -->
+    <div class="popup-overlay" id="popupOverlay"></div>
+    <div class="half-screen-popup" id="halfScreenPopup">
+        <div class="popup-header">
+            <div class="popup-title">Special Offer</div>
+            <button class="popup-close" id="popupClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="popup-content">
+            <div class="popup-ad-container" id="popupAdContainer">
+                <!-- Half-screen ad will be loaded here -->
+            </div>
         </div>
     </div>
 
@@ -881,6 +1046,25 @@
             console.log('✅ Popup ad loaded');
         }
 
+        function loadHalfScreenAd() {
+            const container = document.getElementById('popupAdContainer');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.text = `
+                (function(s){
+                    s.dataset.zone='10206831',
+                    s.src='https://groleegni.net/vignette.min.js'
+                })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))
+            `;
+            
+            container.appendChild(script);
+            console.log('✅ Half-screen ad loaded');
+        }
+
         function initAdsOnce() {
             if (adsInitialized) return;
             adsInitialized = true;
@@ -923,7 +1107,20 @@
                 params: {}
             }, '//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js');
 
+            loadAdScript('adContentBanner', {
+                key: 'dd8949e06e88ce3bb397fd3159be4e3e',
+                format: 'iframe',
+                height: 300,
+                width: 160,
+                params: {}
+            }, '//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js');
+
             loadPopupAd();
+            
+            // Show popup trigger after a delay
+            setTimeout(() => {
+                document.getElementById('popupTrigger').classList.add('show');
+            }, 5000);
         }
 
         document.addEventListener('click', function initAds() {
@@ -1001,6 +1198,36 @@
         
         function handleMovieClick(movieTitle) {
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
+        }
+        
+        // ==== Half-Screen Popup Functions ====
+        function showHalfScreenPopup() {
+            const overlay = document.getElementById('popupOverlay');
+            const popup = document.getElementById('halfScreenPopup');
+            const trigger = document.getElementById('popupTrigger');
+            
+            // Load the half-screen ad
+            loadHalfScreenAd();
+            
+            // Show overlay and popup
+            overlay.classList.add('active');
+            popup.classList.add('active');
+            trigger.classList.remove('show');
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function hideHalfScreenPopup() {
+            const overlay = document.getElementById('popupOverlay');
+            const popup = document.getElementById('halfScreenPopup');
+            
+            // Hide overlay and popup
+            overlay.classList.remove('active');
+            popup.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
         }
         
         // ==== Movie Loading Functions ====
@@ -1119,6 +1346,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 SK4FiLM v6.0 FINAL - ALL SOURCES POSTERS + RESPONSIVE ADS');
             console.log('🎯 Poster Sources: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB');
+            
+            // Set up popup event listeners
+            document.getElementById('popupTrigger').addEventListener('click', showHalfScreenPopup);
+            document.getElementById('popupClose').addEventListener('click', hideHalfScreenPopup);
+            document.getElementById('popupOverlay').addEventListener('click', hideHalfScreenPopup);
             
             loadHomeMovies();
             
