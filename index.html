@@ -594,15 +594,6 @@
             width: 300px;
         }
 
-        .content-banner-ad {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 20px 0;
-            height: 300px;
-            width: 160px;
-        }
-
         #adFooterDesktop {
             height: 90px;
             width: 728px;
@@ -1050,7 +1041,7 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
-        // ==== Movie Loading Functions with Content Banner - FIXED ====
+        // ==== Movie Loading Functions - SIMPLIFIED ====
         async function loadHomeMovies() {
             try {
                 console.log('🎬 Loading movies from backend...');
@@ -1083,7 +1074,6 @@
                 const rating = movie.poster_rating || '0.0';
                 const uniqueId = `movie-${index}-${Date.now()}`;
                 
-                // Add movie card
                 html += `
                     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
                         <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.08}s">
@@ -1121,26 +1111,6 @@
                         </div>
                     </div>
                 `;
-                
-                // Add content banner after every 6 movies (after the 6th, 12th, 18th, etc.)
-                if ((index + 1) % 6 === 0 && (index + 1) < movies.length) {
-                    html += `
-                        <div class="col-12">
-                            <div class="content-banner-ad">
-                                <script type="text/javascript">
-                                    atOptions = {
-                                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
-                                        'format' : 'iframe',
-                                        'height' : 300,
-                                        'width' : 160,
-                                        'params' : {}
-                                    };
-                                    document.write('<scr' + 'ipt type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></scr' + 'ipt>');
-                                </script>
-                            </div>
-                        </div>
-                    `;
-                }
             });
             
             container.innerHTML = html;
@@ -1151,19 +1121,6 @@
                 const container = img.parentElement;
                 loadPosterWithFallback(img, movieData, container);
             });
-            
-            // Execute the banner scripts after they are added to DOM
-            setTimeout(() => {
-                const scripts = container.querySelectorAll('script');
-                scripts.forEach(script => {
-                    if (script.textContent.includes('dd8949e06e88ce3bb397fd3159be4e3e')) {
-                        const newScript = document.createElement('script');
-                        newScript.type = 'text/javascript';
-                        newScript.src = '//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js';
-                        script.parentNode.appendChild(newScript);
-                    }
-                });
-            }, 100);
         }
         
         function showError() {
