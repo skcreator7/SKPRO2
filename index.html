@@ -658,7 +658,7 @@
             position: absolute;
             top: -35px;
             right: 0;
-            background: rgba(255, 0, 0, 0.8);
+            background: rgba(255, 0, 0, 0.9);
             border: none;
             color: white;
             font-size: 1rem;
@@ -671,7 +671,8 @@
             border-radius: 50%;
             z-index: 10001;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-weight: bold;
         }
 
         .popup-close:hover {
@@ -697,12 +698,7 @@
             border-radius: 0;
         }
 
-        .ad-placeholder {
-            color: rgba(255, 255, 255, 0.7);
-            text-align: center;
-        }
-
-        /* Second Popup Styles */
+        /* Second Popup Styles - NO CLOSE BUTTON */
         .second-popup-overlay {
             position: fixed;
             top: 0;
@@ -742,31 +738,6 @@
 
         .second-popup-container.active {
             transform: translateX(-50%) translateY(0);
-        }
-
-        .second-popup-close {
-            position: absolute;
-            top: -35px;
-            right: 0;
-            background: rgba(255, 0, 0, 0.8);
-            border: none;
-            color: white;
-            font-size: 1rem;
-            cursor: pointer;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            z-index: 10001;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-
-        .second-popup-close:hover {
-            background: rgba(255, 0, 0, 1);
-            transform: scale(1.1);
         }
 
         .second-popup-content {
@@ -1034,7 +1005,7 @@
         </div>
     </div>
 
-    <!-- First Popup - Auto Show -->
+    <!-- First Popup - Auto Show WITH CLOSE BUTTON -->
     <div class="popup-overlay" id="popupOverlay"></div>
     <div class="popup-container" id="popupContainer">
         <button class="popup-close" id="popupClose">
@@ -1057,12 +1028,10 @@
         </div>
     </div>
 
-    <!-- Second Popup - Show on User Click -->
+    <!-- Second Popup - Show on User Click WITHOUT CLOSE BUTTON -->
     <div class="second-popup-overlay" id="secondPopupOverlay"></div>
     <div class="second-popup-container" id="secondPopupContainer">
-        <button class="second-popup-close" id="secondPopupClose">
-            <i class="fas fa-times"></i>
-        </button>
+        <!-- NO CLOSE BUTTON HERE -->
         <div class="second-popup-content">
             <div class="second-popup-ad-container" id="secondPopupAdContainer">
                 <!-- Second Popup Ad -->
@@ -1131,8 +1100,6 @@
             // Show overlay and popup
             overlay.classList.add('active');
             popup.classList.add('active');
-            
-            // NO body scroll blocking - page remains fully scrollable
         }
         
         function hideFirstPopup() {
@@ -1151,8 +1118,6 @@
             // Show overlay and popup
             overlay.classList.add('active');
             popup.classList.add('active');
-            
-            // NO body scroll blocking - page remains fully scrollable
         }
         
         function hideSecondPopup() {
@@ -1353,11 +1318,11 @@
             console.log('🚀 SK4FiLM v6.0 FINAL - ALL SOURCES POSTERS + RESPONSIVE ADS');
             console.log('🎯 Poster Sources: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB');
             
-            // Set up popup event listeners - BOTH popups close on overlay click
+            // Set up popup event listeners
             document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
             document.getElementById('popupOverlay').addEventListener('click', hideFirstPopup);
             
-            document.getElementById('secondPopupClose').addEventListener('click', hideSecondPopup);
+            // Second popup closes only on overlay click (no close button)
             document.getElementById('secondPopupOverlay').addEventListener('click', hideSecondPopup);
             
             // Show first popup automatically after 3 seconds
