@@ -833,15 +833,15 @@
                             <div class="menu-links">
                                 <a href="https://t.me/sk4film" target="_blank" class="menu-link">
                                     <i class="fab fa-telegram" style="color: #0088cc;"></i>
-                                    <span>Telegram Channel</span>
+                                    <span>Telegram</span>
                                 </a>
                                 <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
                                     <i class="fab fa-whatsapp" style="color: #25d366;"></i>
-                                    <span>WhatsApp Channel</span>
+                                    <span>WhatsApp</span>
                                 </a>
                                 <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
                                     <i class="fab fa-youtube" style="color: #ff0000;"></i>
-                                    <span>YouTube Channel</span>
+                                    <span>YouTube</span>
                                 </a>
                                 <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
                                     <i class="fas fa-robot" style="color: #7b68ee;"></i>
@@ -1105,10 +1105,16 @@
         function hideFirstPopup() {
             const overlay = document.getElementById('popupOverlay');
             const popup = document.getElementById('popupContainer');
+            const closeBtn = document.getElementById('popupClose');
             
             // Hide overlay and popup
             overlay.classList.remove('active');
             popup.classList.remove('active');
+            
+            // Completely hide close button after click
+            setTimeout(() => {
+                closeBtn.style.display = 'none';
+            }, 300);
         }
 
         function showSecondPopup() {
@@ -1127,6 +1133,12 @@
             // Hide overlay and popup
             overlay.classList.remove('active');
             popup.classList.remove('active');
+        }
+
+        // Reset close button when first popup shows again
+        function resetCloseButton() {
+            const closeBtn = document.getElementById('popupClose');
+            closeBtn.style.display = 'flex';
         }
 
         // ==== Navigation Functions ====
