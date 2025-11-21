@@ -98,19 +98,6 @@
             transform: scale(1.05);
         }
         
-        /* Exact Match Section */
-        .exact-match-section {
-            margin-bottom: 2rem;
-        }
-        .section-title {
-            color: var(--accent-color);
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            border-bottom: 2px solid var(--accent-color);
-            padding-bottom: 0.5rem;
-        }
-        
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
@@ -294,19 +281,6 @@
     </div>
 
     <div id="resultsInfo"></div>
-    
-    <!-- Exact Match Section -->
-    <div id="exactMatchSection" class="exact-match-section" style="display: none;">
-        <h3 class="section-title">Exact Match</h3>
-        <div id="exactMatchContainer"></div>
-    </div>
-    
-    <!-- Other Results Section -->
-    <div id="otherResultsSection" style="display: none;">
-        <h3 class="section-title">Other Results</h3>
-        <div id="otherResultsContainer"></div>
-    </div>
-    
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
     
@@ -335,10 +309,6 @@ const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
 const searchInput = document.getElementById('searchInput');
 const searchButton = document.getElementById('searchButton');
-const exactMatchSection = document.getElementById('exactMatchSection');
-const exactMatchContainer = document.getElementById('exactMatchContainer');
-const otherResultsSection = document.getElementById('otherResultsSection');
-const otherResultsContainer = document.getElementById('otherResultsContainer');
 
 // Initialize the page
 window.addEventListener('DOMContentLoaded', () => {
@@ -388,8 +358,6 @@ async function performSearch(page = 1) {
     resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "' + escapeHtml(currentQuery) + '"...</p></div>';
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
-    exactMatchSection.style.display = 'none';
-    otherResultsSection.style.display = 'none';
     
     try {
         const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
@@ -399,9 +367,9 @@ async function performSearch(page = 1) {
         
         if (data.status === "success") {
             BOT_USERNAME = data.bot_username || BOT_USERNAME;
-            // Separate exact matches from other results
-            const { exactMatches, otherResults } = separateExactMatches(data.results, currentQuery);
-            displayResults(exactMatches, otherResults, data.pagination);
+            // Sort results with exact matches first
+            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
+            displayResults(sortedResults, data.pagination);
         } else {
             showError(data.message || "Search failed");
         }
@@ -410,73 +378,60 @@ async function performSearch(page = 1) {
     }
 }
 
-function separateExactMatches(results, query) {
-    const exactMatches = [];
-    const otherResults = [];
-    const queryLower = query.toLowerCase().trim();
-    
+function sortResultsWithExactMatchFirst(results, query) {
     if (!results || results.length === 0) {
-        return { exactMatches, otherResults };
+        return [];
     }
     
-    results.forEach(result => {
-        if (!result.title) {
-            otherResults.push(result);
-            return;
-        }
+    const queryLower = query.toLowerCase().trim();
+    
+    // Create a copy of results to avoid mutating the original
+    const resultsCopy = [...results];
+    
+    // Sort results - exact matches first, then partial matches
+    resultsCopy.sort((a, b) => {
+        if (!a.title || !b.title) return 0;
         
-        const titleLower = result.title.toLowerCase().trim();
+        const titleALower = a.title.toLowerCase().trim();
+        const titleBLower = b.title.toLowerCase().trim();
         
-        // Check for exact match
-        if (titleLower === queryLower) {
-            exactMatches.push(result);
-        } 
-        // Check for close matches (contains the exact query as a whole word)
-        else if (titleLower.includes(` ${queryLower} `) || 
-                 titleLower.startsWith(`${queryLower} `) || 
-                 titleLower.endsWith(` ${queryLower}`) ||
-                 titleLower === queryLower) {
-            exactMatches.push(result);
-        } else {
-            otherResults.push(result);
-        }
+        // Check for exact match (case insensitive)
+        const aIsExact = titleALower === queryLower;
+        const bIsExact = titleBLower === queryLower;
+        
+        // If A is exact match and B is not, A comes first
+        if (aIsExact && !bIsExact) return -1;
+        // If B is exact match and A is not, B comes first
+        if (!aIsExact && bIsExact) return 1;
+        // If both are exact matches, maintain original order
+        if (aIsExact && bIsExact) return 0;
+        
+        // Check for partial matches (title contains the query)
+        const aHasPartial = titleALower.includes(queryLower);
+        const bHasPartial = titleBLower.includes(queryLower);
+        
+        // If A has partial match and B doesn't, A comes first
+        if (aHasPartial && !bHasPartial) return -1;
+        // If B has partial match and A doesn't, B comes first
+        if (!aHasPartial && bHasPartial) return 1;
+        // If both have partial matches, maintain original order
+        if (aHasPartial && bHasPartial) return 0;
+        
+        // For titles that don't match at all, maintain original order
+        return 0;
     });
     
-    return { exactMatches, otherResults };
+    return resultsCopy;
 }
 
-function displayResults(exactMatches, otherResults, pagination) {
-    // Hide sections initially
-    exactMatchSection.style.display = 'none';
-    otherResultsSection.style.display = 'none';
-    
-    if ((!exactMatches || exactMatches.length === 0) && (!otherResults || otherResults.length === 0)) {
+function displayResults(results, pagination) {
+    if (!results || results.length === 0) {
         resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
         return;
     }
     
     resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
     
-    // Display exact matches if any
-    if (exactMatches && exactMatches.length > 0) {
-        exactMatchSection.style.display = 'block';
-        exactMatchContainer.innerHTML = generateResultsHTML(exactMatches);
-    }
-    
-    // Display other results if any
-    if (otherResults && otherResults.length > 0) {
-        otherResultsSection.style.display = 'block';
-        otherResultsContainer.innerHTML = generateResultsHTML(otherResults);
-    }
-    
-    // Clear the old results container
-    resultsContainer.innerHTML = '';
-    
-    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
-    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function generateResultsHTML(results) {
     let html = '';
     results.forEach((result, index) => {
         const hasPost = result.has_post !== false;
@@ -498,7 +453,10 @@ function generateResultsHTML(results) {
         `;
     });
     
-    return html;
+    resultsContainer.innerHTML = html;
+    
+    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
+    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function toggleQuality(index) {
@@ -587,6 +545,20 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Example test function to demonstrate the exact match functionality
+function testExactMatch() {
+    // This is just for demonstration - in real scenario, API would return these
+    const mockResults = [
+        { title: "The Family Man Season 3", has_post: true, has_file: true, quality_options: {"1080p": {file_id: "test1", file_size: 1500000000}} },
+        { title: "The Family Man", has_post: true, has_file: true, quality_options: {"1080p": {file_id: "test2", file_size: 1200000000}} },
+        { title: "Family Man Season 2", has_post: true, has_file: true, quality_options: {"720p": {file_id: "test3", file_size: 800000000}} },
+        { title: "The Man", has_post: true, has_file: false }
+    ];
+    
+    const sorted = sortResultsWithExactMatchFirst(mockResults, "The Family Man Season 3");
+    console.log("Sorted results with exact match first:", sorted);
 }
 </script>
 </body>
