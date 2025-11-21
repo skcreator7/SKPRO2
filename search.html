@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- ✅ Mobile zoom totally locked! -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Search Movies - SK4FiLM</title>
     <meta name="description" content="Search and download latest movies in HD quality">
@@ -61,6 +60,57 @@
         .btn-back-home:hover {
             transform: scale(1.05);
         }
+        
+        /* Search Bar */
+        .search-container {
+            margin: 2rem 0;
+            position: relative;
+        }
+        .search-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50px;
+            padding: 12px 25px;
+            color: white;
+            font-size: 1.1rem;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.2);
+        }
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 50px;
+            width: 50px;
+            height: 50px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .search-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Exact Match Section */
+        .exact-match-section {
+            margin-bottom: 2rem;
+        }
+        .section-title {
+            color: var(--accent-color);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+        
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
@@ -160,6 +210,7 @@
         .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
         .empty-state {text-align:center;padding:4rem 2rem;}
         .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
+        
         /* Ad Container */
         .ad-container {
             margin: 2rem 0;
@@ -234,7 +285,28 @@
         <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
     </div>
 
+    <!-- Search Bar -->
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search for movies..." value="">
+        <button class="search-btn" id="searchButton">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
+
     <div id="resultsInfo"></div>
+    
+    <!-- Exact Match Section -->
+    <div id="exactMatchSection" class="exact-match-section" style="display: none;">
+        <h3 class="section-title">Exact Match</h3>
+        <div id="exactMatchContainer"></div>
+    </div>
+    
+    <!-- Other Results Section -->
+    <div id="otherResultsSection" style="display: none;">
+        <h3 class="section-title">Other Results</h3>
+        <div id="otherResultsContainer"></div>
+    </div>
+    
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
     
@@ -261,112 +333,261 @@ let BOT_USERNAME = 'sk4filmbot';
 const resultsContainer = document.getElementById('resultsContainer');
 const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
+const searchInput = document.getElementById('searchInput');
+const searchButton = document.getElementById('searchButton');
+const exactMatchSection = document.getElementById('exactMatchSection');
+const exactMatchContainer = document.getElementById('exactMatchContainer');
+const otherResultsSection = document.getElementById('otherResultsSection');
+const otherResultsContainer = document.getElementById('otherResultsContainer');
 
-async function performSearch(page=1) {
-    if(!currentQuery) {
+// Initialize the page
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('query');
+    const page = parseInt(urlParams.get('page')) || 1;
+    
+    if (query) {
+        currentQuery = query;
+        searchInput.value = query;
+        performSearch(page);
+    }
+    
+    // Set up search button event
+    searchButton.addEventListener('click', () => {
+        const query = searchInput.value.trim();
+        if (query) {
+            currentQuery = query;
+            performSearch(1);
+        }
+    });
+    
+    // Set up enter key in search input
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const query = searchInput.value.trim();
+            if (query) {
+                currentQuery = query;
+                performSearch(1);
+            }
+        }
+    });
+});
+
+async function performSearch(page = 1) {
+    if (!currentQuery) {
         showError("Please enter a search query");
         return;
     }
+    
     currentPage = page;
     const url = new URL(window.location);
     url.searchParams.set('query', currentQuery);
     url.searchParams.set('page', page);
-    window.history.pushState({},'',url);
-    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "'+escapeHtml(currentQuery)+'"...</p></div>';
-    resultsInfo.innerHTML = ''; 
+    window.history.pushState({}, '', url);
+    
+    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "' + escapeHtml(currentQuery) + '"...</p></div>';
+    resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
+    exactMatchSection.style.display = 'none';
+    otherResultsSection.style.display = 'none';
+    
     try {
         const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-        const response = await fetch(apiUrl, {method:'GET',mode:'cors',headers:{'Content-Type':'application/json'}});
-        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+        const response = await fetch(apiUrl, { method: 'GET', mode: 'cors', headers: { 'Content-Type': 'application/json' } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        if(data.status==="success"){
+        
+        if (data.status === "success") {
             BOT_USERNAME = data.bot_username || BOT_USERNAME;
-            displayResults(data.results,data.pagination);
+            // Separate exact matches from other results
+            const { exactMatches, otherResults } = separateExactMatches(data.results, currentQuery);
+            displayResults(exactMatches, otherResults, data.pagination);
         } else {
             showError(data.message || "Search failed");
         }
-    } catch(e){
-        showError("Connection error: "+e.message);
+    } catch (e) {
+        showError("Connection error: " + e.message);
     }
 }
 
-function displayResults(results, pagination) {
-    if(!results||results.length===0){
-        resultsContainer.innerHTML='<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
+function separateExactMatches(results, query) {
+    const exactMatches = [];
+    const otherResults = [];
+    const queryLower = query.toLowerCase().trim();
+    
+    if (!results || results.length === 0) {
+        return { exactMatches, otherResults };
+    }
+    
+    results.forEach(result => {
+        if (!result.title) {
+            otherResults.push(result);
+            return;
+        }
+        
+        const titleLower = result.title.toLowerCase().trim();
+        
+        // Check for exact match
+        if (titleLower === queryLower) {
+            exactMatches.push(result);
+        } 
+        // Check for close matches (contains the exact query as a whole word)
+        else if (titleLower.includes(` ${queryLower} `) || 
+                 titleLower.startsWith(`${queryLower} `) || 
+                 titleLower.endsWith(` ${queryLower}`) ||
+                 titleLower === queryLower) {
+            exactMatches.push(result);
+        } else {
+            otherResults.push(result);
+        }
+    });
+    
+    return { exactMatches, otherResults };
+}
+
+function displayResults(exactMatches, otherResults, pagination) {
+    // Hide sections initially
+    exactMatchSection.style.display = 'none';
+    otherResultsSection.style.display = 'none';
+    
+    if ((!exactMatches || exactMatches.length === 0) && (!otherResults || otherResults.length === 0)) {
+        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
         return;
     }
-    resultsInfo.innerHTML=`<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results!==1?'s':''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
-    let html='';
-    results.forEach((result,index)=>{
-        const hasPost = result.has_post!==false;
-        const hasFile = result.has_file===true;
-        const qualityOptions = result.quality_options||{};
-        const hasQualities = Object.keys(qualityOptions).length>0;
+    
+    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
+    
+    // Display exact matches if any
+    if (exactMatches && exactMatches.length > 0) {
+        exactMatchSection.style.display = 'block';
+        exactMatchContainer.innerHTML = generateResultsHTML(exactMatches);
+    }
+    
+    // Display other results if any
+    if (otherResults && otherResults.length > 0) {
+        otherResultsSection.style.display = 'block';
+        otherResultsContainer.innerHTML = generateResultsHTML(otherResults);
+    }
+    
+    // Clear the old results container
+    resultsContainer.innerHTML = '';
+    
+    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
+    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function generateResultsHTML(results) {
+    let html = '';
+    results.forEach((result, index) => {
+        const hasPost = result.has_post !== false;
+        const hasFile = result.has_file === true;
+        const qualityOptions = result.quality_options || {};
+        const hasQualities = Object.keys(qualityOptions).length > 0;
+        
         html += `
         <div class="result-card">
             <h3 class="result-title">${escapeHtml(result.title)}</h3>
             <div class="result-actions">
-                ${hasPost?`<a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch"><i class="fas fa-eye me-2"></i>Watch</a>`:`<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
+                ${hasPost ? `<a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch"><i class="fas fa-eye me-2"></i>Watch</a>` : `<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
                 <div class="btn-download-wrapper">
-                    ${hasFile&&hasQualities?`<button class="btn btn-download-main" onclick="toggleQuality(${index})"><i class="fas fa-download me-2"></i>Download<i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i></button>`:`<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
+                    ${hasFile && hasQualities ? `<button class="btn btn-download-main" onclick="toggleQuality(${index})"><i class="fas fa-download me-2"></i>Download<i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i></button>` : `<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
                 </div>
-                ${hasFile&&hasQualities?`<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>`:''}
+                ${hasFile && hasQualities ? `<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>` : ''}
             </div>
         </div>
         `;
     });
-    resultsContainer.innerHTML=html;
-    if(pagination&&pagination.total_pages>1) displayPagination(pagination);
-    if(pagination.current_page>1) window.scrollTo({top:0,behavior:'smooth'});
+    
+    return html;
 }
 
-function toggleQuality(index){
-    const dropdown=document.getElementById(`quality-${index}`),arrow=document.getElementById(`arrow-${index}`);
-    document.querySelectorAll('.quality-dropdown').forEach((el,i)=>{
-        if(el.id!==`quality-${index}`){el.classList.remove('show');const otherA=document.getElementById(`arrow-${i}`);if(otherA)otherA.style.transform='rotate(0deg)';}
-    });
-    dropdown.classList.toggle('show');
-    arrow.style.transform=dropdown.classList.contains('show')?'rotate(180deg)':'rotate(0deg)';
-}
-
-function generateQualityOptions(qualityOptions){
-    if(!qualityOptions||Object.keys(qualityOptions).length===0)return'<p class="text-center text-muted mb-0">No files available</p>';
-    let html='<div class="quality-buttons-row">';
-    ['2160p HEVC','2160p','1080p HEVC','1080p','720p HEVC','720p','480p HEVC','480p'].forEach(quality=>{
-        if(qualityOptions[quality]){
-            const f=qualityOptions[quality],fileId=f.file_id,fileSize=formatSize(f.file_size);
-            html+=`<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option"><i class="fas fa-download me-1"></i>${quality}<small>${fileSize}</small></a>`;
+function toggleQuality(index) {
+    const dropdown = document.getElementById(`quality-${index}`);
+    const arrow = document.getElementById(`arrow-${index}`);
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
+        if (el.id !== `quality-${index}`) {
+            el.classList.remove('show');
+            const otherA = document.getElementById(`arrow-${i}`);
+            if (otherA) otherA.style.transform = 'rotate(0deg)';
         }
     });
-    html+='</div>';return html;
+    
+    // Toggle current dropdown
+    dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
 }
 
-function displayPagination(pagination){
-    let html='<nav><ul class="pagination justify-content-center">';
-    const {current_page,total_pages,has_previous,has_next}=pagination,maxVisible=5;
-    html+=`<li class="page-item ${!has_previous?'disabled':''}"><a class="page-link" href="#" onclick="${has_previous?`performSearch(${current_page-1});return false;`:'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
-    let startPage=Math.max(1,current_page-2),endPage=Math.min(total_pages,startPage+maxVisible-1);if(endPage-startPage<maxVisible-1){startPage=Math.max(1,endPage-maxVisible+1);}
-    if(startPage>1){html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;if(startPage>2){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';} }
-    for(let i=startPage;i<=endPage;i++){html+=`<li class="page-item ${i===current_page?'active':''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;}
-    if(endPage<total_pages){if(endPage<total_pages-1){html+='<li class="page-item disabled"><span class="page-link">...</span></li>';}html+=`<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;}
-    html+=`<li class="page-item ${!has_next?'disabled':''}"><a class="page-link" href="#" onclick="${has_next?`performSearch(${current_page+1});return false;`:'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
-    html+='</ul></nav>';paginationContainer.innerHTML=html;
+function generateQualityOptions(qualityOptions) {
+    if (!qualityOptions || Object.keys(qualityOptions).length === 0) return '<p class="text-center text-muted mb-0">No files available</p>';
+    
+    let html = '<div class="quality-buttons-row">';
+    ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'].forEach(quality => {
+        if (qualityOptions[quality]) {
+            const f = qualityOptions[quality];
+            const fileId = f.file_id;
+            const fileSize = formatSize(f.file_size);
+            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option"><i class="fas fa-download me-1"></i>${quality}<small>${fileSize}</small></a>`;
+        }
+    });
+    html += '</div>';
+    return html;
 }
 
-function showError(message){resultsContainer.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-triangle text-danger"></i><h4>Error</h4><p class="text-muted">${escapeHtml(message)}</p></div>`;}
-function formatSize(bytes){if(!bytes)return'Unknown';const gb=bytes/1073741824,mb=bytes/1048576;return gb>=1?gb.toFixed(2)+' GB':mb.toFixed(1)+' MB';}
-function escapeHtml(text){if(!text)return'';const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
-
-window.addEventListener('DOMContentLoaded',()=>{
-    const urlParams=new URLSearchParams(window.location.search);
-    const query=urlParams.get('query');
-    const page=parseInt(urlParams.get('page'))||1;
-    if(query){
-        currentQuery=query;
-        performSearch(page);
+function displayPagination(pagination) {
+    let html = '<nav><ul class="pagination justify-content-center">';
+    const { current_page, total_pages, has_previous, has_next } = pagination;
+    const maxVisible = 5;
+    
+    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
+    
+    let startPage = Math.max(1, current_page - 2);
+    let endPage = Math.min(total_pages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
     }
-});
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<li class="page-item ${i === current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;
+    }
+    
+    if (endPage < total_pages) {
+        if (endPage < total_pages - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;
+    }
+    
+    html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
+    html += '</ul></nav>';
+    paginationContainer.innerHTML = html;
+}
+
+function showError(message) {
+    resultsContainer.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle text-danger"></i><h4>Error</h4><p class="text-muted">${escapeHtml(message)}</p></div>`;
+}
+
+function formatSize(bytes) {
+    if (!bytes) return 'Unknown';
+    const gb = bytes / 1073741824;
+    const mb = bytes / 1048576;
+    return gb >= 1 ? gb.toFixed(2) + ' GB' : mb.toFixed(1) + ' MB';
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 </script>
 </body>
 </html>
