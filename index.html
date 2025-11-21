@@ -590,8 +590,8 @@
         }
 
         #adInlineContent {
-            height: 250px;
-            width: 300px;
+            height: 300px;
+            width: 160px;
         }
 
         #adFooterDesktop {
@@ -612,33 +612,56 @@
             }
         }
 
-        /* Half-Screen Popup Styles - CLEAN */
-        .half-screen-popup {
+        /* Popup Styles - Bottom Slide Up (Ad Size) */
+        .popup-overlay {
             position: fixed;
-            bottom: 0;
+            top: 0;
             left: 0;
             width: 100%;
-            height: 50vh;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            border-top: 3px solid var(--accent);
-            z-index: 10000;
-            transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            overflow: hidden;
+            height: 100%;
+            background-color: transparent;
+            z-index: 9999;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
         }
 
-        .half-screen-popup.active {
-            transform: translateY(0);
+        .popup-overlay.active {
+            display: block;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .popup-container {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: transparent;
+            border: none;
+            padding: 0;
+            z-index: 10000;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 300px;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .popup-container.active {
+            transform: translateX(-50%) translateY(0);
         }
 
         .popup-close {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 0, 0, 0.2);
+            top: -35px;
+            right: 0;
+            background: rgba(255, 0, 0, 0.8);
             border: none;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1rem;
             cursor: pointer;
             width: 30px;
             height: 30px;
@@ -648,10 +671,11 @@
             border-radius: 50%;
             z-index: 10001;
             transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
 
         .popup-close:hover {
-            background: rgba(255, 0, 0, 0.4);
+            background: rgba(255, 0, 0, 1);
             transform: scale(1.1);
         }
 
@@ -669,11 +693,133 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            background: transparent;
+            border-radius: 0;
         }
 
         .ad-placeholder {
             color: rgba(255, 255, 255, 0.7);
             text-align: center;
+        }
+
+        /* Second Popup Styles */
+        .second-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+            z-index: 9999;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .second-popup-overlay.active {
+            display: block;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .second-popup-container {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: transparent;
+            border: none;
+            padding: 0;
+            z-index: 10000;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 300px;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .second-popup-container.active {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .second-popup-close {
+            position: absolute;
+            top: -35px;
+            right: 0;
+            background: rgba(255, 0, 0, 0.8);
+            border: none;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            z-index: 10001;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .second-popup-close:hover {
+            background: rgba(255, 0, 0, 1);
+            transform: scale(1.1);
+        }
+
+        .second-popup-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .second-popup-ad-container {
+            width: 300px;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border-radius: 0;
+        }
+
+        /* Mobile-specific popup styles */
+        @media (max-width: 767px) {
+            .popup-container,
+            .second-popup-container {
+                width: 300px;
+                height: 250px;
+            }
+            
+            .popup-ad-container,
+            .second-popup-ad-container {
+                width: 300px;
+                height: 250px;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .popup-container,
+            .second-popup-container {
+                width: 300px;
+                height: 250px;
+                transform: translateX(-50%) translateY(100%) scale(0.9);
+            }
+            
+            .popup-container.active,
+            .second-popup-container.active {
+                transform: translateX(-50%) translateY(0) scale(0.9);
+            }
+            
+            .popup-ad-container,
+            .second-popup-ad-container {
+                width: 300px;
+                height: 250px;
+            }
         }
     </style>
 </head>
@@ -718,7 +864,7 @@
                                     <i class="fab fa-telegram" style="color: #0088cc;"></i>
                                     <span>Telegram Channel</span>
                                 </a>
-                                <a href="https://whatsapp.com/channel/0029Va69Ts2C6ZvmEWsHNo3c" target="_blank" class="menu-link">
+                                <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
                                     <i class="fab fa-whatsapp" style="color: #25d366;"></i>
                                     <span>WhatsApp Channel</span>
                                 </a>
@@ -806,8 +952,16 @@
         <!-- Inline Content Ad -->
         <div class="ad-container">
             <div id="adInlineContent">
-                <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-                <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
+                        'format' : 'iframe',
+                        'height' : 300,
+                        'width' : 160,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
             </div>
         </div>
 
@@ -880,14 +1034,15 @@
         </div>
     </div>
 
-    <!-- Half-Screen Popup - CLEAN -->
-    <div class="half-screen-popup" id="halfScreenPopup">
+    <!-- First Popup - Auto Show -->
+    <div class="popup-overlay" id="popupOverlay"></div>
+    <div class="popup-container" id="popupContainer">
         <button class="popup-close" id="popupClose">
             <i class="fas fa-times"></i>
         </button>
         <div class="popup-content">
             <div class="popup-ad-container" id="popupAdContainer">
-                <!-- 300x250 Banner Ad for Popup -->
+                <!-- First Popup Ad -->
                 <script type="text/javascript">
                     atOptions = {
                         'key' : '567936a964b0784aedd11f237d26bee0',
@@ -898,6 +1053,20 @@
                     };
                 </script>
                 <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Popup - Show on User Click -->
+    <div class="second-popup-overlay" id="secondPopupOverlay"></div>
+    <div class="second-popup-container" id="secondPopupContainer">
+        <button class="second-popup-close" id="secondPopupClose">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="second-popup-content">
+            <div class="second-popup-ad-container" id="secondPopupAdContainer">
+                <!-- Second Popup Ad -->
+                <script type='text/javascript' src='//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js'></script>
             </div>
         </div>
     </div>
@@ -954,18 +1123,44 @@
             img.src = posterURL;
         }
 
-        // ==== Half-Screen Popup Functions - CLEAN ====
-        function showHalfScreenPopup() {
-            const popup = document.getElementById('halfScreenPopup');
+        // ==== Popup Functions ====
+        function showFirstPopup() {
+            const overlay = document.getElementById('popupOverlay');
+            const popup = document.getElementById('popupContainer');
             
-            // Show popup with smooth animation
+            // Show overlay and popup
+            overlay.classList.add('active');
             popup.classList.add('active');
+            
+            // NO body scroll blocking - page remains fully scrollable
         }
         
-        function hideHalfScreenPopup() {
-            const popup = document.getElementById('halfScreenPopup');
+        function hideFirstPopup() {
+            const overlay = document.getElementById('popupOverlay');
+            const popup = document.getElementById('popupContainer');
             
-            // Hide popup with smooth animation
+            // Hide overlay and popup
+            overlay.classList.remove('active');
+            popup.classList.remove('active');
+        }
+
+        function showSecondPopup() {
+            const overlay = document.getElementById('secondPopupOverlay');
+            const popup = document.getElementById('secondPopupContainer');
+            
+            // Show overlay and popup
+            overlay.classList.add('active');
+            popup.classList.add('active');
+            
+            // NO body scroll blocking - page remains fully scrollable
+        }
+        
+        function hideSecondPopup() {
+            const overlay = document.getElementById('secondPopupOverlay');
+            const popup = document.getElementById('secondPopupContainer');
+            
+            // Hide overlay and popup
+            overlay.classList.remove('active');
             popup.classList.remove('active');
         }
 
@@ -1041,7 +1236,7 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
-        // ==== Movie Loading Functions - SIMPLIFIED ====
+        // ==== Movie Loading Functions ====
         async function loadHomeMovies() {
             try {
                 console.log('🎬 Loading movies from backend...');
@@ -1077,7 +1272,7 @@
                 html += `
                     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
                         <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.08}s">
-                            <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}')"></div>
+                            <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
                             
                             <div id="${uniqueId}">
                                 ${hasPoster ? `
@@ -1158,11 +1353,15 @@
             console.log('🚀 SK4FiLM v6.0 FINAL - ALL SOURCES POSTERS + RESPONSIVE ADS');
             console.log('🎯 Poster Sources: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB');
             
-            // Set up popup event listeners
-            document.getElementById('popupClose').addEventListener('click', hideHalfScreenPopup);
+            // Set up popup event listeners - BOTH popups close on overlay click
+            document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
+            document.getElementById('popupOverlay').addEventListener('click', hideFirstPopup);
             
-            // Show half-screen popup automatically after 3 seconds
-            setTimeout(showHalfScreenPopup, 3000);
+            document.getElementById('secondPopupClose').addEventListener('click', hideSecondPopup);
+            document.getElementById('secondPopupOverlay').addEventListener('click', hideSecondPopup);
+            
+            // Show first popup automatically after 3 seconds
+            setTimeout(showFirstPopup, 3000);
             
             loadHomeMovies();
             
