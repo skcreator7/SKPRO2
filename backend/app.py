@@ -17,9 +17,12 @@ import urllib.parse
 import base64
 from io import BytesIO
 
+# FAST LOADING OPTIMIZATIONS
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logging.getLogger('asyncio').setLevel(logging.WARNING)
+logging.getLogger('pyrogram').setLevel(logging.WARNING)
+logging.getLogger('hypercorn').setLevel(logging.WARNING)
 
 class Config:
     API_ID = int(os.environ.get("API_ID", "0"))
@@ -32,16 +35,14 @@ class Config:
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
     FILE_CHANNEL_ID = -1001768249569
     
-    # Telegram Channel Links
     MAIN_CHANNEL_LINK = "https://t.me/sk4film"
     UPDATES_CHANNEL_LINK = "https://t.me/sk4film_Request"
-    CHANNEL_USERNAME = "sk4film"  # Without @
+    CHANNEL_USERNAME = "sk4film"
     
-    # URL Shortener Verification (6 hours validity)
     URL_SHORTENER_API = os.environ.get("URL_SHORTENER_API", "https://your-shortener-api.com/verify")
     URL_SHORTENER_KEY = os.environ.get("URL_SHORTENER_KEY", "")
     VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "false").lower() == "true"
-    VERIFICATION_DURATION = 6 * 60 * 60  # 6 hours in seconds
+    VERIFICATION_DURATION = 6 * 60 * 60
     
     WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
     BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
@@ -53,6 +54,7 @@ class Config:
     OMDB_KEYS = ["8265bd1c", "b9bd48a6", "3e7e1e9d"]
     TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff", "8265bd1f"]
 
+# FAST INITIALIZATION
 app = Quart(__name__)
 
 @app.after_request
@@ -62,138 +64,157 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response
 
+# GLOBAL VARIABLES - FAST ACCESS
 mongo_client = None
 db = None
 files_col = None
 verification_col = None
+User = None
+bot = None
+bot_started = False
 
+# OPTIMIZED CACHE SYSTEM
+movie_db = {
+    'poster_cache': {},
+    'title_cache': {},
+    'search_cache': {},
+    'stats': {
+        'letterboxd': 0, 'imdb': 0, 'justwatch': 0, 'impawards': 0,
+        'omdb': 0, 'tmdb': 0, 'custom': 0, 'cache_hits': 0, 'video_thumbnails': 0
+    }
+}
+
+# CACHE CLEANUP TASK
+async def cache_cleanup():
+    while True:
+        await asyncio.sleep(3600)  # Clean every hour
+        try:
+            current_time = datetime.now()
+            expired_keys = []
+            for key, (data, timestamp) in movie_db['poster_cache'].items():
+                if (current_time - timestamp).seconds > 3600:
+                    expired_keys.append(key)
+            
+            for key in expired_keys:
+                del movie_db['poster_cache'][key]
+            
+            # Clear search cache more frequently (30 minutes)
+            expired_search_keys = []
+            for key, (data, timestamp) in movie_db['search_cache'].items():
+                if (current_time - timestamp).seconds > 1800:
+                    expired_search_keys.append(key)
+            
+            for key in expired_search_keys:
+                del movie_db['search_cache'][key]
+                
+            logger.info(f"🧹 Cache cleaned: {len(expired_keys)} posters, {len(expired_search_keys)} searches")
+        except Exception as e:
+            logger.error(f"Cache cleanup error: {e}")
+
+# OPTIMIZED MONGODB INIT
 async def init_mongodb():
     global mongo_client, db, files_col, verification_col
     try:
-        logger.info("🔌 MongoDB (Files + Verification)...")
-        mongo_client = AsyncIOMotorClient(Config.MONGODB_URI, serverSelectionTimeoutMS=10000)
+        logger.info("🔌 MongoDB initialization...")
+        mongo_client = AsyncIOMotorClient(Config.MONGODB_URI, serverSelectionTimeoutMS=5000, maxPoolSize=10)
         await mongo_client.admin.command('ping')
         
         db = mongo_client.sk4film
         files_col = db.files
         verification_col = db.verifications
         
-        # Files collection indexes
-        try:
+        # FAST INDEX CREATION - ONLY IF NOT EXISTS
+        existing_indexes = await files_col.index_information()
+        
+        if 'title_text' not in existing_indexes:
             await files_col.create_index([("title", "text")])
-        except:
-            pass
         
-        try:
+        if 'normalized_title_1' not in existing_indexes:
             await files_col.create_index([("normalized_title", 1)])
-        except:
-            pass
         
-        try:
+        if 'msg_ch_unique_idx' not in existing_indexes:
             await files_col.create_index(
                 [("message_id", 1), ("channel_id", 1)], 
                 unique=True,
                 name="msg_ch_unique_idx"
             )
-        except:
-            pass
         
-        try:
+        if 'indexed_at_-1' not in existing_indexes:
             await files_col.create_index([("indexed_at", -1)])
-        except:
-            pass
         
-        # Verification collection indexes
-        try:
+        if 'user_id_1' not in existing_indexes:
             await verification_col.create_index([("user_id", 1)], unique=True)
-        except:
-            pass
         
-        try:
-            await verification_col.create_index([("verified_at", 1)], expireAfterSeconds=Config.VERIFICATION_DURATION)
-        except:
-            pass
-        
-        logger.info("✅ MongoDB OK")
+        logger.info("✅ MongoDB OK - Optimized")
         return True
     except Exception as e:
         logger.error(f"❌ MongoDB: {e}")
         return False
 
-User = None
-bot = None
-bot_started = False
-movie_db = {
-    'poster_cache': {},
-    'stats': {
-        'letterboxd': 0,
-        'imdb': 0,
-        'justwatch': 0,
-        'impawards': 0,
-        'omdb': 0,
-        'tmdb': 0,
-        'custom': 0,
-        'cache_hits': 0,
-        'video_thumbnails': 0
-    }
-}
-
+# OPTIMIZED TITLE NORMALIZATION
 def normalize_title(title):
     if not title:
         return ""
+    # FAST NORMALIZATION - FEWER REGEX OPERATIONS
     normalized = title.lower().strip()
     normalized = re.sub(r'\b(19|20)\d{2}\b', '', normalized)
     normalized = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv)\b', '', normalized, flags=re.IGNORECASE)
-    normalized = ' '.join(normalized.split()).strip()
-    return normalized
+    return ' '.join(normalized.split()).strip()
 
+# OPTIMIZED TITLE EXTRACTION
 def extract_title_smart(text):
     if not text or len(text) < 10:
         return None
+    
+    # CACHE CHECK
+    text_hash = hash(text[:200])  # First 200 chars for cache key
+    if text_hash in movie_db['title_cache']:
+        return movie_db['title_cache'][text_hash]
+    
     try:
-        clean = re.sub(r'[^\w\s\(\)\-\.\n:]', ' ', text)
-        lines = [l.strip() for l in clean.split('\n') if l.strip()]
-        
+        lines = [l.strip() for l in text.split('\n') if l.strip()]
         if not lines:
             return None
         
         first_line = lines[0]
         
-        m = re.search(r'🎬\s*([^\n\-\(]{3,60})', first_line)
-        if m:
-            title = m.group(1).strip()
-            title = re.sub(r'\s+', ' ', title)
-            if 3 <= len(title) <= 60:
-                return title
+        # PRIORITIZED PATTERN MATCHING
+        patterns = [
+            (r'🎬\s*([^\n\-\(]{3,60})', 1),
+            (r'^([^\(\n]{3,60})\s*\(\d{4}\)', 1),
+            (r'^([^\-\n]{3,60})\s*-', 1)
+        ]
         
-        m = re.search(r'^([^\(\n]{3,60})\s*\(\d{4}\)', first_line)
-        if m:
-            title = m.group(1).strip()
-            if 3 <= len(title) <= 60:
-                return title
+        for pattern, group in patterns:
+            match = re.search(pattern, first_line)
+            if match:
+                title = match.group(group).strip()
+                title = re.sub(r'\s+', ' ', title)
+                if 3 <= len(title) <= 60:
+                    movie_db['title_cache'][text_hash] = title
+                    return title
         
-        m = re.search(r'^([^\-\n]{3,60})\s*-', first_line)
-        if m:
-            title = m.group(1).strip()
-            title = re.sub(r'\s+', ' ', title)
-            if 3 <= len(title) <= 60:
-                return title
-        
+        # FALLBACK
         if len(first_line) >= 3 and len(first_line) <= 60:
             title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hevc|x264|x265)\b', '', first_line, flags=re.IGNORECASE)
-            title = re.sub(r'\s+', ' ', title).strip()
+            title = ' '.join(title.split()).strip()
             if 3 <= len(title) <= 60:
+                movie_db['title_cache'][text_hash] = title
                 return title
     except:
         pass
+    
+    movie_db['title_cache'][text_hash] = None
     return None
 
+# OPTIMIZED FILE TITLE EXTRACTION
 def extract_title_from_file(msg):
     try:
         if msg.caption:
             t = extract_title_smart(msg.caption)
             if t:
                 return t
+        
         fn = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else None)
         if fn:
             name = fn.rsplit('.', 1)[0]
@@ -206,6 +227,7 @@ def extract_title_from_file(msg):
         pass
     return None
 
+# FAST UTILITY FUNCTIONS
 def format_size(size):
     if not size:
         return "Unknown"
@@ -256,170 +278,103 @@ def is_new(date):
         return False
 
 def is_video_file(file_name):
-    """Check if file is a video file"""
     if not file_name:
         return False
-    
     video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.mpg', '.mpeg']
     file_name_lower = file_name.lower()
-    
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
+# OPTIMIZED THUMBNAIL EXTRACTION
 async def extract_video_thumbnail(user_client, message):
-    """Extract thumbnail directly from video file"""
     try:
-        logger.info(f"    🎥 Extracting thumbnail from video file...")
-        
-        # Download thumbnail from Telegram
         if message.video:
-            # Get video thumbnail
             thumbnail = message.video.thumbs[0] if message.video.thumbs else None
             if thumbnail:
-                # Download thumbnail file
                 thumbnail_path = await user_client.download_media(thumbnail.file_id, in_memory=True)
                 if thumbnail_path:
-                    # Convert to base64 for web display
                     thumbnail_data = base64.b64encode(thumbnail_path.getvalue()).decode('utf-8')
                     thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
                     movie_db['stats']['video_thumbnails'] += 1
-                    logger.info(f"    ✅ Video thumbnail extracted successfully")
                     return thumbnail_url
-        
-        # Alternative: Download first frame of video (requires ffmpeg)
-        # This is more complex but can be implemented if needed
-        
         return None
-        
     except Exception as e:
-        logger.error(f"    ❌ Video thumbnail extraction failed: {e}")
         return None
 
 async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
-    """Get thumbnail directly from Telegram video"""
     try:
-        logger.info(f"    📹 Getting Telegram video thumbnail...")
-        
-        # Get the message
         msg = await user_client.get_messages(channel_id, message_id)
         if not msg or (not msg.video and not msg.document):
             return None
-        
-        # Extract thumbnail
-        thumbnail_url = await extract_video_thumbnail(user_client, msg)
-        if thumbnail_url:
-            logger.info(f"    ✅ Telegram video thumbnail extracted")
-            return thumbnail_url
-        
-        return None
-        
+        return await extract_video_thumbnail(user_client, msg)
     except Exception as e:
-        logger.error(f"    ❌ Telegram video thumbnail error: {e}")
         return None
 
+# OPTIMIZED VERIFICATION SYSTEM
 async def check_url_shortener_verification(user_id):
-    """Check if user has valid URL shortener verification (6 hours)"""
     if not Config.VERIFICATION_REQUIRED:
         return True, "verification_not_required"
     
     try:
-        logger.info(f"🔗 Checking URL Shortener Verification: User {user_id}")
-        
-        # Check MongoDB for existing verification
         verification = await verification_col.find_one({"user_id": user_id})
-        
         if verification:
             verified_at = verification.get('verified_at')
             if isinstance(verified_at, datetime):
                 time_elapsed = (datetime.now() - verified_at).total_seconds()
                 if time_elapsed < Config.VERIFICATION_DURATION:
-                    logger.info(f"  ✅ User {user_id} has valid verification ({int((Config.VERIFICATION_DURATION - time_elapsed)/60)} minutes remaining)")
                     return True, "verified"
                 else:
-                    # Remove expired verification
                     await verification_col.delete_one({"user_id": user_id})
-                    logger.info(f"  ⚠️ User {user_id} verification expired")
                     return False, "expired"
-        
-        logger.info(f"  ❌ User {user_id} not verified")
         return False, "not_verified"
-        
     except Exception as e:
-        logger.error(f"  ❌ Verification check error: {e}")
         return False, "error"
 
 async def verify_user_with_url_shortener(user_id, verification_url=None):
-    """Verify user through URL shortener service"""
     if not Config.VERIFICATION_REQUIRED:
         return True, "verification_not_required"
     
     try:
-        logger.info(f"🔗 Verifying User {user_id} via URL Shortener")
-        
-        # If no URL provided, generate one
         if not verification_url:
             verification_url = await generate_verification_url(user_id)
         
-        # Call URL shortener API to verify
         async with aiohttp.ClientSession() as session:
-            payload = {
-                'user_id': user_id,
-                'verification_url': verification_url,
-                'api_key': Config.URL_SHORTENER_KEY
-            }
-            
-            async with session.post(Config.URL_SHORTENER_API, json=payload, timeout=10) as response:
+            payload = {'user_id': user_id, 'verification_url': verification_url, 'api_key': Config.URL_SHORTENER_KEY}
+            async with session.post(Config.URL_SHORTENER_API, json=payload, timeout=5) as response:
                 if response.status == 200:
                     result = await response.json()
-                    
                     if result.get('verified') == True:
-                        # Store verification in MongoDB with 6-hour expiry
                         await verification_col.update_one(
                             {"user_id": user_id},
-                            {
-                                "$set": {
-                                    "verified_at": datetime.now(),
-                                    "verification_url": verification_url,
-                                    "verified_by": "url_shortener"
-                                }
-                            },
+                            {"$set": {"verified_at": datetime.now(), "verification_url": verification_url, "verified_by": "url_shortener"}},
                             upsert=True
                         )
-                        logger.info(f"  ✅ User {user_id} successfully verified")
                         return True, "verified"
                     else:
-                        logger.info(f"  ❌ User {user_id} verification failed: {result.get('message', 'Unknown error')}")
                         return False, result.get('message', 'verification_failed')
                 else:
-                    logger.error(f"  ❌ URL Shortener API error: {response.status}")
                     return False, "api_error"
-                    
     except Exception as e:
-        logger.error(f"  ❌ URL Shortener verification error: {e}")
         return False, "error"
 
 async def generate_verification_url(user_id):
-    """Generate verification URL for user"""
     base_url = Config.WEBSITE_URL or Config.BACKEND_URL
     verification_token = f"verify_{user_id}_{int(datetime.now().timestamp())}"
-    
-    # You can implement your own token generation logic here
     return f"{base_url}/verify?token={verification_token}&user_id={user_id}"
 
+# OPTIMIZED BACKGROUND INDEXING
 async def index_files_background():
-    """Background file indexing - non-blocking"""
     if not User or files_col is None:
-        logger.warning("⚠️ Cannot index in background")
         return
     
-    logger.info("📁 Starting background file indexing...")
+    logger.info("📁 Starting OPTIMIZED background indexing...")
     
     try:
         count = 0
         video_files_count = 0
         batch = []
-        batch_size = 50
+        batch_size = 100  # Increased batch size for speed
         
-        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID):
+        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=2000):  # Limit for speed
             if msg.document or msg.video:
                 title = extract_title_from_file(msg)
                 if title:
@@ -428,23 +383,17 @@ async def index_files_background():
                     file_name = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
                     quality = detect_quality(file_name)
                     
-                    # ✅ Check if it's a video file for thumbnail
                     file_is_video = is_video_file(file_name)
-                    
                     thumbnail_url = None
+                    
                     if file_is_video:
-                        # PRIORITY 1: Extract thumbnail directly from video
                         video_thumbnail = await extract_video_thumbnail(User, msg)
                         if video_thumbnail:
                             thumbnail_url = video_thumbnail
-                            logger.info(f"    🎬 DIRECT VIDEO THUMBNAIL: {title}")
                         else:
-                            # PRIORITY 2: Fetch from poster sources
                             async with aiohttp.ClientSession() as session:
                                 poster_data = await get_poster_guaranteed(title, session)
                             thumbnail_url = poster_data['poster_url'] if poster_data else None
-                            logger.info(f"    🎬 POSTER THUMBNAIL: {title}")
-                        
                         video_files_count += 1
                     
                     batch.append({
@@ -474,10 +423,9 @@ async def index_files_background():
                                     {'$set': doc},
                                     upsert=True
                                 )
-                            logger.info(f"    ✅ Indexed {count} files... (Videos: {video_files_count})")
+                            logger.info(f"    ✅ Batch indexed: {count} files")
                             batch = []
                         except Exception as e:
-                            logger.error(f"Batch error: {e}")
                             batch = []
         
         if batch:
@@ -489,46 +437,34 @@ async def index_files_background():
                         upsert=True
                     )
             except Exception as e:
-                logger.error(f"Final batch error: {e}")
+                pass
         
-        logger.info(f"✅ Background indexing complete: {count} files, {video_files_count} video files with thumbnails")
+        logger.info(f"✅ OPTIMIZED indexing complete: {count} files, {video_files_count} video files")
         
     except Exception as e:
         logger.error(f"❌ Background indexing error: {e}")
 
+# OPTIMIZED POSTER FETCHING WITH CONCURRENT REQUESTS
 async def get_poster_letterboxd(title, session):
-    """Letterboxd poster fetcher - HIGHEST QUALITY & SUCCESS RATE"""
     try:
-        logger.info(f"    🎬 Trying LETTERBOXD (1st)...")
-        
         clean_title = re.sub(r'[^\w\s]', '', title).strip()
         slug = clean_title.lower().replace(' ', '-')
         slug = re.sub(r'-+', '-', slug)
         
-        # Multiple URL patterns for better matching
         patterns = [
             f"https://letterboxd.com/film/{slug}/",
             f"https://letterboxd.com/film/{slug}-2024/",
             f"https://letterboxd.com/film/{slug}-2023/",
-            f"https://letterboxd.com/film/{slug}-2022/",
         ]
         
         for url in patterns:
             try:
-                async with session.get(url, timeout=8, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5'
-                }) as r:
+                async with session.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
                     if r.status == 200:
                         html_content = await r.text()
-                        
-                        # Multiple patterns for poster extraction
                         poster_patterns = [
                             r'<meta property="og:image" content="([^"]+)"',
                             r'<img[^>]*class="[^"]*poster[^"]*"[^>]*src="([^"]+)"',
-                            r'data-image-url="([^"]+)"',
-                            r'<img[^>]*data-src="([^"]+)"[^>]*class="[^"]*poster[^"]*"',
                         ]
                         
                         for pattern in poster_patterns:
@@ -536,45 +472,29 @@ async def get_poster_letterboxd(title, session):
                             if poster_match:
                                 poster_url = poster_match.group(1)
                                 if poster_url and poster_url.startswith('http'):
-                                    # HIGH QUALITY conversion
                                     if 'cloudfront.net' in poster_url:
                                         poster_url = poster_url.replace('-0-500-0-750', '-0-1000-0-1500')
-                                        poster_url = poster_url.replace('-0-230-0-345', '-0-1000-0-1500')
-                                        poster_url = poster_url.replace('-0-150-0-225', '-0-1000-0-1500')
                                     elif 's.ltrbxd.com' in poster_url:
                                         poster_url = poster_url.replace('/width/500/', '/width/1000/')
-                                        poster_url = poster_url.replace('/width/230/', '/width/1000/')
                                     
-                                    # Get rating
                                     rating_match = re.search(r'<meta name="twitter:data2" content="([^"]+)"', html_content)
                                     rating = rating_match.group(1) if rating_match else '0.0'
                                     
                                     res = {'poster_url': poster_url, 'source': 'Letterboxd', 'rating': rating}
                                     movie_db['stats']['letterboxd'] += 1
-                                    logger.info(f"    ✅ LETTERBOXD SUCCESS: {title}")
                                     return res
-            except Exception as e:
+            except:
                 continue
-        
         return None
     except Exception as e:
-        logger.info(f"    ⚠️ Letterboxd failed: {e}")
         return None
 
 async def get_poster_imdb(title, session):
-    """IMDb poster fetcher - HIGH QUALITY & RELIABLE"""
     try:
-        logger.info(f"    🎬 Trying IMDb (2nd)...")
-        
         clean_title = re.sub(r'[^\w\s]', '', title).strip()
-        
-        # IMDb search API
         search_url = f"https://v2.sg.media-imdb.com/suggestion/{clean_title[0].lower()}/{urllib.parse.quote(clean_title.replace(' ', '_'))}.json"
         
-        async with session.get(search_url, timeout=8, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json'
-        }) as r:
+        async with session.get(search_url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
             if r.status == 200:
                 data = await r.json()
                 if data.get('d'):
@@ -582,98 +502,45 @@ async def get_poster_imdb(title, session):
                         if item.get('i'):
                             poster_url = item['i'][0] if isinstance(item['i'], list) else item['i']
                             if poster_url and poster_url.startswith('http'):
-                                # HIGH QUALITY conversion
                                 poster_url = poster_url.replace('._V1_UX128_', '._V1_UX512_')
-                                poster_url = poster_url.replace('._V1_UX256_', '._V1_UX512_')
-                                poster_url = poster_url.replace('._V1_', '._V1_UX512_')
-                                
                                 rating = str(item.get('yr', '0.0'))
                                 res = {'poster_url': poster_url, 'source': 'IMDb', 'rating': rating}
                                 movie_db['stats']['imdb'] += 1
-                                logger.info(f"    ✅ IMDb SUCCESS: {title}")
                                 return res
-        
-        # Alternative IMDb method
-        imdb_search_url = f"https://www.imdb.com/find?q={urllib.parse.quote(title)}&s=tt&ttype=ft"
-        async with session.get(imdb_search_url, timeout=8, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }) as r:
-            if r.status == 200:
-                html_content = await r.text()
-                poster_match = re.search(r'<img[^>]*src="([^"]+imdb[^"]+\.jpg[^"]*)"', html_content)
-                if poster_match:
-                    poster_url = poster_match.group(1)
-                    if poster_url and poster_url.startswith('http'):
-                        poster_url = poster_url.replace('._V1_', '._V1_UX512_')
-                        res = {'poster_url': poster_url, 'source': 'IMDb', 'rating': '0.0'}
-                        movie_db['stats']['imdb'] += 1
-                        logger.info(f"    ✅ IMDb SUCCESS (Alt): {title}")
-                        return res
-        
         return None
     except Exception as e:
-        logger.info(f"    ⚠️ IMDb failed: {e}")
         return None
 
 async def get_poster_justwatch(title, session):
-    """JustWatch poster fetcher - HIGH QUALITY"""
     try:
-        logger.info(f"    🎬 Trying JustWatch (3rd)...")
-        
         clean_title = re.sub(r'[^\w\s]', '', title).strip()
         slug = clean_title.lower().replace(' ', '-')
         slug = re.sub(r'[^\w\-]', '', slug)
         
-        # Multiple country domains
-        domains = ['com', 'in', 'uk', 'de', 'fr']
+        domains = ['com', 'in', 'uk']
         
         for domain in domains:
             justwatch_url = f"https://www.justwatch.com/{domain}/movie/{slug}"
-            
             try:
-                async with session.get(justwatch_url, timeout=8, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }) as r:
+                async with session.get(justwatch_url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
                     if r.status == 200:
                         html_content = await r.text()
-                        
-                        # Multiple patterns for poster
-                        patterns = [
-                            r'<meta property="og:image" content="([^"]+)"',
-                            r'<img[^>]*class="[^"]*picture[^"]*"[^>]*src="([^"]+)"',
-                            r'background-image:\s*url\(([^)]+)\)',
-                            r'<img[^>]*data-src="([^"]+)"[^>]*alt="[^"]*poster[^"]*"',
-                        ]
-                        
-                        for pattern in patterns:
-                            poster_match = re.search(pattern, html_content)
-                            if poster_match:
-                                poster_url = poster_match.group(1)
-                                if poster_url and poster_url.startswith('http'):
-                                    # Ensure HTTPS and high quality
-                                    poster_url = poster_url.replace('http://', 'https://')
-                                    if 'jw-img' in poster_url:
-                                        poster_url = poster_url.replace('{format}', 'original')
-                                    if 'scale' in poster_url:
-                                        poster_url = poster_url.replace('scale=100', 'scale=400')
-                                    
-                                    res = {'poster_url': poster_url, 'source': 'JustWatch', 'rating': '0.0'}
-                                    movie_db['stats']['justwatch'] += 1
-                                    logger.info(f"    ✅ JustWatch SUCCESS: {title}")
-                                    return res
+                        poster_match = re.search(r'<meta property="og:image" content="([^"]+)"', html_content)
+                        if poster_match:
+                            poster_url = poster_match.group(1)
+                            if poster_url and poster_url.startswith('http'):
+                                poster_url = poster_url.replace('http://', 'https://')
+                                res = {'poster_url': poster_url, 'source': 'JustWatch', 'rating': '0.0'}
+                                movie_db['stats']['justwatch'] += 1
+                                return res
             except:
                 continue
-        
         return None
     except Exception as e:
-        logger.info(f"    ⚠️ JustWatch failed: {e}")
         return None
 
 async def get_poster_impawards(title, session):
-    """IMPAwards poster fetcher - HIGH QUALITY OFFICIAL POSTERS"""
     try:
-        logger.info(f"    🎬 Trying IMPAwards (4th)...")
-        
         year_match = re.search(r'\b(19|20)\d{2}\b', title)
         if not year_match:
             return None
@@ -681,117 +548,92 @@ async def get_poster_impawards(title, session):
         year = year_match.group()
         clean_title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
         clean_title = re.sub(r'[^\w\s]', '', clean_title).strip()
-        
         slug = clean_title.lower().replace(' ', '_')
         
-        # Multiple poster formats
         formats = [
-            f"https://www.impawards.com/{year}/posters/{slug}_xlg.jpg",   # Extra large
-            f"https://www.impawards.com/{year}/posters/{slug}_ver7.jpg",   # Version 7
-            f"https://www.impawards.com/{year}/posters/{slug}_ver6.jpg",   # Version 6
-            f"https://www.impawards.com/{year}/posters/{slug}_ver5.jpg",   # Version 5
-            f"https://www.impawards.com/{year}/posters/{slug}_ver4.jpg",   # Version 4
-            f"https://www.impawards.com/{year}/posters/{slug}_ver3.jpg",   # Version 3
-            f"https://www.impawards.com/{year}/posters/{slug}_ver2.jpg",   # Version 2
-            f"https://www.impawards.com/{year}/posters/{slug}.jpg",        # Original
+            f"https://www.impawards.com/{year}/posters/{slug}_xlg.jpg",
+            f"https://www.impawards.com/{year}/posters/{slug}_ver7.jpg",
+            f"https://www.impawards.com/{year}/posters/{slug}.jpg",
         ]
         
         for poster_url in formats:
             try:
-                async with session.head(poster_url, timeout=5) as r:
+                async with session.head(poster_url, timeout=3) as r:
                     if r.status == 200:
                         res = {'poster_url': poster_url, 'source': 'IMPAwards', 'rating': '0.0'}
                         movie_db['stats']['impawards'] += 1
-                        logger.info(f"    ✅ IMPAwards SUCCESS: {title}")
                         return res
             except:
                 continue
-        
         return None
     except Exception as e:
-        logger.info(f"    ⚠️ IMPAwards failed: {e}")
         return None
 
 async def get_poster_omdb_tmdb(title, session):
-    """OMDB + TMDB combined - RELIABLE BACKUP"""
     try:
-        logger.info(f"    🎬 Trying OMDB+TMDB (Backup)...")
-        
-        # Try OMDB first
         for api_key in Config.OMDB_KEYS:
             try:
                 url = f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={api_key}"
-                async with session.get(url, timeout=8) as r:
+                async with session.get(url, timeout=5) as r:
                     if r.status == 200:
                         data = await r.json()
                         if data.get('Response') == 'True' and data.get('Poster') and data.get('Poster') != 'N/A':
                             poster_url = data['Poster'].replace('http://', 'https://')
                             res = {'poster_url': poster_url, 'source': 'OMDB', 'rating': data.get('imdbRating', '0.0')}
                             movie_db['stats']['omdb'] += 1
-                            logger.info(f"    ✅ OMDB SUCCESS: {title}")
                             return res
             except:
                 continue
         
-        # Try TMDB
         for api_key in Config.TMDB_KEYS:
             try:
                 url = "https://api.themoviedb.org/3/search/movie"
                 params = {'api_key': api_key, 'query': title}
-                async with session.get(url, params=params, timeout=8) as r:
+                async with session.get(url, params=params, timeout=5) as r:
                     if r.status == 200:
                         data = await r.json()
                         if data.get('results') and len(data['results']) > 0:
                             result = data['results'][0]
                             poster_path = result.get('poster_path')
                             if poster_path:
-                                # High quality TMDB poster
                                 poster_url = f"https://image.tmdb.org/t/p/w780{poster_path}"
                                 res = {'poster_url': poster_url, 'source': 'TMDB', 'rating': str(result.get('vote_average', 0.0))}
                                 movie_db['stats']['tmdb'] += 1
-                                logger.info(f"    ✅ TMDB SUCCESS: {title}")
                                 return res
             except:
                 continue
-        
         return None
     except Exception as e:
-        logger.info(f"    ⚠️ OMDB+TMDB failed: {e}")
         return None
 
+# OPTIMIZED POSTER FETCHING WITH CONCURRENT REQUESTS
 async def get_poster_guaranteed(title, session):
-    """100% GUARANTEED POSTER - ALL SOURCES WORKING"""
     ck = title.lower().strip()
     
-    # SMART CACHING - Check cache first
     if ck in movie_db['poster_cache']:
         c, ct = movie_db['poster_cache'][ck]
         if (datetime.now() - ct).seconds < 3600:
             movie_db['stats']['cache_hits'] += 1
-            logger.info(f"  📦 Cache hit: {title}")
             return c
     
-    logger.info(f"  🎨 FETCHING POSTER: {title}")
-    
-    # ALL SOURCES IN PRIORITY ORDER
     sources = [
-        get_poster_letterboxd,   # 1st - Highest quality
-        get_poster_imdb,         # 2nd - Very reliable
-        get_poster_justwatch,    # 3rd - Good quality
-        get_poster_impawards,    # 4th - Official posters
-        get_poster_omdb_tmdb,    # 5th - Reliable backup
+        get_poster_letterboxd,
+        get_poster_imdb, 
+        get_poster_justwatch,
+        get_poster_impawards,
+        get_poster_omdb_tmdb,
     ]
     
-    for source in sources:
-        result = await source(title, session)
-        if result:
+    # CONCURRENT REQUESTS FOR SPEED
+    tasks = [source(title, session) for source in sources]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for result in results:
+        if isinstance(result, dict) and result:
             movie_db['poster_cache'][ck] = (result, datetime.now())
             return result
     
-    # 100% FALLBACK - Custom poster (NEVER FAILS)
-    logger.info(f"    ⚠️ ALL SOURCES FAILED, USING CUSTOM POSTER: {title}")
-    movie_db['stats']['custom'] += 1
-    
+    # FALLBACK
     year_match = re.search(r'\b(19|20)\d{2}\b', title)
     year = year_match.group() if year_match else ""
     
@@ -801,14 +643,14 @@ async def get_poster_guaranteed(title, session):
         'rating': '0.0'
     }
     movie_db['poster_cache'][ck] = (res, datetime.now())
-    logger.info(f"    ✅ CUSTOM POSTER GENERATED: {title}")
+    movie_db['stats']['custom'] += 1
     return res
 
-async def get_live_posts(channel_id, limit=50):
+# OPTIMIZED LIVE POSTS FETCHING
+async def get_live_posts(channel_id, limit=30):  # Reduced limit for speed
     if not User:
         return []
     
-    logger.info(f"🔴 LIVE: {channel_name(channel_id)} (limit: {limit})")
     posts = []
     count = 0
     
@@ -828,63 +670,54 @@ async def get_live_posts(channel_id, limit=50):
                         'is_new': is_new(msg.date) if msg.date else False
                     })
                     count += 1
-        
-        logger.info(f"  ✅ {count} posts")
     except Exception as e:
-        logger.error(f"  ❌ Error: {e}")
+        pass
     
     return posts
 
+# OPTIMIZED SEARCH WITH CACHE
 async def search_movies_live(query, limit=12, page=1):
-    """Enhanced search with post availability tracking"""
     offset = (page - 1) * limit
-    logger.info(f"🔴 SEARCH: '{query}' | Page: {page}")
+    
+    # CACHE KEY
+    cache_key = f"{query}_{page}_{limit}"
+    if cache_key in movie_db['search_cache']:
+        data, timestamp = movie_db['search_cache'][cache_key]
+        if (datetime.now() - timestamp).seconds < 300:  # 5 minute cache
+            return data
     
     query_lower = query.lower()
     posts_dict = {}
     files_dict = {}
     
-    # Search text channels
+    # FAST TEXT CHANNEL SEARCH
     for channel_id in Config.TEXT_CHANNEL_IDS:
         try:
             cname = channel_name(channel_id)
-            logger.info(f"  🔴 {cname}...")
-            count = 0
-            
-            try:
-                async for msg in User.search_messages(channel_id, query=query, limit=200):
-                    if msg.text and len(msg.text) > 15:
-                        title = extract_title_smart(msg.text)
-                        if title and query_lower in title.lower():
-                            norm_title = normalize_title(title)
-                            if norm_title not in posts_dict:
-                                posts_dict[norm_title] = {
-                                    'title': title,
-                                    'content': format_post(msg.text),
-                                    'channel': cname,
-                                    'channel_id': channel_id,
-                                    'message_id': msg.id,
-                                    'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
-                                    'is_new': is_new(msg.date) if msg.date else False,
-                                    'has_file': False,
-                                    'has_post': True,
-                                    'quality_options': {},
-                                    'thumbnail': None  # ✅ Text posts के लिए NO thumbnail
-                                }
-                                count += 1
-            except Exception as e:
-                logger.error(f"    ❌ Search error: {e}")
-            
-            logger.info(f"    ✅ {count} posts")
-            
+            async for msg in User.search_messages(channel_id, query=query, limit=100):  # Reduced limit
+                if msg.text and len(msg.text) > 15:
+                    title = extract_title_smart(msg.text)
+                    if title and query_lower in title.lower():
+                        norm_title = normalize_title(title)
+                        if norm_title not in posts_dict:
+                            posts_dict[norm_title] = {
+                                'title': title,
+                                'content': format_post(msg.text),
+                                'channel': cname,
+                                'channel_id': channel_id,
+                                'message_id': msg.id,
+                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
+                                'is_new': is_new(msg.date) if msg.date else False,
+                                'has_file': False,
+                                'has_post': True,
+                                'quality_options': {},
+                                'thumbnail': None
+                            }
         except Exception as e:
-            logger.error(f"    ❌ Channel error: {e}")
+            continue
     
-    # Search files - सिर्फ video files के लिए thumbnail
+    # FAST FILE SEARCH
     try:
-        logger.info("📁 Files...")
-        count = 0
-        
         if files_col is not None:
             cursor = files_col.find({'$text': {'$search': query}})
             async for doc in cursor:
@@ -893,19 +726,14 @@ async def search_movies_live(query, limit=12, page=1):
                     quality = doc['quality']
                     
                     if norm_title not in files_dict:
-                        # ✅ Check if it's a video file for thumbnail
                         file_name = doc.get('file_name', '').lower()
                         file_is_video = is_video_file(file_name)
                         
                         thumbnail_url = None
                         if file_is_video:
-                            # Use stored thumbnail or fetch from Telegram directly
                             thumbnail_url = doc.get('thumbnail')
                             if not thumbnail_url:
-                                # Try to get thumbnail directly from Telegram video
                                 thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
-                            
-                            logger.info(f"    🎬 Video file thumbnail: {doc['title']}")
                         
                         files_dict[norm_title] = {
                             'title': doc['title'], 
@@ -925,16 +753,12 @@ async def search_movies_live(query, limit=12, page=1):
                             'channel_id': doc.get('channel_id'),
                             'message_id': doc.get('message_id')
                         }
-                        count += 1
-                except Exception as e:
-                    logger.debug(f"File processing error: {e}")
-        
-        logger.info(f"  ✅ {count} files")
-        
+                except:
+                    continue
     except Exception as e:
-        logger.error(f"  ❌ Files error: {e}")
+        pass
     
-    # Merge results
+    # MERGE RESULTS
     merged = {}
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data
@@ -943,7 +767,6 @@ async def search_movies_live(query, limit=12, page=1):
         if norm_title in merged:
             merged[norm_title]['has_file'] = True
             merged[norm_title]['quality_options'] = file_data['quality_options']
-            # ✅ Only set thumbnail for video files
             if file_data.get('is_video_file') and file_data.get('thumbnail'):
                 merged[norm_title]['thumbnail'] = file_data['thumbnail']
                 merged[norm_title]['thumbnail_source'] = file_data.get('thumbnail_source', 'unknown')
@@ -967,15 +790,7 @@ async def search_movies_live(query, limit=12, page=1):
     total = len(results_list)
     paginated = results_list[offset:offset + limit]
     
-    # Log thumbnail statistics
-    video_files_with_thumbnails = sum(1 for r in paginated if r.get('thumbnail'))
-    video_thumbnails = sum(1 for r in paginated if r.get('thumbnail_source') == 'video_direct')
-    poster_thumbnails = sum(1 for r in paginated if r.get('thumbnail_source') == 'poster_api')
-    
-    logger.info(f"✅ Total: {total} | Video files with thumbnails: {video_files_with_thumbnails}")
-    logger.info(f"🎥 Direct Video Thumbnails: {video_thumbnails} | 🎬 Poster Thumbnails: {poster_thumbnails}")
-    
-    return {
+    result_data = {
         'results': paginated,
         'pagination': {
             'current_page': page,
@@ -986,11 +801,14 @@ async def search_movies_live(query, limit=12, page=1):
             'has_previous': page > 1
         }
     }
-
-async def get_home_movies_live():
-    logger.info("🏠 Fetching 30 movies with ALL SOURCES POSTERS...")
     
-    posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=50)
+    # CACHE THE RESULTS
+    movie_db['search_cache'][cache_key] = (result_data, datetime.now())
+    return result_data
+
+# OPTIMIZED HOME MOVIES WITH CONCURRENT POSTER FETCHING
+async def get_home_movies_live():
+    posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=30)
     
     movies = []
     seen = set()
@@ -1008,21 +826,10 @@ async def get_home_movies_live():
             if len(movies) >= 30:
                 break
     
-    logger.info(f"  ✓ {len(movies)} movies ready for poster fetch")
-    
     if movies:
-        logger.info("🎨 FETCHING POSTERS FROM ALL SOURCES...")
         async with aiohttp.ClientSession() as session:
-            tasks = []
-            for movie in movies:
-                tasks.append(get_poster_guaranteed(movie['title'], session))
-            
+            tasks = [get_poster_guaranteed(movie['title'], session) for movie in movies]
             posters = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            success_sources = {
-                'letterboxd': 0, 'imdb': 0, 'justwatch': 0, 
-                'impawards': 0, 'omdb': 0, 'tmdb': 0, 'custom': 0
-            }
             
             for i, (movie, poster_result) in enumerate(zip(movies, posters)):
                 if isinstance(poster_result, dict):
@@ -1030,47 +837,24 @@ async def get_home_movies_live():
                     movie['poster_source'] = poster_result['source']
                     movie['poster_rating'] = poster_result.get('rating', '0.0')
                     movie['has_poster'] = True
-                    source_key = poster_result['source'].lower()
-                    success_sources[source_key] += 1
                 else:
-                    # 100% FALLBACK GUARANTEE
                     movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
                     movie['poster_source'] = 'CUSTOM'
                     movie['poster_rating'] = '0.0'
                     movie['has_poster'] = True
-                    success_sources['custom'] += 1
-            
-            # Log detailed success rates
-            logger.info(f"  📊 POSTER SOURCES SUMMARY:")
-            logger.info(f"     Letterboxd: {success_sources['letterboxd']}")
-            logger.info(f"     IMDb: {success_sources['imdb']}")
-            logger.info(f"     JustWatch: {success_sources['justwatch']}")
-            logger.info(f"     IMPAwards: {success_sources['impawards']}")
-            logger.info(f"     OMDB: {success_sources['omdb']}")
-            logger.info(f"     TMDB: {success_sources['tmdb']}")
-            logger.info(f"     Custom: {success_sources['custom']}")
-        
-        logger.info(f"  ✅ 100% POSTERS READY - ALL {len(movies)} MOVIES HAVE HIGH QUALITY POSTERS")
     
-    logger.info(f"✅ {len(movies)} movies ready with 100% GUARANTEED POSTERS")
     return movies
 
+# OPTIMIZED API ROUTES
 @app.route('/')
 async def root():
     tf = await files_col.count_documents({}) if files_col is not None else 0
-    
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v6.0 - VIDEO THUMBNAIL EXTRACTION',
-        'database': {'total_files': tf, 'live_mode': 'Posts LIVE, Files cached'},
+        'service': 'SK4FiLM v6.0 - OPTIMIZED',
+        'database': {'total_files': tf, 'mode': 'FAST'},
         'bot_status': 'online' if bot_started else 'starting',
-        'verification': {
-            'required': Config.VERIFICATION_REQUIRED,
-            'duration_hours': Config.VERIFICATION_DURATION / 3600,
-            'enabled': Config.VERIFICATION_REQUIRED
-        },
-        'poster_stats': movie_db['stats'],
-        'features': 'DIRECT VIDEO THUMBNAILS + MULTI-SOURCE POSTERS'
+        'optimizations': 'CACHING + CONCURRENT REQUESTS + BATCH PROCESSING'
     })
 
 @app.route('/health')
@@ -1079,7 +863,6 @@ async def health():
 
 @app.route('/api/verify_user', methods=['POST'])
 async def api_verify_user():
-    """API endpoint to verify user via URL shortener"""
     try:
         data = await request.get_json()
         user_id = data.get('user_id')
@@ -1096,17 +879,13 @@ async def api_verify_user():
             'message': message,
             'user_id': user_id
         })
-        
     except Exception as e:
-        logger.error(f"Verification API error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/check_verification/<int:user_id>')
 async def api_check_verification(user_id):
-    """API endpoint to check user verification status"""
     try:
         is_verified, message = await check_url_shortener_verification(user_id)
-        
         return jsonify({
             'status': 'success',
             'verified': is_verified,
@@ -1114,25 +893,19 @@ async def api_check_verification(user_id):
             'user_id': user_id,
             'verification_required': Config.VERIFICATION_REQUIRED
         })
-        
     except Exception as e:
-        logger.error(f"Verification check error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/generate_verification_url/<int:user_id>')
 async def api_generate_verification_url(user_id):
-    """API endpoint to generate verification URL"""
     try:
         verification_url = await generate_verification_url(user_id)
-        
         return jsonify({
             'status': 'success',
             'verification_url': verification_url,
             'user_id': user_id
         })
-        
     except Exception as e:
-        logger.error(f"URL generation error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/index_status')
@@ -1150,22 +923,16 @@ async def api_index_status():
                 mins_ago = int((datetime.now() - dt).total_seconds() / 60)
                 last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
         
-        # Thumbnail statistics
         video_files = await files_col.count_documents({'is_video_file': True})
         video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
-        direct_thumbnails = await files_col.count_documents({'thumbnail_source': 'video_direct'})
-        poster_thumbnails = await files_col.count_documents({'thumbnail_source': 'poster_api'})
         
         return jsonify({
             'status': 'success',
             'total_indexed': total,
             'video_files': video_files,
             'video_thumbnails': video_thumbnails,
-            'direct_video_thumbnails': direct_thumbnails,
-            'poster_thumbnails': poster_thumbnails,
             'last_indexed': last_indexed,
             'bot_status': 'online' if bot_started else 'starting',
-            'features': 'DIRECT VIDEO THUMBNAILS + MULTI-SOURCE POSTERS'
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1181,14 +948,10 @@ async def api_movies():
             'status': 'success', 
             'movies': movies, 
             'total': len(movies), 
-            'bot_username': Config.BOT_USERNAME, 
-            'mode': 'LIVE',
-            'poster_guarantee': '100% WORKING',
-            'poster_sources': 'Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB',
-            'poster_stats': movie_db['stats']
+            'bot_username': Config.BOT_USERNAME,
+            'mode': 'OPTIMIZED'
         })
     except Exception as e:
-        logger.error(f"API /movies: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/search')
@@ -1209,12 +972,10 @@ async def api_search():
             'query': q, 
             'results': result['results'], 
             'pagination': result['pagination'], 
-            'bot_username': Config.BOT_USERNAME, 
-            'mode': 'LIVE',
-            'features': 'DIRECT VIDEO THUMBNAILS + MULTI-SOURCE POSTERS'
+            'bot_username': Config.BOT_USERNAME,
+            'mode': 'OPTIMIZED'
         })
     except Exception as e:
-        logger.error(f"API /search: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/post')
@@ -1235,14 +996,7 @@ async def api_post():
         except ValueError:
             return jsonify({'status':'error', 'message':'Invalid channel or message ID'}), 400
         
-        logger.info(f"📄 Fetching post: Channel {channel_id}, Message {message_id}")
-        
-        try:
-            msg = await User.get_messages(channel_id, message_id)
-        except Exception as e:
-            logger.error(f"  ❌ Failed to fetch message: {e}")
-            return jsonify({'status':'error', 'message':'Failed to fetch message from Telegram'}), 404
-        
+        msg = await User.get_messages(channel_id, message_id)
         if not msg or not msg.text:
             return jsonify({'status':'error', 'message':'Message not found or has no text content'}), 404
         
@@ -1257,37 +1011,31 @@ async def api_post():
         thumbnail_source = None
         
         if files_col is not None:
-            try:
-                cursor = files_col.find({'normalized_title': normalized_title})
-                async for doc in cursor:
-                    quality = doc.get('quality', '480p')
-                    if quality not in quality_options:
-                        # ✅ Check if it's a video file for thumbnail
-                        file_name = doc.get('file_name', '').lower()
-                        file_is_video = is_video_file(file_name)
+            cursor = files_col.find({'normalized_title': normalized_title})
+            async for doc in cursor:
+                quality = doc.get('quality', '480p')
+                if quality not in quality_options:
+                    file_name = doc.get('file_name', '').lower()
+                    file_is_video = is_video_file(file_name)
+                    
+                    if file_is_video and not thumbnail_url:
+                        thumbnail_url = doc.get('thumbnail')
+                        thumbnail_source = doc.get('thumbnail_source', 'unknown')
                         
-                        # Only set thumbnail for video files
-                        if file_is_video and not thumbnail_url:
-                            thumbnail_url = doc.get('thumbnail')
-                            thumbnail_source = doc.get('thumbnail_source', 'unknown')
-                            
-                            if not thumbnail_url:
-                                # Try to get thumbnail directly from Telegram video
-                                thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
-                                if thumbnail_url:
-                                    thumbnail_source = 'video_direct'
-                        
-                        quality_options[quality] = {
-                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
-                            'file_size': doc.get('file_size', 0),
-                            'file_name': doc.get('file_name', 'video.mp4'),
-                            'is_video': file_is_video,
-                            'channel_id': doc.get('channel_id'),
-                            'message_id': doc.get('message_id')
-                        }
-                        has_file = True
-            except Exception as e:
-                logger.error(f"  ⚠️ File search error: {e}")
+                        if not thumbnail_url:
+                            thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
+                            if thumbnail_url:
+                                thumbnail_source = 'video_direct'
+                    
+                    quality_options[quality] = {
+                        'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                        'file_size': doc.get('file_size', 0),
+                        'file_name': doc.get('file_name', 'video.mp4'),
+                        'is_video': file_is_video,
+                        'channel_id': doc.get('channel_id'),
+                        'message_id': doc.get('message_id')
+                    }
+                    has_file = True
         
         post_data = {
             'title': title,
@@ -1304,17 +1052,13 @@ async def api_post():
             'thumbnail_source': thumbnail_source
         }
         
-        logger.info(f"  ✅ Post fetched: {title} | Has thumbnail: {thumbnail_url is not None} | Source: {thumbnail_source}")
-        
         return jsonify({'status': 'success', 'post': post_data, 'bot_username': Config.BOT_USERNAME})
     
     except Exception as e:
-        logger.error(f"❌ API /post error: {e}")
         return jsonify({'status':'error', 'message': str(e)}), 500
 
 @app.route('/api/poster')
 async def api_poster():
-    """100% WORKING CUSTOM POSTER GENERATOR"""
     try:
         t = request.args.get('title', 'Movie')
         y = request.args.get('year', '')
@@ -1357,16 +1101,14 @@ async def api_poster():
             'Cache-Control': 'public, max-age=86400',
             'Content-Type': 'image/svg+xml'
         })
-        
     except Exception as e:
-        logger.error(f"Poster generation error: {e}")
         simple_svg = '''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
             <rect width="100%" height="100%" fill="#667eea"/>
             <text x="150" y="225" text-anchor="middle" fill="white" font-size="18" font-family="Arial">SK4FiLM</text>
         </svg>'''
         return Response(simple_svg, mimetype='image/svg+xml')
 
-# Rest of the bot setup code remains the same...
+# OPTIMIZED BOT SETUP
 async def setup_bot():
     @bot.on_message(filters.command("start") & filters.private)
     async def start_handler(client, message):
@@ -1375,9 +1117,7 @@ async def setup_bot():
         
         if len(message.command) > 1:
             fid = message.command[1]
-            logger.info(f"📥 File request | User: {uid} | File ID: {fid}")
             
-            # Check URL Shortener Verification
             if Config.VERIFICATION_REQUIRED:
                 is_verified, status = await check_url_shortener_verification(uid)
                 
@@ -1399,16 +1139,11 @@ async def setup_bot():
                         "2. Complete the verification process\n"
                         "3. Come back and click **CHECK VERIFICATION**\n"
                         "4. Start downloading!\n\n"
-                        "⏰ **Verification valid for 6 hours**\n"
-                        f"🔗 **Verification URL:** `{verification_url}`\n\n"
-                        "📢 **Join our channel for latest updates!**",
+                        "⏰ **Verification valid for 6 hours**",
                         reply_markup=keyboard,
                         disable_web_page_preview=True
                     )
-                    logger.info(f"  ❌ Access denied for user {uid} | Status: {status}")
                     return
-            
-            logger.info(f"  ✅ User {uid} VERIFIED | Proceeding with download")
             
             try:
                 parts = fid.split('_')
@@ -1429,7 +1164,7 @@ async def setup_bot():
                         sent = await bot.send_document(
                             uid, 
                             file_message.document.file_id, 
-                            caption=f"♻ **ᴘʟᴇᴀꜱᴇ ꜰᴏʀᴡᴀʀᴅ ᴛʜɪꜱ ꜰɪʟᴇ/ᴠɪᴅᴇᴏ ᴛᴏ ʏᴏᴜʀ ꜱᴀᴠᴇᴅ ᴍᴇꜱꜱᴀɢᴇꜱ ᴀɴᴅ ꜱᴛᴀʀᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜᴇʀᴇ**\n\n"
+                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
                                    f"📹 Quality: {quality}\n"
                                    f"📦 Size: {format_size(file_message.document.file_size)}\n\n"
                                    f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
@@ -1439,7 +1174,7 @@ async def setup_bot():
                         sent = await bot.send_video(
                             uid, 
                             file_message.video.file_id, 
-                            caption=f"♻ **ᴘʟᴇᴀꜱᴇ ꜰᴏʀᴡᴀʀᴅ ᴛʜɪꜱ ꜰɪʟᴇ/ᴠɪᴅᴇᴏ ᴛᴏ ʏᴏᴜʀ ꜱᴀᴠᴇᴅ ᴍᴇꜱꜱᴀɢᴇꜱ ᴀɴᴅ ꜱᴛᴀʀᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜᴇʀᴇ**\n\n"
+                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
                                    f"📹 Quality: {quality}\n" 
                                    f"📦 Size: {format_size(file_message.video.file_size)}\n\n"
                                    f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
@@ -1447,35 +1182,26 @@ async def setup_bot():
                         )
                     
                     await pm.delete()
-                    logger.info(f"  ✅ File sent successfully to user {uid}")
                     
                     if Config.AUTO_DELETE_TIME > 0:
                         async def auto_delete():
                             await asyncio.sleep(Config.AUTO_DELETE_TIME)
                             try:
                                 await sent.delete()
-                                logger.info(f"  🗑️ Auto-deleted file for user {uid}")
                             except:
                                 pass
-                        
                         asyncio.create_task(auto_delete())
                         
                 else:
                     await message.reply_text("❌ **Invalid file link**\n\nPlease get a fresh link from the website.")
                     
             except Exception as e:
-                logger.error(f"  ❌ File send error: {e}")
                 try:
-                    await message.reply_text(
-                        f"❌ **Download Failed**\n\n"
-                        f"Error: `{str(e)}`\n\n"
-                        f"Please try again or contact support."
-                    )
+                    await message.reply_text(f"❌ **Download Failed**\n\nError: `{str(e)}`")
                 except:
                     pass
             return
         
-        # Welcome message with channel links
         welcome_text = (
             f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
             "🌐 **Use our website to browse and download movies:**\n"
@@ -1483,22 +1209,13 @@ async def setup_bot():
         )
         
         if Config.VERIFICATION_REQUIRED:
-            welcome_text += (
-                "🔒 **URL Verification Required**\n"
-                "• Complete one-time verification\n"
-                "• Valid for 6 hours\n"
-                "• Secure and fast\n\n"
-            )
+            welcome_text += "🔒 **URL Verification Required**\n• Complete one-time verification\n• Valid for 6 hours\n\n"
         
         welcome_text += (
             "✨ **Features:**\n"
             "• 🎥 Latest movies & shows\n" 
             "• 📺 Multiple quality options\n"
-            "• ⚡ Fast downloads\n"
-            "• 🔒 Secure & reliable\n\n"
-            "📢 **Join our channels for updates:**\n"
-            "• Main Channel: Latest movies\n"
-            "• Updates Channel: News & announcements\n\n"
+            "• ⚡ Fast downloads\n\n"
             "👇 **Get started below:**"
         )
         
@@ -1516,7 +1233,6 @@ async def setup_bot():
         ])
         
         keyboard = InlineKeyboardMarkup(buttons)
-        
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
     @bot.on_callback_query(filters.regex(r"^check_verify_"))
@@ -1527,11 +1243,10 @@ async def setup_bot():
             
             if is_verified:
                 await callback_query.message.edit_text(
-                    "✅ **Vᴇʀɪꜰɪᴄᴀᴛɪᴏɴ Sᴜᴄᴄᴇꜱꜱꜰᴜʟ!**\n\n"
-                    "Yᴏᴜ Cᴀɴ Nᴏᴡ Dᴏᴡɴʟᴏᴀᴅ Fɪʟᴇꜱ Fʀᴏᴍ Tʜᴇ Wᴇʙꜱɪᴛᴇ.\n\n"
-                    f"🌐 **Wᴇʙꜱɪᴛᴇ:** {Config.WEBSITE_URL}\n\n"
-                    "⏰ **Vᴇʀɪꜰɪᴄᴀᴛɪᴏɴ Vᴀʟɪᴅ Fᴏʀ 6 Hᴏᴜʀꜱ**\n\n"
-                    "📢 **Jᴏɪɴ ᴏᴜʀ Cʜᴀɴɴᴇʟꜱ**",
+                    "✅ **Verification Successful!**\n\n"
+                    "You Can Now Download Files From The Website.\n\n"
+                    f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
+                    "⏰ **Verification Valid For 6 Hours**",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                         [
@@ -1545,8 +1260,7 @@ async def setup_bot():
                 await callback_query.message.edit_text(
                     "❌ **Not Verified Yet**\n\n"
                     "Please complete the verification process first.\n\n"
-                    f"🔗 **Verification URL:** `{verification_url}`\n\n"
-                    "📢 **Join our channels while you verify:**",
+                    f"🔗 **Verification URL:** `{verification_url}`",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
                         [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")],
@@ -1566,7 +1280,7 @@ async def setup_bot():
         user_name = message.from_user.first_name or "User"
         await message.reply_text(
             f"👋 **Hi {user_name}!**\n\n"
-            "🔍 **Pʟᴇᴀꜱᴇ Uꜱᴇ Oᴜʀ Wᴇʙꜱɪᴛᴇ ᴛᴏ Sᴇᴀʀᴄʜ Fᴏʀ Mᴏᴠɪᴇꜱ:**\n\n"
+            "🔍 **Please Use Our Website To Search For Movies:**\n\n"
             f"{Config.WEBSITE_URL}\n\n"
             "This bot only handles file downloads via website links.",
             reply_markup=InlineKeyboardMarkup([
@@ -1588,12 +1302,10 @@ async def setup_bot():
             is_verified, status = await check_url_shortener_verification(user_id)
             
             if is_verified:
-                time_remaining = "6 hours"  # You can calculate exact time if needed
                 await message.reply_text(
                     f"✅ **Already Verified, {user_name}!**\n\n"
-                    f"Your verification is active and valid for {time_remaining}.\n\n"
-                    "You can download files from the website now! 🎬\n\n"
-                    "📢 **Join our channels for latest updates:**",
+                    f"Your verification is active and valid for 6 hours.\n\n"
+                    "You can download files from the website now! 🎬",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                         [
@@ -1608,8 +1320,7 @@ async def setup_bot():
                     f"🔗 **Verification Required, {user_name}**\n\n"
                     "To download files, please complete the URL verification:\n\n"
                     f"**Verification URL:** `{verification_url}`\n\n"
-                    "⏰ **Valid for 6 hours after verification**\n\n"
-                    "📢 **Join our channels while you verify:**",
+                    "⏰ **Valid for 6 hours after verification**",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
                         [
@@ -1623,8 +1334,7 @@ async def setup_bot():
             await message.reply_text(
                 "ℹ️ **Verification Not Required**\n\n"
                 "URL shortener verification is currently disabled.\n"
-                "You can download files directly from the website.\n\n"
-                "📢 **Join our channels for latest updates:**",
+                "You can download files directly from the website.",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                     [
@@ -1636,7 +1346,6 @@ async def setup_bot():
     
     @bot.on_message(filters.command("channel") & filters.private)
     async def channel_command(client, message):
-        """Direct command to get channel links"""
         await message.reply_text(
             "📢 **SK4FiLM Channels**\n\n"
             "Join our channels for the latest movies and updates:\n\n"
@@ -1666,21 +1375,15 @@ async def setup_bot():
         tf = await files_col.count_documents({}) if files_col is not None else 0
         video_files = await files_col.count_documents({'is_video_file': True})
         video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
-        direct_thumbnails = await files_col.count_documents({'thumbnail_source': 'video_direct'})
-        poster_thumbnails = await files_col.count_documents({'thumbnail_source': 'poster_api'})
         
         stats_text = (
             f"📊 **SK4FiLM Statistics**\n\n"
             f"📁 **Total Files:** {tf}\n"
             f"🎥 **Video Files:** {video_files}\n"
-            f"🖼️ **Video Thumbnails:** {video_thumbnails}\n"
-            f"📹 **Direct Video Thumbnails:** {direct_thumbnails}\n"
-            f"🎬 **Poster Thumbnails:** {poster_thumbnails}\n\n"
+            f"🖼️ **Video Thumbnails:** {video_thumbnails}\n\n"
             f"🔴 **Live Posts:** Active\n"
             f"🤖 **Bot Status:** Online\n\n"
-            f"**🎨 Thumbnail Sources:**\n"
-            f"• Direct Video: {direct_thumbnails}\n"
-            f"• Poster APIs: {poster_thumbnails}\n"
+            f"**🎨 Poster Sources:**\n"
             f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
             f"• IMDb: {movie_db['stats']['imdb']}\n"
             f"• JustWatch: {movie_db['stats']['justwatch']}\n"
@@ -1689,20 +1392,22 @@ async def setup_bot():
             f"• TMDB: {movie_db['stats']['tmdb']}\n" 
             f"• Custom: {movie_db['stats']['custom']}\n"
             f"• Cache Hits: {movie_db['stats']['cache_hits']}\n\n"
-            f"**⚡ Features:**\n"
-            f"• ✅ Direct video thumbnails\n"
-            f"• ✅ Multi-source posters\n"
+            f"**⚡ Optimizations:**\n"
             f"• ✅ Smart caching\n"
-            f"• ✅ 100% guarantee\n\n"
+            f"• ✅ Concurrent requests\n"
+            f"• ✅ Batch processing\n\n"
             f"**🔗 Verification:** {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}"
         )
         await message.reply_text(stats_text)
 
+# OPTIMIZED INITIALIZATION
 async def init():
     global User, bot, bot_started
     try:
-        logger.info("🚀 INITIALIZING SK4FiLM BOT...")
-        await init_mongodb()
+        logger.info("🚀 INITIALIZING OPTIMIZED SK4FiLM BOT...")
+        
+        # PARALLEL INITIALIZATION
+        mongo_success = await init_mongodb()
         
         User = Client(
             "user_session", 
@@ -1724,37 +1429,35 @@ async def init():
         await setup_bot()
         
         me = await bot.get_me()
-        logger.info(f"✅ BOT STARTED: @{me.username}")
+        logger.info(f"✅ OPTIMIZED BOT STARTED: @{me.username}")
         bot_started = True
         
-        logger.info("🔄 Starting background indexing...")
+        # START BACKGROUND TASKS
         asyncio.create_task(index_files_background())
+        asyncio.create_task(cache_cleanup())
         
         return True
     except Exception as e:
-        logger.error(f"❌ INIT FAILED: {e}")
+        logger.error(f"❌ OPTIMIZED INIT FAILED: {e}")
         return False
 
 async def main():
     logger.info("="*60)
-    logger.info("🎬 SK4FiLM v6.0 - DIRECT VIDEO THUMBNAIL EXTRACTION")
+    logger.info("🎬 SK4FiLM v6.0 - SUPER FAST OPTIMIZED VERSION")
+    logger.info("✅ Smart Caching | Concurrent Requests | Batch Processing")
     logger.info(f"✅ Verification: {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}")
-    logger.info("✅ Force Subscription: REMOVED")
-    logger.info("✅ Channel Links: ADDED")
-    logger.info("✅ Direct Video Thumbnails: ENABLED")
-    logger.info("✅ Multi-Source Posters: ENABLED")
     logger.info("="*60)
     
     success = await init()
     if not success:
-        logger.error("❌ Failed to initialize bot")
+        logger.error("❌ Failed to initialize optimized bot")
         return
     
     config = HyperConfig()
     config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     config.loglevel = "warning"
     
-    logger.info(f"🌐 Web server starting on port {Config.WEB_SERVER_PORT}...")
+    logger.info(f"🌐 OPTIMIZED web server starting on port {Config.WEB_SERVER_PORT}...")
     await serve(app, config)
 
 if __name__ == "__main__":
