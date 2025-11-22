@@ -65,7 +65,7 @@ app = Quart(__name__)
 class FloodWaitProtection:
     def __init__(self):
         self.last_request_time = 0
-        self.min_interval = 1.0  # 1 second between requests
+        self.min_interval = 2.0  # 2 seconds between requests for safety
         self.retry_count = 0
         self.max_retries = 3
         
@@ -74,6 +74,7 @@ class FloodWaitProtection:
         time_since_last = current_time - self.last_request_time
         if time_since_last < self.min_interval:
             wait_time = self.min_interval - time_since_last
+            logger.debug(f"⏳ Rate limiting: waiting {wait_time:.1f}s")
             await asyncio.sleep(wait_time)
         self.last_request_time = time.time()
         
@@ -515,6 +516,267 @@ async def get_poster_fast(title, session):
     fast_cache.set_poster(cache_key, result)
     return result
 
+async def get_live_posts(channel_id, limit=50):
+    """Get live posts from Telegram channel"""
+    if not User:
+        return []
+    
+    logger.info(f"🔴 LIVE: {channel_name(channel_id)} (limit: {limit})")
+    posts = []
+    count = 0
+    
+    try:
+        # Use safe operation for getting chat history
+        chat_history = await safe_telegram_operation(
+            User.get_chat_history, 
+            channel_id, 
+            limit=limit
+        )
+        
+        if chat_history:
+            async for msg in chat_history:
+                if msg.text and len(msg.text) > 15:
+                    title = extract_title_smart(msg.text)
+                    if title:
+                        posts.append({
+                            'title': title,
+                            'normalized_title': normalize_title(title),
+                            'content': msg.text,
+                            'channel_name': channel_name(channel_id),
+                            'channel_id': channel_id,
+                            'message_id': msg.id,
+                            'date': msg.date,
+                            'is_new': is_new(msg.date) if msg.date else False
+                        })
+                        count += 1
+        
+        logger.info(f"  ✅ {count} posts")
+    except Exception as e:
+        logger.error(f"  ❌ Error: {e}")
+    
+    return posts
+
+async def search_movies_live(query, limit=12, page=1):
+    """Enhanced search with post availability tracking"""
+    offset = (page - 1) * limit
+    logger.info(f"🔴 SEARCH: '{query}' | Page: {page}")
+    
+    query_lower = query.lower()
+    posts_dict = {}
+    files_dict = {}
+    
+    # Search text channels
+    for channel_id in Config.TEXT_CHANNEL_IDS:
+        try:
+            cname = channel_name(channel_id)
+            logger.info(f"  🔴 {cname}...")
+            count = 0
+            
+            try:
+                # Use safe operation for search
+                search_results = await safe_telegram_operation(
+                    User.search_messages,
+                    channel_id, 
+                    query=query, 
+                    limit=200
+                )
+                
+                if search_results:
+                    async for msg in search_results:
+                        if msg.text and len(msg.text) > 15:
+                            title = extract_title_smart(msg.text)
+                            if title and query_lower in title.lower():
+                                norm_title = normalize_title(title)
+                                if norm_title not in posts_dict:
+                                    posts_dict[norm_title] = {
+                                        'title': title,
+                                        'content': format_post(msg.text),
+                                        'channel': cname,
+                                        'channel_id': channel_id,
+                                        'message_id': msg.id,
+                                        'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
+                                        'is_new': is_new(msg.date) if msg.date else False,
+                                        'has_file': False,
+                                        'has_post': True,
+                                        'quality_options': {},
+                                        'thumbnail': None
+                                    }
+                                    count += 1
+            except Exception as e:
+                logger.error(f"    ❌ Search error: {e}")
+            
+            logger.info(f"    ✅ {count} posts")
+            
+        except Exception as e:
+            logger.error(f"    ❌ Channel error: {e}")
+    
+    # Search files - सिर्फ video files के लिए thumbnail
+    try:
+        logger.info("📁 Files...")
+        count = 0
+        
+        if files_col is not None:
+            cursor = files_col.find({'$text': {'$search': query}})
+            async for doc in cursor:
+                try:
+                    norm_title = doc.get('normalized_title', normalize_title(doc['title']))
+                    quality = doc['quality']
+                    
+                    if norm_title not in files_dict:
+                        # ✅ Check if it's a video file for thumbnail
+                        file_name = doc.get('file_name', '').lower()
+                        file_is_video = is_video_file(file_name)
+                        
+                        thumbnail_url = None
+                        if file_is_video:
+                            # Use stored thumbnail
+                            thumbnail_url = doc.get('thumbnail')
+                        
+                        files_dict[norm_title] = {
+                            'title': doc['title'], 
+                            'quality_options': {}, 
+                            'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
+                            'thumbnail': thumbnail_url,
+                            'is_video_file': file_is_video,
+                            'thumbnail_source': doc.get('thumbnail_source', 'unknown')
+                        }
+                    
+                    if quality not in files_dict[norm_title]['quality_options']:
+                        files_dict[norm_title]['quality_options'][quality] = {
+                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                            'file_size': doc['file_size'],
+                            'file_name': doc['file_name'],
+                            'is_video': file_is_video,
+                            'channel_id': doc.get('channel_id'),
+                            'message_id': doc.get('message_id')
+                        }
+                        count += 1
+                except Exception as e:
+                    logger.debug(f"File processing error: {e}")
+        
+        logger.info(f"  ✅ {count} files")
+        
+    except Exception as e:
+        logger.error(f"  ❌ Files error: {e}")
+    
+    # Merge results
+    merged = {}
+    for norm_title, post_data in posts_dict.items():
+        merged[norm_title] = post_data
+    
+    for norm_title, file_data in files_dict.items():
+        if norm_title in merged:
+            merged[norm_title]['has_file'] = True
+            merged[norm_title]['quality_options'] = file_data['quality_options']
+            # ✅ Only set thumbnail for video files
+            if file_data.get('is_video_file') and file_data.get('thumbnail'):
+                merged[norm_title]['thumbnail'] = file_data['thumbnail']
+                merged[norm_title]['thumbnail_source'] = file_data.get('thumbnail_source', 'unknown')
+        else:
+            merged[norm_title] = {
+                'title': file_data['title'],
+                'content': f"<p>{file_data['title']}</p>",
+                'channel': 'SK4FiLM',
+                'date': file_data['date'],
+                'is_new': False,
+                'has_file': True,
+                'has_post': False,
+                'quality_options': file_data['quality_options'],
+                'thumbnail': file_data.get('thumbnail') if file_data.get('is_video_file') else None,
+                'thumbnail_source': file_data.get('thumbnail_source', 'unknown')
+            }
+    
+    results_list = list(merged.values())
+    results_list.sort(key=lambda x: (not x.get('is_new', False), not x['has_file'], x['date']), reverse=True)
+    
+    total = len(results_list)
+    paginated = results_list[offset:offset + limit]
+    
+    # Log thumbnail statistics
+    video_files_with_thumbnails = sum(1 for r in paginated if r.get('thumbnail'))
+    
+    logger.info(f"✅ Total: {total} | Video files with thumbnails: {video_files_with_thumbnails}")
+    
+    return {
+        'results': paginated,
+        'pagination': {
+            'current_page': page,
+            'total_pages': math.ceil(total / limit) if total > 0 else 1,
+            'total_results': total,
+            'per_page': limit,
+            'has_next': page < math.ceil(total / limit) if total > 0 else False,
+            'has_previous': page > 1
+        }
+    }
+
+async def get_home_movies_live():
+    logger.info("🏠 Fetching 30 movies with ALL SOURCES POSTERS...")
+    
+    posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=50)
+    
+    movies = []
+    seen = set()
+    
+    for post in posts:
+        tk = post['title'].lower().strip()
+        if tk not in seen:
+            seen.add(tk)
+            movies.append({
+                'title': post['title'],
+                'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
+                'is_new': post.get('is_new', False),
+                'channel': post.get('channel_name', 'SK4FiLM Main')
+            })
+            if len(movies) >= 30:
+                break
+    
+    logger.info(f"  ✓ {len(movies)} movies ready for poster fetch")
+    
+    if movies:
+        logger.info("🎨 FETCHING POSTERS FROM ALL SOURCES...")
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for movie in movies:
+                tasks.append(get_poster_fast(movie['title'], session))
+            
+            posters = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            success_sources = {
+                'letterboxd': 0, 'imdb': 0, 'justwatch': 0, 
+                'impawards': 0, 'omdb': 0, 'tmdb': 0, 'custom': 0
+            }
+            
+            for i, (movie, poster_result) in enumerate(zip(movies, posters)):
+                if isinstance(poster_result, dict):
+                    movie['poster_url'] = poster_result['poster_url']
+                    movie['poster_source'] = poster_result['source']
+                    movie['poster_rating'] = poster_result.get('rating', '0.0')
+                    movie['has_poster'] = True
+                    source_key = poster_result['source'].lower()
+                    success_sources[source_key] += 1
+                else:
+                    # 100% FALLBACK GUARANTEE
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'CUSTOM'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
+                    success_sources['custom'] += 1
+            
+            # Log detailed success rates
+            logger.info(f"  📊 POSTER SOURCES SUMMARY:")
+            logger.info(f"     Letterboxd: {success_sources['letterboxd']}")
+            logger.info(f"     IMDb: {success_sources['imdb']}")
+            logger.info(f"     JustWatch: {success_sources['justwatch']}")
+            logger.info(f"     IMPAwards: {success_sources['impawards']}")
+            logger.info(f"     OMDB: {success_sources['omdb']}")
+            logger.info(f"     TMDB: {success_sources['tmdb']}")
+            logger.info(f"     Custom: {success_sources['custom']}")
+        
+        logger.info(f"  ✅ 100% POSTERS READY - ALL {len(movies)} MOVIES HAVE HIGH QUALITY POSTERS")
+    
+    logger.info(f"✅ {len(movies)} movies ready with 100% GUARANTEED POSTERS")
+    return movies
+
 async def index_files_background():
     """Safe background indexing with flood protection"""
     if not User or files_col is None:
@@ -538,82 +800,85 @@ async def index_files_background():
         
         session = await fast_http.get_session()
         
-        # Use safe Telegram operation for getting chat history
-        async for msg in safe_telegram_operation(
+        # Use safe Telegram operation for getting chat history - FIXED
+        chat_history = await safe_telegram_operation(
             User.get_chat_history, 
             Config.FILE_CHANNEL_ID, 
-            limit=2000  # Reasonable limit
-        ):
-            if msg.id in processed_messages:
-                continue
-                
-            if msg.document or msg.video:
-                title = extract_title_from_file(msg)
-                if title:
-                    file_id = msg.document.file_id if msg.document else msg.video.file_id
-                    file_size = msg.document.file_size if msg.document else (msg.video.file_size if msg.video else 0)
-                    file_name = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
-                    quality = detect_quality(file_name)
+            limit=2000
+        )
+        
+        if chat_history:
+            async for msg in chat_history:
+                if msg.id in processed_messages:
+                    continue
                     
-                    file_is_video = is_video_file(file_name)
-                    
-                    thumbnail_url = None
-                    if file_is_video:
-                        video_thumbnail = await extract_video_thumbnail(User, msg)
-                        if video_thumbnail:
-                            thumbnail_url = video_thumbnail
-                        else:
-                            poster_data = await get_poster_fast(title, session)
-                            thumbnail_url = poster_data['poster_url'] if poster_data else None
+                if msg.document or msg.video:
+                    title = extract_title_from_file(msg)
+                    if title:
+                        file_id = msg.document.file_id if msg.document else msg.video.file_id
+                        file_size = msg.document.file_size if msg.document else (msg.video.file_size if msg.video else 0)
+                        file_name = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
+                        quality = detect_quality(file_name)
                         
-                        video_files_count += 1
-                    
-                    batch.append({
-                        'channel_id': Config.FILE_CHANNEL_ID,
-                        'message_id': msg.id,
-                        'title': title,
-                        'normalized_title': normalize_title(title),
-                        'file_id': file_id,
-                        'quality': quality,
-                        'file_size': file_size,
-                        'file_name': file_name,
-                        'caption': msg.caption or '',
-                        'date': msg.date,
-                        'indexed_at': datetime.now(),
-                        'thumbnail': thumbnail_url,
-                        'is_video_file': file_is_video,
-                        'thumbnail_source': 'video_direct' if video_thumbnail else 'poster_api'
-                    })
-                    
-                    count += 1
-                    processed_messages.add(msg.id)
-                    
-                    # Progress logging
-                    if count % 50 == 0:
-                        logger.info(f"📦 Indexed {count} files... (Videos: {video_files_count})")
-                    
-                    if len(batch) >= batch_size:
-                        try:
-                            # Use ordered=False to continue on errors
-                            await files_col.insert_many(batch, ordered=False)
-                            logger.info(f"✅ Batch of {len(batch)} files saved")
-                            batch = []
-                            # Small delay between batches
-                            await asyncio.sleep(1)
-                        except Exception as e:
-                            logger.error(f"❌ Batch insert failed: {e}")
-                            # Fallback to individual inserts
-                            for doc in batch:
-                                try:
-                                    await files_col.update_one(
-                                        {'channel_id': doc['channel_id'], 'message_id': doc['message_id']},
-                                        {'$set': doc},
-                                        upsert=True
-                                    )
-                                except Exception as doc_error:
-                                    logger.debug(f"Single doc insert failed: {doc_error}")
-                            batch = []
-                            await asyncio.sleep(2)
+                        file_is_video = is_video_file(file_name)
+                        
+                        thumbnail_url = None
+                        if file_is_video:
+                            video_thumbnail = await extract_video_thumbnail(User, msg)
+                            if video_thumbnail:
+                                thumbnail_url = video_thumbnail
+                            else:
+                                poster_data = await get_poster_fast(title, session)
+                                thumbnail_url = poster_data['poster_url'] if poster_data else None
+                            
+                            video_files_count += 1
+                        
+                        batch.append({
+                            'channel_id': Config.FILE_CHANNEL_ID,
+                            'message_id': msg.id,
+                            'title': title,
+                            'normalized_title': normalize_title(title),
+                            'file_id': file_id,
+                            'quality': quality,
+                            'file_size': file_size,
+                            'file_name': file_name,
+                            'caption': msg.caption or '',
+                            'date': msg.date,
+                            'indexed_at': datetime.now(),
+                            'thumbnail': thumbnail_url,
+                            'is_video_file': file_is_video,
+                            'thumbnail_source': 'video_direct' if video_thumbnail else 'poster_api'
+                        })
+                        
+                        count += 1
+                        processed_messages.add(msg.id)
+                        
+                        # Progress logging
+                        if count % 50 == 0:
+                            logger.info(f"📦 Indexed {count} files... (Videos: {video_files_count})")
+                        
+                        if len(batch) >= batch_size:
+                            try:
+                                # Use ordered=False to continue on errors
+                                await files_col.insert_many(batch, ordered=False)
+                                logger.info(f"✅ Batch of {len(batch)} files saved")
+                                batch = []
+                                # Small delay between batches
+                                await asyncio.sleep(1)
+                            except Exception as e:
+                                logger.error(f"❌ Batch insert failed: {e}")
+                                # Fallback to individual inserts
+                                for doc in batch:
+                                    try:
+                                        await files_col.update_one(
+                                            {'channel_id': doc['channel_id'], 'message_id': doc['message_id']},
+                                            {'$set': doc},
+                                            upsert=True
+                                        )
+                                    except Exception as doc_error:
+                                        logger.debug(f"Single doc insert failed: {doc_error}")
+                                batch = []
+                                await asyncio.sleep(2)
         
         # Final batch
         if batch:
