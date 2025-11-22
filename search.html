@@ -110,9 +110,68 @@
             color: var(--accent-color);
             font-size: 1.4rem;
             font-weight: 700;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             line-height: 1.3;
         }
+        
+        /* Video Thumbnail Section - सिर्फ Video Files के लिए */
+        .video-thumbnail-section {
+            margin-bottom: 1.5rem;
+            display: none; /* Default hidden */
+        }
+        .video-thumbnail-section.has-thumbnail {
+            display: block; /* सिर्फ thumbnail होने पर show */
+        }
+        .video-thumbnail-container {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            height: 200px;
+        }
+        .video-thumbnail-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        .video-thumbnail-container:hover img {
+            transform: scale(1.05);
+        }
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .video-thumbnail-container:hover .play-overlay {
+            opacity: 1;
+        }
+        .play-button {
+            width: 70px;
+            height: 70px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            transition: transform 0.3s ease;
+            border: 3px solid white;
+        }
+        .play-button:hover {
+            transform: scale(1.1);
+            background: var(--secondary-color);
+        }
+        
         .result-actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -186,6 +245,21 @@
         }
         /* Arrow Animation */
         .btn-download-main i.fa-chevron-down { transition: transform 0.3s ease;}
+        
+        /* Video File Badge */
+        .video-file-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
+        }
+        
         /* Pagination & State */
         .pagination {margin-top:2rem;}
         .page-link {background:rgba(0,204,255,0.2); color:var(--accent-color); border:2px solid var(--accent-color);}
@@ -234,6 +308,14 @@
             }
             .top-ad-container {
                 margin: 1rem 0;
+            }
+            .video-thumbnail-container {
+                height: 150px;
+            }
+            .play-button {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
             }
         }
         @media (max-width: 576px) {
@@ -301,6 +383,7 @@
 <script>
 const API_BASE = 'https://sk4film.koyeb.app';
 const RESULTS_PER_PAGE = 10;
+const AD_LINK = 'https://otieu.com/4/10220520'; // Your ad link
 let currentQuery = '';
 let currentPage = 1;
 let BOT_USERNAME = 'sk4filmbot';
@@ -438,15 +521,52 @@ function displayResults(results, pagination) {
         const hasFile = result.has_file === true;
         const qualityOptions = result.quality_options || {};
         const hasQualities = Object.keys(qualityOptions).length > 0;
+        const thumbnail = result.thumbnail; // ✅ Backend से सिर्फ video files के लिए thumbnail आएगा
+        const hasTelegramFile = hasFile && hasQualities;
+        
+        // Check if any quality option is a video file
+        const hasVideoFiles = Object.values(qualityOptions).some(option => option.is_video === true);
         
         html += `
         <div class="result-card">
             <h3 class="result-title">${escapeHtml(result.title)}</h3>
-            <div class="result-actions">
-                ${hasPost ? `<a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch"><i class="fas fa-eye me-2"></i>Watch</a>` : `<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
-                <div class="btn-download-wrapper">
-                    ${hasFile && hasQualities ? `<button class="btn btn-download-main" onclick="toggleQuality(${index})"><i class="fas fa-download me-2"></i>Download<i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i></button>` : `<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
+            
+            <!-- Video Thumbnail - सिर्फ Video Files के लिए और Thumbnail Available होने पर -->
+            ${thumbnail && hasVideoFiles ? `
+                <div class="video-thumbnail-section has-thumbnail">
+                    <div class="video-thumbnail-container" onclick="triggerAdLink()">
+                        <div class="video-file-badge">
+                            <i class="fas fa-play-circle me-1"></i>VIDEO
+                        </div>
+                        <img src="${thumbnail}" alt="Movie Thumbnail" onerror="this.src='https://via.placeholder.com/300x200/1a1a2e/00ccff?text=Thumbnail+Error'">
+                        <div class="play-overlay">
+                            <div class="play-button">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center text-muted mt-2"><small>Click the thumbnail to watch</small></p>
                 </div>
+            ` : ''}
+            
+            <div class="result-actions">
+                <!-- Watch Button -->
+                ${hasPost ? `
+                    <a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch">
+                        <i class="fas fa-eye me-2"></i>Watch
+                    </a>
+                ` : `<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
+                
+                <!-- Download Button -->
+                <div class="btn-download-wrapper">
+                    ${hasFile && hasQualities ? `
+                        <button class="btn btn-download-main" onclick="toggleQuality(${index})">
+                            <i class="fas fa-download me-2"></i>Download
+                            <i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i>
+                        </button>
+                    ` : `<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
+                </div>
+                
                 ${hasFile && hasQualities ? `<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>` : ''}
             </div>
         </div>
@@ -457,6 +577,11 @@ function displayResults(results, pagination) {
     
     if (pagination && pagination.total_pages > 1) displayPagination(pagination);
     if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function triggerAdLink() {
+    // Open ad link in new tab
+    window.open(AD_LINK, '_blank');
 }
 
 function toggleQuality(index) {
@@ -486,7 +611,15 @@ function generateQualityOptions(qualityOptions) {
             const f = qualityOptions[quality];
             const fileId = f.file_id;
             const fileSize = formatSize(f.file_size);
-            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option"><i class="fas fa-download me-1"></i>${quality}<small>${fileSize}</small></a>`;
+            const isVideo = f.is_video === true;
+            
+            // Video file होने पर badge show करें
+            const videoBadge = isVideo ? ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : '';
+            
+            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option">
+                <i class="fas fa-download me-1"></i>${quality}${videoBadge}
+                <small>${fileSize}</small>
+            </a>`;
         }
     });
     html += '</div>';
@@ -526,40 +659,51 @@ function displayPagination(pagination) {
     
     html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
     html += '</ul></nav>';
+    
     paginationContainer.innerHTML = html;
 }
 
 function showError(message) {
-    resultsContainer.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle text-danger"></i><h4>Error</h4><p class="text-muted">${escapeHtml(message)}</p></div>`;
-}
-
-function formatSize(bytes) {
-    if (!bytes) return 'Unknown';
-    const gb = bytes / 1073741824;
-    const mb = bytes / 1048576;
-    return gb >= 1 ? gb.toFixed(2) + ' GB' : mb.toFixed(1) + ' MB';
+    resultsContainer.innerHTML = `<div class="alert alert-danger text-center">${escapeHtml(message)}</div>`;
 }
 
 function escapeHtml(text) {
-    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Example test function to demonstrate the exact match functionality
-function testExactMatch() {
-    // This is just for demonstration - in real scenario, API would return these
-    const mockResults = [
-        { title: "The Family Man Season 3", has_post: true, has_file: true, quality_options: {"1080p": {file_id: "test1", file_size: 1500000000}} },
-        { title: "The Family Man", has_post: true, has_file: true, quality_options: {"1080p": {file_id: "test2", file_size: 1200000000}} },
-        { title: "Family Man Season 2", has_post: true, has_file: true, quality_options: {"720p": {file_id: "test3", file_size: 800000000}} },
-        { title: "The Man", has_post: true, has_file: false }
-    ];
-    
-    const sorted = sortResultsWithExactMatchFirst(mockResults, "The Family Man Season 3");
-    console.log("Sorted results with exact match first:", sorted);
+function formatSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.btn-download-wrapper')) {
+        document.querySelectorAll('.quality-dropdown').forEach((dropdown, index) => {
+            dropdown.classList.remove('show');
+            const arrow = document.getElementById(`arrow-${index}`);
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        });
+    }
+});
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('query');
+    const page = parseInt(urlParams.get('page')) || 1;
+    
+    if (query) {
+        currentQuery = query;
+        searchInput.value = query;
+        performSearch(page);
+    }
+});
 </script>
 </body>
 </html>
