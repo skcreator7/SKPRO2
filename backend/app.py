@@ -374,13 +374,12 @@ async def index_files_background():
                     file_name = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
                     quality = detect_quality(file_name)
                     
-                    # ✅ सिर्फ video files के लिए thumbnail fetch करें
-                    thumbnail_url = None
-                    file_name_lower = file_name.lower()
-                    is_video_file = is_video_file(file_name)
+                    # ✅ Check if it's a video file for thumbnail
+                    file_is_video = is_video_file(file_name)
                     
-                    if is_video_file:
-                        # Video file होने पर ही thumbnail fetch करें
+                    thumbnail_url = None
+                    if file_is_video:
+                        # Only fetch thumbnails for video files
                         async with aiohttp.ClientSession() as session:
                             poster_data = await get_poster_guaranteed(title, session)
                         thumbnail_url = poster_data['poster_url'] if poster_data else None
@@ -399,8 +398,8 @@ async def index_files_background():
                         'caption': msg.caption or '',
                         'date': msg.date,
                         'indexed_at': datetime.now(),
-                        'thumbnail': thumbnail_url,  # ✅ सिर्फ video files के लिए
-                        'is_video_file': is_video_file  # ✅ Track video files
+                        'thumbnail': thumbnail_url,
+                        'is_video_file': file_is_video  # ✅ Track video files
                     })
                     
                     count += 1
@@ -832,14 +831,15 @@ async def search_movies_live(query, limit=12, page=1):
                     quality = doc['quality']
                     
                     if norm_title not in files_dict:
-                        # ✅ सिर्फ video files के लिए thumbnail fetch करें
+                        # ✅ Check if it's a video file for thumbnail
                         file_name = doc.get('file_name', '').lower()
-                        is_video_file = is_video_file(file_name)
+                        file_is_video = is_video_file(file_name)
                         
                         thumbnail_url = None
-                        if is_video_file:
-                            # Video file होने पर ही thumbnail fetch करें
-                            poster_data = await get_poster_guaranteed(doc['title'], aiohttp.ClientSession())
+                        if file_is_video:
+                            # Only fetch thumbnails for video files
+                            async with aiohttp.ClientSession() as session:
+                                poster_data = await get_poster_guaranteed(doc['title'], session)
                             thumbnail_url = poster_data['poster_url'] if poster_data else None
                             logger.info(f"    🎬 Video file thumbnail fetched: {doc['title']}")
                         
@@ -847,8 +847,8 @@ async def search_movies_live(query, limit=12, page=1):
                             'title': doc['title'], 
                             'quality_options': {}, 
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
-                            'thumbnail': thumbnail_url,  # ✅ सिर्फ video files के लिए
-                            'is_video_file': is_video_file  # ✅ New field to track video files
+                            'thumbnail': thumbnail_url,
+                            'is_video_file': file_is_video  # ✅ Track video files
                         }
                     
                     if quality not in files_dict[norm_title]['quality_options']:
@@ -856,7 +856,7 @@ async def search_movies_live(query, limit=12, page=1):
                             'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
                             'file_size': doc['file_size'],
                             'file_name': doc['file_name'],
-                            'is_video': is_video_file(doc['file_name'])  # ✅ Video file check
+                            'is_video': file_is_video  # ✅ Video file check
                         }
                         count += 1
                 except Exception as e:
@@ -876,7 +876,7 @@ async def search_movies_live(query, limit=12, page=1):
         if norm_title in merged:
             merged[norm_title]['has_file'] = True
             merged[norm_title]['quality_options'] = file_data['quality_options']
-            # ✅ सिर्फ video files के लिए ही thumbnail set करें
+            # ✅ Only set thumbnail for video files
             if file_data.get('is_video_file') and file_data.get('thumbnail'):
                 merged[norm_title]['thumbnail'] = file_data['thumbnail']
         else:
@@ -889,7 +889,7 @@ async def search_movies_live(query, limit=12, page=1):
                 'has_file': True,
                 'has_post': False,
                 'quality_options': file_data['quality_options'],
-                'thumbnail': file_data.get('thumbnail') if file_data.get('is_video_file') else None  # ✅ सिर्फ video files
+                'thumbnail': file_data.get('thumbnail') if file_data.get('is_video_file') else None  # ✅ Only for video files
             }
     
     results_list = list(merged.values())
@@ -1177,15 +1177,15 @@ async def api_post():
                 async for doc in cursor:
                     quality = doc.get('quality', '480p')
                     if quality not in quality_options:
-                        # ✅ सिर्फ video files के लिए thumbnail check करें
+                        # ✅ Check if it's a video file for thumbnail
                         file_name = doc.get('file_name', '').lower()
-                        is_video_file = is_video_file(file_name)
+                        file_is_video = is_video_file(file_name)
                         
-                        # पहले video file के लिए ही thumbnail set करें
-                        if is_video_file and not thumbnail_url:
+                        # Only set thumbnail for video files
+                        if file_is_video and not thumbnail_url:
                             thumbnail_url = doc.get('thumbnail')
                             if not thumbnail_url:
-                                # Agar stored nahi hai to fetch karen
+                                # If not stored, fetch it
                                 async with aiohttp.ClientSession() as session:
                                     poster_data = await get_poster_guaranteed(title, session)
                                 thumbnail_url = poster_data['poster_url'] if poster_data else None
@@ -1194,7 +1194,7 @@ async def api_post():
                             'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
                             'file_size': doc.get('file_size', 0),
                             'file_name': doc.get('file_name', 'video.mp4'),
-                            'is_video': is_video_file  # ✅ Video file info
+                            'is_video': file_is_video  # ✅ Video file info
                         }
                         has_file = True
             except Exception as e:
@@ -1211,7 +1211,7 @@ async def api_post():
             'has_file': has_file,
             'quality_options': quality_options,
             'views': getattr(msg, 'views', 0),
-            'thumbnail': thumbnail_url  # ✅ सिर्फ video files के लिए
+            'thumbnail': thumbnail_url  # ✅ Only for video files
         }
         
         logger.info(f"  ✅ Post fetched: {title} | Has thumbnail: {thumbnail_url is not None}")
