@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.errors import UserNotParticipant, ChatAdminRequired, ChannelPrivate
+from pyrogram.errors import UserNotParticipant, ChatAdminRequired, ChannelPrivate, FloodWait
 from quart import Quart, jsonify, request, Response
 from hypercorn.asyncio import serve
 from hypercorn.config import Config as HyperConfig
@@ -21,6 +21,7 @@ import aiofiles
 from cachetools import TTLCache
 import brotli
 import gzip
+import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -60,14 +61,36 @@ class Config:
 
 app = Quart(__name__)
 
+# 🚀 FLOOD WAIT PROTECTION
+class FloodWaitProtection:
+    def __init__(self):
+        self.last_request_time = 0
+        self.min_interval = 1.0  # 1 second between requests
+        self.retry_count = 0
+        self.max_retries = 3
+        
+    async def wait_if_needed(self):
+        current_time = time.time()
+        time_since_last = current_time - self.last_request_time
+        if time_since_last < self.min_interval:
+            wait_time = self.min_interval - time_since_last
+            await asyncio.sleep(wait_time)
+        self.last_request_time = time.time()
+        
+    async def handle_flood_wait(self, error):
+        wait_time = getattr(error, 'value', 60)
+        logger.warning(f"⚠️ Flood wait detected. Waiting {wait_time} seconds...")
+        await asyncio.sleep(wait_time)
+        self.retry_count += 1
+        return self.retry_count <= self.max_retries
+
+flood_protection = FloodWaitProtection()
+
 # 🚀 SUPER FAST CACHING SYSTEM
 class FastCache:
     def __init__(self):
-        # Memory cache for frequent data (5 minutes TTL)
         self.memory_cache = TTLCache(maxsize=1000, ttl=300)
-        # API response cache (2 minutes TTL)
         self.api_cache = TTLCache(maxsize=500, ttl=120)
-        # Poster URL cache (1 hour TTL)
         self.poster_cache = TTLCache(maxsize=2000, ttl=3600)
         
     def get_memory(self, key):
@@ -97,7 +120,6 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     
-    # Compression headers
     accept_encoding = request.headers.get('Accept-Encoding', '')
     response_data = await response.get_data()
     
@@ -112,7 +134,6 @@ async def add_headers(response):
         response.headers['Content-Encoding'] = 'gzip'
         response.headers['Content-Length'] = len(compressed)
     
-    # Cache headers
     if request.path.startswith('/api/'):
         response.headers['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
     elif request.path.startswith('/api/poster'):
@@ -136,7 +157,6 @@ async def init_mongodb():
         files_col = db.files
         verification_col = db.verifications
         
-        # Optimized indexes
         try:
             await files_col.create_index([("normalized_title", 1)])
             await files_col.create_index([("indexed_at", -1)])
@@ -166,23 +186,20 @@ movie_db = {
     'stats': {
         'letterboxd': 0, 'imdb': 0, 'justwatch': 0, 'impawards': 0,
         'omdb': 0, 'tmdb': 0, 'custom': 0, 'cache_hits': 0, 'video_thumbnails': 0,
-        'memory_cache_hits': 0, 'api_cache_hits': 0
+        'memory_cache_hits': 0, 'api_cache_hits': 0, 'total_files_indexed': 0
     }
 }
 
 def normalize_title(title):
-    """Ultra-fast title normalization"""
     if not title:
         return ""
     
-    # Cache normalized titles
     cache_key = f"norm_{hash(title)}"
     cached = fast_cache.get_memory(cache_key)
     if cached:
         return cached
     
     normalized = title.lower().strip()
-    # Fast regex patterns
     normalized = re.sub(r'\b(19|20)\d{2}\b', '', normalized)
     normalized = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv)\b', '', normalized, flags=re.IGNORECASE)
     normalized = ' '.join(normalized.split()).strip()
@@ -191,11 +208,9 @@ def normalize_title(title):
     return normalized
 
 def extract_title_smart(text):
-    """Fast title extraction with caching"""
     if not text or len(text) < 10:
         return None
     
-    # Cache extraction results
     cache_key = f"extract_{hash(text[:100])}"
     cached = fast_cache.get_memory(cache_key)
     if cached:
@@ -208,7 +223,6 @@ def extract_title_smart(text):
         
         first_line = lines[0]
         
-        # Fast pattern matching
         patterns = [
             (r'🎬\s*([^\n\-\(]{3,60})', 1),
             (r'^([^\(\n]{3,60})\s*\(\d{4}\)', 1),
@@ -224,7 +238,6 @@ def extract_title_smart(text):
                     fast_cache.set_memory(cache_key, title)
                     return title
         
-        # Fallback: first line processing
         if len(first_line) >= 3 and len(first_line) <= 60:
             title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hevc|x264|x265)\b', '', first_line, flags=re.IGNORECASE)
             title = re.sub(r'\s+', ' ', title).strip()
@@ -237,9 +250,7 @@ def extract_title_smart(text):
     return None
 
 def extract_title_from_file(msg):
-    """Fast file title extraction"""
     try:
-        # Check cache first
         cache_key = f"file_title_{msg.id}"
         cached = fast_cache.get_memory(cache_key)
         if cached:
@@ -265,7 +276,6 @@ def extract_title_from_file(msg):
     return None
 
 def format_size(size):
-    """Fast size formatting"""
     if not size:
         return "Unknown"
     if size < 1024*1024:
@@ -276,7 +286,6 @@ def format_size(size):
         return f"{size/(1024*1024*1024):.2f} GB"
 
 def detect_quality(filename):
-    """Fast quality detection with caching"""
     if not filename:
         return "480p"
         
@@ -303,7 +312,6 @@ def detect_quality(filename):
     return result
 
 def format_post(text):
-    """Fast post formatting"""
     if not text:
         return ""
         
@@ -320,7 +328,6 @@ def format_post(text):
     return formatted
 
 def channel_name(cid):
-    """Fast channel name lookup"""
     names = {
         -1001891090100: "SK4FiLM Main", 
         -1002024811395: "SK4FiLM Updates", 
@@ -329,7 +336,6 @@ def channel_name(cid):
     return names.get(cid, f"Channel {cid}")
 
 def is_new(date):
-    """Fast date checking"""
     try:
         if isinstance(date, str):
             date = datetime.fromisoformat(date.replace('Z', '+00:00'))
@@ -339,7 +345,6 @@ def is_new(date):
         return False
 
 def is_video_file(file_name):
-    """Fast video file detection"""
     if not file_name:
         return False
     
@@ -354,6 +359,61 @@ def is_video_file(file_name):
     
     fast_cache.set_memory(cache_key, result)
     return result
+
+# 🚀 FLOOD-PROOF TELEGRAM OPERATIONS
+async def safe_telegram_operation(operation, *args, **kwargs):
+    """Safely execute Telegram operations with flood wait protection"""
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            await flood_protection.wait_if_needed()
+            result = await operation(*args, **kwargs)
+            flood_protection.retry_count = 0  # Reset on success
+            return result
+        except FloodWait as e:
+            retry_count += 1
+            logger.warning(f"⚠️ Flood wait {retry_count}/{max_retries}: {e.value}s")
+            await asyncio.sleep(e.value + 2)  # Extra buffer
+        except Exception as e:
+            logger.error(f"❌ Telegram operation failed: {e}")
+            retry_count += 1
+            if retry_count < max_retries:
+                await asyncio.sleep(5)
+            else:
+                raise e
+    
+    return None
+
+async def extract_video_thumbnail(user_client, message):
+    """Safe video thumbnail extraction"""
+    try:
+        cache_key = f"thumb_{message.id}"
+        cached = fast_cache.get_memory(cache_key)
+        if cached:
+            movie_db['stats']['memory_cache_hits'] += 1
+            return cached
+            
+        if message.video and message.video.thumbs:
+            thumbnail = message.video.thumbs[0]
+            
+            # Use safe operation for download
+            thumbnail_path = await safe_telegram_operation(
+                user_client.download_media, 
+                thumbnail.file_id, 
+                in_memory=True
+            )
+            
+            if thumbnail_path:
+                thumbnail_data = base64.b64encode(thumbnail_path.getvalue()).decode('utf-8')
+                thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
+                movie_db['stats']['video_thumbnails'] += 1
+                fast_cache.set_memory(cache_key, thumbnail_url)
+                return thumbnail_url
+    except Exception as e:
+        logger.debug(f"Thumbnail extraction failed: {e}")
+    return None
 
 # 🚀 ASYNC HTTP CLIENT WITH CONNECTION POOL
 class FastHttpClient:
@@ -384,30 +444,8 @@ class FastHttpClient:
 
 fast_http = FastHttpClient()
 
-async def extract_video_thumbnail(user_client, message):
-    """Fast video thumbnail extraction"""
-    try:
-        cache_key = f"thumb_{message.id}"
-        cached = fast_cache.get_memory(cache_key)
-        if cached:
-            movie_db['stats']['memory_cache_hits'] += 1
-            return cached
-            
-        if message.video and message.video.thumbs:
-            thumbnail = message.video.thumbs[0]
-            thumbnail_path = await user_client.download_media(thumbnail.file_id, in_memory=True)
-            if thumbnail_path:
-                thumbnail_data = base64.b64encode(thumbnail_path.getvalue()).decode('utf-8')
-                thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
-                movie_db['stats']['video_thumbnails'] += 1
-                fast_cache.set_memory(cache_key, thumbnail_url)
-                return thumbnail_url
-    except Exception as e:
-        logger.debug(f"Thumbnail extraction failed: {e}")
-    return None
-
 async def get_poster_fast(title, session):
-    """Ultra-fast poster fetching with multiple fallbacks"""
+    """Fast poster fetching with flood protection"""
     cache_key = f"poster_{title.lower()}"
     cached = fast_cache.get_poster(cache_key)
     if cached:
@@ -415,9 +453,6 @@ async def get_poster_fast(title, session):
         return cached
     
     # Try multiple sources concurrently
-    tasks = []
-    
-    # Letterboxd (fastest)
     async def try_letterboxd():
         try:
             clean_title = re.sub(r'[^\w\s]', '', title).strip()
@@ -433,13 +468,12 @@ async def get_poster_fast(title, session):
                         poster_url = poster_match.group(1)
                         if poster_url and poster_url.startswith('http'):
                             if 'cloudfront.net' in poster_url:
-                                poster_url = poster_url.replace('-0-500-0-750', '-0-300-0-450')  # Smaller for speed
+                                poster_url = poster_url.replace('-0-500-0-750', '-0-300-0-450')
                             return {'poster_url': poster_url, 'source': 'Letterboxd'}
         except:
             pass
         return None
     
-    # IMDb fast search
     async def try_imdb_fast():
         try:
             clean_title = re.sub(r'[^\w\s]', '', title).strip()
@@ -452,32 +486,14 @@ async def get_poster_fast(title, session):
                         if item.get('i'):
                             poster_url = item['i'][0] if isinstance(item['i'], list) else item['i']
                             if poster_url:
-                                poster_url = poster_url.replace('._V1_', '._V1_UX300_')  # Smaller size
+                                poster_url = poster_url.replace('._V1_', '._V1_UX300_')
                                 return {'poster_url': poster_url, 'source': 'IMDb'}
         except:
             pass
         return None
     
-    # JustWatch fast
-    async def try_justwatch_fast():
-        try:
-            clean_title = re.sub(r'[^\w\s]', '', title).strip()
-            slug = clean_title.lower().replace(' ', '-')
-            url = f"https://www.justwatch.com/in/movie/{slug}"
-            async with session.get(url, timeout=3) as r:
-                if r.status == 200:
-                    html_content = await r.text()
-                    poster_match = re.search(r'<meta property="og:image" content="([^"]+)"', html_content)
-                    if poster_match:
-                        poster_url = poster_match.group(1)
-                        return {'poster_url': poster_url, 'source': 'JustWatch'}
-        except:
-            pass
-        return None
+    tasks = [try_letterboxd(), try_imdb_fast()]
     
-    tasks = [try_letterboxd(), try_imdb_fast(), try_justwatch_fast()]
-    
-    # Run all tasks concurrently and take first successful result
     for completed in asyncio.as_completed(tasks):
         result = await completed
         if result:
@@ -486,11 +502,9 @@ async def get_poster_fast(title, session):
                 movie_db['stats']['letterboxd'] += 1
             elif result['source'] == 'IMDb':
                 movie_db['stats']['imdb'] += 1
-            elif result['source'] == 'JustWatch':
-                movie_db['stats']['justwatch'] += 1
             return result
     
-    # Fallback to custom poster (fastest)
+    # Fallback to custom poster
     year_match = re.search(r'\b(19|20)\d{2}\b', title)
     year = year_match.group() if year_match else ""
     result = {
@@ -502,21 +516,37 @@ async def get_poster_fast(title, session):
     return result
 
 async def index_files_background():
-    """Fast background indexing"""
+    """Safe background indexing with flood protection"""
     if not User or files_col is None:
+        logger.warning("❌ Cannot index: User or DB not ready")
         return
     
-    logger.info("📁 Starting FAST background indexing...")
+    logger.info("📁 Starting SAFE background indexing...")
     
     try:
         count = 0
         video_files_count = 0
         batch = []
-        batch_size = 100  # Larger batch for speed
+        batch_size = 50  # Smaller batch for safety
+        processed_messages = set()
+        
+        # Check already indexed files to avoid re-processing
+        existing_files = await files_col.distinct("message_id", {"channel_id": Config.FILE_CHANNEL_ID})
+        processed_messages.update(existing_files)
+        
+        logger.info(f"📊 Already indexed: {len(existing_files)} files")
         
         session = await fast_http.get_session()
         
-        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=1000):  # Limit for speed
+        # Use safe Telegram operation for getting chat history
+        async for msg in safe_telegram_operation(
+            User.get_chat_history, 
+            Config.FILE_CHANNEL_ID, 
+            limit=2000  # Reasonable limit
+        ):
+            if msg.id in processed_messages:
+                continue
+                
             if msg.document or msg.video:
                 title = extract_title_from_file(msg)
                 if title:
@@ -529,12 +559,10 @@ async def index_files_background():
                     
                     thumbnail_url = None
                     if file_is_video:
-                        # Fast thumbnail extraction
                         video_thumbnail = await extract_video_thumbnail(User, msg)
                         if video_thumbnail:
                             thumbnail_url = video_thumbnail
                         else:
-                            # Fast poster fetch
                             poster_data = await get_poster_fast(title, session)
                             thumbnail_url = poster_data['poster_url'] if poster_data else None
                         
@@ -558,15 +586,23 @@ async def index_files_background():
                     })
                     
                     count += 1
+                    processed_messages.add(msg.id)
+                    
+                    # Progress logging
+                    if count % 50 == 0:
+                        logger.info(f"📦 Indexed {count} files... (Videos: {video_files_count})")
                     
                     if len(batch) >= batch_size:
                         try:
-                            # Bulk insert for speed
+                            # Use ordered=False to continue on errors
                             await files_col.insert_many(batch, ordered=False)
-                            logger.info(f"    ✅ Fast indexed {count} files...")
+                            logger.info(f"✅ Batch of {len(batch)} files saved")
                             batch = []
+                            # Small delay between batches
+                            await asyncio.sleep(1)
                         except Exception as e:
-                            # Individual inserts if bulk fails
+                            logger.error(f"❌ Batch insert failed: {e}")
+                            # Fallback to individual inserts
                             for doc in batch:
                                 try:
                                     await files_col.update_one(
@@ -574,14 +610,18 @@ async def index_files_background():
                                         {'$set': doc},
                                         upsert=True
                                     )
-                                except:
-                                    pass
+                                except Exception as doc_error:
+                                    logger.debug(f"Single doc insert failed: {doc_error}")
                             batch = []
+                            await asyncio.sleep(2)
         
+        # Final batch
         if batch:
             try:
                 await files_col.insert_many(batch, ordered=False)
-            except:
+                logger.info(f"✅ Final batch of {len(batch)} files saved")
+            except Exception as e:
+                logger.error(f"❌ Final batch failed: {e}")
                 for doc in batch:
                     try:
                         await files_col.update_one(
@@ -592,15 +632,17 @@ async def index_files_background():
                     except:
                         pass
         
-        logger.info(f"✅ FAST indexing complete: {count} files, {video_files_count} videos")
+        total_files = await files_col.count_documents({})
+        movie_db['stats']['total_files_indexed'] = total_files
+        
+        logger.info(f"🎉 INDEXING COMPLETE: {count} new files, Total: {total_files} files, Videos: {video_files_count}")
         
     except Exception as e:
-        logger.error(f"❌ Fast indexing error: {e}")
+        logger.error(f"❌ Background indexing error: {e}")
 
-# 🚀 SUPER FAST API ENDPOINTS
+# 🚀 FAST API ENDPOINTS
 @app.route('/')
 async def root():
-    """Ultra-fast root endpoint"""
     cache_key = "root_response"
     cached = fast_cache.get_api(cache_key)
     if cached:
@@ -611,15 +653,15 @@ async def root():
     
     response = {
         'status': 'healthy',
-        'service': 'SK4FiLM v7.0 - SUPER FAST',
-        'database': {'total_files': tf, 'mode': 'ULTRA FAST'},
-        'bot_status': 'online' if bot_started else 'starting',
-        'cache_stats': {
-            'memory_hits': movie_db['stats']['memory_cache_hits'],
-            'api_hits': movie_db['stats']['api_cache_hits'],
-            'poster_hits': movie_db['stats']['cache_hits']
+        'service': 'SK4FiLM v7.0 - FLOOD PROTECTION',
+        'database': {
+            'total_files': tf, 
+            'newly_indexed': movie_db['stats']['total_files_indexed'],
+            'mode': 'SAFE & FAST'
         },
-        'performance': 'SUPER FAST LOADING'
+        'bot_status': 'online' if bot_started else 'starting',
+        'cache_stats': movie_db['stats'],
+        'performance': 'FLOOD PROTECTION ENABLED'
     }
     
     fast_cache.set_api(cache_key, response)
@@ -627,12 +669,40 @@ async def root():
 
 @app.route('/health')
 async def health():
-    """Fast health check"""
     return jsonify({'status': 'ok' if bot_started else 'starting', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/api/index_status')
+async def api_index_status():
+    try:
+        if files_col is None:
+            return jsonify({'status': 'error', 'message': 'Database not ready'}), 503
+        
+        total = await files_col.count_documents({})
+        video_files = await files_col.count_documents({'is_video_file': True})
+        video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
+        
+        latest = await files_col.find_one({}, sort=[('indexed_at', -1)])
+        last_indexed = "Never"
+        if latest and latest.get('indexed_at'):
+            dt = latest['indexed_at']
+            if isinstance(dt, datetime):
+                mins_ago = int((datetime.now() - dt).total_seconds() / 60)
+                last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
+        
+        return jsonify({
+            'status': 'success',
+            'total_files': total,
+            'video_files': video_files,
+            'files_with_thumbnails': video_thumbnails,
+            'last_indexed': last_indexed,
+            'indexing_progress': f"{movie_db['stats']['total_files_indexed']} files processed",
+            'bot_status': 'online' if bot_started else 'starting'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/movies')
 async def api_movies():
-    """Fast movies endpoint with aggressive caching"""
     cache_key = "api_movies_home"
     cached = fast_cache.get_api(cache_key)
     if cached:
@@ -643,47 +713,28 @@ async def api_movies():
         if not bot_started:
             return jsonify({'status': 'error', 'message': 'Starting...'}), 503
         
-        # Fast home movies (limited for speed)
-        posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=20)
+        # Get recent files from database instead of live Telegram
+        recent_files = await files_col.find().sort('date', -1).limit(20).to_list(length=20)
+        
         movies = []
-        seen = set()
-        
-        for post in posts[:15]:  # Limit to 15 for speed
-            tk = post['title'].lower().strip()
-            if tk not in seen:
-                seen.add(tk)
-                movies.append({
-                    'title': post['title'],
-                    'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
-                    'is_new': post.get('is_new', False),
-                    'channel': post.get('channel_name', 'SK4FiLM Main')
-                })
-        
-        # Fast poster fetching in parallel
-        session = await fast_http.get_session()
-        tasks = [get_poster_fast(movie['title'], session) for movie in movies]
-        posters = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        for i, (movie, poster_result) in enumerate(zip(movies, posters)):
-            if isinstance(poster_result, dict):
-                movie.update({
-                    'poster_url': poster_result['poster_url'],
-                    'poster_source': poster_result['source'],
-                    'has_poster': True
-                })
-            else:
-                movie.update({
-                    'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}",
-                    'poster_source': 'CUSTOM',
-                    'has_poster': True
-                })
+        for doc in recent_files[:15]:
+            movies.append({
+                'title': doc['title'],
+                'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
+                'is_new': is_new(doc['date']),
+                'channel': 'SK4FiLM',
+                'poster_url': doc.get('thumbnail'),
+                'poster_source': doc.get('thumbnail_source', 'unknown'),
+                'has_poster': doc.get('thumbnail') is not None
+            })
         
         response = {
             'status': 'success', 
             'movies': movies, 
             'total': len(movies), 
-            'mode': 'ULTRA FAST',
-            'cache': 'MEMORY + API CACHING'
+            'mode': 'DATABASE DRIVEN',
+            'cache': 'MEMORY + API CACHING',
+            'source': 'MONGODB'
         }
         
         fast_cache.set_api(cache_key, response)
@@ -695,15 +746,13 @@ async def api_movies():
 
 @app.route('/api/search')
 async def api_search():
-    """Fast search with multiple optimizations"""
     q = request.args.get('query', '').strip().lower()
     p = int(request.args.get('page', 1))
-    l = min(int(request.args.get('limit', 12)), 50)  # Limit for speed
+    l = min(int(request.args.get('limit', 12)), 50)
     
     if not q:
         return jsonify({'status': 'error', 'message': 'Query required'}), 400
     
-    # Cache search results
     cache_key = f"search_{q}_{p}_{l}"
     cached = fast_cache.get_api(cache_key)
     if cached:
@@ -716,7 +765,7 @@ async def api_search():
         
         offset = (p - 1) * l
         
-        # Fast MongoDB search with projection
+        # Fast MongoDB search
         pipeline = [
             {'$match': {'$text': {'$search': q}}},
             {'$project': {
@@ -735,7 +784,6 @@ async def api_search():
             async for doc in cursor:
                 files_results.append(doc)
         
-        # Process results quickly
         results = []
         for doc in files_results:
             quality_options = {
@@ -766,13 +814,14 @@ async def api_search():
             'results': results, 
             'pagination': {
                 'current_page': p,
-                'total_pages': 1,  # Simplified for speed
+                'total_pages': 1,
                 'total_results': len(results),
                 'per_page': l,
                 'has_next': len(results) == l,
                 'has_previous': p > 1
             }, 
-            'mode': 'ULTRA FAST SEARCH'
+            'mode': 'DATABASE SEARCH',
+            'performance': 'INSTANT RESULTS'
         }
         
         fast_cache.set_api(cache_key, response)
@@ -784,7 +833,6 @@ async def api_search():
 
 @app.route('/api/post')
 async def api_post():
-    """Fast post endpoint"""
     try:
         channel_id = request.args.get('channel', '').strip()
         message_id = request.args.get('message', '').strip()
@@ -792,7 +840,6 @@ async def api_post():
         if not channel_id or not message_id:
             return jsonify({'status':'error', 'message':'Missing parameters'}), 400
         
-        # Cache individual posts
         cache_key = f"post_{channel_id}_{message_id}"
         cached = fast_cache.get_api(cache_key)
         if cached:
@@ -805,14 +852,14 @@ async def api_post():
         channel_id = int(channel_id)
         message_id = int(message_id)
         
-        msg = await User.get_messages(channel_id, message_id)
+        # Use safe Telegram operation
+        msg = await safe_telegram_operation(User.get_messages, channel_id, message_id)
         if not msg or not msg.text:
             return jsonify({'status':'error', 'message':'Message not found'}), 404
         
         title = extract_title_smart(msg.text) or msg.text.split('\n')[0][:60]
         normalized_title = normalize_title(title)
         
-        # Fast file lookup
         quality_options = {}
         has_file = False
         thumbnail_url = None
@@ -857,7 +904,6 @@ async def api_post():
 
 @app.route('/api/poster')
 async def api_poster():
-    """Fast poster generator with aggressive caching"""
     t = request.args.get('title', 'Movie')
     y = request.args.get('year', '')
     
@@ -907,7 +953,7 @@ async def api_poster():
         'Content-Type': 'image/svg+xml'
     })
 
-# 🚀 FAST BOT COMMANDS (Simplified for speed)
+# 🚀 SAFE BOT SETUP
 async def setup_bot():
     @bot.on_message(filters.command("start") & filters.private)
     async def start_handler(client, message):
@@ -915,7 +961,6 @@ async def setup_bot():
         user_name = message.from_user.first_name or "User"
         
         if len(message.command) > 1:
-            # Fast file handling
             fid = message.command[1]
             try:
                 parts = fid.split('_')
@@ -923,19 +968,35 @@ async def setup_bot():
                     channel_id = int(parts[0])
                     message_id = int(parts[1])
                     
-                    file_message = await bot.get_messages(channel_id, message_id)
+                    file_message = await safe_telegram_operation(
+                        bot.get_messages, 
+                        channel_id, 
+                        message_id
+                    )
+                    
                     if file_message:
                         if file_message.document:
-                            await bot.send_document(uid, file_message.document.file_id)
+                            await bot.send_document(uid, file_message.document.file_id,
+                                caption="📦 File from SK4FiLM\n\n♻️ Please forward to saved messages for download")
                         elif file_message.video:
-                            await bot.send_video(uid, file_message.video.file_id)
+                            await bot.send_video(uid, file_message.video.file_id,
+                                caption="🎬 Video from SK4FiLM\n\n♻️ Please forward to saved messages for download")
                 return
             except Exception as e:
-                await message.reply_text("❌ Download failed")
+                await message.reply_text("❌ Download failed. Please try again.")
                 return
         
-        # Fast welcome message
-        welcome_text = f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n🌐 **Website:** {Config.WEBSITE_URL}"
+        welcome_text = f"""🎬 **Welcome to SK4FiLM, {user_name}!**
+
+🌐 **Website:** {Config.WEBSITE_URL}
+
+✨ **Features:**
+• 🎥 Latest movies & shows
+• 📺 Multiple quality options  
+• ⚡ Fast downloads
+• 🔒 Secure & reliable
+
+📢 **Join our channels:**"""
         
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
@@ -950,12 +1011,15 @@ async def setup_bot():
 async def init():
     global User, bot, bot_started
     try:
-        logger.info("🚀 INITIALIZING SUPER FAST SK4FiLM BOT...")
+        logger.info("🚀 INITIALIZING FLOOD-PROOF SK4FiLM BOT...")
         await init_mongodb()
         
         User = Client("user_session", api_id=Config.API_ID, api_hash=Config.API_HASH, 
-                     session_string=Config.USER_SESSION_STRING, no_updates=True)
-        bot = Client("bot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN)
+                     session_string=Config.USER_SESSION_STRING, no_updates=True,
+                     sleep_threshold=30)  # Higher sleep threshold
+        
+        bot = Client("bot", api_id=Config.API_ID, api_hash=Config.API_HASH, 
+                    bot_token=Config.BOT_TOKEN, sleep_threshold=30)
         
         await User.start()
         await bot.start()
@@ -965,7 +1029,7 @@ async def init():
         logger.info(f"✅ BOT STARTED: @{me.username}")
         bot_started = True
         
-        # Start fast indexing
+        # Start safe indexing
         asyncio.create_task(index_files_background())
         
         return True
@@ -975,11 +1039,11 @@ async def init():
 
 async def main():
     logger.info("="*60)
-    logger.info("🎬 SK4FiLM v7.0 - SUPER FAST LOADING")
-    logger.info("✅ Performance: ULTRA FAST")
-    logger.info("✅ Caching: MULTI-LEVEL")
-    logger.info("✅ Compression: BROTLI + GZIP")
-    logger.info("✅ Database: OPTIMIZED")
+    logger.info("🎬 SK4FiLM v7.0 - FLOOD PROTECTION")
+    logger.info("✅ Flood Protection: ENABLED")
+    logger.info("✅ Rate Limiting: ACTIVE") 
+    logger.info("✅ Safe Indexing: ENABLED")
+    logger.info("✅ Performance: OPTIMIZED")
     logger.info("="*60)
     
     success = await init()
@@ -991,7 +1055,7 @@ async def main():
     config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     config.loglevel = "warning"
     
-    logger.info(f"🌐 SUPER FAST server starting on port {Config.WEB_SERVER_PORT}...")
+    logger.info(f"🌐 FLOOD-PROOF server starting on port {Config.WEB_SERVER_PORT}...")
     await serve(app, config)
 
 if __name__ == "__main__":
