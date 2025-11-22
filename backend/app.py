@@ -14,6 +14,8 @@ import re
 import math
 import aiohttp
 import urllib.parse
+import base64
+from io import BytesIO
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -131,7 +133,8 @@ movie_db = {
         'omdb': 0,
         'tmdb': 0,
         'custom': 0,
-        'cache_hits': 0
+        'cache_hits': 0,
+        'video_thumbnails': 0
     }
 }
 
@@ -262,6 +265,57 @@ def is_video_file(file_name):
     
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
+async def extract_video_thumbnail(user_client, message):
+    """Extract thumbnail directly from video file"""
+    try:
+        logger.info(f"    🎥 Extracting thumbnail from video file...")
+        
+        # Download thumbnail from Telegram
+        if message.video:
+            # Get video thumbnail
+            thumbnail = message.video.thumbs[0] if message.video.thumbs else None
+            if thumbnail:
+                # Download thumbnail file
+                thumbnail_path = await user_client.download_media(thumbnail.file_id, in_memory=True)
+                if thumbnail_path:
+                    # Convert to base64 for web display
+                    thumbnail_data = base64.b64encode(thumbnail_path.getvalue()).decode('utf-8')
+                    thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
+                    movie_db['stats']['video_thumbnails'] += 1
+                    logger.info(f"    ✅ Video thumbnail extracted successfully")
+                    return thumbnail_url
+        
+        # Alternative: Download first frame of video (requires ffmpeg)
+        # This is more complex but can be implemented if needed
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"    ❌ Video thumbnail extraction failed: {e}")
+        return None
+
+async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
+    """Get thumbnail directly from Telegram video"""
+    try:
+        logger.info(f"    📹 Getting Telegram video thumbnail...")
+        
+        # Get the message
+        msg = await user_client.get_messages(channel_id, message_id)
+        if not msg or (not msg.video and not msg.document):
+            return None
+        
+        # Extract thumbnail
+        thumbnail_url = await extract_video_thumbnail(user_client, msg)
+        if thumbnail_url:
+            logger.info(f"    ✅ Telegram video thumbnail extracted")
+            return thumbnail_url
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"    ❌ Telegram video thumbnail error: {e}")
+        return None
+
 async def check_url_shortener_verification(user_id):
     """Check if user has valid URL shortener verification (6 hours)"""
     if not Config.VERIFICATION_REQUIRED:
@@ -379,12 +433,19 @@ async def index_files_background():
                     
                     thumbnail_url = None
                     if file_is_video:
-                        # Only fetch thumbnails for video files
-                        async with aiohttp.ClientSession() as session:
-                            poster_data = await get_poster_guaranteed(title, session)
-                        thumbnail_url = poster_data['poster_url'] if poster_data else None
+                        # PRIORITY 1: Extract thumbnail directly from video
+                        video_thumbnail = await extract_video_thumbnail(User, msg)
+                        if video_thumbnail:
+                            thumbnail_url = video_thumbnail
+                            logger.info(f"    🎬 DIRECT VIDEO THUMBNAIL: {title}")
+                        else:
+                            # PRIORITY 2: Fetch from poster sources
+                            async with aiohttp.ClientSession() as session:
+                                poster_data = await get_poster_guaranteed(title, session)
+                            thumbnail_url = poster_data['poster_url'] if poster_data else None
+                            logger.info(f"    🎬 POSTER THUMBNAIL: {title}")
+                        
                         video_files_count += 1
-                        logger.info(f"    🎬 Video file indexed with thumbnail: {title}")
                     
                     batch.append({
                         'channel_id': Config.FILE_CHANNEL_ID,
@@ -399,7 +460,8 @@ async def index_files_background():
                         'date': msg.date,
                         'indexed_at': datetime.now(),
                         'thumbnail': thumbnail_url,
-                        'is_video_file': file_is_video  # ✅ Track video files
+                        'is_video_file': file_is_video,
+                        'thumbnail_source': 'video_direct' if video_thumbnail else 'poster_api'
                     })
                     
                     count += 1
@@ -837,18 +899,21 @@ async def search_movies_live(query, limit=12, page=1):
                         
                         thumbnail_url = None
                         if file_is_video:
-                            # Only fetch thumbnails for video files
-                            async with aiohttp.ClientSession() as session:
-                                poster_data = await get_poster_guaranteed(doc['title'], session)
-                            thumbnail_url = poster_data['poster_url'] if poster_data else None
-                            logger.info(f"    🎬 Video file thumbnail fetched: {doc['title']}")
+                            # Use stored thumbnail or fetch from Telegram directly
+                            thumbnail_url = doc.get('thumbnail')
+                            if not thumbnail_url:
+                                # Try to get thumbnail directly from Telegram video
+                                thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
+                            
+                            logger.info(f"    🎬 Video file thumbnail: {doc['title']}")
                         
                         files_dict[norm_title] = {
                             'title': doc['title'], 
                             'quality_options': {}, 
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
                             'thumbnail': thumbnail_url,
-                            'is_video_file': file_is_video  # ✅ Track video files
+                            'is_video_file': file_is_video,
+                            'thumbnail_source': doc.get('thumbnail_source', 'unknown')
                         }
                     
                     if quality not in files_dict[norm_title]['quality_options']:
@@ -856,7 +921,9 @@ async def search_movies_live(query, limit=12, page=1):
                             'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
                             'file_size': doc['file_size'],
                             'file_name': doc['file_name'],
-                            'is_video': file_is_video  # ✅ Video file check
+                            'is_video': file_is_video,
+                            'channel_id': doc.get('channel_id'),
+                            'message_id': doc.get('message_id')
                         }
                         count += 1
                 except Exception as e:
@@ -879,6 +946,7 @@ async def search_movies_live(query, limit=12, page=1):
             # ✅ Only set thumbnail for video files
             if file_data.get('is_video_file') and file_data.get('thumbnail'):
                 merged[norm_title]['thumbnail'] = file_data['thumbnail']
+                merged[norm_title]['thumbnail_source'] = file_data.get('thumbnail_source', 'unknown')
         else:
             merged[norm_title] = {
                 'title': file_data['title'],
@@ -889,7 +957,8 @@ async def search_movies_live(query, limit=12, page=1):
                 'has_file': True,
                 'has_post': False,
                 'quality_options': file_data['quality_options'],
-                'thumbnail': file_data.get('thumbnail') if file_data.get('is_video_file') else None  # ✅ Only for video files
+                'thumbnail': file_data.get('thumbnail') if file_data.get('is_video_file') else None,
+                'thumbnail_source': file_data.get('thumbnail_source', 'unknown')
             }
     
     results_list = list(merged.values())
@@ -900,7 +969,11 @@ async def search_movies_live(query, limit=12, page=1):
     
     # Log thumbnail statistics
     video_files_with_thumbnails = sum(1 for r in paginated if r.get('thumbnail'))
+    video_thumbnails = sum(1 for r in paginated if r.get('thumbnail_source') == 'video_direct')
+    poster_thumbnails = sum(1 for r in paginated if r.get('thumbnail_source') == 'poster_api')
+    
     logger.info(f"✅ Total: {total} | Video files with thumbnails: {video_files_with_thumbnails}")
+    logger.info(f"🎥 Direct Video Thumbnails: {video_thumbnails} | 🎬 Poster Thumbnails: {poster_thumbnails}")
     
     return {
         'results': paginated,
@@ -988,7 +1061,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v6.0 - URL SHORTENER VERIFICATION',
+        'service': 'SK4FiLM v6.0 - VIDEO THUMBNAIL EXTRACTION',
         'database': {'total_files': tf, 'live_mode': 'Posts LIVE, Files cached'},
         'bot_status': 'online' if bot_started else 'starting',
         'verification': {
@@ -996,7 +1069,8 @@ async def root():
             'duration_hours': Config.VERIFICATION_DURATION / 3600,
             'enabled': Config.VERIFICATION_REQUIRED
         },
-        'poster_stats': movie_db['stats']
+        'poster_stats': movie_db['stats'],
+        'features': 'DIRECT VIDEO THUMBNAILS + MULTI-SOURCE POSTERS'
     })
 
 @app.route('/health')
@@ -1076,12 +1150,22 @@ async def api_index_status():
                 mins_ago = int((datetime.now() - dt).total_seconds() / 60)
                 last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
         
+        # Thumbnail statistics
+        video_files = await files_col.count_documents({'is_video_file': True})
+        video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
+        direct_thumbnails = await files_col.count_documents({'thumbnail_source': 'video_direct'})
+        poster_thumbnails = await files_col.count_documents({'thumbnail_source': 'poster_api'})
+        
         return jsonify({
             'status': 'success',
             'total_indexed': total,
+            'video_files': video_files,
+            'video_thumbnails': video_thumbnails,
+            'direct_video_thumbnails': direct_thumbnails,
+            'poster_thumbnails': poster_thumbnails,
             'last_indexed': last_indexed,
             'bot_status': 'online' if bot_started else 'starting',
-            'features': 'ALL SOURCES POSTERS + 100% GUARANTEE'
+            'features': 'DIRECT VIDEO THUMBNAILS + MULTI-SOURCE POSTERS'
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1127,7 +1211,7 @@ async def api_search():
             'pagination': result['pagination'], 
             'bot_username': Config.BOT_USERNAME, 
             'mode': 'LIVE',
-            'features': 'ALL SOURCES POSTERS + 100% GUARANTEE'
+            'features': 'DIRECT VIDEO THUMBNAILS + MULTI-SOURCE POSTERS'
         })
     except Exception as e:
         logger.error(f"API /search: {e}")
@@ -1170,6 +1254,7 @@ async def api_post():
         quality_options = {}
         has_file = False
         thumbnail_url = None
+        thumbnail_source = None
         
         if files_col is not None:
             try:
@@ -1184,17 +1269,21 @@ async def api_post():
                         # Only set thumbnail for video files
                         if file_is_video and not thumbnail_url:
                             thumbnail_url = doc.get('thumbnail')
+                            thumbnail_source = doc.get('thumbnail_source', 'unknown')
+                            
                             if not thumbnail_url:
-                                # If not stored, fetch it
-                                async with aiohttp.ClientSession() as session:
-                                    poster_data = await get_poster_guaranteed(title, session)
-                                thumbnail_url = poster_data['poster_url'] if poster_data else None
+                                # Try to get thumbnail directly from Telegram video
+                                thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
+                                if thumbnail_url:
+                                    thumbnail_source = 'video_direct'
                         
                         quality_options[quality] = {
                             'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
                             'file_size': doc.get('file_size', 0),
                             'file_name': doc.get('file_name', 'video.mp4'),
-                            'is_video': file_is_video  # ✅ Video file info
+                            'is_video': file_is_video,
+                            'channel_id': doc.get('channel_id'),
+                            'message_id': doc.get('message_id')
                         }
                         has_file = True
             except Exception as e:
@@ -1211,10 +1300,11 @@ async def api_post():
             'has_file': has_file,
             'quality_options': quality_options,
             'views': getattr(msg, 'views', 0),
-            'thumbnail': thumbnail_url  # ✅ Only for video files
+            'thumbnail': thumbnail_url,
+            'thumbnail_source': thumbnail_source
         }
         
-        logger.info(f"  ✅ Post fetched: {title} | Has thumbnail: {thumbnail_url is not None}")
+        logger.info(f"  ✅ Post fetched: {title} | Has thumbnail: {thumbnail_url is not None} | Source: {thumbnail_source}")
         
         return jsonify({'status': 'success', 'post': post_data, 'bot_username': Config.BOT_USERNAME})
     
@@ -1276,6 +1366,7 @@ async def api_poster():
         </svg>'''
         return Response(simple_svg, mimetype='image/svg+xml')
 
+# Rest of the bot setup code remains the same...
 async def setup_bot():
     @bot.on_message(filters.command("start") & filters.private)
     async def start_handler(client, message):
@@ -1573,13 +1664,23 @@ async def setup_bot():
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
         tf = await files_col.count_documents({}) if files_col is not None else 0
+        video_files = await files_col.count_documents({'is_video_file': True})
+        video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
+        direct_thumbnails = await files_col.count_documents({'thumbnail_source': 'video_direct'})
+        poster_thumbnails = await files_col.count_documents({'thumbnail_source': 'poster_api'})
         
         stats_text = (
             f"📊 **SK4FiLM Statistics**\n\n"
-            f"📁 **Files Indexed:** {tf}\n"
+            f"📁 **Total Files:** {tf}\n"
+            f"🎥 **Video Files:** {video_files}\n"
+            f"🖼️ **Video Thumbnails:** {video_thumbnails}\n"
+            f"📹 **Direct Video Thumbnails:** {direct_thumbnails}\n"
+            f"🎬 **Poster Thumbnails:** {poster_thumbnails}\n\n"
             f"🔴 **Live Posts:** Active\n"
             f"🤖 **Bot Status:** Online\n\n"
-            f"**🎨 Poster Sources (ALL WORKING):**\n"
+            f"**🎨 Thumbnail Sources:**\n"
+            f"• Direct Video: {direct_thumbnails}\n"
+            f"• Poster APIs: {poster_thumbnails}\n"
             f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
             f"• IMDb: {movie_db['stats']['imdb']}\n"
             f"• JustWatch: {movie_db['stats']['justwatch']}\n"
@@ -1589,8 +1690,8 @@ async def setup_bot():
             f"• Custom: {movie_db['stats']['custom']}\n"
             f"• Cache Hits: {movie_db['stats']['cache_hits']}\n\n"
             f"**⚡ Features:**\n"
-            f"• ✅ All sources working\n"
-            f"• ✅ High quality posters\n"
+            f"• ✅ Direct video thumbnails\n"
+            f"• ✅ Multi-source posters\n"
             f"• ✅ Smart caching\n"
             f"• ✅ 100% guarantee\n\n"
             f"**🔗 Verification:** {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}"
@@ -1636,11 +1737,12 @@ async def init():
 
 async def main():
     logger.info("="*60)
-    logger.info("🎬 SK4FiLM v6.0 - URL SHORTENER VERIFICATION")
+    logger.info("🎬 SK4FiLM v6.0 - DIRECT VIDEO THUMBNAIL EXTRACTION")
     logger.info(f"✅ Verification: {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}")
     logger.info("✅ Force Subscription: REMOVED")
     logger.info("✅ Channel Links: ADDED")
-    logger.info("✅ All Poster Sources: WORKING")
+    logger.info("✅ Direct Video Thumbnails: ENABLED")
+    logger.info("✅ Multi-Source Posters: ENABLED")
     logger.info("="*60)
     
     success = await init()
