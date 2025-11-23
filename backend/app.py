@@ -86,71 +86,93 @@ movie_db = {
     }
 }
 
-# FLOOD WAIT PROTECTION
+# IMPROVED FLOOD WAIT PROTECTION
 class FloodWaitProtection:
     def __init__(self):
         self.last_request_time = 0
-        self.min_interval = 2  # Minimum seconds between requests
+        self.min_interval = 3  # Increased from 2 to 3 seconds
         self.request_count = 0
         self.reset_time = time.time()
+        self.consecutive_waits = 0
+        self.last_wait_time = 0
     
     async def wait_if_needed(self):
         current_time = time.time()
         
-        # Reset counter every minute
-        if current_time - self.reset_time > 60:
+        # Reset counter every 2 minutes (increased from 1 minute)
+        if current_time - self.reset_time > 120:
             self.request_count = 0
             self.reset_time = current_time
+            self.consecutive_waits = 0
         
-        # Limit to 30 requests per minute
-        if self.request_count >= 30:
-            wait_time = 60 - (current_time - self.reset_time)
+        # Limit to 20 requests per 2 minutes (reduced from 30 per minute)
+        if self.request_count >= 20:
+            wait_time = 120 - (current_time - self.reset_time)
             if wait_time > 0:
-                logger.warning(f"⚠️ Rate limit reached, waiting {wait_time:.1f}s")
-                await asyncio.sleep(wait_time)
+                self.consecutive_waits += 1
+                extra_wait = self.consecutive_waits * 5  # Progressive waiting
+                total_wait = wait_time + extra_wait
+                
+                logger.warning(f"⚠️ Rate limit reached, waiting {total_wait:.1f}s (consecutive: {self.consecutive_waits})")
+                await asyncio.sleep(total_wait)
+                
                 self.request_count = 0
                 self.reset_time = time.time()
         
         # Ensure minimum interval between requests
         time_since_last = current_time - self.last_request_time
         if time_since_last < self.min_interval:
-            await asyncio.sleep(self.min_interval - time_since_last)
+            wait_time = self.min_interval - time_since_last
+            await asyncio.sleep(wait_time)
         
         self.last_request_time = time.time()
         self.request_count += 1
 
 flood_protection = FloodWaitProtection()
 
-# SAFE TELEGRAM OPERATIONS WITH FLOOD WAIT HANDLING
+# SAFE TELEGRAM OPERATIONS WITH IMPROVED FLOOD WAIT HANDLING
 async def safe_telegram_operation(operation, *args, **kwargs):
-    """Safely execute Telegram operations with flood wait protection"""
-    max_retries = 3
+    """Safely execute Telegram operations with enhanced flood wait protection"""
+    max_retries = 2  # Reduced from 3 to minimize repeated attempts
+    base_delay = 5   # Increased base delay
+    
     for attempt in range(max_retries):
         try:
             await flood_protection.wait_if_needed()
             result = await operation(*args, **kwargs)
+            
+            # Reset consecutive waits on successful operation
+            if flood_protection.consecutive_waits > 0:
+                flood_protection.consecutive_waits = 0
+                
             return result
         except FloodWait as e:
-            wait_time = e.value
-            logger.warning(f"⚠️ Flood wait detected: {wait_time}s, attempt {attempt + 1}/{max_retries}")
+            wait_time = e.value + 10  # Extra buffer increased from 5 to 10
+            logger.warning(f"⚠️ Flood wait detected: {e.value}s -> waiting {wait_time}s, attempt {attempt + 1}/{max_retries}")
             
             if attempt == max_retries - 1:
                 logger.error(f"❌ Flood wait too long after {max_retries} attempts")
+                # Store wait time for progressive backoff
+                flood_protection.last_wait_time = wait_time
                 raise e
             
             logger.info(f"🕒 Waiting {wait_time}s due to flood wait...")
-            await asyncio.sleep(wait_time + 5)  # Extra buffer
+            await asyncio.sleep(wait_time)
+            
+            # Progressive backoff for consecutive flood waits
+            if attempt > 0:
+                await asyncio.sleep(attempt * 10)
         except Exception as e:
             logger.error(f"❌ Telegram operation failed: {e}")
             if attempt == max_retries - 1:
                 raise e
-            await asyncio.sleep(2 ** attempt)  # Exponential backoff
+            await asyncio.sleep(base_delay * (2 ** attempt))  # Exponential backoff
     return None
 
 # SAFE ASYNC ITERATOR FOR TELEGRAM GENERATORS
 async def safe_telegram_generator(operation, *args, limit=None, **kwargs):
     """Safely iterate over Telegram async generators with flood wait protection"""
-    max_retries = 3
+    max_retries = 2  # Reduced retries
     count = 0
     
     for attempt in range(max_retries):
@@ -159,24 +181,33 @@ async def safe_telegram_generator(operation, *args, limit=None, **kwargs):
             async for item in operation(*args, **kwargs):
                 yield item
                 count += 1
+                
+                # Add small delay between items to reduce flood wait
+                if count % 10 == 0:
+                    await asyncio.sleep(1)
+                    
                 if limit and count >= limit:
                     break
             break  # Successfully completed iteration
         except FloodWait as e:
-            wait_time = e.value
-            logger.warning(f"⚠️ Flood wait in generator: {wait_time}s, attempt {attempt + 1}/{max_retries}")
+            wait_time = e.value + 10
+            logger.warning(f"⚠️ Flood wait in generator: {e.value}s -> waiting {wait_time}s, attempt {attempt + 1}/{max_retries}")
             
             if attempt == max_retries - 1:
                 logger.error(f"❌ Flood wait too long after {max_retries} attempts")
                 raise e
             
             logger.info(f"🕒 Waiting {wait_time}s due to flood wait...")
-            await asyncio.sleep(wait_time + 5)
+            await asyncio.sleep(wait_time)
+            
+            # Progressive backoff
+            if attempt > 0:
+                await asyncio.sleep(attempt * 10)
         except Exception as e:
             logger.error(f"❌ Telegram generator failed: {e}")
             if attempt == max_retries - 1:
                 raise e
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(5 * (2 ** attempt))  # Increased base delay
 
 # CACHE CLEANUP TASK
 async def cache_cleanup():
@@ -532,41 +563,61 @@ async def generate_verification_url(user_id):
     verification_token = f"verify_{user_id}_{int(datetime.now().timestamp())}"
     return f"{base_url}/verify?token={verification_token}&user_id={user_id}"
 
-# COMPLETE BACKGROUND INDEXING WITH THUMBNAIL EXTRACTION
+# IMPROVED BACKGROUND INDEXING - ONLY NEW FILES
 async def index_files_background():
     if not User or files_col is None or not user_session_ready:
         logger.warning("⚠️ Cannot start indexing - User session not ready")
         return
     
-    logger.info("📁 Starting COMPLETE background indexing...")
+    logger.info("📁 Starting SMART background indexing (NEW FILES ONLY)...")
     
     try:
         total_count = 0
+        new_files_count = 0
         video_files_count = 0
         successful_thumbnails = 0
         batch = []
-        batch_size = 30  # Smaller batch for better thumbnail processing
+        batch_size = 20  # Smaller batch size
         
-        # Get total count for progress tracking
-        total_messages = 0
-        try:
-            async for _ in safe_telegram_generator(User.get_chat_history, Config.FILE_CHANNEL_ID):
-                total_messages += 1
-                if total_messages % 100 == 0:
-                    logger.info(f"    📊 Counting messages: {total_messages}...")
-        except Exception as e:
-            logger.error(f"Error counting messages: {e}")
+        # Get the last indexed message ID to start from there
+        last_indexed = await files_col.find_one(
+            {}, 
+            sort=[('message_id', -1)]
+        )
         
-        logger.info(f"    📋 Total messages in channel: {total_messages}")
+        last_message_id = last_indexed['message_id'] if last_indexed else 0
+        logger.info(f"🔄 Starting from message ID: {last_message_id}")
         
-        # Process messages with progress tracking
+        # Process only NEW messages (after last indexed)
         processed_count = 0
+        new_messages_found = 0
+        
         async for msg in safe_telegram_generator(User.get_chat_history, Config.FILE_CHANNEL_ID):
             processed_count += 1
-            if processed_count % 100 == 0:
-                logger.info(f"    🔄 Processing: {processed_count}/{total_messages} messages...")
+            
+            # Stop if we've processed too many old messages
+            if msg.id <= last_message_id:
+                if processed_count % 50 == 0:
+                    logger.info(f"    ⏩ Skipping old messages... {processed_count}")
+                continue
+                
+            new_messages_found += 1
+            
+            if new_messages_found % 10 == 0:
+                logger.info(f"    📥 New files found: {new_messages_found}, processing...")
             
             if msg and (msg.document or msg.video):
+                # Check if already exists in database (double check)
+                existing = await files_col.find_one({
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'message_id': msg.id
+                })
+                
+                if existing:
+                    if new_messages_found % 20 == 0:
+                        logger.info(f"    ⏭️ Already indexed: {msg.id}, skipping...")
+                    continue
+                
                 title = extract_title_from_file(msg)
                 if title:
                     file_id = msg.document.file_id if msg.document else msg.video.file_id
@@ -578,10 +629,10 @@ async def index_files_background():
                     thumbnail_url = None
                     thumbnail_source = 'none'
                     
-                    # Extract thumbnail for video files
+                    # Extract thumbnail for video files (only for new files)
                     if file_is_video:
                         video_files_count += 1
-                        logger.info(f"    🎬 Processing video file: {title}")
+                        logger.info(f"    🎬 Processing NEW video file: {title}")
                         
                         # Try to extract thumbnail from video
                         video_thumbnail = await extract_video_thumbnail(User, msg)
@@ -599,56 +650,26 @@ async def index_files_background():
                                 thumbnail_source = 'poster_api'
                                 logger.info(f"    ✅ Using poster as thumbnail: {title}")
                     
-                    # Check if already exists in database
-                    existing = await files_col.find_one({
+                    # Insert new record
+                    batch.append({
                         'channel_id': Config.FILE_CHANNEL_ID,
-                        'message_id': msg.id
+                        'message_id': msg.id,
+                        'title': title,
+                        'normalized_title': normalize_title(title),
+                        'file_id': file_id,
+                        'quality': quality,
+                        'file_size': file_size,
+                        'file_name': file_name,
+                        'caption': msg.caption or '',
+                        'date': msg.date,
+                        'indexed_at': datetime.now(),
+                        'thumbnail': thumbnail_url,
+                        'is_video_file': file_is_video,
+                        'thumbnail_source': thumbnail_source
                     })
                     
-                    if existing:
-                        # Update existing record
-                        update_data = {
-                            'title': title,
-                            'normalized_title': normalize_title(title),
-                            'file_id': file_id,
-                            'quality': quality,
-                            'file_size': file_size,
-                            'file_name': file_name,
-                            'caption': msg.caption or '',
-                            'date': msg.date,
-                            'indexed_at': datetime.now(),
-                            'is_video_file': file_is_video
-                        }
-                        
-                        # Only update thumbnail if we have a new one
-                        if thumbnail_url and not existing.get('thumbnail'):
-                            update_data['thumbnail'] = thumbnail_url
-                            update_data['thumbnail_source'] = thumbnail_source
-                        
-                        await files_col.update_one(
-                            {'_id': existing['_id']},
-                            {'$set': update_data}
-                        )
-                    else:
-                        # Insert new record
-                        batch.append({
-                            'channel_id': Config.FILE_CHANNEL_ID,
-                            'message_id': msg.id,
-                            'title': title,
-                            'normalized_title': normalize_title(title),
-                            'file_id': file_id,
-                            'quality': quality,
-                            'file_size': file_size,
-                            'file_name': file_name,
-                            'caption': msg.caption or '',
-                            'date': msg.date,
-                            'indexed_at': datetime.now(),
-                            'thumbnail': thumbnail_url,
-                            'is_video_file': file_is_video,
-                            'thumbnail_source': thumbnail_source
-                        })
-                    
                     total_count += 1
+                    new_files_count += 1
                     
                     # Process batch
                     if len(batch) >= batch_size:
@@ -662,10 +683,10 @@ async def index_files_background():
                                     {'$set': doc},
                                     upsert=True
                                 )
-                            logger.info(f"    ✅ Batch processed: {total_count} files, {successful_thumbnails} thumbnails")
+                            logger.info(f"    ✅ Batch processed: {new_files_count} new files, {successful_thumbnails} thumbnails")
                             batch = []
-                            # Small delay between batches to avoid flood
-                            await asyncio.sleep(2)
+                            # Increased delay between batches to avoid flood
+                            await asyncio.sleep(3)
                         except Exception as e:
                             logger.error(f"Batch error: {e}")
                             batch = []
@@ -685,14 +706,15 @@ async def index_files_background():
             except Exception as e:
                 logger.error(f"Final batch error: {e}")
         
-        logger.info(f"✅ COMPLETE indexing finished: {total_count} files, {video_files_count} video files, {successful_thumbnails} thumbnails")
+        logger.info(f"✅ SMART indexing finished: {new_files_count} NEW files, {video_files_count} video files, {successful_thumbnails} thumbnails")
+        logger.info(f"📊 Processed {processed_count} messages, found {new_messages_found} new messages")
         
         # Update statistics
         total_in_db = await files_col.count_documents({})
         videos_in_db = await files_col.count_documents({'is_video_file': True})
         thumbnails_in_db = await files_col.count_documents({'thumbnail': {'$ne': None}})
         
-        logger.info(f"📊 FINAL STATS: Total in DB: {total_in_db}, Videos: {videos_in_db}, Thumbnails: {thumbnails_in_db}")
+        logger.info(f"📊 FINAL STATS: Total in DB: {total_in_db}, New Added: {new_files_count}, Videos: {videos_in_db}, Thumbnails: {thumbnails_in_db}")
         
     except Exception as e:
         logger.error(f"❌ Background indexing error: {e}")
@@ -1101,16 +1123,16 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v6.0 - COMPLETE INDEXING',
+        'service': 'SK4FiLM v6.0 - SMART INDEXING',
         'database': {
             'total_files': tf, 
             'video_files': video_files,
             'thumbnails': thumbnails,
-            'mode': 'COMPLETE'
+            'mode': 'SMART (NEW FILES ONLY)'
         },
         'bot_status': 'online' if bot_started else 'starting',
         'user_session': 'ready' if user_session_ready else 'flood_wait',
-        'features': 'FULL INDEXING + VIDEO THUMBNAILS + FLOOD PROTECTION'
+        'features': 'SMART INDEXING + VIDEO THUMBNAILS + FLOOD PROTECTION'
     })
 
 @app.route('/health')
@@ -1213,7 +1235,7 @@ async def api_movies():
             'movies': movies, 
             'total': len(movies), 
             'bot_username': Config.BOT_USERNAME,
-            'mode': 'COMPLETE_INDEXING'
+            'mode': 'SMART_INDEXING'
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1237,7 +1259,7 @@ async def api_search():
             'results': result['results'], 
             'pagination': result['pagination'], 
             'bot_username': Config.BOT_USERNAME,
-            'mode': 'COMPLETE_INDEXING'
+            'mode': 'SMART_INDEXING'
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1641,9 +1663,9 @@ async def setup_bot():
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
-        msg = await message.reply_text("🔄 **Starting COMPLETE background indexing...**")
+        msg = await message.reply_text("🔄 **Starting SMART background indexing (NEW FILES ONLY)...**")
         asyncio.create_task(index_files_background())
-        await msg.edit_text("✅ **Complete indexing started in background!**\n\nCheck /stats for progress.")
+        await msg.edit_text("✅ **Smart indexing started in background!**\n\nOnly new files will be indexed. Check /stats for progress.")
     
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
@@ -1654,16 +1676,22 @@ async def setup_bot():
         
         thumbnail_coverage = f"{(video_thumbnails/video_files*100):.1f}%" if video_files > 0 else "0%"
         
+        # Get last indexed file info
+        last_indexed = await files_col.find_one({}, sort=[('message_id', -1)])
+        last_msg_id = last_indexed['message_id'] if last_indexed else 'None'
+        
         stats_text = (
-            f"📊 **SK4FiLM COMPLETE STATISTICS**\n\n"
+            f"📊 **SK4FiLM SMART STATISTICS**\n\n"
             f"📁 **Total Files:** {tf}\n"
             f"🎥 **Video Files:** {video_files}\n"
             f"🖼️ **Video Thumbnails:** {video_thumbnails}\n"
             f"📸 **Total Thumbnails:** {total_thumbnails}\n"
-            f"📈 **Coverage:** {thumbnail_coverage}\n\n"
+            f"📈 **Coverage:** {thumbnail_coverage}\n"
+            f"📨 **Last Message ID:** {last_msg_id}\n\n"
             f"🔴 **Live Posts:** Active\n"
             f"🤖 **Bot Status:** Online\n"
-            f"👤 **User Session:** {'Ready' if user_session_ready else 'Flood Wait'}\n\n"
+            f"👤 **User Session:** {'Ready' if user_session_ready else 'Flood Wait'}\n"
+            f"🔧 **Indexing Mode:** SMART (New Files Only)\n\n"
             f"**🎨 Poster Sources:**\n"
             f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
             f"• IMDb: {movie_db['stats']['imdb']}\n"
@@ -1675,15 +1703,15 @@ async def setup_bot():
             f"• Cache Hits: {movie_db['stats']['cache_hits']}\n"
             f"• Video Thumbnails: {movie_db['stats']['video_thumbnails']}\n\n"
             f"**⚡ Features:**\n"
-            f"• ✅ Complete file indexing\n"
+            f"• ✅ Smart file indexing (NEW ONLY)\n"
             f"• ✅ Video thumbnail extraction\n"
-            f"• ✅ Flood wait protection\n"
+            f"• ✅ Enhanced flood protection\n"
             f"• ✅ Rate limiting active\n\n"
             f"**🔗 Verification:** {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}"
         )
         await message.reply_text(stats_text)
 
-# USER SESSION RECOVERY TASK
+# IMPROVED USER SESSION RECOVERY TASK
 async def user_session_recovery():
     """Wait for flood wait to expire and then initialize user session"""
     global user_session_ready
@@ -1698,7 +1726,7 @@ async def user_session_recovery():
         user_session_ready = True
         logger.info("✅ User session initialized successfully!")
         
-        # Start background indexing with user session
+        # Start SMART background indexing with user session (only new files)
         asyncio.create_task(index_files_background())
     except Exception as e:
         logger.error(f"❌ User session initialization failed: {e}")
@@ -1706,12 +1734,12 @@ async def user_session_recovery():
         await asyncio.sleep(600)
         asyncio.create_task(user_session_recovery())
 
-# OPTIMIZED INITIALIZATION WITH FLOOD PROTECTION
+# OPTIMIZED INITIALIZATION WITH ENHANCED FLOOD PROTECTION
 async def init():
     global User, bot, bot_started, user_session_ready
     
     try:
-        logger.info("🚀 INITIALIZING COMPLETE SK4FiLM BOT...")
+        logger.info("🚀 INITIALIZING SMART SK4FiLM BOT...")
         
         # Initialize MongoDB first
         await init_mongodb()
@@ -1746,7 +1774,7 @@ async def init():
             user_session_ready = True
             logger.info("✅ User session initialized immediately!")
             
-            # Start background indexing
+            # Start SMART background indexing (only new files)
             asyncio.create_task(index_files_background())
         except FloodWait as e:
             logger.warning(f"⚠️ User session flood wait detected: {e.value}s")
@@ -1767,22 +1795,22 @@ async def init():
 
 async def main():
     logger.info("="*60)
-    logger.info("🎬 SK4FiLM v6.0 - COMPLETE INDEXING & THUMBNAILS")
-    logger.info("✅ Total File Indexing | Video Thumbnail Extraction")
-    logger.info("✅ Flood Wait Protection | Progress Tracking")
+    logger.info("🎬 SK4FiLM v6.0 - SMART INDEXING & THUMBNAILS")
+    logger.info("✅ New Files Only | Video Thumbnail Extraction")
+    logger.info("✅ Enhanced Flood Protection | Progressive Backoff")
     logger.info(f"✅ Verification: {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}")
     logger.info("="*60)
     
     success = await init()
     if not success:
-        logger.error("❌ Failed to initialize complete bot")
+        logger.error("❌ Failed to initialize smart bot")
         return
     
     config = HyperConfig()
     config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     config.loglevel = "warning"
     
-    logger.info(f"🌐 COMPLETE web server starting on port {Config.WEB_SERVER_PORT}...")
+    logger.info(f"🌐 SMART web server starting on port {Config.WEB_SERVER_PORT}...")
     await serve(app, config)
 
 if __name__ == "__main__":
