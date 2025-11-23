@@ -102,9 +102,14 @@
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 15px;
-            padding: 1.5rem;
+            padding: 0.7rem !important;
             margin-bottom: 1.5rem;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
         }
         .result-title {
             color: var(--accent-color);
@@ -114,13 +119,13 @@
             line-height: 1.3;
         }
         
-        /* Video Thumbnail Section - सिर्फ Video Files के लिए */
+        /* Video Thumbnail Section */
         .video-thumbnail-section {
-            margin-bottom: 1.5rem;
-            display: none; /* Default hidden */
+            margin-bottom: 0.5rem;
+            display: none;
         }
         .video-thumbnail-section.has-thumbnail {
-            display: block; /* सिर्फ thumbnail होने पर show */
+            display: block;
         }
         .video-thumbnail-container {
             position: relative;
@@ -172,23 +177,36 @@
             background: var(--secondary-color);
         }
         
+        /* Watch and Download Buttons - ALWAYS Side by Side */
         .result-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            display: flex !important;
+            gap: 10px;
+            width: 100%;
         }
-        .result-actions .btn, .result-actions .btn-download-wrapper { width: 100%; }
+        .result-actions .btn, .result-actions .btn-download-wrapper { 
+            flex: 1;
+            min-width: 0;
+        }
         .btn-watch,.btn-download-main {
             width: 100%;
-            padding: 12px 20px;
+            padding: 12px 10px;
             font-weight: 600;
             border-radius: 10px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             border: none;
             transition: all 0.3s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .btn-watch { background:linear-gradient(45deg,#667eea,#764ba2);color:white;}
-        .btn-download-main{background:linear-gradient(45deg,#28a745,#20c997);color:white;}
+        .btn-watch { 
+            background:linear-gradient(45deg,#667eea,#764ba2);
+            color:white;
+        }
+        .btn-download-main{
+            background:linear-gradient(45deg,#28a745,#20c997);
+            color:white;
+        }
         .btn-watch:hover:not(:disabled),
         .btn-download-main:hover:not(:disabled) {
             transform: scale(1.03);
@@ -201,16 +219,23 @@
             cursor: not-allowed;
             transform: none !important;
         }
-        .btn-download-wrapper {position:relative; padding:0;}
+        .btn-download-wrapper {
+            position:relative; 
+            padding:0;
+        }
         .quality-dropdown {
             display: none;
-            grid-column:1/-1;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
             background:rgba(20, 30, 48, 0.98);
             border:2px solid var(--accent-color);
             border-radius:10px;
             padding:15px;
             margin-top:10px;
             animation:slideDown 0.3s ease;
+            z-index: 10;
         }
         .quality-dropdown.show {display:block;}
         @keyframes slideDown {
@@ -219,19 +244,19 @@
         }
         .quality-buttons-row {
             display:flex;
-            gap:10px;
+            gap:8px;
             flex-wrap:wrap;
             justify-content:center;
         }
         .quality-option {
             display:inline-block;
-            padding:10px 20px;
+            padding:8px 12px;
             background:linear-gradient(45deg,#28a745,#20c997);
             color:white;
             text-decoration:none;
             border-radius:8px;
             font-weight:600;
-            font-size:0.95rem;
+            font-size:0.8rem;
             text-align:center;
             white-space:nowrap;
             transition:all 0.3s ease;
@@ -239,13 +264,13 @@
         .quality-option:hover {transform:scale(1.05);}
         .quality-option small {
             display:block;
-            font-size:0.75rem;
+            font-size:0.7rem;
             opacity:0.9;
             margin-top:2px;
         }
         /* Arrow Animation */
         .btn-download-main i.fa-chevron-down { transition: transform 0.3s ease;}
-        
+
         /* Video File Badge */
         .video-file-badge {
             position: absolute;
@@ -259,7 +284,7 @@
             font-weight: 600;
             z-index: 2;
         }
-        
+
         /* Pagination & State */
         .pagination {margin-top:2rem;}
         .page-link {background:rgba(0,204,255,0.2); color:var(--accent-color); border:2px solid var(--accent-color);}
@@ -271,7 +296,23 @@
         .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
         .empty-state {text-align:center;padding:4rem 2rem;}
         .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
-        
+
+        /* Loading Skeleton */
+        .skeleton-loader {
+            background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-title { height: 24px; width: 70%; }
+        .skeleton-thumbnail { height: 200px; width: 100%; }
+        .skeleton-button { height: 45px; width: 100%; }
+
         /* Error States */
         .error-state {
             text-align: center;
@@ -299,7 +340,7 @@
         .retry-btn:hover {
             transform: scale(1.05);
         }
-        
+
         /* Ad Container */
         .ad-container {
             margin: 2rem 0;
@@ -327,9 +368,17 @@
             margin-bottom: 8px;
             font-size: 1rem;
         }
+
+        /* Mobile Optimizations - Buttons STAY Side by Side */
         @media (max-width: 768px) {
-            .result-actions{grid-template-columns: 1fr 1fr;}
-            .btn-watch, .btn-download-main {font-size: 0.9rem; padding: 10px 15px;}
+            .result-actions {
+                flex-direction: row !important; /* Force horizontal on mobile */
+                gap: 8px;
+            }
+            .btn-watch, .btn-download-main {
+                font-size: 0.85rem; 
+                padding: 10px 8px;
+            }
             .disclaimer {
                 margin: 2rem 1rem 0 1rem;
                 font-size: 0.85rem;
@@ -345,12 +394,45 @@
                 height: 60px;
                 font-size: 24px;
             }
+            .result-card {
+                padding: 0.7rem !important;
+            }
+            .quality-option {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
         }
         @media (max-width: 576px) {
-            .quality-buttons-row {flex-direction:column;}
-            .quality-option {width:100%;}
+            .quality-buttons-row {
+                flex-direction: column;
+                gap: 6px;
+            }
+            .quality-option {
+                width: 100%;
+                padding: 8px 12px;
+            }
+            .result-actions {
+                flex-direction: row !important; /* Still horizontal on small mobile */
+                gap: 6px;
+            }
+            .btn-watch, .btn-download-main {
+                font-size: 0.8rem;
+                padding: 8px 6px;
+            }
+            .result-card {
+                padding: 0.7rem !important;
+            }
         }
-        
+        @media (max-width: 400px) {
+            .btn-watch, .btn-download-main {
+                font-size: 0.75rem;
+                padding: 8px 4px;
+            }
+            .result-actions {
+                gap: 4px;
+            }
+        }
+
         /* Cache Status Indicator */
         .cache-indicator {
             position: fixed;
@@ -369,7 +451,7 @@
         .cache-indicator.show {
             opacity: 1;
         }
-        
+
         /* Offline Mode */
         .offline-mode {
             background: rgba(255, 193, 7, 0.1);
@@ -475,62 +557,183 @@ const searchButton = document.getElementById('searchButton');
 const cacheIndicator = document.getElementById('cacheIndicator');
 const offlineIndicator = document.getElementById('offlineIndicator');
 
-// Enhanced Cache Implementation
-const searchCache = {
-    storage: new Map(),
+// Enhanced Cache Implementation with IndexedDB (working in background)
+class EnhancedSearchCache {
+    constructor() {
+        this.storage = new Map();
+        this.dbSupported = 'indexedDB' in window;
+        this.db = null;
+        this.dbName = 'SK4FiLM_Cache';
+        this.dbVersion = 2;
+        this.initDB();
+    }
     
-    set(key, data) {
-        this.storage.set(key, {
-            data: data,
-            timestamp: Date.now()
-        });
-        this.cleanup();
-        this.showIndicator('✓ Cached: ' + key.split('-')[0]);
-    },
-    
-    get(key) {
-        const cached = this.storage.get(key);
-        if (!cached) return null;
-        
-        // Check if cache is still valid
-        if (Date.now() - cached.timestamp > CACHE_DURATION) {
-            this.storage.delete(key);
-            return null;
+    async initDB() {
+        if (!this.dbSupported) {
+            return;
         }
         
-        this.showIndicator('↻ Cache: ' + key.split('-')[0]);
-        return cached.data;
-    },
+        try {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('searchCache')) {
+                    const store = db.createObjectStore('searchCache', { keyPath: 'key' });
+                    store.createIndex('timestamp', 'timestamp');
+                }
+            };
+            
+            request.onsuccess = (event) => {
+                this.db = event.target.result;
+                this.migrateFromMemory();
+            };
+            
+            request.onerror = (event) => {
+                this.dbSupported = false;
+            };
+        } catch (error) {
+            this.dbSupported = false;
+        }
+    }
     
-    cleanup() {
-        const now = Date.now();
+    async migrateFromMemory() {
+        // Migrate existing memory cache to IndexedDB
         for (let [key, value] of this.storage.entries()) {
-            if (now - value.timestamp > CACHE_DURATION) {
-                this.storage.delete(key);
+            await this.set(key, value.data, false);
+        }
+    }
+    
+    async set(key, data, updateMemory = true) {
+        const timestamp = Date.now();
+        const cacheData = { key, data, timestamp };
+        
+        if (updateMemory) {
+            this.storage.set(key, cacheData);
+        }
+        
+        if (this.dbSupported && this.db) {
+            try {
+                const transaction = this.db.transaction(['searchCache'], 'readwrite');
+                const store = transaction.objectStore('searchCache');
+                await store.put(cacheData);
+            } catch (error) {
+                // Silent fail - IndexedDB not critical
             }
         }
-    },
-    
-    clear() {
-        this.storage.clear();
-        this.showIndicator('🗑️ Cache cleared');
-    },
-    
-    showIndicator(message) {
-        cacheIndicator.textContent = message;
-        cacheIndicator.classList.add('show');
-        setTimeout(() => {
-            cacheIndicator.classList.remove('show');
-        }, 3000);
-    },
-    
-    getStats() {
-        return {
-            size: this.storage.size,
-            keys: Array.from(this.storage.keys())
-        };
+        
+        this.cleanup();
     }
-};
+    
+    async get(key) {
+        // Check memory cache first (faster)
+        let cached = this.storage.get(key);
+        if (cached) {
+            if (Date.now() - cached.timestamp > CACHE_DURATION) {
+                this.delete(key);
+                return null;
+            }
+            return cached.data;
+        }
+        
+        // Check IndexedDB if memory cache missed
+        if (this.dbSupported && this.db) {
+            try {
+                const transaction = this.db.transaction(['searchCache'], 'readonly');
+                const store = transaction.objectStore('searchCache');
+                const request = store.get(key);
+                
+                return new Promise((resolve) => {
+                    request.onsuccess = () => {
+                        const result = request.result;
+                        if (result && Date.now() - result.timestamp <= CACHE_DURATION) {
+                            // Update memory cache for faster future access
+                            this.storage.set(key, result);
+                            resolve(result.data);
+                        } else {
+                            if (result) {
+                                this.delete(key); // Remove expired entry
+                            }
+                            resolve(null);
+                        }
+                    };
+                    request.onerror = () => resolve(null);
+                });
+            } catch (error) {
+                return null;
+            }
+        }
+        
+        return null;
+    }
+    
+    async delete(key) {
+        this.storage.delete(key);
+        
+        if (this.dbSupported && this.db) {
+            try {
+                const transaction = this.db.transaction(['searchCache'], 'readwrite');
+                const store = transaction.objectStore('searchCache');
+                await store.delete(key);
+            } catch (error) {
+                // Silent fail
+            }
+        }
+    }
+    
+    async clear() {
+        this.storage.clear();
+        
+        if (this.dbSupported && this.db) {
+            try {
+                const transaction = this.db.transaction(['searchCache'], 'readwrite');
+                const store = transaction.objectStore('searchCache');
+                await store.clear();
+            } catch (error) {
+                // Silent fail
+            }
+        }
+    }
+    
+    async cleanup() {
+        const now = Date.now();
+        const expiredKeys = [];
+        
+        // Clean memory cache
+        for (let [key, value] of this.storage.entries()) {
+            if (now - value.timestamp > CACHE_DURATION) {
+                expiredKeys.push(key);
+            }
+        }
+        
+        for (let key of expiredKeys) {
+            this.storage.delete(key);
+        }
+        
+        // Clean IndexedDB
+        if (this.dbSupported && this.db) {
+            try {
+                const transaction = this.db.transaction(['searchCache'], 'readwrite');
+                const store = transaction.objectStore('searchCache');
+                const index = store.index('timestamp');
+                const range = IDBKeyRange.upperBound(now - CACHE_DURATION);
+                const request = index.openCursor(range);
+                
+                request.onsuccess = () => {
+                    const cursor = request.result;
+                    if (cursor) {
+                        cursor.delete();
+                        cursor.continue();
+                    }
+                };
+            } catch (error) {
+                // Silent fail
+            }
+        }
+    }
+}
+
+const searchCache = new EnhancedSearchCache();
 
 // Network status detection
 function updateOnlineStatus() {
@@ -593,14 +796,14 @@ async function performSearch(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
     
-    // Show loading state
-    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "' + escapeHtml(currentQuery) + '"...</p></div>';
+    // Show loading state with skeleton
+    showSkeletonLoader();
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
     
     // Check cache first
     const cacheKey = `${currentQuery}-${page}`;
-    const cachedData = searchCache.get(cacheKey);
+    const cachedData = await searchCache.get(cacheKey);
     
     if (cachedData) {
         displayResults(cachedData.results, cachedData.pagination);
@@ -636,34 +839,48 @@ async function performSearch(page = 1) {
     }
 }
 
+function showSkeletonLoader() {
+    let html = '';
+    for (let i = 0; i < RESULTS_PER_PAGE; i++) {
+        html += `
+        <div class="result-card">
+            <div class="skeleton-loader skeleton-title"></div>
+            <div class="skeleton-loader skeleton-thumbnail mb-3"></div>
+            <div class="result-actions">
+                <div class="skeleton-loader skeleton-button"></div>
+                <div class="skeleton-loader skeleton-button"></div>
+            </div>
+        </div>
+        `;
+    }
+    resultsContainer.innerHTML = html;
+}
+
 async function tryAllEndpoints(query, page) {
     for (let i = 0; i < API_ENDPOINTS.length; i++) {
         try {
             const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-            console.log(`Trying endpoint: ${API_ENDPOINTS[i]}`);
             
             const response = await fetch(apiUrl, { 
                 method: 'GET',
                 headers: { 
                     'Content-Type': 'application/json',
                 },
-                signal: AbortSignal.timeout(10000) // 10 second timeout
+                signal: AbortSignal.timeout(10000)
             });
             
             if (response.ok) {
                 const data = await response.json();
                 if (data.status === "success") {
                     currentAPI = i;
-                    console.log(`Success with endpoint: ${API_ENDPOINTS[i]}`);
                     return data;
                 }
             }
         } catch (error) {
-            console.log(`Endpoint ${API_ENDPOINTS[i]} failed:`, error.message);
-            continue; // Try next endpoint
+            continue;
         }
     }
-    return null; // All endpoints failed
+    return null;
 }
 
 function showConnectionError() {
@@ -671,16 +888,6 @@ function showConnectionError() {
     const cachedData = searchCache.get(cacheKey);
     
     if (cachedData) {
-        // Show cached data with warning
-        resultsContainer.innerHTML = `
-            <div class="alert alert-warning text-center">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Connection issue. Showing cached results.
-                <button class="retry-btn ms-2" onclick="performSearch(${currentPage})">
-                    <i class="fas fa-redo me-1"></i>Retry
-                </button>
-            </div>
-        `;
         displayResults(cachedData.results, cachedData.pagination);
     } else {
         resultsContainer.innerHTML = `
@@ -691,15 +898,6 @@ function showConnectionError() {
                 <button class="retry-btn" onclick="performSearch(${currentPage})">
                     <i class="fas fa-redo me-1"></i>Retry Search
                 </button>
-                <div class="mt-3">
-                    <small class="text-muted">You can also try:</small><br>
-                    <button class="btn btn-sm btn-outline-light me-2 mt-1" onclick="location.reload()">
-                        <i class="fas fa-sync-alt me-1"></i>Reload Page
-                    </button>
-                    <button class="btn btn-sm btn-outline-light mt-1" onclick="searchCache.clear()">
-                        <i class="fas fa-broom me-1"></i>Clear Cache
-                    </button>
-                </div>
             </div>
         `;
     }
@@ -718,7 +916,6 @@ function showOfflineError() {
     `;
 }
 
-// Rest of your existing functions remain the same...
 function sortResultsWithExactMatchFirst(results, query) {
     if (!results || results.length === 0) return [];
     
@@ -778,7 +975,7 @@ function displayResults(results, pagination) {
                         <div class="video-file-badge">
                             <i class="fas fa-play-circle me-1"></i>VIDEO
                         </div>
-                        <img src="${thumbnail}" alt="Movie Thumbnail" onerror="this.src='https://via.placeholder.com/300x200/1a1a2e/00ccff?text=Thumbnail+Error'">
+                        <img src="${thumbnail}" alt="Movie Thumbnail" loading="lazy" onerror="this.src='https://via.placeholder.com/300x200/1a1a2e/00ccff?text=Thumbnail+Error'">
                         <div class="play-overlay">
                             <div class="play-button">
                                 <i class="fas fa-play"></i>
