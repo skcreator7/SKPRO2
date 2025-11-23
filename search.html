@@ -102,7 +102,7 @@
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 15px;
-            padding: 0.7rem !important;
+            padding: 1.5rem;
             margin-bottom: 1.5rem;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -121,7 +121,7 @@
         
         /* Video Thumbnail Section */
         .video-thumbnail-section {
-            margin-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
             display: none;
         }
         .video-thumbnail-section.has-thumbnail {
@@ -177,41 +177,38 @@
             background: var(--secondary-color);
         }
         
-        /* Watch and Download Buttons - ALWAYS Side by Side */
+        /* Buttons - Always Side by Side */
         .result-actions {
-            display: flex !important;
-            gap: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
             width: 100%;
         }
         .result-actions .btn, .result-actions .btn-download-wrapper { 
-            flex: 1;
-            min-width: 0;
+            width: 100%; 
         }
-        .btn-watch,.btn-download-main {
+        .btn-watch, .btn-download-main {
             width: 100%;
-            padding: 12px 10px;
+            padding: 12px 20px;
             font-weight: 600;
             border-radius: 10px;
-            font-size: 0.9rem;
+            font-size: 1rem;
             border: none;
             transition: all 0.3s ease;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
         .btn-watch { 
-            background:linear-gradient(45deg,#667eea,#764ba2);
-            color:white;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
         }
-        .btn-download-main{
-            background:linear-gradient(45deg,#28a745,#20c997);
-            color:white;
+        .btn-download-main {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
         }
         .btn-watch:hover:not(:disabled),
         .btn-download-main:hover:not(:disabled) {
             transform: scale(1.03);
             box-shadow: 0 6px 20px rgba(40,167,69,0.35);
-            color:white;
+            color: white;
         }
         .btn:disabled {
             background: #495057 !important;
@@ -220,57 +217,59 @@
             transform: none !important;
         }
         .btn-download-wrapper {
-            position:relative; 
-            padding:0;
+            position: relative;
+            padding: 0;
         }
         .quality-dropdown {
             display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background:rgba(20, 30, 48, 0.98);
-            border:2px solid var(--accent-color);
-            border-radius:10px;
-            padding:15px;
-            margin-top:10px;
-            animation:slideDown 0.3s ease;
-            z-index: 10;
+            grid-column: 1 / -1;
+            background: rgba(20, 30, 48, 0.98);
+            border: 2px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+            animation: slideDown 0.3s ease;
         }
-        .quality-dropdown.show {display:block;}
+        .quality-dropdown.show {
+            display: block;
+        }
         @keyframes slideDown {
-            from{opacity:0;transform:translateY(-10px);}
-            to{opacity:1;transform:translateY(0);}
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .quality-buttons-row {
-            display:flex;
-            gap:8px;
-            flex-wrap:wrap;
-            justify-content:center;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         .quality-option {
-            display:inline-block;
-            padding:8px 12px;
-            background:linear-gradient(45deg,#28a745,#20c997);
-            color:white;
-            text-decoration:none;
-            border-radius:8px;
-            font-weight:600;
-            font-size:0.8rem;
-            text-align:center;
-            white-space:nowrap;
-            transition:all 0.3s ease;
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-align: center;
+            white-space: nowrap;
+            transition: all 0.3s ease;
         }
-        .quality-option:hover {transform:scale(1.05);}
+        .quality-option:hover {
+            transform: scale(1.05);
+        }
         .quality-option small {
-            display:block;
-            font-size:0.7rem;
-            opacity:0.9;
-            margin-top:2px;
+            display: block;
+            font-size: 0.75rem;
+            opacity: 0.9;
+            margin-top: 2px;
         }
         /* Arrow Animation */
-        .btn-download-main i.fa-chevron-down { transition: transform 0.3s ease;}
-
+        .btn-download-main i.fa-chevron-down { 
+            transition: transform 0.3s ease;
+        }
+        
         /* Video File Badge */
         .video-file-badge {
             position: absolute;
@@ -284,19 +283,45 @@
             font-weight: 600;
             z-index: 2;
         }
-
+        
         /* Pagination & State */
-        .pagination {margin-top:2rem;}
-        .page-link {background:rgba(0,204,255,0.2); color:var(--accent-color); border:2px solid var(--accent-color);}
-        .page-link:hover, .page-item.active .page-link {
-            background:var(--accent-color); border-color:var(--accent-color); color:#0a0a0f;
+        .pagination {
+            margin-top: 2rem;
         }
-        .page-item.disabled .page-link {opacity:0.4;}
-        .results-info {text-align:center;color:rgba(255,255,255,0.7);margin-bottom:1rem;font-size:0.9rem;}
-        .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
-        .empty-state {text-align:center;padding:4rem 2rem;}
-        .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
-
+        .page-link {
+            background: rgba(0,204,255,0.2);
+            color: var(--accent-color);
+            border: 2px solid var(--accent-color);
+        }
+        .page-link:hover, .page-item.active .page-link {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            color: #0a0a0f;
+        }
+        .page-item.disabled .page-link {
+            opacity: 0.4;
+        }
+        .results-info {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--accent-color);
+            margin-bottom: 1.5rem;
+        }
+        
         /* Loading Skeleton */
         .skeleton-loader {
             background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
@@ -309,10 +334,19 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
-        .skeleton-title { height: 24px; width: 70%; }
-        .skeleton-thumbnail { height: 200px; width: 100%; }
-        .skeleton-button { height: 45px; width: 100%; }
-
+        .skeleton-title {
+            height: 24px;
+            width: 70%;
+        }
+        .skeleton-thumbnail {
+            height: 200px;
+            width: 100%;
+        }
+        .skeleton-button {
+            height: 45px;
+            width: 100%;
+        }
+        
         /* Error States */
         .error-state {
             text-align: center;
@@ -340,7 +374,7 @@
         .retry-btn:hover {
             transform: scale(1.05);
         }
-
+        
         /* Ad Container */
         .ad-container {
             margin: 2rem 0;
@@ -368,71 +402,7 @@
             margin-bottom: 8px;
             font-size: 1rem;
         }
-
-        /* Mobile Optimizations - Buttons STAY Side by Side */
-        @media (max-width: 768px) {
-            .result-actions {
-                flex-direction: row !important; /* Force horizontal on mobile */
-                gap: 8px;
-            }
-            .btn-watch, .btn-download-main {
-                font-size: 0.85rem; 
-                padding: 10px 8px;
-            }
-            .disclaimer {
-                margin: 2rem 1rem 0 1rem;
-                font-size: 0.85rem;
-            }
-            .top-ad-container {
-                margin: 1rem 0;
-            }
-            .video-thumbnail-container {
-                height: 150px;
-            }
-            .play-button {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
-            }
-            .result-card {
-                padding: 0.7rem !important;
-            }
-            .quality-option {
-                padding: 6px 10px;
-                font-size: 0.75rem;
-            }
-        }
-        @media (max-width: 576px) {
-            .quality-buttons-row {
-                flex-direction: column;
-                gap: 6px;
-            }
-            .quality-option {
-                width: 100%;
-                padding: 8px 12px;
-            }
-            .result-actions {
-                flex-direction: row !important; /* Still horizontal on small mobile */
-                gap: 6px;
-            }
-            .btn-watch, .btn-download-main {
-                font-size: 0.8rem;
-                padding: 8px 6px;
-            }
-            .result-card {
-                padding: 0.7rem !important;
-            }
-        }
-        @media (max-width: 400px) {
-            .btn-watch, .btn-download-main {
-                font-size: 0.75rem;
-                padding: 8px 4px;
-            }
-            .result-actions {
-                gap: 4px;
-            }
-        }
-
+        
         /* Cache Status Indicator */
         .cache-indicator {
             position: fixed;
@@ -451,7 +421,7 @@
         .cache-indicator.show {
             opacity: 1;
         }
-
+        
         /* Offline Mode */
         .offline-mode {
             background: rgba(255, 193, 7, 0.1);
@@ -461,6 +431,67 @@
             margin-bottom: 1rem;
             text-align: center;
             color: #ffc107;
+        }
+        
+        /* Mobile Optimizations - Buttons Always Side by Side */
+        @media (max-width: 768px) {
+            .result-actions {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .btn-watch, .btn-download-main {
+                font-size: 0.9rem;
+                padding: 12px 10px;
+            }
+            .disclaimer {
+                margin: 2rem 1rem 0 1rem;
+                font-size: 0.85rem;
+            }
+            .top-ad-container {
+                margin: 1rem 0;
+            }
+            .video-thumbnail-container {
+                height: 150px;
+            }
+            .play-button {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            .quality-buttons-row {
+                flex-direction: column;
+            }
+            .quality-option {
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .result-actions {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            .btn-watch, .btn-download-main {
+                font-size: 0.85rem;
+                padding: 10px 8px;
+            }
+            .quality-buttons-row {
+                flex-direction: column;
+            }
+            .quality-option {
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .result-actions {
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+            .btn-watch, .btn-download-main {
+                font-size: 0.8rem;
+                padding: 10px 6px;
+            }
         }
     </style>
 </head>
@@ -1144,9 +1175,6 @@ if (!AbortSignal.timeout) {
         return controller.signal;
     };
 }
-
-// Cache management functions (for debugging)
-window.searchCache = searchCache;
 </script>
 </body>
 </html>
