@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Search Movies - SK4FiLM</title>
+    <meta name="description" content="Search and download latest movies in HD quality">
+    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ff0000;
+            --secondary-color: #0066ff;
+            --accent-color: #00ccff;
+            --bg-dark: #0a0a0f;
+            --card-bg: rgba(30, 41, 59, 0.9);
+        }
+        body {
+            font-family: 'Josefin Sans', sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #f8f9fa;
+            min-height: 100vh;
+            padding-top: 80px;
+        }
+        /* Navbar */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .navbar-brand {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-img {
+            height: 40px;
+            width: 40px;
+            border-radius: 8px;
+        }
+        .btn-back-home {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            padding: 8px 20px;
+            font-weight: 600;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .btn-back-home:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Search Bar */
+        .search-container {
+            margin: 2rem 0;
+            position: relative;
+        }
+        .search-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50px;
+            padding: 12px 25px;
+            color: white;
+            font-size: 1.1rem;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.2);
+        }
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 50px;
+            width: 50px;
+            height: 50px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .search-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .result-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .result-title {
+            color: var(--accent-color);
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            line-height: 1.3;
+        }
+        .result-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .result-actions .btn, .result-actions .btn-download-wrapper { width: 100%; }
+        .btn-watch,.btn-download-main {
+            width: 100%;
+            padding: 12px 20px;
+            font-weight: 600;
+            border-radius: 10px;
+            font-size: 1rem;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .btn-watch { background:linear-gradient(45deg,#667eea,#764ba2);color:white;}
+        .btn-download-main{background:linear-gradient(45deg,#28a745,#20c997);color:white;}
+        .btn-watch:hover:not(:disabled),
+        .btn-download-main:hover:not(:disabled) {
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(40,167,69,0.35);
+            color:white;
+        }
+        .btn:disabled {
+            background: #495057 !important;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .btn-download-wrapper {position:relative; padding:0;}
+        .quality-dropdown {
+            display: none;
+            grid-column:1/-1;
+            background:rgba(20, 30, 48, 0.98);
+            border:2px solid var(--accent-color);
+            border-radius:10px;
+            padding:15px;
+            margin-top:10px;
+            animation:slideDown 0.3s ease;
+        }
+        .quality-dropdown.show {display:block;}
+        @keyframes slideDown {
+            from{opacity:0;transform:translateY(-10px);}
+            to{opacity:1;transform:translateY(0);}
+        }
+        .quality-buttons-row {
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            justify-content:center;
+        }
+        .quality-option {
+            display:inline-block;
+            padding:10px 20px;
+            background:linear-gradient(45deg,#28a745,#20c997);
+            color:white;
+            text-decoration:none;
+            border-radius:8px;
+            font-weight:600;
+            font-size:0.95rem;
+            text-align:center;
+            white-space:nowrap;
+            transition:all 0.3s ease;
+        }
+        .quality-option:hover {transform:scale(1.05);}
+        .quality-option small {
+            display:block;
+            font-size:0.75rem;
+            opacity:0.9;
+            margin-top:2px;
+        }
+        /* Arrow Animation */
+        .btn-download-main i.fa-chevron-down { transition: transform 0.3s ease;}
+        /* Pagination & State */
+        .pagination {margin-top:2rem;}
+        .page-link {background:rgba(0,204,255,0.2); color:var(--accent-color); border:2px solid var(--accent-color);}
+        .page-link:hover, .page-item.active .page-link {
+            background:var(--accent-color); border-color:var(--accent-color); color:#0a0a0f;
+        }
+        .page-item.disabled .page-link {opacity:0.4;}
+        .results-info {text-align:center;color:rgba(255,255,255,0.7);margin-bottom:1rem;font-size:0.9rem;}
+        .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
+        .empty-state {text-align:center;padding:4rem 2rem;}
+        .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
+        
+        /* Ad Container */
+        .ad-container {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        .top-ad-container {
+            margin: 1rem 0 2rem 0;
+            text-align: center;
+        }
+        /* Disclaimer Styles */
+        .disclaimer {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 2rem;
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        .disclaimer strong {
+            color: #ff4757;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        @media (max-width: 768px) {
+            .result-actions{grid-template-columns: 1fr 1fr;}
+            .btn-watch, .btn-download-main {font-size: 0.9rem; padding: 10px 15px;}
+            .disclaimer {
+                margin: 2rem 1rem 0 1rem;
+                font-size: 0.85rem;
+            }
+            .top-ad-container {
+                margin: 1rem 0;
+            }
+        }
+        @media (max-width: 576px) {
+            .quality-buttons-row {flex-direction:column;}
+            .quality-option {width:100%;}
+        }
+    </style>
+</head>
+<body>
+<!-- Navbar -->
+<nav class="navbar fixed-top">
+    <div class="container d-flex align-items-center justify-content-between">
+        <a href="index.html" class="navbar-brand">
+            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+            SK4FiLM
+        </a>
+        <button class="btn-back-home" onclick="window.location.href='index.html'">
+            <i class="fas fa-arrow-left me-2"></i>Back Home
+        </button>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container my-4">
+    <!-- Top Ad -->
+    <div class="top-ad-container">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '567936a964b0784aedd11f237d26bee0',
+                'format' : 'iframe',
+                'height' : 250,
+                'width' : 300,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search for movies..." value="">
+        <button class="search-btn" id="searchButton">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
+
+    <div id="resultsInfo"></div>
+    <div id="resultsContainer"></div>
+    <div id="paginationContainer"></div>
+    
+    <!-- Bottom Ad Container -->
+    <div class="ad-container">
+        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+    </div>
+    
+    <!-- Disclaimer Section -->
+    <div class="disclaimer">
+        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
+        This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = 'https://sk4film.koyeb.app';
+const RESULTS_PER_PAGE = 10;
+let currentQuery = '';
+let currentPage = 1;
+let BOT_USERNAME = 'sk4filmbot';
+const resultsContainer = document.getElementById('resultsContainer');
+const resultsInfo = document.getElementById('resultsInfo');
+const paginationContainer = document.getElementById('paginationContainer');
+const searchInput = document.getElementById('searchInput');
+const searchButton = document.getElementById('searchButton');
+
+// Initialize the page
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('query');
+    const page = parseInt(urlParams.get('page')) || 1;
+    
+    if (query) {
+        currentQuery = query;
+        searchInput.value = query;
+        performSearch(page);
+    }
+    
+    // Set up search button event
+    searchButton.addEventListener('click', () => {
+        const query = searchInput.value.trim();
+        if (query) {
+            currentQuery = query;
+            performSearch(1);
+        }
+    });
+    
+    // Set up enter key in search input
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const query = searchInput.value.trim();
+            if (query) {
+                currentQuery = query;
+                performSearch(1);
+            }
+        }
+    });
+});
+
+async function performSearch(page = 1) {
+    if (!currentQuery) {
+        showError("Please enter a search query");
+        return;
+    }
+    
+    currentPage = page;
+    const url = new URL(window.location);
+    url.searchParams.set('query', currentQuery);
+    url.searchParams.set('page', page);
+    window.history.pushState({}, '', url);
+    
+    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "' + escapeHtml(currentQuery) + '"...</p></div>';
+    resultsInfo.innerHTML = '';
+    paginationContainer.innerHTML = '';
+    
+    try {
+        const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+        const response = await fetch(apiUrl, { method: 'GET', mode: 'cors', headers: { 'Content-Type': 'application/json' } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        if (data.status === "success") {
+            BOT_USERNAME = data.bot_username || BOT_USERNAME;
+            // Sort results with exact matches first
+            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
+            displayResults(sortedResults, data.pagination);
+        } else {
+            showError(data.message || "Search failed");
+        }
+    } catch (e) {
+        showError("Connection error: " + e.message);
+    }
+}
+
+function sortResultsWithExactMatchFirst(results, query) {
+    if (!results || results.length === 0) {
+        return [];
+    }
+    
+    const queryLower = query.toLowerCase().trim();
+    
+    // Create a copy of results to avoid mutating the original
+    const resultsCopy = [...results];
+    
+    // Sort results - exact matches first, then partial matches
+    resultsCopy.sort((a, b) => {
+        if (!a.title || !b.title) return 0;
+        
+        const titleALower = a.title.toLowerCase().trim();
+        const titleBLower = b.title.toLowerCase().trim();
+        
+        // Check for exact match (case insensitive)
+        const aIsExact = titleALower === queryLower;
+        const bIsExact = titleBLower === queryLower;
+        
+        // If A is exact match and B is not, A comes first
+        if (aIsExact && !bIsExact) return -1;
+        // If B is exact match and A is not, B comes first
+        if (!aIsExact && bIsExact) return 1;
+        // If both are exact matches, maintain original order
+        if (aIsExact && bIsExact) return 0;
+        
+        // Check for partial matches (title contains the query)
+        const aHasPartial = titleALower.includes(queryLower);
+        const bHasPartial = titleBLower.includes(queryLower);
+        
+        // If A has partial match and B doesn't, A comes first
+        if (aHasPartial && !bHasPartial) return -1;
+        // If B has partial match and A doesn't, B comes first
+        if (!aHasPartial && bHasPartial) return 1;
+        // If both have partial matches, maintain original order
+        if (aHasPartial && bHasPartial) return 0;
+        
+        // For titles that don't match at all, maintain original order
+        return 0;
+    });
+    
+    return resultsCopy;
+}
+
+function displayResults(results, pagination) {
+    if (!results || results.length === 0) {
+        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
+        return;
+    }
+    
+    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
+    
+    let html = '';
+    results.forEach((result, index) => {
+        const hasPost = result.has_post !== false;
+        const hasFile = result.has_file === true;
+        const qualityOptions = result.quality_options || {};
+        const hasQualities = Object.keys(qualityOptions).length > 0;
+        
+        html += `
+        <div class="result-card">
+            <h3 class="result-title">${escapeHtml(result.title)}</h3>
+            <div class="result-actions">
+                ${hasPost ? `<a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch"><i class="fas fa-eye me-2"></i>Watch</a>` : `<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
+                <div class="btn-download-wrapper">
+                    ${hasFile && hasQualities ? `<button class="btn btn-download-main" onclick="toggleQuality(${index})"><i class="fas fa-download me-2"></i>Download<i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i></button>` : `<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
+                </div>
+                ${hasFile && hasQualities ? `<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>` : ''}
+            </div>
+        </div>
+        `;
+    });
+    
+    resultsContainer.innerHTML = html;
+    
+    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
+    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleQuality(index) {
+    const dropdown = document.getElementById(`quality-${index}`);
+    const arrow = document.getElementById(`arrow-${index}`);
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
+        if (el.id !== `quality-${index}`) {
+            el.classList.remove('show');
+            const otherA = document.getElementById(`arrow-${i}`);
+            if (otherA) otherA.style.transform = 'rotate(0deg)';
+        }
+    });
+    
+    // Toggle current dropdown
+    dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function generateQualityOptions(qualityOptions) {
+    if (!qualityOptions || Object.keys(qualityOptions).length === 0) return '<p class="text-center text-muted mb-0">No files available</p>';
+    
+    let html = '<div class="quality-buttons-row">';
+    ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'].forEach(quality => {
+        if (qualityOptions[quality]) {
+            const f = qualityOptions[quality];
+            const fileId = f.file_id;
+            const fileSize = formatSize(f.file_size);
+            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option"><i class="fas fa-download me-1"></i>${quality}<small>${fileSize}</small></a>`;
+        }
+    });
+    html += '</div>';
+    return html;
+}
+
+function displayPagination(pagination) {
+    let html = '<nav><ul class="pagination justify-content-center">';
+    const { current_page, total_pages, has_previous, has_next } = pagination;
+    const maxVisible = 5;
+    
+    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
+    
+    let startPage = Math.max(1, current_page - 2);
+    let endPage = Math.min(total_pages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<li class="page-item ${i === current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;
+    }
+    
+    if (endPage < total_pages) {
+        if (endPage < total_pages - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;
+    }
+    
+    html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
+    html += '</ul></nav>';
+    paginationContainer.innerHTML = html;
+}
+
+function showError(message) {
+    resultsContainer.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle text-danger"></i><h4>Error</h4><p class="text-muted">${escapeHtml(message)}</p></div>`;
+}
+
+function formatSize(bytes) {
+    if (!bytes) return 'Unknown';
+    const gb = bytes / 1073741824;
+    const mb = bytes / 1048576;
+    return gb >= 1 ? gb.toFixed(2) + ' GB' : mb.toFixed(1) + ' MB';
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Example test function to demonstrate the exact match functionality
+function testExactMatch() {
+    // This is just for demonstration - in real scenario, API would return these
+    const mockResults = [
+        { title: "The Family Man Season 3", has_post: true, has_file: true, quality_options: {"1080p": {file_id: "test1", file_size: 1500000000}} },
+        { title: "The Family Man", has_post: true, has_file: true, quality_options: {"1080p": {file_id: "test2", file_size: 1200000000}} },
+        { title: "Family Man Season 2", has_post: true, has_file: true, quality_options: {"720p": {file_id: "test3", file_size: 800000000}} },
+        { title: "The Man", has_post: true, has_file: false }
+    ];
+    
+    const sorted = sortResultsWithExactMatchFirst(mockResults, "The Family Man Season 3");
+    console.log("Sorted results with exact match first:", sorted);
+}
+</script>
+</body>
+</html>
