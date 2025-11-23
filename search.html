@@ -272,6 +272,34 @@
         .empty-state {text-align:center;padding:4rem 2rem;}
         .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
         
+        /* Error States */
+        .error-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: rgba(255, 0, 0, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        .error-state i {
+            font-size: 3rem;
+            color: #ff4757;
+            margin-bottom: 1rem;
+        }
+        .retry-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+            margin-top: 1rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .retry-btn:hover {
+            transform: scale(1.05);
+        }
+        
         /* Ad Container */
         .ad-container {
             margin: 2rem 0;
@@ -341,6 +369,17 @@
         .cache-indicator.show {
             opacity: 1;
         }
+        
+        /* Offline Mode */
+        .offline-mode {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 10px 15px;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: #ffc107;
+        }
     </style>
 </head>
 <body>
@@ -384,6 +423,11 @@
         </button>
     </div>
 
+    <!-- Offline Mode Indicator -->
+    <div class="offline-mode" id="offlineIndicator" style="display: none;">
+        <i class="fas fa-wifi-slash me-2"></i>Offline Mode - Showing cached results only
+    </div>
+
     <div id="resultsInfo"></div>
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
@@ -406,20 +450,30 @@
 // Ad Script
 (function(s){s.dataset.zone='10224992',s.src='https://groleegni.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
 
-const API_BASE = 'https://sk4film.koyeb.app';
+// Multiple API endpoints for fallback
+const API_ENDPOINTS = [
+    'https://sk4film.koyeb.app',
+    'https://sk4film-backup.herokuapp.com',
+    'https://sk4film-alternate.onrender.com'
+];
+
 const RESULTS_PER_PAGE = 10;
-const AD_LINK = 'https://otieu.com/4/10220520'; // Your ad link
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes cache duration
+const AD_LINK = 'https://otieu.com/4/10220520';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache duration
 
 let currentQuery = '';
 let currentPage = 1;
 let BOT_USERNAME = 'sk4filmbot';
+let currentAPI = 0;
+let isOnline = true;
+
 const resultsContainer = document.getElementById('resultsContainer');
 const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
 const searchInput = document.getElementById('searchInput');
 const searchButton = document.getElementById('searchButton');
 const cacheIndicator = document.getElementById('cacheIndicator');
+const offlineIndicator = document.getElementById('offlineIndicator');
 
 // Enhanced Cache Implementation
 const searchCache = {
@@ -431,7 +485,7 @@ const searchCache = {
             timestamp: Date.now()
         });
         this.cleanup();
-        this.showIndicator('Cached: ' + key.split('-')[0]);
+        this.showIndicator('✓ Cached: ' + key.split('-')[0]);
     },
     
     get(key) {
@@ -444,7 +498,7 @@ const searchCache = {
             return null;
         }
         
-        this.showIndicator('Loaded from cache: ' + key.split('-')[0]);
+        this.showIndicator('↻ Cache: ' + key.split('-')[0]);
         return cached.data;
     },
     
@@ -459,7 +513,7 @@ const searchCache = {
     
     clear() {
         this.storage.clear();
-        this.showIndicator('Cache cleared');
+        this.showIndicator('🗑️ Cache cleared');
     },
     
     showIndicator(message) {
@@ -467,7 +521,7 @@ const searchCache = {
         cacheIndicator.classList.add('show');
         setTimeout(() => {
             cacheIndicator.classList.remove('show');
-        }, 2000);
+        }, 3000);
     },
     
     getStats() {
@@ -478,11 +532,27 @@ const searchCache = {
     }
 };
 
+// Network status detection
+function updateOnlineStatus() {
+    isOnline = navigator.onLine;
+    if (!isOnline) {
+        offlineIndicator.style.display = 'block';
+        showError("You are offline. Showing cached results only.");
+    } else {
+        offlineIndicator.style.display = 'none';
+    }
+}
+
 // Initialize the page
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const query = urlParams.get('query');
     const page = parseInt(urlParams.get('page')) || 1;
+    
+    // Set up network status listeners
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
     
     if (query) {
         currentQuery = query;
@@ -509,18 +579,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    
-    // Clear cache on page refresh with Ctrl+F5
-    window.addEventListener('beforeunload', () => {
-        if (performance.navigation.type === 1) { // Page reload
-            sessionStorage.setItem('clearCacheOnLoad', 'true');
-        }
-    });
-    
-    if (sessionStorage.getItem('clearCacheOnLoad') === 'true') {
-        searchCache.clear();
-        sessionStorage.removeItem('clearCacheOnLoad');
-    }
 });
 
 async function performSearch(page = 1) {
@@ -549,23 +607,17 @@ async function performSearch(page = 1) {
         return;
     }
     
+    // If offline and no cache, show error
+    if (!isOnline) {
+        showOfflineError();
+        return;
+    }
+    
+    // Try multiple API endpoints
     try {
-        const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-        const response = await fetch(apiUrl, { 
-            method: 'GET', 
-            mode: 'cors', 
-            headers: { 
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
-            } 
-        });
-        
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        
-        if (data.status === "success") {
+        const data = await tryAllEndpoints(currentQuery, page);
+        if (data) {
             BOT_USERNAME = data.bot_username || BOT_USERNAME;
-            // Sort results with exact matches first
             const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
             
             // Cache the successful results
@@ -577,53 +629,122 @@ async function performSearch(page = 1) {
             
             displayResults(sortedResults, data.pagination);
         } else {
-            showError(data.message || "Search failed");
+            showConnectionError();
         }
-    } catch (e) {
-        showError("Connection error: " + e.message);
+    } catch (error) {
+        showConnectionError();
     }
 }
 
-function sortResultsWithExactMatchFirst(results, query) {
-    if (!results || results.length === 0) {
-        return [];
+async function tryAllEndpoints(query, page) {
+    for (let i = 0; i < API_ENDPOINTS.length; i++) {
+        try {
+            const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+            console.log(`Trying endpoint: ${API_ENDPOINTS[i]}`);
+            
+            const response = await fetch(apiUrl, { 
+                method: 'GET',
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
+                signal: AbortSignal.timeout(10000) // 10 second timeout
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.status === "success") {
+                    currentAPI = i;
+                    console.log(`Success with endpoint: ${API_ENDPOINTS[i]}`);
+                    return data;
+                }
+            }
+        } catch (error) {
+            console.log(`Endpoint ${API_ENDPOINTS[i]} failed:`, error.message);
+            continue; // Try next endpoint
+        }
     }
+    return null; // All endpoints failed
+}
+
+function showConnectionError() {
+    const cacheKey = `${currentQuery}-${currentPage}`;
+    const cachedData = searchCache.get(cacheKey);
+    
+    if (cachedData) {
+        // Show cached data with warning
+        resultsContainer.innerHTML = `
+            <div class="alert alert-warning text-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Connection issue. Showing cached results.
+                <button class="retry-btn ms-2" onclick="performSearch(${currentPage})">
+                    <i class="fas fa-redo me-1"></i>Retry
+                </button>
+            </div>
+        `;
+        displayResults(cachedData.results, cachedData.pagination);
+    } else {
+        resultsContainer.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-unlink"></i>
+                <h4>Connection Error</h4>
+                <p>Unable to connect to the server. Please check your internet connection and try again.</p>
+                <button class="retry-btn" onclick="performSearch(${currentPage})">
+                    <i class="fas fa-redo me-1"></i>Retry Search
+                </button>
+                <div class="mt-3">
+                    <small class="text-muted">You can also try:</small><br>
+                    <button class="btn btn-sm btn-outline-light me-2 mt-1" onclick="location.reload()">
+                        <i class="fas fa-sync-alt me-1"></i>Reload Page
+                    </button>
+                    <button class="btn btn-sm btn-outline-light mt-1" onclick="searchCache.clear()">
+                        <i class="fas fa-broom me-1"></i>Clear Cache
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function showOfflineError() {
+    resultsContainer.innerHTML = `
+        <div class="error-state">
+            <i class="fas fa-wifi-slash"></i>
+            <h4>You're Offline</h4>
+            <p>Please check your internet connection and try again.</p>
+            <button class="retry-btn" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-1"></i>Reload Page
+            </button>
+        </div>
+    `;
+}
+
+// Rest of your existing functions remain the same...
+function sortResultsWithExactMatchFirst(results, query) {
+    if (!results || results.length === 0) return [];
     
     const queryLower = query.toLowerCase().trim();
-    
-    // Create a copy of results to avoid mutating the original
     const resultsCopy = [...results];
     
-    // Sort results - exact matches first, then partial matches
     resultsCopy.sort((a, b) => {
         if (!a.title || !b.title) return 0;
         
         const titleALower = a.title.toLowerCase().trim();
         const titleBLower = b.title.toLowerCase().trim();
         
-        // Check for exact match (case insensitive)
         const aIsExact = titleALower === queryLower;
         const bIsExact = titleBLower === queryLower;
         
-        // If A is exact match and B is not, A comes first
         if (aIsExact && !bIsExact) return -1;
-        // If B is exact match and A is not, B comes first
         if (!aIsExact && bIsExact) return 1;
-        // If both are exact matches, maintain original order
         if (aIsExact && bIsExact) return 0;
         
-        // Check for partial matches (title contains the query)
         const aHasPartial = titleALower.includes(queryLower);
         const bHasPartial = titleBLower.includes(queryLower);
         
-        // If A has partial match and B doesn't, A comes first
         if (aHasPartial && !bHasPartial) return -1;
-        // If B has partial match and A doesn't, B comes first
         if (!aHasPartial && bHasPartial) return 1;
-        // If both have partial matches, maintain original order
         if (aHasPartial && bHasPartial) return 0;
         
-        // For titles that don't match at all, maintain original order
         return 0;
     });
     
@@ -644,17 +765,13 @@ function displayResults(results, pagination) {
         const hasFile = result.has_file === true;
         const qualityOptions = result.quality_options || {};
         const hasQualities = Object.keys(qualityOptions).length > 0;
-        const thumbnail = result.thumbnail; // ✅ Backend से सिर्फ video files के लिए thumbnail आएगा
-        const hasTelegramFile = hasFile && hasQualities;
-        
-        // Check if any quality option is a video file
+        const thumbnail = result.thumbnail;
         const hasVideoFiles = Object.values(qualityOptions).some(option => option.is_video === true);
         
         html += `
         <div class="result-card">
             <h3 class="result-title">${escapeHtml(result.title)}</h3>
             
-            <!-- Video Thumbnail - सिर्फ Video Files के लिए और Thumbnail Available होने पर -->
             ${thumbnail && hasVideoFiles ? `
                 <div class="video-thumbnail-section has-thumbnail">
                     <div class="video-thumbnail-container" onclick="triggerAdLink()">
@@ -673,14 +790,12 @@ function displayResults(results, pagination) {
             ` : ''}
             
             <div class="result-actions">
-                <!-- Watch Button -->
                 ${hasPost ? `
                     <a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch">
                         <i class="fas fa-eye me-2"></i>Watch
                     </a>
                 ` : `<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
                 
-                <!-- Download Button -->
                 <div class="btn-download-wrapper">
                     ${hasFile && hasQualities ? `
                         <button class="btn btn-download-main" onclick="toggleQuality(${index})">
@@ -703,7 +818,6 @@ function displayResults(results, pagination) {
 }
 
 function triggerAdLink() {
-    // Open ad link in new tab
     window.open(AD_LINK, '_blank');
 }
 
@@ -711,7 +825,6 @@ function toggleQuality(index) {
     const dropdown = document.getElementById(`quality-${index}`);
     const arrow = document.getElementById(`arrow-${index}`);
     
-    // Close all other dropdowns
     document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
         if (el.id !== `quality-${index}`) {
             el.classList.remove('show');
@@ -720,7 +833,6 @@ function toggleQuality(index) {
         }
     });
     
-    // Toggle current dropdown
     dropdown.classList.toggle('show');
     arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
 }
@@ -736,7 +848,6 @@ function generateQualityOptions(qualityOptions) {
             const fileSize = formatSize(f.file_size);
             const isVideo = f.is_video === true;
             
-            // Video file होने पर badge show करें
             const videoBadge = isVideo ? ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : '';
             
             html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option">
@@ -827,6 +938,15 @@ window.addEventListener('popstate', function() {
         performSearch(page);
     }
 });
+
+// Add timeout to fetch (polyfill for older browsers)
+if (!AbortSignal.timeout) {
+    AbortSignal.timeout = function(ms) {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), ms);
+        return controller.signal;
+    };
+}
 
 // Cache management functions (for debugging)
 window.searchCache = searchCache;
