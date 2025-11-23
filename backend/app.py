@@ -147,6 +147,32 @@ async def safe_telegram_operation(operation, *args, **kwargs):
             await asyncio.sleep(2 ** attempt)  # Exponential backoff
     return None
 
+# SAFE ASYNC ITERATOR FOR TELEGRAM GENERATORS
+async def safe_telegram_generator(operation, *args, **kwargs):
+    """Safely iterate over Telegram async generators with flood wait protection"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            await flood_protection.wait_if_needed()
+            async for item in operation(*args, **kwargs):
+                yield item
+            break  # Successfully completed iteration
+        except FloodWait as e:
+            wait_time = e.value
+            logger.warning(f"⚠️ Flood wait in generator: {wait_time}s, attempt {attempt + 1}/{max_retries}")
+            
+            if attempt == max_retries - 1:
+                logger.error(f"❌ Flood wait too long after {max_retries} attempts")
+                raise e
+            
+            logger.info(f"🕒 Waiting {wait_time}s due to flood wait...")
+            await asyncio.sleep(wait_time + 5)
+        except Exception as e:
+            logger.error(f"❌ Telegram generator failed: {e}")
+            if attempt == max_retries - 1:
+                raise e
+            await asyncio.sleep(2 ** attempt)
+
 # CACHE CLEANUP TASK
 async def cache_cleanup():
     while True:
@@ -463,12 +489,14 @@ async def index_files_background():
         batch = []
         batch_size = 50  # Reduced for safety
         
-        # Use safe Telegram operation for getting chat history
-        async for msg in safe_telegram_operation(
+        # Use safe Telegram generator for getting chat history
+        async for msg in safe_telegram_generator(
             User.get_chat_history, 
-            Config.FILE_CHANNEL_ID, 
-            limit=500  # Reduced limit for safety
+            Config.FILE_CHANNEL_ID
         ):
+            if count >= 500:  # Limit for safety
+                break
+                
             if msg and (msg.document or msg.video):
                 title = extract_title_from_file(msg)
                 if title:
@@ -741,18 +769,21 @@ async def get_poster_guaranteed(title, session):
     return res
 
 # OPTIMIZED LIVE POSTS FETCHING WITH FLOOD PROTECTION
-async def get_live_posts(channel_id, limit=20):  # Further reduced limit
+async def get_live_posts(channel_id, limit=20):
     if not User or not user_session_ready:
         return []
     
     posts = []
+    count = 0
     
     try:
-        async for msg in safe_telegram_operation(
+        async for msg in safe_telegram_generator(
             User.get_chat_history, 
-            channel_id, 
-            limit=limit
+            channel_id
         ):
+            if count >= limit:
+                break
+                
             if msg and msg.text and len(msg.text) > 15:
                 title = extract_title_smart(msg.text)
                 if title:
@@ -766,6 +797,7 @@ async def get_live_posts(channel_id, limit=20):  # Further reduced limit
                         'date': msg.date,
                         'is_new': is_new(msg.date) if msg.date else False
                     })
+                    count += 1
     except Exception as e:
         logger.error(f"Error getting live posts: {e}")
     
@@ -830,12 +862,15 @@ async def search_movies_live(query, limit=12, page=1):
         for channel_id in Config.TEXT_CHANNEL_IDS:
             try:
                 cname = channel_name(channel_id)
-                async for msg in safe_telegram_operation(
+                search_count = 0
+                async for msg in safe_telegram_generator(
                     User.search_messages,
                     channel_id, 
-                    query=query, 
-                    limit=30  # Reduced limit
+                    query=query
                 ):
+                    if search_count >= 30:  # Reduced limit
+                        break
+                        
                     if msg and msg.text and len(msg.text) > 15:
                         title = extract_title_smart(msg.text)
                         if title and query_lower in title.lower():
@@ -854,6 +889,7 @@ async def search_movies_live(query, limit=12, page=1):
                                     'quality_options': {},
                                     'thumbnail': None
                                 }
+                                search_count += 1
             except Exception as e:
                 logger.error(f"Telegram search error: {e}")
                 continue
