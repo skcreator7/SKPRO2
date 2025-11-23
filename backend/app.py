@@ -99,46 +99,32 @@ class RedisCache:
     
     async def init_redis(self):
         try:
-            # Method 1: Direct connection for Redis Labs
+            # Method 1: Direct connection optimized for Redis Labs
             self.client = redis.Redis(
                 host='redis-17119.c283.us-east-1-4.ec2.cloud.redislabs.com',
                 port=17119,
                 password='EjtnvQpIkLv5Z3g9Fr4FQDLfmLKZVqML',
                 ssl=True,
-                ssl_cert_reqs=None,  # Disable SSL verification for Redis Labs
+                ssl_cert_reqs=None,  # Critical for Redis Labs
                 decode_responses=True,
+                encoding='utf-8',
                 socket_connect_timeout=10,
                 socket_timeout=10,
-                retry_on_timeout=True,
-                max_connections=20
+                max_connections=10,
+                health_check_interval=30,
+                retry_on_timeout=True
             )
             
-            await self.client.ping()
+            # Test connection with timeout
+            await asyncio.wait_for(self.client.ping(), timeout=5.0)
             self.enabled = True
-            logger.info("✅ Redis connected successfully to Redis Labs")
+            logger.info("✅ Redis connected successfully to Redis Labs!")
             return True
             
         except Exception as e:
-            logger.warning(f"⚠️ Direct Redis connection failed: {e}")
-            
-            # Method 2: Try with URL (fallback)
-            try:
-                redis_url = "rediss://:EjtnvQpIkLv5Z3g9Fr4FQDLfmLKZVqML@redis-17119.c283.us-east-1-4.ec2.cloud.redislabs.com:17119/0"
-                self.client = redis.from_url(
-                    redis_url,
-                    decode_responses=True,
-                    socket_connect_timeout=10,
-                    socket_timeout=10,
-                    ssl_cert_reqs=None
-                )
-                await self.client.ping()
-                self.enabled = True
-                logger.info("✅ Redis connected via URL fallback")
-                return True
-            except Exception as fallback_error:
-                logger.warning(f"⚠️ Redis URL fallback also failed: {fallback_error}")
-                self.enabled = False
-                return False
+            logger.warning(f"⚠️ Redis connection failed: {e}")
+            self.enabled = False
+            return False
     
     async def get(self, key):
         if not self.enabled or not self.client:
