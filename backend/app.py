@@ -17,6 +17,8 @@ import urllib.parse
 import base64
 from io import BytesIO
 import time
+import redis.asyncio as redis
+import json
 
 # FAST LOADING OPTIMIZATIONS
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -31,6 +33,7 @@ class Config:
     USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     
     MAIN_CHANNEL_ID = -1001891090100
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
@@ -70,6 +73,7 @@ mongo_client = None
 db = None
 files_col = None
 verification_col = None
+redis_client = None
 User = None
 bot = None
 bot_started = False
@@ -82,9 +86,81 @@ movie_db = {
     'search_cache': {},
     'stats': {
         'letterboxd': 0, 'imdb': 0, 'justwatch': 0, 'impawards': 0,
-        'omdb': 0, 'tmdb': 0, 'custom': 0, 'cache_hits': 0, 'video_thumbnails': 0
+        'omdb': 0, 'tmdb': 0, 'custom': 0, 'cache_hits': 0, 'video_thumbnails': 0,
+        'redis_hits': 0, 'redis_misses': 0
     }
 }
+
+# REDIS CACHE MANAGER
+class RedisCache:
+    def __init__(self):
+        self.client = None
+        self.enabled = False
+    
+    async def init_redis(self):
+        try:
+            self.client = redis.from_url(
+                Config.REDIS_URL,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=5
+            )
+            await self.client.ping()
+            self.enabled = True
+            logger.info("✅ Redis connected successfully")
+            return True
+        except Exception as e:
+            logger.warning(f"⚠️ Redis not available: {e}")
+            self.enabled = False
+            return False
+    
+    async def get(self, key):
+        if not self.enabled or not self.client:
+            return None
+        try:
+            data = await self.client.get(key)
+            if data:
+                movie_db['stats']['redis_hits'] += 1
+            return data
+        except Exception as e:
+            logger.warning(f"Redis get error: {e}")
+            return None
+    
+    async def set(self, key, value, expire=3600):
+        if not self.enabled or not self.client:
+            return False
+        try:
+            await self.client.setex(key, expire, value)
+            return True
+        except Exception as e:
+            logger.warning(f"Redis set error: {e}")
+            return False
+    
+    async def delete(self, key):
+        if not self.enabled or not self.client:
+            return False
+        try:
+            await self.client.delete(key)
+            return True
+        except Exception as e:
+            logger.warning(f"Redis delete error: {e}")
+            return False
+    
+    async def clear_search_cache(self):
+        if not self.enabled or not self.client:
+            return False
+        try:
+            keys = await self.client.keys("search:*")
+            if keys:
+                await self.client.delete(*keys)
+                logger.info(f"🧹 Cleared {len(keys)} search cache keys")
+            return True
+        except Exception as e:
+            logger.warning(f"Redis clear error: {e}")
+            return False
+
+# Initialize Redis cache
+redis_cache = RedisCache()
 
 # IMPROVED FLOOD WAIT PROTECTION
 class FloodWaitProtection:
@@ -426,12 +502,47 @@ def is_video_file(file_name):
     file_name_lower = file_name.lower()
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
+# ENHANCED VIDEO THUMBNAIL PROCESSING WITH BATCHING
+async def process_thumbnail_batch(thumbnail_batch):
+    """Process thumbnails in batches for better performance"""
+    semaphore = asyncio.Semaphore(3)  # Limit concurrent thumbnail processing
+    
+    async def process_single(file_data):
+        async with semaphore:
+            try:
+                thumbnail_url = await extract_video_thumbnail(User, file_data['message'])
+                if thumbnail_url:
+                    return file_data['message'].id, thumbnail_url, 'video_direct'
+                
+                # Fallback to poster
+                title = extract_title_from_file(file_data['message'])
+                if title:
+                    async with aiohttp.ClientSession() as session:
+                        poster_data = await get_poster_guaranteed(title, session)
+                    if poster_data and poster_data.get('poster_url'):
+                        return file_data['message'].id, poster_data['poster_url'], 'poster_api'
+                
+                return file_data['message'].id, None, 'none'
+            except Exception as e:
+                logger.error(f"Thumbnail processing failed for message {file_data['message'].id}: {e}")
+                return file_data['message'].id, None, 'error'
+    
+    tasks = [process_single(file_data) for file_data in thumbnail_batch]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    thumbnails = {}
+    for result in results:
+        if isinstance(result, tuple) and len(result) == 3:
+            message_id, thumbnail_url, source = result
+            if thumbnail_url:
+                thumbnails[message_id] = (thumbnail_url, source)
+    
+    return thumbnails
+
 # IMPROVED VIDEO THUMBNAIL EXTRACTION
 async def extract_video_thumbnail(user_client, message):
     """Extract thumbnail from video file with multiple fallback methods"""
     try:
-        logger.info(f"    🎥 Extracting thumbnail from video file...")
-        
         # Method 1: Get thumbnail from video message
         if message.video:
             # Get video thumbnail from Telegram
@@ -448,7 +559,6 @@ async def extract_video_thumbnail(user_client, message):
                     thumbnail_data = base64.b64encode(thumbnail_path.getvalue()).decode('utf-8')
                     thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
                     movie_db['stats']['video_thumbnails'] += 1
-                    logger.info(f"    ✅ Video thumbnail extracted successfully")
                     return thumbnail_url
         
         # Method 2: Try to get from document if it's a video file
@@ -467,17 +577,7 @@ async def extract_video_thumbnail(user_client, message):
                         thumbnail_data = base64.b64encode(thumbnail_path.getvalue()).decode('utf-8')
                         thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
                         movie_db['stats']['video_thumbnails'] += 1
-                        logger.info(f"    ✅ Document video thumbnail extracted")
                         return thumbnail_url
-        
-        # Method 3: Generate from poster if video thumbnail not available
-        title = extract_title_from_file(message)
-        if title:
-            async with aiohttp.ClientSession() as session:
-                poster_data = await get_poster_guaranteed(title, session)
-                if poster_data and poster_data.get('poster_url'):
-                    logger.info(f"    ✅ Using poster as thumbnail for: {title}")
-                    return poster_data['poster_url']
         
         return None
         
@@ -488,8 +588,6 @@ async def extract_video_thumbnail(user_client, message):
 async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
     """Get thumbnail directly from Telegram video"""
     try:
-        logger.info(f"    📹 Getting Telegram video thumbnail...")
-        
         # Get the message
         msg = await safe_telegram_operation(
             user_client.get_messages,
@@ -501,11 +599,7 @@ async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
         
         # Extract thumbnail
         thumbnail_url = await extract_video_thumbnail(user_client, msg)
-        if thumbnail_url:
-            logger.info(f"    ✅ Telegram video thumbnail extracted")
-            return thumbnail_url
-        
-        return None
+        return thumbnail_url
         
     except Exception as e:
         logger.error(f"    ❌ Telegram video thumbnail error: {e}")
@@ -563,7 +657,7 @@ async def generate_verification_url(user_id):
     verification_token = f"verify_{user_id}_{int(datetime.now().timestamp())}"
     return f"{base_url}/verify?token={verification_token}&user_id={user_id}"
 
-# IMPROVED BACKGROUND INDEXING - ONLY NEW FILES
+# SMART BACKGROUND INDEXING - ONLY NEW FILES WITH BATCH THUMBNAIL PROCESSING
 async def index_files_background():
     if not User or files_col is None or not user_session_ready:
         logger.warning("⚠️ Cannot start indexing - User session not ready")
@@ -577,7 +671,8 @@ async def index_files_background():
         video_files_count = 0
         successful_thumbnails = 0
         batch = []
-        batch_size = 20  # Smaller batch size
+        batch_size = 15  # Smaller batch size for better performance
+        thumbnail_batch = []
         
         # Get the last indexed message ID to start from there
         last_indexed = await files_col.find_one(
@@ -597,13 +692,13 @@ async def index_files_background():
             
             # Stop if we've processed too many old messages
             if msg.id <= last_message_id:
-                if processed_count % 50 == 0:
-                    logger.info(f"    ⏩ Skipping old messages... {processed_count}")
+                if processed_count % 100 == 0:
+                    logger.info(f"    ⏩ Skipped {processed_count} old messages...")
                 continue
                 
             new_messages_found += 1
             
-            if new_messages_found % 10 == 0:
+            if new_messages_found % 20 == 0:
                 logger.info(f"    📥 New files found: {new_messages_found}, processing...")
             
             if msg and (msg.document or msg.video):
@@ -614,7 +709,7 @@ async def index_files_background():
                 })
                 
                 if existing:
-                    if new_messages_found % 20 == 0:
+                    if new_messages_found % 50 == 0:
                         logger.info(f"    ⏭️ Already indexed: {msg.id}, skipping...")
                     continue
                 
@@ -626,31 +721,17 @@ async def index_files_background():
                     quality = detect_quality(file_name)
                     
                     file_is_video = is_video_file(file_name)
-                    thumbnail_url = None
-                    thumbnail_source = 'none'
                     
-                    # Extract thumbnail for video files (only for new files)
+                    # Prepare for batch thumbnail processing
                     if file_is_video:
                         video_files_count += 1
-                        logger.info(f"    🎬 Processing NEW video file: {title}")
-                        
-                        # Try to extract thumbnail from video
-                        video_thumbnail = await extract_video_thumbnail(User, msg)
-                        if video_thumbnail:
-                            thumbnail_url = video_thumbnail
-                            thumbnail_source = 'video_direct'
-                            successful_thumbnails += 1
-                            logger.info(f"    ✅ Thumbnail extracted: {title}")
-                        else:
-                            # Fallback to poster
-                            async with aiohttp.ClientSession() as session:
-                                poster_data = await get_poster_guaranteed(title, session)
-                            if poster_data and poster_data.get('poster_url'):
-                                thumbnail_url = poster_data['poster_url']
-                                thumbnail_source = 'poster_api'
-                                logger.info(f"    ✅ Using poster as thumbnail: {title}")
+                        thumbnail_batch.append({
+                            'message': msg,
+                            'title': title,
+                            'file_is_video': file_is_video
+                        })
                     
-                    # Insert new record
+                    # Add to database batch
                     batch.append({
                         'channel_id': Config.FILE_CHANNEL_ID,
                         'message_id': msg.id,
@@ -663,15 +744,30 @@ async def index_files_background():
                         'caption': msg.caption or '',
                         'date': msg.date,
                         'indexed_at': datetime.now(),
-                        'thumbnail': thumbnail_url,
+                        'thumbnail': None,  # Will be updated after batch processing
                         'is_video_file': file_is_video,
-                        'thumbnail_source': thumbnail_source
+                        'thumbnail_source': 'pending'
                     })
                     
                     total_count += 1
                     new_files_count += 1
                     
-                    # Process batch
+                    # Process thumbnail batch when it reaches size
+                    if len(thumbnail_batch) >= 10:
+                        logger.info(f"    🖼️ Processing batch of {len(thumbnail_batch)} thumbnails...")
+                        thumbnails = await process_thumbnail_batch(thumbnail_batch)
+                        
+                        # Update batch with thumbnails
+                        for doc in batch:
+                            if doc['message_id'] in thumbnails:
+                                thumbnail_url, source = thumbnails[doc['message_id']]
+                                doc['thumbnail'] = thumbnail_url
+                                doc['thumbnail_source'] = source
+                                successful_thumbnails += 1
+                        
+                        thumbnail_batch = []
+                    
+                    # Process database batch
                     if len(batch) >= batch_size:
                         try:
                             for doc in batch:
@@ -691,7 +787,20 @@ async def index_files_background():
                             logger.error(f"Batch error: {e}")
                             batch = []
         
-        # Process remaining batch
+        # Process remaining thumbnail batch
+        if thumbnail_batch:
+            logger.info(f"    🖼️ Processing final batch of {len(thumbnail_batch)} thumbnails...")
+            thumbnails = await process_thumbnail_batch(thumbnail_batch)
+            
+            # Update batch with thumbnails
+            for doc in batch:
+                if doc['message_id'] in thumbnails:
+                    thumbnail_url, source = thumbnails[doc['message_id']]
+                    doc['thumbnail'] = thumbnail_url
+                    doc['thumbnail_source'] = source
+                    successful_thumbnails += 1
+        
+        # Process remaining database batch
         if batch:
             try:
                 for doc in batch:
@@ -708,6 +817,10 @@ async def index_files_background():
         
         logger.info(f"✅ SMART indexing finished: {new_files_count} NEW files, {video_files_count} video files, {successful_thumbnails} thumbnails")
         logger.info(f"📊 Processed {processed_count} messages, found {new_messages_found} new messages")
+        
+        # Clear search cache after indexing new files
+        await redis_cache.clear_search_cache()
+        logger.info("🧹 Search cache cleared after indexing")
         
         # Update statistics
         total_in_db = await files_col.count_documents({})
@@ -946,15 +1059,24 @@ async def get_live_posts(channel_id, limit=20):
     
     return posts
 
-# OPTIMIZED SEARCH WITH CACHE AND FLOOD PROTECTION
+# ENHANCED SEARCH WITH REDIS CACHING
 async def search_movies_live(query, limit=12, page=1):
     offset = (page - 1) * limit
     
-    cache_key = f"{query}_{page}_{limit}"
-    if cache_key in movie_db['search_cache']:
-        data, timestamp = movie_db['search_cache'][cache_key]
-        if (datetime.now() - timestamp).seconds < 300:
-            return data
+    # Try Redis cache first
+    cache_key = f"search:{query}:{page}:{limit}"
+    if redis_cache.enabled:
+        cached_data = await redis_cache.get(cache_key)
+        if cached_data:
+            try:
+                result_data = json.loads(cached_data)
+                logger.info(f"✅ Redis cache HIT for: {query}")
+                return result_data
+            except Exception as e:
+                logger.warning(f"Redis cache parse error: {e}")
+    
+    movie_db['stats']['redis_misses'] += 1
+    logger.info(f"❌ Redis cache MISS for: {query}")
     
     query_lower = query.lower()
     posts_dict = {}
@@ -1071,7 +1193,13 @@ async def search_movies_live(query, limit=12, page=1):
         }
     }
     
+    # Cache in Redis with 1 hour expiration
+    if redis_cache.enabled:
+        await redis_cache.set(cache_key, json.dumps(result_data, default=str), expire=3600)
+    
+    # Also update in-memory cache
     movie_db['search_cache'][cache_key] = (result_data, datetime.now())
+    
     return result_data
 
 # OPTIMIZED HOME MOVIES WITH CONCURRENT POSTER FETCHING
@@ -1123,16 +1251,21 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v6.0 - SMART INDEXING',
+        'service': 'SK4FiLM v7.0 - ENHANCED INDEXING',
         'database': {
             'total_files': tf, 
             'video_files': video_files,
             'thumbnails': thumbnails,
-            'mode': 'SMART (NEW FILES ONLY)'
+            'mode': 'ENHANCED (NEW FILES + REDIS)'
+        },
+        'cache': {
+            'redis_enabled': redis_cache.enabled,
+            'redis_hits': movie_db['stats']['redis_hits'],
+            'redis_misses': movie_db['stats']['redis_misses']
         },
         'bot_status': 'online' if bot_started else 'starting',
         'user_session': 'ready' if user_session_ready else 'flood_wait',
-        'features': 'SMART INDEXING + VIDEO THUMBNAILS + FLOOD PROTECTION'
+        'features': 'REDIS CACHE + BATCH THUMBNAILS + SMART INDEXING'
     })
 
 @app.route('/health')
@@ -1140,6 +1273,7 @@ async def health():
     return jsonify({
         'status': 'ok' if bot_started else 'starting',
         'user_session': user_session_ready,
+        'redis_enabled': redis_cache.enabled,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -1218,7 +1352,12 @@ async def api_index_status():
             'thumbnail_coverage': f"{(video_thumbnails/video_files*100):.1f}%" if video_files > 0 else "0%",
             'last_indexed': last_indexed,
             'bot_status': 'online' if bot_started else 'starting',
-            'user_session': user_session_ready
+            'user_session': user_session_ready,
+            'redis_enabled': redis_cache.enabled,
+            'cache_stats': {
+                'redis_hits': movie_db['stats']['redis_hits'],
+                'redis_misses': movie_db['stats']['redis_misses']
+            }
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1235,7 +1374,7 @@ async def api_movies():
             'movies': movies, 
             'total': len(movies), 
             'bot_username': Config.BOT_USERNAME,
-            'mode': 'SMART_INDEXING'
+            'mode': 'ENHANCED_INDEXING'
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1259,7 +1398,32 @@ async def api_search():
             'results': result['results'], 
             'pagination': result['pagination'], 
             'bot_username': Config.BOT_USERNAME,
-            'mode': 'SMART_INDEXING'
+            'cache': 'redis' if redis_cache.enabled else 'memory',
+            'mode': 'ENHANCED_INDEXING'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/clear_cache')
+async def api_clear_cache():
+    try:
+        # Clear Redis cache
+        if redis_cache.enabled:
+            await redis_cache.clear_search_cache()
+        
+        # Clear memory cache
+        movie_db['search_cache'].clear()
+        movie_db['poster_cache'].clear()
+        movie_db['title_cache'].clear()
+        
+        movie_db['stats']['redis_hits'] = 0
+        movie_db['stats']['redis_misses'] = 0
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'All caches cleared successfully',
+            'redis_cleared': redis_cache.enabled,
+            'memory_cleared': True
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1512,7 +1676,8 @@ async def setup_bot():
             "• 🎥 Latest movies & shows\n" 
             "• 📺 Multiple quality options\n"
             "• ⚡ Fast downloads\n"
-            "• 🖼️ Video thumbnails\n\n"
+            "• 🖼️ Video thumbnails\n"
+            "• 🔍 Redis-cached search\n\n"
             "👇 **Get started below:**"
         )
         
@@ -1572,7 +1737,7 @@ async def setup_bot():
         except Exception as e:
             await callback_query.answer("Error checking verification", show_alert=True)
     
-    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify']))
+    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify', 'clear_cache']))
     async def text_handler(client, message):
         user_name = message.from_user.first_name or "User"
         await message.reply_text(
@@ -1663,9 +1828,33 @@ async def setup_bot():
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
-        msg = await message.reply_text("🔄 **Starting SMART background indexing (NEW FILES ONLY)...**")
+        msg = await message.reply_text("🔄 **Starting ENHANCED background indexing (NEW FILES ONLY)...**")
         asyncio.create_task(index_files_background())
-        await msg.edit_text("✅ **Smart indexing started in background!**\n\nOnly new files will be indexed. Check /stats for progress.")
+        await msg.edit_text("✅ **Enhanced indexing started in background!**\n\nOnly new files will be indexed with batch thumbnail processing. Check /stats for progress.")
+    
+    @bot.on_message(filters.command("clear_cache") & filters.user(Config.ADMIN_IDS))
+    async def clear_cache_handler(client, message):
+        msg = await message.reply_text("🧹 **Clearing all caches...**")
+        
+        # Clear Redis cache
+        redis_cleared = await redis_cache.clear_search_cache()
+        
+        # Clear memory cache
+        movie_db['search_cache'].clear()
+        movie_db['poster_cache'].clear()
+        movie_db['title_cache'].clear()
+        
+        movie_db['stats']['redis_hits'] = 0
+        movie_db['stats']['redis_misses'] = 0
+        
+        await msg.edit_text(
+            f"✅ **All caches cleared!**\n\n"
+            f"• Redis cache: {'✅ Cleared' if redis_cleared else '❌ Failed'}\n"
+            f"• Memory cache: ✅ Cleared\n"
+            f"• Search cache: ✅ Cleared\n"
+            f"• Poster cache: ✅ Cleared\n\n"
+            f"Next search will be fresh from database."
+        )
     
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
@@ -1681,7 +1870,7 @@ async def setup_bot():
         last_msg_id = last_indexed['message_id'] if last_indexed else 'None'
         
         stats_text = (
-            f"📊 **SK4FiLM SMART STATISTICS**\n\n"
+            f"📊 **SK4FiLM ENHANCED STATISTICS**\n\n"
             f"📁 **Total Files:** {tf}\n"
             f"🎥 **Video Files:** {video_files}\n"
             f"🖼️ **Video Thumbnails:** {video_thumbnails}\n"
@@ -1691,7 +1880,8 @@ async def setup_bot():
             f"🔴 **Live Posts:** Active\n"
             f"🤖 **Bot Status:** Online\n"
             f"👤 **User Session:** {'Ready' if user_session_ready else 'Flood Wait'}\n"
-            f"🔧 **Indexing Mode:** SMART (New Files Only)\n\n"
+            f"🔧 **Indexing Mode:** ENHANCED (New Files Only)\n"
+            f"🔍 **Redis Cache:** {'✅ Enabled' if redis_cache.enabled else '❌ Disabled'}\n\n"
             f"**🎨 Poster Sources:**\n"
             f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
             f"• IMDb: {movie_db['stats']['imdb']}\n"
@@ -1702,11 +1892,15 @@ async def setup_bot():
             f"• Custom: {movie_db['stats']['custom']}\n"
             f"• Cache Hits: {movie_db['stats']['cache_hits']}\n"
             f"• Video Thumbnails: {movie_db['stats']['video_thumbnails']}\n\n"
+            f"**🔍 Redis Cache Stats:**\n"
+            f"• Hits: {movie_db['stats']['redis_hits']}\n"
+            f"• Misses: {movie_db['stats']['redis_misses']}\n"
+            f"• Hit Rate: {(movie_db['stats']['redis_hits']/(movie_db['stats']['redis_hits'] + movie_db['stats']['redis_misses'])*100):.1f}%\n\n"
             f"**⚡ Features:**\n"
-            f"• ✅ Smart file indexing (NEW ONLY)\n"
-            f"• ✅ Video thumbnail extraction\n"
-            f"• ✅ Enhanced flood protection\n"
-            f"• ✅ Rate limiting active\n\n"
+            f"• ✅ Enhanced file indexing (NEW ONLY)\n"
+            f"• ✅ Batch thumbnail processing\n"
+            f"• ✅ Redis search caching\n"
+            f"• ✅ Enhanced flood protection\n\n"
             f"**🔗 Verification:** {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}"
         )
         await message.reply_text(stats_text)
@@ -1726,7 +1920,7 @@ async def user_session_recovery():
         user_session_ready = True
         logger.info("✅ User session initialized successfully!")
         
-        # Start SMART background indexing with user session (only new files)
+        # Start ENHANCED background indexing with user session (only new files)
         asyncio.create_task(index_files_background())
     except Exception as e:
         logger.error(f"❌ User session initialization failed: {e}")
@@ -1739,10 +1933,13 @@ async def init():
     global User, bot, bot_started, user_session_ready
     
     try:
-        logger.info("🚀 INITIALIZING SMART SK4FiLM BOT...")
+        logger.info("🚀 INITIALIZING ENHANCED SK4FiLM BOT...")
         
         # Initialize MongoDB first
         await init_mongodb()
+        
+        # Initialize Redis cache
+        await redis_cache.init_redis()
         
         # Initialize bot (this should work fine)
         bot = Client(
@@ -1774,7 +1971,7 @@ async def init():
             user_session_ready = True
             logger.info("✅ User session initialized immediately!")
             
-            # Start SMART background indexing (only new files)
+            # Start ENHANCED background indexing (only new files)
             asyncio.create_task(index_files_background())
         except FloodWait as e:
             logger.warning(f"⚠️ User session flood wait detected: {e.value}s")
@@ -1795,22 +1992,23 @@ async def init():
 
 async def main():
     logger.info("="*60)
-    logger.info("🎬 SK4FiLM v6.0 - SMART INDEXING & THUMBNAILS")
-    logger.info("✅ New Files Only | Video Thumbnail Extraction")
-    logger.info("✅ Enhanced Flood Protection | Progressive Backoff")
+    logger.info("🎬 SK4FiLM v7.0 - ENHANCED INDEXING & CACHING")
+    logger.info("✅ Redis Search Caching | Batch Thumbnail Processing")
+    logger.info("✅ New Files Only | Enhanced Flood Protection")
+    logger.info(f"✅ Redis: {'ENABLED' if redis_cache.enabled else 'DISABLED'}")
     logger.info(f"✅ Verification: {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}")
     logger.info("="*60)
     
     success = await init()
     if not success:
-        logger.error("❌ Failed to initialize smart bot")
+        logger.error("❌ Failed to initialize enhanced bot")
         return
     
     config = HyperConfig()
     config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     config.loglevel = "warning"
     
-    logger.info(f"🌐 SMART web server starting on port {Config.WEB_SERVER_PORT}...")
+    logger.info(f"🌐 ENHANCED web server starting on port {Config.WEB_SERVER_PORT}...")
     await serve(app, config)
 
 if __name__ == "__main__":
