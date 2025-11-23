@@ -99,26 +99,33 @@ class RedisCache:
     
     async def init_redis(self):
         try:
-            # Method 1: Direct connection optimized for Redis Labs
+            # Use the exact working format from your example
             self.client = redis.Redis(
                 host='redis-17119.c283.us-east-1-4.ec2.cloud.redislabs.com',
                 port=17119,
-                password='EjtnvQpIkLv5Z3g9Fr4FQDLfmLKZVqML',
-                ssl=True,
-                ssl_cert_reqs=None,  # Critical for Redis Labs
+                username="default",  # ← THIS WAS MISSING
+                password="EjtnvQpIkLv5Z3g9Fr4FQDLfmLKZVqML",
                 decode_responses=True,
                 encoding='utf-8',
                 socket_connect_timeout=10,
                 socket_timeout=10,
                 max_connections=10,
-                health_check_interval=30,
-                retry_on_timeout=True
+                health_check_interval=30
             )
             
-            # Test connection with timeout
-            await asyncio.wait_for(self.client.ping(), timeout=5.0)
+            # Test connection
+            await self.client.ping()
             self.enabled = True
             logger.info("✅ Redis connected successfully to Redis Labs!")
+            
+            # Test basic operations
+            await self.client.set('connection_test', 'success', ex=60)
+            test_result = await self.client.get('connection_test')
+            if test_result == 'success':
+                logger.info("✅ Redis basic operations test: PASSED")
+            else:
+                logger.warning("⚠️ Redis connected but operations test failed")
+            
             return True
             
         except Exception as e:
