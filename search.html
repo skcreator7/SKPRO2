@@ -322,6 +322,25 @@
             .quality-buttons-row {flex-direction:column;}
             .quality-option {width:100%;}
         }
+        
+        /* Cache Status Indicator */
+        .cache-indicator {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 204, 255, 0.9);
+            color: #0a0a0f;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .cache-indicator.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -337,6 +356,9 @@
         </button>
     </div>
 </nav>
+
+<!-- Cache Status Indicator -->
+<div class="cache-indicator" id="cacheIndicator"></div>
 
 <!-- Main Content -->
 <div class="container my-4">
@@ -381,9 +403,14 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Ad Script
+(function(s){s.dataset.zone='10224992',s.src='https://groleegni.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+
 const API_BASE = 'https://sk4film.koyeb.app';
 const RESULTS_PER_PAGE = 10;
 const AD_LINK = 'https://otieu.com/4/10220520'; // Your ad link
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes cache duration
+
 let currentQuery = '';
 let currentPage = 1;
 let BOT_USERNAME = 'sk4filmbot';
@@ -392,6 +419,64 @@ const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
 const searchInput = document.getElementById('searchInput');
 const searchButton = document.getElementById('searchButton');
+const cacheIndicator = document.getElementById('cacheIndicator');
+
+// Enhanced Cache Implementation
+const searchCache = {
+    storage: new Map(),
+    
+    set(key, data) {
+        this.storage.set(key, {
+            data: data,
+            timestamp: Date.now()
+        });
+        this.cleanup();
+        this.showIndicator('Cached: ' + key.split('-')[0]);
+    },
+    
+    get(key) {
+        const cached = this.storage.get(key);
+        if (!cached) return null;
+        
+        // Check if cache is still valid
+        if (Date.now() - cached.timestamp > CACHE_DURATION) {
+            this.storage.delete(key);
+            return null;
+        }
+        
+        this.showIndicator('Loaded from cache: ' + key.split('-')[0]);
+        return cached.data;
+    },
+    
+    cleanup() {
+        const now = Date.now();
+        for (let [key, value] of this.storage.entries()) {
+            if (now - value.timestamp > CACHE_DURATION) {
+                this.storage.delete(key);
+            }
+        }
+    },
+    
+    clear() {
+        this.storage.clear();
+        this.showIndicator('Cache cleared');
+    },
+    
+    showIndicator(message) {
+        cacheIndicator.textContent = message;
+        cacheIndicator.classList.add('show');
+        setTimeout(() => {
+            cacheIndicator.classList.remove('show');
+        }, 2000);
+    },
+    
+    getStats() {
+        return {
+            size: this.storage.size,
+            keys: Array.from(this.storage.keys())
+        };
+    }
+};
 
 // Initialize the page
 window.addEventListener('DOMContentLoaded', () => {
@@ -424,6 +509,18 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+    
+    // Clear cache on page refresh with Ctrl+F5
+    window.addEventListener('beforeunload', () => {
+        if (performance.navigation.type === 1) { // Page reload
+            sessionStorage.setItem('clearCacheOnLoad', 'true');
+        }
+    });
+    
+    if (sessionStorage.getItem('clearCacheOnLoad') === 'true') {
+        searchCache.clear();
+        sessionStorage.removeItem('clearCacheOnLoad');
+    }
 });
 
 async function performSearch(page = 1) {
@@ -438,13 +535,31 @@ async function performSearch(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
     
+    // Show loading state
     resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "' + escapeHtml(currentQuery) + '"...</p></div>';
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
     
+    // Check cache first
+    const cacheKey = `${currentQuery}-${page}`;
+    const cachedData = searchCache.get(cacheKey);
+    
+    if (cachedData) {
+        displayResults(cachedData.results, cachedData.pagination);
+        return;
+    }
+    
     try {
         const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-        const response = await fetch(apiUrl, { method: 'GET', mode: 'cors', headers: { 'Content-Type': 'application/json' } });
+        const response = await fetch(apiUrl, { 
+            method: 'GET', 
+            mode: 'cors', 
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache'
+            } 
+        });
+        
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         
@@ -452,6 +567,14 @@ async function performSearch(page = 1) {
             BOT_USERNAME = data.bot_username || BOT_USERNAME;
             // Sort results with exact matches first
             const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
+            
+            // Cache the successful results
+            searchCache.set(cacheKey, {
+                results: sortedResults,
+                pagination: data.pagination,
+                bot_username: BOT_USERNAME
+            });
+            
             displayResults(sortedResults, data.pagination);
         } else {
             showError(data.message || "Search failed");
@@ -704,6 +827,9 @@ window.addEventListener('popstate', function() {
         performSearch(page);
     }
 });
+
+// Cache management functions (for debugging)
+window.searchCache = searchCache;
 </script>
 </body>
 </html>
