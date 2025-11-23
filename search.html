@@ -1,709 +1,1546 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-    <title>Search Movies - SK4FiLM</title>
-    <meta name="description" content="Search and download latest movies in HD quality">
-    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #ff0000;
-            --secondary-color: #0066ff;
-            --accent-color: #00ccff;
-            --bg-dark: #0a0a0f;
-            --card-bg: rgba(30, 41, 59, 0.9);
-        }
-        body {
-            font-family: 'Josefin Sans', sans-serif;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
-            color: #f8f9fa;
-            min-height: 100vh;
-            padding-top: 80px;
-        }
-        /* Navbar */
-        .navbar {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .navbar-brand {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 1.5rem;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .logo-img {
-            height: 40px;
-            width: 40px;
-            border-radius: 8px;
-        }
-        .btn-back-home {
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            padding: 8px 20px;
-            font-weight: 600;
-            border-radius: 20px;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        .btn-back-home:hover {
-            transform: scale(1.05);
-        }
-        
-        /* Search Bar */
-        .search-container {
-            margin: 2rem 0;
-            position: relative;
-        }
-        .search-box {
-            background: rgba(15, 23, 42, 0.8);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            padding: 12px 25px;
-            color: white;
-            font-size: 1.1rem;
-            width: 100%;
-            transition: all 0.3s ease;
-        }
-        .search-box:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.2);
-        }
-        .search-btn {
-            position: absolute;
-            right: 5px;
-            top: 5px;
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            border-radius: 50px;
-            width: 50px;
-            height: 50px;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        .search-btn:hover {
-            transform: scale(1.05);
-        }
-        
-        .result-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .result-title {
-            color: var(--accent-color);
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            line-height: 1.3;
-        }
-        
-        /* Video Thumbnail Section - सिर्फ Video Files के लिए */
-        .video-thumbnail-section {
-            margin-bottom: 1.5rem;
-            display: none; /* Default hidden */
-        }
-        .video-thumbnail-section.has-thumbnail {
-            display: block; /* सिर्फ thumbnail होने पर show */
-        }
-        .video-thumbnail-container {
-            position: relative;
-            border-radius: 10px;
-            overflow: hidden;
-            cursor: pointer;
-            height: 200px;
-        }
-        .video-thumbnail-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-        .video-thumbnail-container:hover img {
-            transform: scale(1.05);
-        }
-        .play-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .video-thumbnail-container:hover .play-overlay {
-            opacity: 1;
-        }
-        .play-button {
-            width: 70px;
-            height: 70px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-            transition: transform 0.3s ease;
-            border: 3px solid white;
-        }
-        .play-button:hover {
-            transform: scale(1.1);
-            background: var(--secondary-color);
-        }
-        
-        .result-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        .result-actions .btn, .result-actions .btn-download-wrapper { width: 100%; }
-        .btn-watch,.btn-download-main {
-            width: 100%;
-            padding: 12px 20px;
-            font-weight: 600;
-            border-radius: 10px;
-            font-size: 1rem;
-            border: none;
-            transition: all 0.3s ease;
-        }
-        .btn-watch { background:linear-gradient(45deg,#667eea,#764ba2);color:white;}
-        .btn-download-main{background:linear-gradient(45deg,#28a745,#20c997);color:white;}
-        .btn-watch:hover:not(:disabled),
-        .btn-download-main:hover:not(:disabled) {
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(40,167,69,0.35);
-            color:white;
-        }
-        .btn:disabled {
-            background: #495057 !important;
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        .btn-download-wrapper {position:relative; padding:0;}
-        .quality-dropdown {
-            display: none;
-            grid-column:1/-1;
-            background:rgba(20, 30, 48, 0.98);
-            border:2px solid var(--accent-color);
-            border-radius:10px;
-            padding:15px;
-            margin-top:10px;
-            animation:slideDown 0.3s ease;
-        }
-        .quality-dropdown.show {display:block;}
-        @keyframes slideDown {
-            from{opacity:0;transform:translateY(-10px);}
-            to{opacity:1;transform:translateY(0);}
-        }
-        .quality-buttons-row {
-            display:flex;
-            gap:10px;
-            flex-wrap:wrap;
-            justify-content:center;
-        }
-        .quality-option {
-            display:inline-block;
-            padding:10px 20px;
-            background:linear-gradient(45deg,#28a745,#20c997);
-            color:white;
-            text-decoration:none;
-            border-radius:8px;
-            font-weight:600;
-            font-size:0.95rem;
-            text-align:center;
-            white-space:nowrap;
-            transition:all 0.3s ease;
-        }
-        .quality-option:hover {transform:scale(1.05);}
-        .quality-option small {
-            display:block;
-            font-size:0.75rem;
-            opacity:0.9;
-            margin-top:2px;
-        }
-        /* Arrow Animation */
-        .btn-download-main i.fa-chevron-down { transition: transform 0.3s ease;}
-        
-        /* Video File Badge */
-        .video-file-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--primary-color);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-        }
-        
-        /* Pagination & State */
-        .pagination {margin-top:2rem;}
-        .page-link {background:rgba(0,204,255,0.2); color:var(--accent-color); border:2px solid var(--accent-color);}
-        .page-link:hover, .page-item.active .page-link {
-            background:var(--accent-color); border-color:var(--accent-color); color:#0a0a0f;
-        }
-        .page-item.disabled .page-link {opacity:0.4;}
-        .results-info {text-align:center;color:rgba(255,255,255,0.7);margin-bottom:1rem;font-size:0.9rem;}
-        .spinner-border {width:3rem;height:3rem;border-width:0.3rem;}
-        .empty-state {text-align:center;padding:4rem 2rem;}
-        .empty-state i {font-size:4rem;color:var(--accent-color);margin-bottom:1.5rem;}
-        
-        /* Ad Container */
-        .ad-container {
-            margin: 2rem 0;
-            text-align: center;
-        }
-        .top-ad-container {
-            margin: 1rem 0 2rem 0;
-            text-align: center;
-        }
-        /* Disclaimer Styles */
-        .disclaimer {
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 2rem;
-            text-align: center;
-            color: #ff6b6b;
-            font-size: 0.9rem;
-            backdrop-filter: blur(10px);
-        }
-        .disclaimer strong {
-            color: #ff4757;
-            display: block;
-            margin-bottom: 8px;
-            font-size: 1rem;
-        }
-        @media (max-width: 768px) {
-            .result-actions{grid-template-columns: 1fr 1fr;}
-            .btn-watch, .btn-download-main {font-size: 0.9rem; padding: 10px 15px;}
-            .disclaimer {
-                margin: 2rem 1rem 0 1rem;
-                font-size: 0.85rem;
-            }
-            .top-ad-container {
-                margin: 1rem 0;
-            }
-            .video-thumbnail-container {
-                height: 150px;
-            }
-            .play-button {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
-            }
-        }
-        @media (max-width: 576px) {
-            .quality-buttons-row {flex-direction:column;}
-            .quality-option {width:100%;}
-        }
-    </style>
-</head>
-<body>
-<!-- Navbar -->
-<nav class="navbar fixed-top">
-    <div class="container d-flex align-items-center justify-content-between">
-        <a href="index.html" class="navbar-brand">
-            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
-            SK4FiLM
-        </a>
-        <button class="btn-back-home" onclick="window.location.href='index.html'">
-            <i class="fas fa-arrow-left me-2"></i>Back Home
-        </button>
-    </div>
-</nav>
+import asyncio
+import os
+import logging
+from datetime import datetime, timedelta
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import UserNotParticipant, ChatAdminRequired, ChannelPrivate
+from quart import Quart, jsonify, request, Response
+from hypercorn.asyncio import serve
+from hypercorn.config import Config as HyperConfig
+from motor.motor_asyncio import AsyncIOMotorClient
+import html
+import re
+import math
+import aiohttp
+import urllib.parse
+import base64
+from io import BytesIO
 
-<!-- Main Content -->
-<div class="container my-4">
-    <!-- Top Ad -->
-    <div class="top-ad-container">
-        <script type="text/javascript">
-            atOptions = {
-                'key' : '567936a964b0784aedd11f237d26bee0',
-                'format' : 'iframe',
-                'height' : 250,
-                'width' : 300,
-                'params' : {}
-            };
-        </script>
-        <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-    </div>
+# FAST LOADING OPTIMIZATIONS
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logging.getLogger('asyncio').setLevel(logging.WARNING)
+logging.getLogger('pyrogram').setLevel(logging.WARNING)
+logging.getLogger('hypercorn').setLevel(logging.WARNING)
 
-    <!-- Search Bar -->
-    <div class="search-container">
-        <input type="text" id="searchInput" class="search-box" placeholder="Search for movies..." value="">
-        <button class="search-btn" id="searchButton">
-            <i class="fas fa-search"></i>
-        </button>
-    </div>
+class Config:
+    API_ID = int(os.environ.get("API_ID", "0"))
+    API_HASH = os.environ.get("API_HASH", "")
+    USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+    MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+    
+    MAIN_CHANNEL_ID = -1001891090100
+    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
+    FILE_CHANNEL_ID = -1001768249569
+    
+    MAIN_CHANNEL_LINK = "https://t.me/sk4film"
+    UPDATES_CHANNEL_LINK = "https://t.me/sk4film_Request"
+    CHANNEL_USERNAME = "sk4film"
+    
+    URL_SHORTENER_API = os.environ.get("URL_SHORTENER_API", "https://your-shortener-api.com/verify")
+    URL_SHORTENER_KEY = os.environ.get("URL_SHORTENER_KEY", "")
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "false").lower() == "true"
+    VERIFICATION_DURATION = 6 * 60 * 60
+    
+    WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
+    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
+    ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
+    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "300"))
+    WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
+    BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
+    
+    OMDB_KEYS = ["8265bd1c", "b9bd48a6", "3e7e1e9d"]
+    TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff", "8265bd1f"]
 
-    <div id="resultsInfo"></div>
-    <div id="resultsContainer"></div>
-    <div id="paginationContainer"></div>
-    
-    <!-- Bottom Ad Container -->
-    <div class="ad-container">
-        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
-    </div>
-    
-    <!-- Disclaimer Section -->
-    <div class="disclaimer">
-        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
-        This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
-    </div>
-</div>
+# FAST INITIALIZATION
+app = Quart(__name__)
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-const API_BASE = 'https://sk4film.koyeb.app';
-const RESULTS_PER_PAGE = 10;
-const AD_LINK = 'https://otieu.com/4/10220520'; // Your ad link
-let currentQuery = '';
-let currentPage = 1;
-let BOT_USERNAME = 'sk4filmbot';
-const resultsContainer = document.getElementById('resultsContainer');
-const resultsInfo = document.getElementById('resultsInfo');
-const paginationContainer = document.getElementById('paginationContainer');
-const searchInput = document.getElementById('searchInput');
-const searchButton = document.getElementById('searchButton');
+@app.after_request
+async def add_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
 
-// Initialize the page
-window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('query');
-    const page = parseInt(urlParams.get('page')) || 1;
-    
-    if (query) {
-        currentQuery = query;
-        searchInput.value = query;
-        performSearch(page);
-    }
-    
-    // Set up search button event
-    searchButton.addEventListener('click', () => {
-        const query = searchInput.value.trim();
-        if (query) {
-            currentQuery = query;
-            performSearch(1);
-        }
-    });
-    
-    // Set up enter key in search input
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const query = searchInput.value.trim();
-            if (query) {
-                currentQuery = query;
-                performSearch(1);
-            }
-        }
-    });
-});
+# GLOBAL VARIABLES - FAST ACCESS
+mongo_client = None
+db = None
+files_col = None
+verification_col = None
+User = None
+bot = None
+bot_started = False
 
-async function performSearch(page = 1) {
-    if (!currentQuery) {
-        showError("Please enter a search query");
-        return;
-    }
-    
-    currentPage = page;
-    const url = new URL(window.location);
-    url.searchParams.set('query', currentQuery);
-    url.searchParams.set('page', page);
-    window.history.pushState({}, '', url);
-    
-    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info"></div><p class="text-info mt-3">Searching for "' + escapeHtml(currentQuery) + '"...</p></div>';
-    resultsInfo.innerHTML = '';
-    paginationContainer.innerHTML = '';
-    
-    try {
-        const apiUrl = `${API_BASE}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-        const response = await fetch(apiUrl, { method: 'GET', mode: 'cors', headers: { 'Content-Type': 'application/json' } });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        
-        if (data.status === "success") {
-            BOT_USERNAME = data.bot_username || BOT_USERNAME;
-            // Sort results with exact matches first
-            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
-            displayResults(sortedResults, data.pagination);
-        } else {
-            showError(data.message || "Search failed");
-        }
-    } catch (e) {
-        showError("Connection error: " + e.message);
+# OPTIMIZED CACHE SYSTEM
+movie_db = {
+    'poster_cache': {},
+    'title_cache': {},
+    'search_cache': {},
+    'stats': {
+        'letterboxd': 0, 'imdb': 0, 'justwatch': 0, 'impawards': 0,
+        'omdb': 0, 'tmdb': 0, 'custom': 0, 'cache_hits': 0, 'video_thumbnails': 0
     }
 }
 
-function sortResultsWithExactMatchFirst(results, query) {
-    if (!results || results.length === 0) {
-        return [];
-    }
-    
-    const queryLower = query.toLowerCase().trim();
-    
-    // Create a copy of results to avoid mutating the original
-    const resultsCopy = [...results];
-    
-    // Sort results - exact matches first, then partial matches
-    resultsCopy.sort((a, b) => {
-        if (!a.title || !b.title) return 0;
-        
-        const titleALower = a.title.toLowerCase().trim();
-        const titleBLower = b.title.toLowerCase().trim();
-        
-        // Check for exact match (case insensitive)
-        const aIsExact = titleALower === queryLower;
-        const bIsExact = titleBLower === queryLower;
-        
-        // If A is exact match and B is not, A comes first
-        if (aIsExact && !bIsExact) return -1;
-        // If B is exact match and A is not, B comes first
-        if (!aIsExact && bIsExact) return 1;
-        // If both are exact matches, maintain original order
-        if (aIsExact && bIsExact) return 0;
-        
-        // Check for partial matches (title contains the query)
-        const aHasPartial = titleALower.includes(queryLower);
-        const bHasPartial = titleBLower.includes(queryLower);
-        
-        // If A has partial match and B doesn't, A comes first
-        if (aHasPartial && !bHasPartial) return -1;
-        // If B has partial match and A doesn't, B comes first
-        if (!aHasPartial && bHasPartial) return 1;
-        // If both have partial matches, maintain original order
-        if (aHasPartial && bHasPartial) return 0;
-        
-        // For titles that don't match at all, maintain original order
-        return 0;
-    });
-    
-    return resultsCopy;
-}
-
-function displayResults(results, pagination) {
-    if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
-        return;
-    }
-    
-    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
-    
-    let html = '';
-    results.forEach((result, index) => {
-        const hasPost = result.has_post !== false;
-        const hasFile = result.has_file === true;
-        const qualityOptions = result.quality_options || {};
-        const hasQualities = Object.keys(qualityOptions).length > 0;
-        const thumbnail = result.thumbnail; // ✅ Backend से सिर्फ video files के लिए thumbnail आएगा
-        const hasTelegramFile = hasFile && hasQualities;
-        
-        // Check if any quality option is a video file
-        const hasVideoFiles = Object.values(qualityOptions).some(option => option.is_video === true);
-        
-        html += `
-        <div class="result-card">
-            <h3 class="result-title">${escapeHtml(result.title)}</h3>
+# CACHE CLEANUP TASK
+async def cache_cleanup():
+    while True:
+        await asyncio.sleep(3600)  # Clean every hour
+        try:
+            current_time = datetime.now()
+            expired_keys = []
+            for key, (data, timestamp) in movie_db['poster_cache'].items():
+                if (current_time - timestamp).seconds > 3600:
+                    expired_keys.append(key)
             
-            <!-- Video Thumbnail - सिर्फ Video Files के लिए और Thumbnail Available होने पर -->
-            ${thumbnail && hasVideoFiles ? `
-                <div class="video-thumbnail-section has-thumbnail">
-                    <div class="video-thumbnail-container" onclick="triggerAdLink()">
-                        <div class="video-file-badge">
-                            <i class="fas fa-play-circle me-1"></i>VIDEO
-                        </div>
-                        <img src="${thumbnail}" alt="Movie Thumbnail" onerror="this.src='https://via.placeholder.com/300x200/1a1a2e/00ccff?text=Thumbnail+Error'">
-                        <div class="play-overlay">
-                            <div class="play-button">
-                                <i class="fas fa-play"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="text-center text-muted mt-2"><small>Click the thumbnail to watch</small></p>
-                </div>
-            ` : ''}
+            for key in expired_keys:
+                del movie_db['poster_cache'][key]
             
-            <div class="result-actions">
-                <!-- Watch Button -->
-                ${hasPost ? `
-                    <a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch">
-                        <i class="fas fa-eye me-2"></i>Watch
-                    </a>
-                ` : `<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
+            # Clear search cache more frequently (30 minutes)
+            expired_search_keys = []
+            for key, (data, timestamp) in movie_db['search_cache'].items():
+                if (current_time - timestamp).seconds > 1800:
+                    expired_search_keys.append(key)
+            
+            for key in expired_search_keys:
+                del movie_db['search_cache'][key]
                 
-                <!-- Download Button -->
-                <div class="btn-download-wrapper">
-                    ${hasFile && hasQualities ? `
-                        <button class="btn btn-download-main" onclick="toggleQuality(${index})">
-                            <i class="fas fa-download me-2"></i>Download
-                            <i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i>
-                        </button>
-                    ` : `<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
-                </div>
+            logger.info(f"🧹 Cache cleaned: {len(expired_keys)} posters, {len(expired_search_keys)} searches")
+        except Exception as e:
+            logger.error(f"Cache cleanup error: {e}")
+
+# OPTIMIZED MONGODB INIT WITH DUPLICATE KEY HANDLING
+async def init_mongodb():
+    global mongo_client, db, files_col, verification_col
+    try:
+        logger.info("🔌 MongoDB initialization...")
+        mongo_client = AsyncIOMotorClient(Config.MONGODB_URI, serverSelectionTimeoutMS=5000, maxPoolSize=10)
+        await mongo_client.admin.command('ping')
+        
+        db = mongo_client.sk4film
+        files_col = db.files
+        verification_col = db.verifications
+        
+        # FIRST CLEAN UP DUPLICATE DOCUMENTS BEFORE CREATING INDEXES
+        logger.info("🧹 Checking for duplicate documents...")
+        
+        # Find and remove duplicates based on message_id and channel_id
+        pipeline = [
+            {
+                "$group": {
+                    "_id": {"channel_id": "$channel_id", "message_id": "$message_id"},
+                    "dups": {"$push": "$_id"},
+                    "count": {"$sum": 1}
+                }
+            },
+            {
+                "$match": {
+                    "count": {"$gt": 1}
+                }
+            }
+        ]
+        
+        duplicates = await files_col.aggregate(pipeline).to_list(length=1000)
+        
+        if duplicates:
+            logger.info(f"🔄 Found {len(duplicates)} duplicate groups, cleaning up...")
+            for duplicate in duplicates:
+                # Keep the first document, remove the rest
+                keep_id = duplicate["dups"][0]
+                remove_ids = duplicate["dups"][1:]
                 
-                ${hasFile && hasQualities ? `<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>` : ''}
-            </div>
-        </div>
-        `;
-    });
-    
-    resultsContainer.innerHTML = html;
-    
-    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
-    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+                if remove_ids:
+                    await files_col.delete_many({"_id": {"$in": remove_ids}})
+                    logger.info(f"🗑️ Removed {len(remove_ids)} duplicates for message {duplicate['_id']['message_id']}")
+        
+        # NOW CREATE INDEXES SAFELY
+        logger.info("🔧 Creating indexes...")
+        
+        existing_indexes = await files_col.index_information()
+        
+        if 'title_text' not in existing_indexes:
+            try:
+                await files_col.create_index([("title", "text")])
+                logger.info("✅ Created title text index")
+            except Exception as e:
+                logger.warning(f"⚠️ Title text index creation failed: {e}")
+        
+        if 'normalized_title_1' not in existing_indexes:
+            try:
+                await files_col.create_index([("normalized_title", 1)])
+                logger.info("✅ Created normalized_title index")
+            except Exception as e:
+                logger.warning(f"⚠️ Normalized title index creation failed: {e}")
+        
+        # CREATE UNIQUE INDEX WITH DROP DUPLICATES OPTION
+        if 'msg_ch_unique_idx' not in existing_indexes:
+            try:
+                await files_col.create_index(
+                    [("message_id", 1), ("channel_id", 1)], 
+                    unique=True,
+                    name="msg_ch_unique_idx"
+                )
+                logger.info("✅ Created unique message_channel index")
+            except Exception as e:
+                logger.warning(f"⚠️ Unique index creation failed, using non-unique: {e}")
+                # Fallback to non-unique index
+                try:
+                    await files_col.create_index(
+                        [("message_id", 1), ("channel_id", 1)], 
+                        name="msg_ch_idx"
+                    )
+                    logger.info("✅ Created non-unique message_channel index")
+                except Exception as e2:
+                    logger.error(f"❌ Non-unique index also failed: {e2}")
+        
+        if 'indexed_at_-1' not in existing_indexes:
+            try:
+                await files_col.create_index([("indexed_at", -1)])
+                logger.info("✅ Created indexed_at index")
+            except Exception as e:
+                logger.warning(f"⚠️ Indexed_at index creation failed: {e}")
+        
+        # Verification collection indexes
+        try:
+            await verification_col.create_index([("user_id", 1)], unique=True)
+            logger.info("✅ Created user_id index for verification")
+        except Exception as e:
+            logger.warning(f"⚠️ Verification index creation failed: {e}")
+        
+        logger.info("✅ MongoDB OK - Optimized and Cleaned")
+        return True
+    except Exception as e:
+        logger.error(f"❌ MongoDB: {e}")
+        return False
 
-function triggerAdLink() {
-    // Open ad link in new tab
-    window.open(AD_LINK, '_blank');
-}
+# OPTIMIZED TITLE NORMALIZATION
+def normalize_title(title):
+    if not title:
+        return ""
+    # FAST NORMALIZATION - FEWER REGEX OPERATIONS
+    normalized = title.lower().strip()
+    normalized = re.sub(r'\b(19|20)\d{2}\b', '', normalized)
+    normalized = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv)\b', '', normalized, flags=re.IGNORECASE)
+    return ' '.join(normalized.split()).strip()
 
-function toggleQuality(index) {
-    const dropdown = document.getElementById(`quality-${index}`);
-    const arrow = document.getElementById(`arrow-${index}`);
+# OPTIMIZED TITLE EXTRACTION
+def extract_title_smart(text):
+    if not text or len(text) < 10:
+        return None
     
-    // Close all other dropdowns
-    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
-        if (el.id !== `quality-${index}`) {
-            el.classList.remove('show');
-            const otherA = document.getElementById(`arrow-${i}`);
-            if (otherA) otherA.style.transform = 'rotate(0deg)';
-        }
-    });
+    # CACHE CHECK
+    text_hash = hash(text[:200])  # First 200 chars for cache key
+    if text_hash in movie_db['title_cache']:
+        return movie_db['title_cache'][text_hash]
     
-    // Toggle current dropdown
-    dropdown.classList.toggle('show');
-    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
-}
+    try:
+        lines = [l.strip() for l in text.split('\n') if l.strip()]
+        if not lines:
+            return None
+        
+        first_line = lines[0]
+        
+        # PRIORITIZED PATTERN MATCHING
+        patterns = [
+            (r'🎬\s*([^\n\-\(]{3,60})', 1),
+            (r'^([^\(\n]{3,60})\s*\(\d{4}\)', 1),
+            (r'^([^\-\n]{3,60})\s*-', 1)
+        ]
+        
+        for pattern, group in patterns:
+            match = re.search(pattern, first_line)
+            if match:
+                title = match.group(group).strip()
+                title = re.sub(r'\s+', ' ', title)
+                if 3 <= len(title) <= 60:
+                    movie_db['title_cache'][text_hash] = title
+                    return title
+        
+        # FALLBACK
+        if len(first_line) >= 3 and len(first_line) <= 60:
+            title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hevc|x264|x265)\b', '', first_line, flags=re.IGNORECASE)
+            title = ' '.join(title.split()).strip()
+            if 3 <= len(title) <= 60:
+                movie_db['title_cache'][text_hash] = title
+                return title
+    except:
+        pass
+    
+    movie_db['title_cache'][text_hash] = None
+    return None
 
-function generateQualityOptions(qualityOptions) {
-    if (!qualityOptions || Object.keys(qualityOptions).length === 0) return '<p class="text-center text-muted mb-0">No files available</p>';
+# OPTIMIZED FILE TITLE EXTRACTION
+def extract_title_from_file(msg):
+    try:
+        if msg.caption:
+            t = extract_title_smart(msg.caption)
+            if t:
+                return t
+        
+        fn = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else None)
+        if fn:
+            name = fn.rsplit('.', 1)[0]
+            name = re.sub(r'[\._\-]', ' ', name)
+            name = re.sub(r'(720p|1080p|480p|2160p|HDRip|WEB|BluRay|x264|x265|HEVC)', '', name, flags=re.IGNORECASE)
+            name = ' '.join(name.split()).strip()
+            if 4 <= len(name) <= 50:
+                return name
+    except:
+        pass
+    return None
+
+# FAST UTILITY FUNCTIONS
+def format_size(size):
+    if not size:
+        return "Unknown"
+    if size < 1024*1024:
+        return f"{size/1024:.1f} KB"
+    elif size < 1024*1024*1024:
+        return f"{size/(1024*1024):.1f} MB"
+    else:
+        return f"{size/(1024*1024*1024):.2f} GB"
+
+def detect_quality(filename):
+    if not filename:
+        return "480p"
+    fl = filename.lower()
+    is_hevc = 'hevc' in fl or 'x265' in fl
+    if '2160p' in fl or '4k' in fl:
+        return "2160p HEVC" if is_hevc else "2160p"
+    elif '1080p' in fl:
+        return "1080p HEVC" if is_hevc else "1080p"
+    elif '720p' in fl:
+        return "720p HEVC" if is_hevc else "720p"
+    elif '480p' in fl:
+        return "480p HEVC" if is_hevc else "480p"
+    return "480p"
+
+def format_post(text):
+    if not text:
+        return ""
+    text = html.escape(text)
+    text = re.sub(r'(https?://[^\s]+)', r'<a href="\1" target="_blank" style="color:#00ccff">\1</a>', text)
+    return text.replace('\n', '<br>')
+
+def channel_name(cid):
+    names = {
+        -1001891090100: "SK4FiLM Main", 
+        -1002024811395: "SK4FiLM Updates", 
+        -1001768249569: "SK4FiLM Files"
+    }
+    return names.get(cid, f"Channel {cid}")
+
+def is_new(date):
+    try:
+        if isinstance(date, str):
+            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+        hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
+        return hours <= 48
+    except:
+        return False
+
+def is_video_file(file_name):
+    if not file_name:
+        return False
+    video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.mpg', '.mpeg']
+    file_name_lower = file_name.lower()
+    return any(file_name_lower.endswith(ext) for ext in video_extensions)
+
+# OPTIMIZED THUMBNAIL EXTRACTION
+async def extract_video_thumbnail(user_client, message):
+    try:
+        if message.video:
+            thumbnail = message.video.thumbs[0] if message.video.thumbs else None
+            if thumbnail:
+                thumbnail_path = await user_client.download_media(thumbnail.file_id, in_memory=True)
+                if thumbnail_path:
+                    thumbnail_data = base64.b64encode(thumbnail_path.getvalue()).decode('utf-8')
+                    thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
+                    movie_db['stats']['video_thumbnails'] += 1
+                    return thumbnail_url
+        return None
+    except Exception as e:
+        return None
+
+async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
+    try:
+        msg = await user_client.get_messages(channel_id, message_id)
+        if not msg or (not msg.video and not msg.document):
+            return None
+        return await extract_video_thumbnail(user_client, msg)
+    except Exception as e:
+        return None
+
+# OPTIMIZED VERIFICATION SYSTEM
+async def check_url_shortener_verification(user_id):
+    if not Config.VERIFICATION_REQUIRED:
+        return True, "verification_not_required"
     
-    let html = '<div class="quality-buttons-row">';
-    ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'].forEach(quality => {
-        if (qualityOptions[quality]) {
-            const f = qualityOptions[quality];
-            const fileId = f.file_id;
-            const fileSize = formatSize(f.file_size);
-            const isVideo = f.is_video === true;
+    try:
+        verification = await verification_col.find_one({"user_id": user_id})
+        if verification:
+            verified_at = verification.get('verified_at')
+            if isinstance(verified_at, datetime):
+                time_elapsed = (datetime.now() - verified_at).total_seconds()
+                if time_elapsed < Config.VERIFICATION_DURATION:
+                    return True, "verified"
+                else:
+                    await verification_col.delete_one({"user_id": user_id})
+                    return False, "expired"
+        return False, "not_verified"
+    except Exception as e:
+        return False, "error"
+
+async def verify_user_with_url_shortener(user_id, verification_url=None):
+    if not Config.VERIFICATION_REQUIRED:
+        return True, "verification_not_required"
+    
+    try:
+        if not verification_url:
+            verification_url = await generate_verification_url(user_id)
+        
+        async with aiohttp.ClientSession() as session:
+            payload = {'user_id': user_id, 'verification_url': verification_url, 'api_key': Config.URL_SHORTENER_KEY}
+            async with session.post(Config.URL_SHORTENER_API, json=payload, timeout=5) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    if result.get('verified') == True:
+                        await verification_col.update_one(
+                            {"user_id": user_id},
+                            {"$set": {"verified_at": datetime.now(), "verification_url": verification_url, "verified_by": "url_shortener"}},
+                            upsert=True
+                        )
+                        return True, "verified"
+                    else:
+                        return False, result.get('message', 'verification_failed')
+                else:
+                    return False, "api_error"
+    except Exception as e:
+        return False, "error"
+
+async def generate_verification_url(user_id):
+    base_url = Config.WEBSITE_URL or Config.BACKEND_URL
+    verification_token = f"verify_{user_id}_{int(datetime.now().timestamp())}"
+    return f"{base_url}/verify?token={verification_token}&user_id={user_id}"
+
+# OPTIMIZED BACKGROUND INDEXING WITH DUPLICATE PROTECTION
+async def index_files_background():
+    if not User or files_col is None:
+        return
+    
+    logger.info("📁 Starting OPTIMIZED background indexing...")
+    
+    try:
+        count = 0
+        video_files_count = 0
+        batch = []
+        batch_size = 100
+        
+        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=2000):
+            if msg.document or msg.video:
+                title = extract_title_from_file(msg)
+                if title:
+                    file_id = msg.document.file_id if msg.document else msg.video.file_id
+                    file_size = msg.document.file_size if msg.document else (msg.video.file_size if msg.video else 0)
+                    file_name = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
+                    quality = detect_quality(file_name)
+                    
+                    file_is_video = is_video_file(file_name)
+                    thumbnail_url = None
+                    
+                    if file_is_video:
+                        video_thumbnail = await extract_video_thumbnail(User, msg)
+                        if video_thumbnail:
+                            thumbnail_url = video_thumbnail
+                        else:
+                            async with aiohttp.ClientSession() as session:
+                                poster_data = await get_poster_guaranteed(title, session)
+                            thumbnail_url = poster_data['poster_url'] if poster_data else None
+                        video_files_count += 1
+                    
+                    # PREVENT DUPLICATES IN BATCH
+                    existing_in_batch = any(
+                        doc.get('channel_id') == Config.FILE_CHANNEL_ID and 
+                        doc.get('message_id') == msg.id 
+                        for doc in batch
+                    )
+                    
+                    if not existing_in_batch:
+                        batch.append({
+                            'channel_id': Config.FILE_CHANNEL_ID,
+                            'message_id': msg.id,
+                            'title': title,
+                            'normalized_title': normalize_title(title),
+                            'file_id': file_id,
+                            'quality': quality,
+                            'file_size': file_size,
+                            'file_name': file_name,
+                            'caption': msg.caption or '',
+                            'date': msg.date,
+                            'indexed_at': datetime.now(),
+                            'thumbnail': thumbnail_url,
+                            'is_video_file': file_is_video,
+                            'thumbnail_source': 'video_direct' if video_thumbnail else 'poster_api'
+                        })
+                        
+                        count += 1
+                    
+                    if len(batch) >= batch_size:
+                        try:
+                            for doc in batch:
+                                # USE UPSERT TO PREVENT DUPLICATES
+                                await files_col.update_one(
+                                    {
+                                        'channel_id': doc['channel_id'], 
+                                        'message_id': doc['message_id']
+                                    },
+                                    {'$set': doc},
+                                    upsert=True
+                                )
+                            logger.info(f"    ✅ Batch indexed: {count} files")
+                            batch = []
+                        except Exception as e:
+                            logger.error(f"Batch error: {e}")
+                            batch = []
+        
+        if batch:
+            try:
+                for doc in batch:
+                    await files_col.update_one(
+                        {
+                            'channel_id': doc['channel_id'], 
+                            'message_id': doc['message_id']
+                        },
+                        {'$set': doc},
+                        upsert=True
+                    )
+            except Exception as e:
+                logger.error(f"Final batch error: {e}")
+        
+        logger.info(f"✅ OPTIMIZED indexing complete: {count} files, {video_files_count} video files")
+        
+    except Exception as e:
+        logger.error(f"❌ Background indexing error: {e}")
+
+# OPTIMIZED POSTER FETCHING WITH CONCURRENT REQUESTS
+async def get_poster_letterboxd(title, session):
+    try:
+        clean_title = re.sub(r'[^\w\s]', '', title).strip()
+        slug = clean_title.lower().replace(' ', '-')
+        slug = re.sub(r'-+', '-', slug)
+        
+        patterns = [
+            f"https://letterboxd.com/film/{slug}/",
+            f"https://letterboxd.com/film/{slug}-2024/",
+            f"https://letterboxd.com/film/{slug}-2023/",
+        ]
+        
+        for url in patterns:
+            try:
+                async with session.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
+                    if r.status == 200:
+                        html_content = await r.text()
+                        poster_patterns = [
+                            r'<meta property="og:image" content="([^"]+)"',
+                            r'<img[^>]*class="[^"]*poster[^"]*"[^>]*src="([^"]+)"',
+                        ]
+                        
+                        for pattern in poster_patterns:
+                            poster_match = re.search(pattern, html_content)
+                            if poster_match:
+                                poster_url = poster_match.group(1)
+                                if poster_url and poster_url.startswith('http'):
+                                    if 'cloudfront.net' in poster_url:
+                                        poster_url = poster_url.replace('-0-500-0-750', '-0-1000-0-1500')
+                                    elif 's.ltrbxd.com' in poster_url:
+                                        poster_url = poster_url.replace('/width/500/', '/width/1000/')
+                                    
+                                    rating_match = re.search(r'<meta name="twitter:data2" content="([^"]+)"', html_content)
+                                    rating = rating_match.group(1) if rating_match else '0.0'
+                                    
+                                    res = {'poster_url': poster_url, 'source': 'Letterboxd', 'rating': rating}
+                                    movie_db['stats']['letterboxd'] += 1
+                                    return res
+            except:
+                continue
+        return None
+    except Exception as e:
+        return None
+
+async def get_poster_imdb(title, session):
+    try:
+        clean_title = re.sub(r'[^\w\s]', '', title).strip()
+        search_url = f"https://v2.sg.media-imdb.com/suggestion/{clean_title[0].lower()}/{urllib.parse.quote(clean_title.replace(' ', '_'))}.json"
+        
+        async with session.get(search_url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
+            if r.status == 200:
+                data = await r.json()
+                if data.get('d'):
+                    for item in data['d']:
+                        if item.get('i'):
+                            poster_url = item['i'][0] if isinstance(item['i'], list) else item['i']
+                            if poster_url and poster_url.startswith('http'):
+                                poster_url = poster_url.replace('._V1_UX128_', '._V1_UX512_')
+                                rating = str(item.get('yr', '0.0'))
+                                res = {'poster_url': poster_url, 'source': 'IMDb', 'rating': rating}
+                                movie_db['stats']['imdb'] += 1
+                                return res
+        return None
+    except Exception as e:
+        return None
+
+async def get_poster_justwatch(title, session):
+    try:
+        clean_title = re.sub(r'[^\w\s]', '', title).strip()
+        slug = clean_title.lower().replace(' ', '-')
+        slug = re.sub(r'[^\w\-]', '', slug)
+        
+        domains = ['com', 'in', 'uk']
+        
+        for domain in domains:
+            justwatch_url = f"https://www.justwatch.com/{domain}/movie/{slug}"
+            try:
+                async with session.get(justwatch_url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
+                    if r.status == 200:
+                        html_content = await r.text()
+                        poster_match = re.search(r'<meta property="og:image" content="([^"]+)"', html_content)
+                        if poster_match:
+                            poster_url = poster_match.group(1)
+                            if poster_url and poster_url.startswith('http'):
+                                poster_url = poster_url.replace('http://', 'https://')
+                                res = {'poster_url': poster_url, 'source': 'JustWatch', 'rating': '0.0'}
+                                movie_db['stats']['justwatch'] += 1
+                                return res
+            except:
+                continue
+        return None
+    except Exception as e:
+        return None
+
+async def get_poster_impawards(title, session):
+    try:
+        year_match = re.search(r'\b(19|20)\d{2}\b', title)
+        if not year_match:
+            return None
             
-            // Video file होने पर badge show करें
-            const videoBadge = isVideo ? ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : '';
+        year = year_match.group()
+        clean_title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
+        clean_title = re.sub(r'[^\w\s]', '', clean_title).strip()
+        slug = clean_title.lower().replace(' ', '_')
+        
+        formats = [
+            f"https://www.impawards.com/{year}/posters/{slug}_xlg.jpg",
+            f"https://www.impawards.com/{year}/posters/{slug}_ver7.jpg",
+            f"https://www.impawards.com/{year}/posters/{slug}.jpg",
+        ]
+        
+        for poster_url in formats:
+            try:
+                async with session.head(poster_url, timeout=3) as r:
+                    if r.status == 200:
+                        res = {'poster_url': poster_url, 'source': 'IMPAwards', 'rating': '0.0'}
+                        movie_db['stats']['impawards'] += 1
+                        return res
+            except:
+                continue
+        return None
+    except Exception as e:
+        return None
+
+async def get_poster_omdb_tmdb(title, session):
+    try:
+        for api_key in Config.OMDB_KEYS:
+            try:
+                url = f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={api_key}"
+                async with session.get(url, timeout=5) as r:
+                    if r.status == 200:
+                        data = await r.json()
+                        if data.get('Response') == 'True' and data.get('Poster') and data.get('Poster') != 'N/A':
+                            poster_url = data['Poster'].replace('http://', 'https://')
+                            res = {'poster_url': poster_url, 'source': 'OMDB', 'rating': data.get('imdbRating', '0.0')}
+                            movie_db['stats']['omdb'] += 1
+                            return res
+            except:
+                continue
+        
+        for api_key in Config.TMDB_KEYS:
+            try:
+                url = "https://api.themoviedb.org/3/search/movie"
+                params = {'api_key': api_key, 'query': title}
+                async with session.get(url, params=params, timeout=5) as r:
+                    if r.status == 200:
+                        data = await r.json()
+                        if data.get('results') and len(data['results']) > 0:
+                            result = data['results'][0]
+                            poster_path = result.get('poster_path')
+                            if poster_path:
+                                poster_url = f"https://image.tmdb.org/t/p/w780{poster_path}"
+                                res = {'poster_url': poster_url, 'source': 'TMDB', 'rating': str(result.get('vote_average', 0.0))}
+                                movie_db['stats']['tmdb'] += 1
+                                return res
+            except:
+                continue
+        return None
+    except Exception as e:
+        return None
+
+# OPTIMIZED POSTER FETCHING WITH CONCURRENT REQUESTS
+async def get_poster_guaranteed(title, session):
+    ck = title.lower().strip()
+    
+    if ck in movie_db['poster_cache']:
+        c, ct = movie_db['poster_cache'][ck]
+        if (datetime.now() - ct).seconds < 3600:
+            movie_db['stats']['cache_hits'] += 1
+            return c
+    
+    sources = [
+        get_poster_letterboxd,
+        get_poster_imdb, 
+        get_poster_justwatch,
+        get_poster_impawards,
+        get_poster_omdb_tmdb,
+    ]
+    
+    # CONCURRENT REQUESTS FOR SPEED
+    tasks = [source(title, session) for source in sources]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for result in results:
+        if isinstance(result, dict) and result:
+            movie_db['poster_cache'][ck] = (result, datetime.now())
+            return result
+    
+    # FALLBACK
+    year_match = re.search(r'\b(19|20)\d{2}\b', title)
+    year = year_match.group() if year_match else ""
+    
+    res = {
+        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}", 
+        'source': 'CUSTOM', 
+        'rating': '0.0'
+    }
+    movie_db['poster_cache'][ck] = (res, datetime.now())
+    movie_db['stats']['custom'] += 1
+    return res
+
+# OPTIMIZED LIVE POSTS FETCHING
+async def get_live_posts(channel_id, limit=30):
+    if not User:
+        return []
+    
+    posts = []
+    count = 0
+    
+    try:
+        async for msg in User.get_chat_history(channel_id, limit=limit):
+            if msg.text and len(msg.text) > 15:
+                title = extract_title_smart(msg.text)
+                if title:
+                    posts.append({
+                        'title': title,
+                        'normalized_title': normalize_title(title),
+                        'content': msg.text,
+                        'channel_name': channel_name(channel_id),
+                        'channel_id': channel_id,
+                        'message_id': msg.id,
+                        'date': msg.date,
+                        'is_new': is_new(msg.date) if msg.date else False
+                    })
+                    count += 1
+    except Exception as e:
+        pass
+    
+    return posts
+
+# OPTIMIZED SEARCH WITH CACHE
+async def search_movies_live(query, limit=12, page=1):
+    offset = (page - 1) * limit
+    
+    # CACHE KEY
+    cache_key = f"{query}_{page}_{limit}"
+    if cache_key in movie_db['search_cache']:
+        data, timestamp = movie_db['search_cache'][cache_key]
+        if (datetime.now() - timestamp).seconds < 300:  # 5 minute cache
+            return data
+    
+    query_lower = query.lower()
+    posts_dict = {}
+    files_dict = {}
+    
+    # FAST TEXT CHANNEL SEARCH
+    for channel_id in Config.TEXT_CHANNEL_IDS:
+        try:
+            cname = channel_name(channel_id)
+            async for msg in User.search_messages(channel_id, query=query, limit=100):
+                if msg.text and len(msg.text) > 15:
+                    title = extract_title_smart(msg.text)
+                    if title and query_lower in title.lower():
+                        norm_title = normalize_title(title)
+                        if norm_title not in posts_dict:
+                            posts_dict[norm_title] = {
+                                'title': title,
+                                'content': format_post(msg.text),
+                                'channel': cname,
+                                'channel_id': channel_id,
+                                'message_id': msg.id,
+                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
+                                'is_new': is_new(msg.date) if msg.date else False,
+                                'has_file': False,
+                                'has_post': True,
+                                'quality_options': {},
+                                'thumbnail': None
+                            }
+        except Exception as e:
+            continue
+    
+    # FAST FILE SEARCH
+    try:
+        if files_col is not None:
+            cursor = files_col.find({'$text': {'$search': query}})
+            async for doc in cursor:
+                try:
+                    norm_title = doc.get('normalized_title', normalize_title(doc['title']))
+                    quality = doc['quality']
+                    
+                    if norm_title not in files_dict:
+                        file_name = doc.get('file_name', '').lower()
+                        file_is_video = is_video_file(file_name)
+                        
+                        thumbnail_url = None
+                        if file_is_video:
+                            thumbnail_url = doc.get('thumbnail')
+                            if not thumbnail_url:
+                                thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
+                        
+                        files_dict[norm_title] = {
+                            'title': doc['title'], 
+                            'quality_options': {}, 
+                            'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
+                            'thumbnail': thumbnail_url,
+                            'is_video_file': file_is_video,
+                            'thumbnail_source': doc.get('thumbnail_source', 'unknown')
+                        }
+                    
+                    if quality not in files_dict[norm_title]['quality_options']:
+                        files_dict[norm_title]['quality_options'][quality] = {
+                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                            'file_size': doc['file_size'],
+                            'file_name': doc['file_name'],
+                            'is_video': file_is_video,
+                            'channel_id': doc.get('channel_id'),
+                            'message_id': doc.get('message_id')
+                        }
+                except:
+                    continue
+    except Exception as e:
+        pass
+    
+    # MERGE RESULTS
+    merged = {}
+    for norm_title, post_data in posts_dict.items():
+        merged[norm_title] = post_data
+    
+    for norm_title, file_data in files_dict.items():
+        if norm_title in merged:
+            merged[norm_title]['has_file'] = True
+            merged[norm_title]['quality_options'] = file_data['quality_options']
+            if file_data.get('is_video_file') and file_data.get('thumbnail'):
+                merged[norm_title]['thumbnail'] = file_data['thumbnail']
+                merged[norm_title]['thumbnail_source'] = file_data.get('thumbnail_source', 'unknown')
+        else:
+            merged[norm_title] = {
+                'title': file_data['title'],
+                'content': f"<p>{file_data['title']}</p>",
+                'channel': 'SK4FiLM',
+                'date': file_data['date'],
+                'is_new': False,
+                'has_file': True,
+                'has_post': False,
+                'quality_options': file_data['quality_options'],
+                'thumbnail': file_data.get('thumbnail') if file_data.get('is_video_file') else None,
+                'thumbnail_source': file_data.get('thumbnail_source', 'unknown')
+            }
+    
+    results_list = list(merged.values())
+    results_list.sort(key=lambda x: (not x.get('is_new', False), not x['has_file'], x['date']), reverse=True)
+    
+    total = len(results_list)
+    paginated = results_list[offset:offset + limit]
+    
+    result_data = {
+        'results': paginated,
+        'pagination': {
+            'current_page': page,
+            'total_pages': math.ceil(total / limit) if total > 0 else 1,
+            'total_results': total,
+            'per_page': limit,
+            'has_next': page < math.ceil(total / limit) if total > 0 else False,
+            'has_previous': page > 1
+        }
+    }
+    
+    # CACHE THE RESULTS
+    movie_db['search_cache'][cache_key] = (result_data, datetime.now())
+    return result_data
+
+# OPTIMIZED HOME MOVIES WITH CONCURRENT POSTER FETCHING
+async def get_home_movies_live():
+    posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=30)
+    
+    movies = []
+    seen = set()
+    
+    for post in posts:
+        tk = post['title'].lower().strip()
+        if tk not in seen:
+            seen.add(tk)
+            movies.append({
+                'title': post['title'],
+                'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
+                'is_new': post.get('is_new', False),
+                'channel': post.get('channel_name', 'SK4FiLM Main')
+            })
+            if len(movies) >= 30:
+                break
+    
+    if movies:
+        async with aiohttp.ClientSession() as session:
+            tasks = [get_poster_guaranteed(movie['title'], session) for movie in movies]
+            posters = await asyncio.gather(*tasks, return_exceptions=True)
             
-            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option">
-                <i class="fas fa-download me-1"></i>${quality}${videoBadge}
-                <small>${fileSize}</small>
-            </a>`;
+            for i, (movie, poster_result) in enumerate(zip(movies, posters)):
+                if isinstance(poster_result, dict):
+                    movie['poster_url'] = poster_result['poster_url']
+                    movie['poster_source'] = poster_result['source']
+                    movie['poster_rating'] = poster_result.get('rating', '0.0')
+                    movie['has_poster'] = True
+                else:
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'CUSTOM'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
+    
+    return movies
+
+# OPTIMIZED API ROUTES
+@app.route('/')
+async def root():
+    tf = await files_col.count_documents({}) if files_col is not None else 0
+    return jsonify({
+        'status': 'healthy',
+        'service': 'SK4FiLM v6.0 - OPTIMIZED & FIXED',
+        'database': {'total_files': tf, 'mode': 'FAST'},
+        'bot_status': 'online' if bot_started else 'starting',
+        'optimizations': 'DUPLICATE FIX + CACHING + CONCURRENT REQUESTS'
+    })
+
+@app.route('/health')
+async def health():
+    return jsonify({'status': 'ok' if bot_started else 'starting'})
+
+@app.route('/api/verify_user', methods=['POST'])
+async def api_verify_user():
+    try:
+        data = await request.get_json()
+        user_id = data.get('user_id')
+        verification_url = data.get('verification_url')
+        
+        if not user_id:
+            return jsonify({'status': 'error', 'message': 'User ID required'}), 400
+        
+        is_verified, message = await verify_user_with_url_shortener(user_id, verification_url)
+        
+        return jsonify({
+            'status': 'success' if is_verified else 'error',
+            'verified': is_verified,
+            'message': message,
+            'user_id': user_id
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/check_verification/<int:user_id>')
+async def api_check_verification(user_id):
+    try:
+        is_verified, message = await check_url_shortener_verification(user_id)
+        return jsonify({
+            'status': 'success',
+            'verified': is_verified,
+            'message': message,
+            'user_id': user_id,
+            'verification_required': Config.VERIFICATION_REQUIRED
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/generate_verification_url/<int:user_id>')
+async def api_generate_verification_url(user_id):
+    try:
+        verification_url = await generate_verification_url(user_id)
+        return jsonify({
+            'status': 'success',
+            'verification_url': verification_url,
+            'user_id': user_id
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/index_status')
+async def api_index_status():
+    try:
+        if files_col is None:
+            return jsonify({'status': 'error', 'message': 'Database not ready'}), 503
+        
+        total = await files_col.count_documents({})
+        latest = await files_col.find_one({}, sort=[('indexed_at', -1)])
+        last_indexed = "Never"
+        if latest and latest.get('indexed_at'):
+            dt = latest['indexed_at']
+            if isinstance(dt, datetime):
+                mins_ago = int((datetime.now() - dt).total_seconds() / 60)
+                last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
+        
+        video_files = await files_col.count_documents({'is_video_file': True})
+        video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
+        
+        return jsonify({
+            'status': 'success',
+            'total_indexed': total,
+            'video_files': video_files,
+            'video_thumbnails': video_thumbnails,
+            'last_indexed': last_indexed,
+            'bot_status': 'online' if bot_started else 'starting',
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/movies')
+async def api_movies():
+    try:
+        if not bot_started:
+            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
+        
+        movies = await get_home_movies_live()
+        return jsonify({
+            'status': 'success', 
+            'movies': movies, 
+            'total': len(movies), 
+            'bot_username': Config.BOT_USERNAME,
+            'mode': 'OPTIMIZED'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/search')
+async def api_search():
+    try:
+        q = request.args.get('query', '').strip()
+        p = int(request.args.get('page', 1))
+        l = int(request.args.get('limit', 12))
+        
+        if not q:
+            return jsonify({'status': 'error', 'message': 'Query required'}), 400
+        if not bot_started:
+            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
+        
+        result = await search_movies_live(q, l, p)
+        return jsonify({
+            'status': 'success', 
+            'query': q, 
+            'results': result['results'], 
+            'pagination': result['pagination'], 
+            'bot_username': Config.BOT_USERNAME,
+            'mode': 'OPTIMIZED'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/post')
+async def api_post():
+    try:
+        channel_id = request.args.get('channel', '').strip()
+        message_id = request.args.get('message', '').strip()
+        
+        if not channel_id or not message_id:
+            return jsonify({'status':'error', 'message':'Missing channel or message parameter'}), 400
+        
+        if not bot_started or not User:
+            return jsonify({'status':'error', 'message':'Bot not ready yet'}), 503
+        
+        try:
+            channel_id = int(channel_id)
+            message_id = int(message_id)
+        except ValueError:
+            return jsonify({'status':'error', 'message':'Invalid channel or message ID'}), 400
+        
+        msg = await User.get_messages(channel_id, message_id)
+        if not msg or not msg.text:
+            return jsonify({'status':'error', 'message':'Message not found or has no text content'}), 404
+        
+        title = extract_title_smart(msg.text)
+        if not title:
+            title = msg.text.split('\n')[0][:60] if msg.text else "Movie Post"
+        
+        normalized_title = normalize_title(title)
+        quality_options = {}
+        has_file = False
+        thumbnail_url = None
+        thumbnail_source = None
+        
+        if files_col is not None:
+            cursor = files_col.find({'normalized_title': normalized_title})
+            async for doc in cursor:
+                quality = doc.get('quality', '480p')
+                if quality not in quality_options:
+                    file_name = doc.get('file_name', '').lower()
+                    file_is_video = is_video_file(file_name)
+                    
+                    if file_is_video and not thumbnail_url:
+                        thumbnail_url = doc.get('thumbnail')
+                        thumbnail_source = doc.get('thumbnail_source', 'unknown')
+                        
+                        if not thumbnail_url:
+                            thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
+                            if thumbnail_url:
+                                thumbnail_source = 'video_direct'
+                    
+                    quality_options[quality] = {
+                        'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                        'file_size': doc.get('file_size', 0),
+                        'file_name': doc.get('file_name', 'video.mp4'),
+                        'is_video': file_is_video,
+                        'channel_id': doc.get('channel_id'),
+                        'message_id': doc.get('message_id')
+                    }
+                    has_file = True
+        
+        post_data = {
+            'title': title,
+            'content': format_post(msg.text),
+            'channel': channel_name(channel_id),
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+            'is_new': is_new(msg.date) if msg.date else False,
+            'has_file': has_file,
+            'quality_options': quality_options,
+            'views': getattr(msg, 'views', 0),
+            'thumbnail': thumbnail_url,
+            'thumbnail_source': thumbnail_source
         }
-    });
-    html += '</div>';
-    return html;
-}
+        
+        return jsonify({'status': 'success', 'post': post_data, 'bot_username': Config.BOT_USERNAME})
+    
+    except Exception as e:
+        return jsonify({'status':'error', 'message': str(e)}), 500
 
-function displayPagination(pagination) {
-    let html = '<nav><ul class="pagination justify-content-center">';
-    const { current_page, total_pages, has_previous, has_next } = pagination;
-    const maxVisible = 5;
-    
-    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
-    
-    let startPage = Math.max(1, current_page - 2);
-    let endPage = Math.min(total_pages, startPage + maxVisible - 1);
-    if (endPage - startPage < maxVisible - 1) {
-        startPage = Math.max(1, endPage - maxVisible + 1);
-    }
-    
-    if (startPage > 1) {
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;
-        if (startPage > 2) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        }
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-        html += `<li class="page-item ${i === current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;
-    }
-    
-    if (endPage < total_pages) {
-        if (endPage < total_pages - 1) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        }
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;
-    }
-    
-    html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
-    html += '</ul></nav>';
-    
-    paginationContainer.innerHTML = html;
-}
+@app.route('/api/poster')
+async def api_poster():
+    try:
+        t = request.args.get('title', 'Movie')
+        y = request.args.get('year', '')
+        
+        d = t[:20] + "..." if len(t) > 20 else t
+        
+        color_schemes = [
+            {'bg1': '#667eea', 'bg2': '#764ba2', 'text': '#ffffff'},
+            {'bg1': '#f093fb', 'bg2': '#f5576c', 'text': '#ffffff'},
+            {'bg1': '#4facfe', 'bg2': '#00f2fe', 'text': '#ffffff'},
+            {'bg1': '#43e97b', 'bg2': '#38f9d7', 'text': '#ffffff'},
+            {'bg1': '#fa709a', 'bg2': '#fee140', 'text': '#ffffff'},
+        ]
+        
+        scheme = color_schemes[hash(t) % len(color_schemes)]
+        text_color = scheme['text']
+        bg1_color = scheme['bg1']
+        bg2_color = scheme['bg2']
+        
+        year_text = f'<text x="150" y="305" text-anchor="middle" fill="{text_color}" font-size="14" font-family="Arial">{html.escape(y)}</text>' if y else ''
+        
+        svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:{bg1_color};stop-opacity:1"/>
+                    <stop offset="100%" style="stop-color:{bg2_color};stop-opacity:1"/>
+                </linearGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#bg)"/>
+            <rect x="10" y="10" width="280" height="430" fill="none" stroke="{text_color}" stroke-width="2" stroke-opacity="0.3" rx="10"/>
+            <circle cx="150" cy="180" r="60" fill="rgba(255,255,255,0.1)"/>
+            <text x="150" y="185" text-anchor="middle" fill="{text_color}" font-size="60" font-family="Arial">🎬</text>
+            <text x="150" y="280" text-anchor="middle" fill="{text_color}" font-size="16" font-weight="bold" font-family="Arial">{html.escape(d)}</text>
+            {year_text}
+            <rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/>
+            <text x="150" y="405" text-anchor="middle" fill="{text_color}" font-size="16" font-weight="bold" font-family="Arial">SK4FiLM</text>
+        </svg>'''
+        
+        return Response(svg, mimetype='image/svg+xml', headers={
+            'Cache-Control': 'public, max-age=86400',
+            'Content-Type': 'image/svg+xml'
+        })
+    except Exception as e:
+        simple_svg = '''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100%" height="100%" fill="#667eea"/>
+            <text x="150" y="225" text-anchor="middle" fill="white" font-size="18" font-family="Arial">SK4FiLM</text>
+        </svg>'''
+        return Response(simple_svg, mimetype='image/svg+xml')
 
-function showError(message) {
-    resultsContainer.innerHTML = `<div class="alert alert-danger text-center">${escapeHtml(message)}</div>`;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function formatSize(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Close dropdowns when clicking outside
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('.btn-download-wrapper')) {
-        document.querySelectorAll('.quality-dropdown').forEach((dropdown, index) => {
-            dropdown.classList.remove('show');
-            const arrow = document.getElementById(`arrow-${index}`);
-            if (arrow) arrow.style.transform = 'rotate(0deg)';
-        });
-    }
-});
-
-// Handle browser back/forward buttons
-window.addEventListener('popstate', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('query');
-    const page = parseInt(urlParams.get('page')) || 1;
+# OPTIMIZED BOT SETUP
+async def setup_bot():
+    @bot.on_message(filters.command("start") & filters.private)
+    async def start_handler(client, message):
+        uid = message.from_user.id
+        user_name = message.from_user.first_name or "User"
+        
+        if len(message.command) > 1:
+            fid = message.command[1]
+            
+            if Config.VERIFICATION_REQUIRED:
+                is_verified, status = await check_url_shortener_verification(uid)
+                
+                if not is_verified:
+                    verification_url = await generate_verification_url(uid)
+                    
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                        [InlineKeyboardButton("🔄 CHECK VERIFICATION", callback_data=f"check_verify_{uid}")],
+                        [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)]
+                    ])
+                    
+                    await message.reply_text(
+                        f"👋 **Hello {user_name}!**\n\n"
+                        "🔒 **Verification Required**\n"
+                        "To download files, you need to complete URL verification.\n\n"
+                        "🚀 **Quick Steps:**\n"
+                        "1. Click **VERIFY NOW** below\n"
+                        "2. Complete the verification process\n"
+                        "3. Come back and click **CHECK VERIFICATION**\n"
+                        "4. Start downloading!\n\n"
+                        "⏰ **Verification valid for 6 hours**",
+                        reply_markup=keyboard,
+                        disable_web_page_preview=True
+                    )
+                    return
+            
+            try:
+                parts = fid.split('_')
+                if len(parts) >= 2:
+                    channel_id = int(parts[0])
+                    message_id = int(parts[1])
+                    quality = parts[2] if len(parts) > 2 else "HD"
+                    
+                    pm = await message.reply_text(f"⏳ **Preparing your file...**\n\n📦 Quality: {quality}")
+                    
+                    file_message = await bot.get_messages(channel_id, message_id)
+                    
+                    if not file_message or (not file_message.document and not file_message.video):
+                        await pm.edit_text("❌ **File not found**\n\nThe file may have been deleted.")
+                        return
+                    
+                    if file_message.document:
+                        sent = await bot.send_document(
+                            uid, 
+                            file_message.document.file_id, 
+                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
+                                   f"📹 Quality: {quality}\n"
+                                   f"📦 Size: {format_size(file_message.document.file_size)}\n\n"
+                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                                   f"@SK4FiLM 🍿"
+                        )
+                    else:
+                        sent = await bot.send_video(
+                            uid, 
+                            file_message.video.file_id, 
+                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
+                                   f"📹 Quality: {quality}\n" 
+                                   f"📦 Size: {format_size(file_message.video.file_size)}\n\n"
+                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                                   f"@SK4FiLM 🍿"
+                        )
+                    
+                    await pm.delete()
+                    
+                    if Config.AUTO_DELETE_TIME > 0:
+                        async def auto_delete():
+                            await asyncio.sleep(Config.AUTO_DELETE_TIME)
+                            try:
+                                await sent.delete()
+                            except:
+                                pass
+                        asyncio.create_task(auto_delete())
+                        
+                else:
+                    await message.reply_text("❌ **Invalid file link**\n\nPlease get a fresh link from the website.")
+                    
+            except Exception as e:
+                try:
+                    await message.reply_text(f"❌ **Download Failed**\n\nError: `{str(e)}`")
+                except:
+                    pass
+            return
+        
+        welcome_text = (
+            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
+            "🌐 **Use our website to browse and download movies:**\n"
+            f"{Config.WEBSITE_URL}\n\n"
+        )
+        
+        if Config.VERIFICATION_REQUIRED:
+            welcome_text += "🔒 **URL Verification Required**\n• Complete one-time verification\n• Valid for 6 hours\n\n"
+        
+        welcome_text += (
+            "✨ **Features:**\n"
+            "• 🎥 Latest movies & shows\n" 
+            "• 📺 Multiple quality options\n"
+            "• ⚡ Fast downloads\n\n"
+            "👇 **Get started below:**"
+        )
+        
+        buttons = []
+        if Config.VERIFICATION_REQUIRED:
+            verification_url = await generate_verification_url(uid)
+            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", url=verification_url)])
+        
+        buttons.extend([
+            [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
+            [
+                InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+            ]
+        ])
+        
+        keyboard = InlineKeyboardMarkup(buttons)
+        await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    if (query) {
-        currentQuery = query;
-        searchInput.value = query;
-        performSearch(page);
-    }
-});
-</script>
-</body>
-</html>
+    @bot.on_callback_query(filters.regex(r"^check_verify_"))
+    async def check_verify_callback(client, callback_query):
+        user_id = callback_query.from_user.id
+        try:
+            is_verified, status = await check_url_shortener_verification(user_id)
+            
+            if is_verified:
+                await callback_query.message.edit_text(
+                    "✅ **Verification Successful!**\n\n"
+                    "You Can Now Download Files From The Website.\n\n"
+                    f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
+                    "⏰ **Verification Valid For 6 Hours**",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                        [
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ])
+                )
+            else:
+                verification_url = await generate_verification_url(user_id)
+                await callback_query.message.edit_text(
+                    "❌ **Not Verified Yet**\n\n"
+                    "Please complete the verification process first.\n\n"
+                    f"🔗 **Verification URL:** `{verification_url}`",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                        [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")],
+                        [
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ]),
+                    disable_web_page_preview=True
+                )
+                
+        except Exception as e:
+            await callback_query.answer("Error checking verification", show_alert=True)
+    
+    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify']))
+    async def text_handler(client, message):
+        user_name = message.from_user.first_name or "User"
+        await message.reply_text(
+            f"👋 **Hi {user_name}!**\n\n"
+            "🔍 **Please Use Our Website To Search For Movies:**\n\n"
+            f"{Config.WEBSITE_URL}\n\n"
+            "This bot only handles file downloads via website links.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                [
+                    InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                    InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+                ]
+            ]),
+            disable_web_page_preview=True
+        )
+    
+    @bot.on_message(filters.command("verify") & filters.private)
+    async def verify_command(client, message):
+        user_id = message.from_user.id
+        user_name = message.from_user.first_name or "User"
+        
+        if Config.VERIFICATION_REQUIRED:
+            is_verified, status = await check_url_shortener_verification(user_id)
+            
+            if is_verified:
+                await message.reply_text(
+                    f"✅ **Already Verified, {user_name}!**\n\n"
+                    f"Your verification is active and valid for 6 hours.\n\n"
+                    "You can download files from the website now! 🎬",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                        [
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ])
+                )
+            else:
+                verification_url = await generate_verification_url(user_id)
+                await message.reply_text(
+                    f"🔗 **Verification Required, {user_name}**\n\n"
+                    "To download files, please complete the URL verification:\n\n"
+                    f"**Verification URL:** `{verification_url}`\n\n"
+                    "⏰ **Valid for 6 hours after verification**",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                        [
+                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ]),
+                    disable_web_page_preview=True
+                )
+        else:
+            await message.reply_text(
+                "ℹ️ **Verification Not Required**\n\n"
+                "URL shortener verification is currently disabled.\n"
+                "You can download files directly from the website.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                    [
+                        InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                        InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+                    ]
+                ])
+            )
+    
+    @bot.on_message(filters.command("channel") & filters.private)
+    async def channel_command(client, message):
+        await message.reply_text(
+            "📢 **SK4FiLM Channels**\n\n"
+            "Join our channels for the latest movies and updates:\n\n"
+            "🎬 **Main Channel:**\n"
+            "• Latest movie releases\n"
+            "• High quality files\n"
+            "• Daily updates\n\n"
+            "👇 **Click below to join:**",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("🎬 MAIN CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                    InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+                ],
+                [InlineKeyboardButton("🌐 WEBSITE", url=Config.WEBSITE_URL)]
+            ]),
+            disable_web_page_preview=True
+        )
+    
+    @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
+    async def index_handler(client, message):
+        msg = await message.reply_text("🔄 **Starting background indexing...**")
+        asyncio.create_task(index_files_background())
+        await msg.edit_text("✅ **Indexing started in background!**\n\nCheck /stats for progress.")
+    
+    @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
+    async def stats_handler(client, message):
+        tf = await files_col.count_documents({}) if files_col is not None else 0
+        video_files = await files_col.count_documents({'is_video_file': True})
+        video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
+        
+        stats_text = (
+            f"📊 **SK4FiLM Statistics**\n\n"
+            f"📁 **Total Files:** {tf}\n"
+            f"🎥 **Video Files:** {video_files}\n"
+            f"🖼️ **Video Thumbnails:** {video_thumbnails}\n\n"
+            f"🔴 **Live Posts:** Active\n"
+            f"🤖 **Bot Status:** Online\n\n"
+            f"**🎨 Poster Sources:**\n"
+            f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
+            f"• IMDb: {movie_db['stats']['imdb']}\n"
+            f"• JustWatch: {movie_db['stats']['justwatch']}\n"
+            f"• IMPAwards: {movie_db['stats']['impawards']}\n"
+            f"• OMDB: {movie_db['stats']['omdb']}\n"
+            f"• TMDB: {movie_db['stats']['tmdb']}\n" 
+            f"• Custom: {movie_db['stats']['custom']}\n"
+            f"• Cache Hits: {movie_db['stats']['cache_hits']}\n\n"
+            f"**⚡ Optimizations:**\n"
+            f"• ✅ Smart caching\n"
+            f"• ✅ Concurrent requests\n"
+            f"• ✅ Batch processing\n"
+            f"• ✅ Duplicate protection\n\n"
+            f"**🔗 Verification:** {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}"
+        )
+        await message.reply_text(stats_text)
+
+# OPTIMIZED INITIALIZATION WITH DUPLICATE FIX
+async def init():
+    global User, bot, bot_started
+    try:
+        logger.info("🚀 INITIALIZING OPTIMIZED SK4FiLM BOT...")
+        
+        # PARALLEL INITIALIZATION
+        mongo_success = await init_mongodb()
+        
+        User = Client(
+            "user_session", 
+            api_id=Config.API_ID, 
+            api_hash=Config.API_HASH, 
+            session_string=Config.USER_SESSION_STRING,
+            no_updates=True
+        )
+        
+        bot = Client(
+            "bot",
+            api_id=Config.API_ID,
+            api_hash=Config.API_HASH, 
+            bot_token=Config.BOT_TOKEN
+        )
+        
+        await User.start()
+        await bot.start()
+        await setup_bot()
+        
+        me = await bot.get_me()
+        logger.info(f"✅ OPTIMIZED BOT STARTED: @{me.username}")
+        bot_started = True
+        
+        # START BACKGROUND TASKS
+        asyncio.create_task(index_files_background())
+        asyncio.create_task(cache_cleanup())
+        
+        return True
+    except Exception as e:
+        logger.error(f"❌ OPTIMIZED INIT FAILED: {e}")
+        return False
+
+async def main():
+    logger.info("="*60)
+    logger.info("🎬 SK4FiLM v6.0 - SUPER FAST OPTIMIZED VERSION")
+    logger.info("✅ Smart Caching | Concurrent Requests | Batch Processing")
+    logger.info("✅ DUPLICATE KEY ERROR FIXED | MongoDB Optimized")
+    logger.info(f"✅ Verification: {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}")
+    logger.info("="*60)
+    
+    success = await init()
+    if not success:
+        logger.error("❌ Failed to initialize optimized bot")
+        return
+    
+    config = HyperConfig()
+    config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
+    config.loglevel = "warning"
+    
+    logger.info(f"🌐 OPTIMIZED web server starting on port {Config.WEB_SERVER_PORT}...")
+    await serve(app, config)
+
+if __name__ == "__main__":
+    asyncio.run(main())
