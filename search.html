@@ -133,6 +133,7 @@
             overflow: hidden;
             cursor: pointer;
             height: 200px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         }
         .video-thumbnail-container img {
             width: 100%;
@@ -175,6 +176,43 @@
         .play-button:hover {
             transform: scale(1.1);
             background: var(--secondary-color);
+        }
+        
+        /* Thumbnail Loading States */
+        .thumbnail-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            height: 100%;
+        }
+        .thumbnail-loading .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            border-width: 0.2em;
+        }
+        
+        /* Default Thumbnail */
+        .default-video-thumbnail {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .default-video-thumbnail i {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+        .default-video-thumbnail span {
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
         
         /* Buttons - Always Side by Side */
@@ -280,6 +318,20 @@
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
+        }
+        
+        /* Thumbnail Source Badge */
+        .thumbnail-source-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.6rem;
             font-weight: 600;
             z-index: 2;
         }
@@ -570,6 +622,18 @@ const API_ENDPOINTS = [
     'https://sk4film-alternate.onrender.com'
 ];
 
+// Fast Thumbnail Services
+const THUMBNAIL_SERVICES = [
+    {
+        name: 'TMDB',
+        url: (title) => `https://api.themoviedb.org/3/search/movie?api_key=b8a7d0e37e4b0c49d60d0b52f1e5a6d8&query=${encodeURIComponent(title)}`
+    },
+    {
+        name: 'OMDB',
+        url: (title) => `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=trilogy`
+    }
+];
+
 const RESULTS_PER_PAGE = 10;
 const AD_LINK = 'https://otieu.com/4/10220520';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache duration
@@ -588,177 +652,130 @@ const searchButton = document.getElementById('searchButton');
 const cacheIndicator = document.getElementById('cacheIndicator');
 const offlineIndicator = document.getElementById('offlineIndicator');
 
-// Enhanced Cache Implementation with IndexedDB (working in background)
-class EnhancedSearchCache {
+// Fast Thumbnail Cache
+class FastThumbnailCache {
     constructor() {
-        this.storage = new Map();
-        this.dbSupported = 'indexedDB' in window;
-        this.db = null;
-        this.dbName = 'SK4FiLM_Cache';
-        this.dbVersion = 2;
-        this.initDB();
+        this.thumbnailCache = new Map();
+        this.pendingRequests = new Map();
     }
     
-    async initDB() {
-        if (!this.dbSupported) {
-            return;
+    async getThumbnail(movieTitle) {
+        const cleanTitle = this.cleanTitle(movieTitle);
+        
+        // Check cache first
+        if (this.thumbnailCache.has(cleanTitle)) {
+            return this.thumbnailCache.get(cleanTitle);
         }
+        
+        // Check if request is already in progress
+        if (this.pendingRequests.has(cleanTitle)) {
+            return this.pendingRequests.get(cleanTitle);
+        }
+        
+        // Create new request
+        const thumbnailPromise = this.fetchThumbnail(cleanTitle);
+        this.pendingRequests.set(cleanTitle, thumbnailPromise);
         
         try {
-            const request = indexedDB.open(this.dbName, this.dbVersion);
-            
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains('searchCache')) {
-                    const store = db.createObjectStore('searchCache', { keyPath: 'key' });
-                    store.createIndex('timestamp', 'timestamp');
-                }
-            };
-            
-            request.onsuccess = (event) => {
-                this.db = event.target.result;
-                this.migrateFromMemory();
-            };
-            
-            request.onerror = (event) => {
-                this.dbSupported = false;
-            };
-        } catch (error) {
-            this.dbSupported = false;
-        }
-    }
-    
-    async migrateFromMemory() {
-        // Migrate existing memory cache to IndexedDB
-        for (let [key, value] of this.storage.entries()) {
-            await this.set(key, value.data, false);
-        }
-    }
-    
-    async set(key, data, updateMemory = true) {
-        const timestamp = Date.now();
-        const cacheData = { key, data, timestamp };
-        
-        if (updateMemory) {
-            this.storage.set(key, cacheData);
-        }
-        
-        if (this.dbSupported && this.db) {
-            try {
-                const transaction = this.db.transaction(['searchCache'], 'readwrite');
-                const store = transaction.objectStore('searchCache');
-                await store.put(cacheData);
-            } catch (error) {
-                // Silent fail - IndexedDB not critical
+            const thumbnail = await thumbnailPromise;
+            if (thumbnail) {
+                this.thumbnailCache.set(cleanTitle, thumbnail);
             }
+            return thumbnail;
+        } finally {
+            this.pendingRequests.delete(cleanTitle);
         }
-        
-        this.cleanup();
     }
     
-    async get(key) {
-        // Check memory cache first (faster)
-        let cached = this.storage.get(key);
-        if (cached) {
-            if (Date.now() - cached.timestamp > CACHE_DURATION) {
-                this.delete(key);
-                return null;
-            }
-            return cached.data;
-        }
+    cleanTitle(title) {
+        return title
+            .replace(/[\(\)\[\]\{\}]/g, '')
+            .replace(/\b\d{4}\b/, '')
+            .replace(/\./g, ' ')
+            .replace(/_/g, ' ')
+            .trim()
+            .toLowerCase();
+    }
+    
+    async fetchThumbnail(title) {
+        // Try multiple services concurrently
+        const promises = THUMBNAIL_SERVICES.map(service => 
+            this.tryThumbnailService(service, title)
+        );
         
-        // Check IndexedDB if memory cache missed
-        if (this.dbSupported && this.db) {
+        // Return the first successful result
+        for (const promise of promises) {
             try {
-                const transaction = this.db.transaction(['searchCache'], 'readonly');
-                const store = transaction.objectStore('searchCache');
-                const request = store.get(key);
-                
-                return new Promise((resolve) => {
-                    request.onsuccess = () => {
-                        const result = request.result;
-                        if (result && Date.now() - result.timestamp <= CACHE_DURATION) {
-                            // Update memory cache for faster future access
-                            this.storage.set(key, result);
-                            resolve(result.data);
-                        } else {
-                            if (result) {
-                                this.delete(key); // Remove expired entry
-                            }
-                            resolve(null);
-                        }
-                    };
-                    request.onerror = () => resolve(null);
-                });
+                const result = await promise;
+                if (result) return result;
             } catch (error) {
-                return null;
+                // Continue to next service
             }
         }
         
         return null;
     }
     
-    async delete(key) {
-        this.storage.delete(key);
-        
-        if (this.dbSupported && this.db) {
-            try {
-                const transaction = this.db.transaction(['searchCache'], 'readwrite');
-                const store = transaction.objectStore('searchCache');
-                await store.delete(key);
-            } catch (error) {
-                // Silent fail
+    async tryThumbnailService(service, title) {
+        try {
+            const response = await fetch(service.url(title), {
+                signal: AbortSignal.timeout(3000) // Fast timeout
+            });
+            
+            if (!response.ok) return null;
+            
+            const data = await response.json();
+            
+            if (service.name === 'TMDB' && data.results && data.results[0] && data.results[0].poster_path) {
+                return `https://image.tmdb.org/t/p/w500${data.results[0].poster_path}`;
             }
+            
+            if (service.name === 'OMDB' && data.Poster && data.Poster !== 'N/A') {
+                return data.Poster;
+            }
+            
+            return null;
+        } catch (error) {
+            return null;
         }
     }
     
-    async clear() {
-        this.storage.clear();
-        
-        if (this.dbSupported && this.db) {
-            try {
-                const transaction = this.db.transaction(['searchCache'], 'readwrite');
-                const store = transaction.objectStore('searchCache');
-                await store.clear();
-            } catch (error) {
-                // Silent fail
-            }
-        }
+    clear() {
+        this.thumbnailCache.clear();
+        this.pendingRequests.clear();
+    }
+}
+
+const thumbnailCache = new FastThumbnailCache();
+
+// Enhanced Cache Implementation
+class EnhancedSearchCache {
+    constructor() {
+        this.storage = new Map();
     }
     
-    async cleanup() {
-        const now = Date.now();
-        const expiredKeys = [];
-        
-        // Clean memory cache
-        for (let [key, value] of this.storage.entries()) {
-            if (now - value.timestamp > CACHE_DURATION) {
-                expiredKeys.push(key);
-            }
+    async set(key, data) {
+        const timestamp = Date.now();
+        this.storage.set(key, { data, timestamp });
+        this.cleanup();
+    }
+    
+    async get(key) {
+        const cached = this.storage.get(key);
+        if (cached && Date.now() - cached.timestamp <= CACHE_DURATION) {
+            return cached.data;
         }
-        
-        for (let key of expiredKeys) {
+        if (cached) {
             this.storage.delete(key);
         }
-        
-        // Clean IndexedDB
-        if (this.dbSupported && this.db) {
-            try {
-                const transaction = this.db.transaction(['searchCache'], 'readwrite');
-                const store = transaction.objectStore('searchCache');
-                const index = store.index('timestamp');
-                const range = IDBKeyRange.upperBound(now - CACHE_DURATION);
-                const request = index.openCursor(range);
-                
-                request.onsuccess = () => {
-                    const cursor = request.result;
-                    if (cursor) {
-                        cursor.delete();
-                        cursor.continue();
-                    }
-                };
-            } catch (error) {
-                // Silent fail
+        return null;
+    }
+    
+    cleanup() {
+        const now = Date.now();
+        for (const [key, value] of this.storage.entries()) {
+            if (now - value.timestamp > CACHE_DURATION) {
+                this.storage.delete(key);
             }
         }
     }
@@ -771,7 +788,6 @@ function updateOnlineStatus() {
     isOnline = navigator.onLine;
     if (!isOnline) {
         offlineIndicator.style.display = 'block';
-        showError("You are offline. Showing cached results only.");
     } else {
         offlineIndicator.style.display = 'none';
     }
@@ -897,7 +913,7 @@ async function tryAllEndpoints(query, page) {
                 headers: { 
                     'Content-Type': 'application/json',
                 },
-                signal: AbortSignal.timeout(10000)
+                signal: AbortSignal.timeout(8000)
             });
             
             if (response.ok) {
@@ -979,7 +995,7 @@ function sortResultsWithExactMatchFirst(results, query) {
     return resultsCopy;
 }
 
-function displayResults(results, pagination) {
+async function displayResults(results, pagination) {
     if (!results || results.length === 0) {
         resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
         return;
@@ -988,7 +1004,8 @@ function displayResults(results, pagination) {
     resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
     
     let html = '';
-    results.forEach((result, index) => {
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
         const hasPost = result.has_post !== false;
         const hasFile = result.has_file === true;
         const qualityOptions = result.quality_options || {};
@@ -996,17 +1013,28 @@ function displayResults(results, pagination) {
         const thumbnail = result.thumbnail;
         const hasVideoFiles = Object.values(qualityOptions).some(option => option.is_video === true);
         
+        // Show thumbnail section only if we have video files OR original thumbnail
+        const showThumbnailSection = hasVideoFiles || thumbnail;
+        
         html += `
         <div class="result-card">
             <h3 class="result-title">${escapeHtml(result.title)}</h3>
             
-            ${thumbnail && hasVideoFiles ? `
+            ${showThumbnailSection ? `
                 <div class="video-thumbnail-section has-thumbnail">
-                    <div class="video-thumbnail-container" onclick="triggerAdLink()">
-                        <div class="video-file-badge">
-                            <i class="fas fa-play-circle me-1"></i>VIDEO
-                        </div>
-                        <img src="${thumbnail}" alt="Movie Thumbnail" loading="lazy" onerror="this.src='https://via.placeholder.com/300x200/1a1a2e/00ccff?text=Thumbnail+Error'">
+                    <div class="video-thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
+                        ${thumbnail ? `
+                            <!-- Original Thumbnail -->
+                            ${hasVideoFiles ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>VIDEO</div>` : ''}
+                            <img src="${thumbnail}" alt="${escapeHtml(result.title)}" loading="lazy" onerror="handleOriginalThumbnailError(this, '${escapeHtml(result.title)}', ${i}, ${hasVideoFiles})">
+                        ` : hasVideoFiles ? `
+                            <!-- Loading for Video Files without Thumbnail -->
+                            <div class="thumbnail-loading">
+                                <div class="spinner-border text-light" role="status">
+                                    <span class="visually-hidden">Loading thumbnail...</span>
+                                </div>
+                            </div>
+                        ` : ''}
                         <div class="play-overlay">
                             <div class="play-button">
                                 <i class="fas fa-play"></i>
@@ -1026,23 +1054,97 @@ function displayResults(results, pagination) {
                 
                 <div class="btn-download-wrapper">
                     ${hasFile && hasQualities ? `
-                        <button class="btn btn-download-main" onclick="toggleQuality(${index})">
+                        <button class="btn btn-download-main" onclick="toggleQuality(${i})">
                             <i class="fas fa-download me-2"></i>Download
-                            <i class="fas fa-chevron-down ms-2" id="arrow-${index}"></i>
+                            <i class="fas fa-chevron-down ms-2" id="arrow-${i}"></i>
                         </button>
                     ` : `<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
                 </div>
                 
-                ${hasFile && hasQualities ? `<div class="quality-dropdown" id="quality-${index}">${generateQualityOptions(qualityOptions)}</div>` : ''}
+                ${hasFile && hasQualities ? `<div class="quality-dropdown" id="quality-${i}">${generateQualityOptions(qualityOptions)}</div>` : ''}
             </div>
         </div>
         `;
-    });
+    }
     
     resultsContainer.innerHTML = html;
     
+    // Load fallback thumbnails for video files that don't have original thumbnails
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const qualityOptions = result.quality_options || {};
+        const hasVideoFiles = Object.values(qualityOptions).some(option => option.is_video === true);
+        const hasOriginalThumbnail = result.thumbnail;
+        
+        // Load fallback thumbnails only for video files without original thumbnails
+        if (hasVideoFiles && !hasOriginalThumbnail) {
+            loadFallbackThumbnail(result.title, i);
+        }
+    }
+    
     if (pagination && pagination.total_pages > 1) displayPagination(pagination);
     if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function handleOriginalThumbnailError(img, movieTitle, index, hasVideoFiles) {
+    // If original thumbnail fails to load and it's a video file, try fallback
+    if (hasVideoFiles) {
+        loadFallbackThumbnail(movieTitle, index);
+    } else {
+        // For non-video files, just hide the thumbnail section
+        const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+        if (thumbnailContainer) {
+            thumbnailContainer.closest('.video-thumbnail-section').style.display = 'none';
+        }
+    }
+}
+
+async function loadFallbackThumbnail(movieTitle, index) {
+    try {
+        const thumbnailUrl = await thumbnailCache.getThumbnail(movieTitle);
+        updateFallbackThumbnail(thumbnailUrl, movieTitle, index);
+    } catch (error) {
+        showDefaultVideoThumbnail(movieTitle, index);
+    }
+}
+
+function updateFallbackThumbnail(thumbnailUrl, movieTitle, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
+    
+    if (thumbnailUrl) {
+        thumbnailContainer.innerHTML = `
+            <div class="video-file-badge">
+                <i class="fas fa-play-circle me-1"></i>VIDEO
+            </div>
+            <div class="thumbnail-source-badge">External</div>
+            <img src="${thumbnailUrl}" alt="${escapeHtml(movieTitle)}" loading="lazy" onerror="showDefaultVideoThumbnail('${escapeHtml(movieTitle)}', ${index})">
+            <div class="play-overlay">
+                <div class="play-button">
+                    <i class="fas fa-play"></i>
+                </div>
+            </div>
+        `;
+    } else {
+        showDefaultVideoThumbnail(movieTitle, index);
+    }
+}
+
+function showDefaultVideoThumbnail(movieTitle, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
+    
+    thumbnailContainer.innerHTML = `
+        <div class="default-video-thumbnail">
+            <i class="fas fa-film"></i>
+            <span>${escapeHtml(movieTitle.substring(0, 30))}${movieTitle.length > 30 ? '...' : ''}</span>
+        </div>
+        <div class="play-overlay">
+            <div class="play-button">
+                <i class="fas fa-play"></i>
+            </div>
+        </div>
+    `;
 }
 
 function triggerAdLink() {
