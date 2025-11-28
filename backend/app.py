@@ -35,8 +35,9 @@ class Config:
     MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     
+    # CHANNEL CONFIGURATION - MULTI-CHANNEL SUPPORT
     MAIN_CHANNEL_ID = -1001891090100
-    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
+    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Both channels for search
     FILE_CHANNEL_ID = -1001768249569
     
     MAIN_CHANNEL_LINK = "https://t.me/sk4film"
@@ -87,7 +88,26 @@ movie_db = {
     'stats': {
         'letterboxd': 0, 'imdb': 0, 'justwatch': 0, 'impawards': 0,
         'omdb': 0, 'tmdb': 0, 'custom': 0, 'cache_hits': 0, 'video_thumbnails': 0,
-        'redis_hits': 0, 'redis_misses': 0
+        'redis_hits': 0, 'redis_misses': 0, 'multi_channel_searches': 0
+    }
+}
+
+# CHANNEL CONFIGURATION
+CHANNEL_CONFIG = {
+    -1001891090100: {
+        'name': 'SK4FiLM Main',
+        'type': 'text',
+        'search_priority': 1
+    },
+    -1002024811395: {
+        'name': 'SK4FiLM Updates', 
+        'type': 'text',
+        'search_priority': 2
+    },
+    -1001768249569: {
+        'name': 'SK4FiLM Files',
+        'type': 'file',
+        'search_priority': 0  # Files channel - indexed separately
     }
 }
 
@@ -498,12 +518,7 @@ def format_post(text):
     return text.replace('\n', '<br>')
 
 def channel_name(cid):
-    names = {
-        -1001891090100: "SK4FiLM Main", 
-        -1002024811395: "SK4FiLM Updates", 
-        -1001768249569: "SK4FiLM Files"
-    }
-    return names.get(cid, f"Channel {cid}")
+    return CHANNEL_CONFIG.get(cid, {}).get('name', f"Channel {cid}")
 
 def is_new(date):
     try:
@@ -1051,35 +1066,57 @@ async def get_poster_guaranteed(title, session):
     movie_db['stats']['custom'] += 1
     return res
 
-# OPTIMIZED LIVE POSTS FETCHING WITH FLOOD PROTECTION
-async def get_live_posts(channel_id, limit=20):
+# ENHANCED MULTI-CHANNEL LIVE POSTS FETCHING
+async def get_live_posts_multi_channel(limit_per_channel=10):
+    """Get posts from multiple channels concurrently"""
     if not User or not user_session_ready:
         return []
     
-    posts = []
+    all_posts = []
     
-    try:
-        async for msg in safe_telegram_generator(User.get_chat_history, channel_id, limit=limit):
-            if msg and msg.text and len(msg.text) > 15:
-                title = extract_title_smart(msg.text)
-                if title:
-                    posts.append({
-                        'title': title,
-                        'normalized_title': normalize_title(title),
-                        'content': msg.text,
-                        'channel_name': channel_name(channel_id),
-                        'channel_id': channel_id,
-                        'message_id': msg.id,
-                        'date': msg.date,
-                        'is_new': is_new(msg.date) if msg.date else False
-                    })
-    except Exception as e:
-        logger.error(f"Error getting live posts: {e}")
+    async def fetch_channel_posts(channel_id):
+        posts = []
+        try:
+            async for msg in safe_telegram_generator(User.get_chat_history, channel_id, limit=limit_per_channel):
+                if msg and msg.text and len(msg.text) > 15:
+                    title = extract_title_smart(msg.text)
+                    if title:
+                        posts.append({
+                            'title': title,
+                            'normalized_title': normalize_title(title),
+                            'content': msg.text,
+                            'channel_name': channel_name(channel_id),
+                            'channel_id': channel_id,
+                            'message_id': msg.id,
+                            'date': msg.date,
+                            'is_new': is_new(msg.date) if msg.date else False
+                        })
+        except Exception as e:
+            logger.error(f"Error getting posts from channel {channel_id}: {e}")
+        return posts
     
-    return posts
+    # Fetch from all text channels concurrently
+    tasks = [fetch_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for result in results:
+        if isinstance(result, list):
+            all_posts.extend(result)
+    
+    # Sort by date (newest first) and remove duplicates
+    seen_titles = set()
+    unique_posts = []
+    
+    for post in sorted(all_posts, key=lambda x: x.get('date', datetime.min), reverse=True):
+        if post['normalized_title'] not in seen_titles:
+            seen_titles.add(post['normalized_title'])
+            unique_posts.append(post)
+    
+    return unique_posts[:20]  # Return top 20 unique posts
 
-# ENHANCED SEARCH WITH REDIS CACHING
-async def search_movies_live(query, limit=12, page=1):
+# ENHANCED MULTI-CHANNEL SEARCH WITH REDIS CACHING
+async def search_movies_multi_channel(query, limit=12, page=1):
+    """Search across multiple channels with enhanced results"""
     offset = (page - 1) * limit
     
     # Try Redis cache first
@@ -1095,7 +1132,8 @@ async def search_movies_live(query, limit=12, page=1):
                 logger.warning(f"Redis cache parse error: {e}")
     
     movie_db['stats']['redis_misses'] += 1
-    logger.info(f"❌ Redis cache MISS for: {query}")
+    movie_db['stats']['multi_channel_searches'] += 1
+    logger.info(f"🔍 Multi-channel search for: {query}")
     
     query_lower = query.lower()
     posts_dict = {}
@@ -1124,7 +1162,9 @@ async def search_movies_live(query, limit=12, page=1):
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
                             'thumbnail': thumbnail_url,
                             'is_video_file': file_is_video,
-                            'thumbnail_source': doc.get('thumbnail_source', 'unknown')
+                            'thumbnail_source': doc.get('thumbnail_source', 'unknown'),
+                            'channel_id': doc.get('channel_id'),
+                            'channel_name': channel_name(doc.get('channel_id'))
                         }
                     
                     if quality not in files_dict[norm_title]['quality_options']:
@@ -1141,18 +1181,21 @@ async def search_movies_live(query, limit=12, page=1):
     except Exception as e:
         logger.error(f"File search error: {e}")
     
-    # Only search Telegram if user session is ready and we have few results
-    if user_session_ready and len(files_dict) < 5:
-        for channel_id in Config.TEXT_CHANNEL_IDS:
+    # Search Telegram channels if user session is ready
+    if user_session_ready:
+        channel_results = {}
+        
+        async def search_single_channel(channel_id):
+            channel_posts = {}
             try:
                 cname = channel_name(channel_id)
-                async for msg in safe_telegram_generator(User.search_messages, channel_id, query=query, limit=30):
+                async for msg in safe_telegram_generator(User.search_messages, channel_id, query=query, limit=20):
                     if msg and msg.text and len(msg.text) > 15:
                         title = extract_title_smart(msg.text)
                         if title and query_lower in title.lower():
                             norm_title = normalize_title(title)
-                            if norm_title not in posts_dict:
-                                posts_dict[norm_title] = {
+                            if norm_title not in channel_posts:
+                                channel_posts[norm_title] = {
                                     'title': title,
                                     'content': format_post(msg.text),
                                     'channel': cname,
@@ -1166,25 +1209,40 @@ async def search_movies_live(query, limit=12, page=1):
                                     'thumbnail': None
                                 }
             except Exception as e:
-                logger.error(f"Telegram search error: {e}")
-                continue
+                logger.error(f"Telegram search error in {channel_id}: {e}")
+            return channel_posts
+        
+        # Search all text channels concurrently
+        tasks = [search_single_channel(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Merge results from all channels
+        for result in results:
+            if isinstance(result, dict):
+                posts_dict.update(result)
     
+    # Merge posts and files data
     merged = {}
+    
+    # First add all posts
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data
     
+    # Then add/update with file information
     for norm_title, file_data in files_dict.items():
         if norm_title in merged:
+            # Update existing post with file info
             merged[norm_title]['has_file'] = True
             merged[norm_title]['quality_options'] = file_data['quality_options']
             if file_data.get('is_video_file') and file_data.get('thumbnail'):
                 merged[norm_title]['thumbnail'] = file_data['thumbnail']
                 merged[norm_title]['thumbnail_source'] = file_data.get('thumbnail_source', 'unknown')
         else:
+            # Create new entry for files without posts
             merged[norm_title] = {
                 'title': file_data['title'],
                 'content': f"<p>{file_data['title']}</p>",
-                'channel': 'SK4FiLM',
+                'channel': file_data.get('channel_name', 'SK4FiLM Files'),
                 'date': file_data['date'],
                 'is_new': False,
                 'has_file': True,
@@ -1194,8 +1252,13 @@ async def search_movies_live(query, limit=12, page=1):
                 'thumbnail_source': file_data.get('thumbnail_source', 'unknown')
             }
     
+    # Sort results: new posts first, then files, then by date
     results_list = list(merged.values())
-    results_list.sort(key=lambda x: (not x.get('is_new', False), not x['has_file'], x['date']), reverse=True)
+    results_list.sort(key=lambda x: (
+        not x.get('is_new', False),  # New posts first
+        not x['has_file'],           # Files before posts only
+        x['date']                    # Recent first
+    ), reverse=True)
     
     total = len(results_list)
     paginated = results_list[offset:offset + limit]
@@ -1209,6 +1272,11 @@ async def search_movies_live(query, limit=12, page=1):
             'per_page': limit,
             'has_next': page < math.ceil(total / limit) if total > 0 else False,
             'has_previous': page > 1
+        },
+        'search_metadata': {
+            'channels_searched': len(Config.TEXT_CHANNEL_IDS),
+            'channels_found': len(set(r.get('channel_id') for r in paginated if r.get('channel_id'))),
+            'query': query
         }
     }
     
@@ -1219,12 +1287,14 @@ async def search_movies_live(query, limit=12, page=1):
     # Also update in-memory cache
     movie_db['search_cache'][cache_key] = (result_data, datetime.now())
     
+    logger.info(f"✅ Multi-channel search completed: {len(paginated)} results from {len(set(r.get('channel_id') for r in paginated if r.get('channel_id')))} channels")
+    
     return result_data
 
-# OPTIMIZED HOME MOVIES WITH CONCURRENT POSTER FETCHING
+# OPTIMIZED HOME MOVIES WITH MULTI-CHANNEL SUPPORT
 async def get_home_movies_live():
-    # Use cached data first, only fetch live if necessary
-    posts = await get_live_posts(Config.MAIN_CHANNEL_ID, limit=20)
+    """Get latest movies from multiple channels"""
+    posts = await get_live_posts_multi_channel(limit_per_channel=15)
     
     movies = []
     seen = set()
@@ -1237,7 +1307,8 @@ async def get_home_movies_live():
                 'title': post['title'],
                 'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
                 'is_new': post.get('is_new', False),
-                'channel': post.get('channel_name', 'SK4FiLM Main')
+                'channel': post.get('channel_name', 'SK4FiLM'),
+                'channel_id': post.get('channel_id')
             })
             if len(movies) >= 20:
                 break
@@ -1270,21 +1341,27 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v7.0 - ENHANCED INDEXING',
+        'service': 'SK4FiLM v8.0 - MULTI-CHANNEL ENHANCED',
         'database': {
             'total_files': tf, 
             'video_files': video_files,
             'thumbnails': thumbnails,
-            'mode': 'ENHANCED (NEW FILES + REDIS)'
+            'mode': 'MULTI-CHANNEL ENHANCED'
+        },
+        'channels': {
+            'text_channels': len(Config.TEXT_CHANNEL_IDS),
+            'file_channels': 1,
+            'total_channels': len(Config.TEXT_CHANNEL_IDS) + 1
         },
         'cache': {
             'redis_enabled': redis_cache.enabled,
             'redis_hits': movie_db['stats']['redis_hits'],
-            'redis_misses': movie_db['stats']['redis_misses']
+            'redis_misses': movie_db['stats']['redis_misses'],
+            'multi_channel_searches': movie_db['stats']['multi_channel_searches']
         },
         'bot_status': 'online' if bot_started else 'starting',
         'user_session': 'ready' if user_session_ready else 'flood_wait',
-        'features': 'REDIS CACHE + BATCH THUMBNAILS + SMART INDEXING'
+        'features': 'MULTI-CHANNEL SEARCH + REDIS CACHE + BATCH THUMBNAILS'
     })
 
 @app.route('/health')
@@ -1293,6 +1370,7 @@ async def health():
         'status': 'ok' if bot_started else 'starting',
         'user_session': user_session_ready,
         'redis_enabled': redis_cache.enabled,
+        'channels_configured': len(Config.TEXT_CHANNEL_IDS),
         'timestamp': datetime.now().isoformat()
     })
 
@@ -1373,9 +1451,14 @@ async def api_index_status():
             'bot_status': 'online' if bot_started else 'starting',
             'user_session': user_session_ready,
             'redis_enabled': redis_cache.enabled,
+            'channels': {
+                'text_channels': Config.TEXT_CHANNEL_IDS,
+                'file_channel': Config.FILE_CHANNEL_ID
+            },
             'cache_stats': {
                 'redis_hits': movie_db['stats']['redis_hits'],
-                'redis_misses': movie_db['stats']['redis_misses']
+                'redis_misses': movie_db['stats']['redis_misses'],
+                'multi_channel_searches': movie_db['stats']['multi_channel_searches']
             }
         })
     except Exception as e:
@@ -1393,7 +1476,8 @@ async def api_movies():
             'movies': movies, 
             'total': len(movies), 
             'bot_username': Config.BOT_USERNAME,
-            'mode': 'ENHANCED_INDEXING'
+            'mode': 'MULTI_CHANNEL_ENHANCED',
+            'channels_searched': len(Config.TEXT_CHANNEL_IDS)
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1410,15 +1494,16 @@ async def api_search():
         if not bot_started:
             return jsonify({'status': 'error', 'message': 'Starting...'}), 503
         
-        result = await search_movies_live(q, l, p)
+        result = await search_movies_multi_channel(q, l, p)
         return jsonify({
             'status': 'success', 
             'query': q, 
             'results': result['results'], 
-            'pagination': result['pagination'], 
+            'pagination': result['pagination'],
+            'search_metadata': result.get('search_metadata', {}),
             'bot_username': Config.BOT_USERNAME,
             'cache': 'redis' if redis_cache.enabled else 'memory',
-            'mode': 'ENHANCED_INDEXING'
+            'mode': 'MULTI_CHANNEL_ENHANCED'
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1437,12 +1522,14 @@ async def api_clear_cache():
         
         movie_db['stats']['redis_hits'] = 0
         movie_db['stats']['redis_misses'] = 0
+        movie_db['stats']['multi_channel_searches'] = 0
         
         return jsonify({
             'status': 'success',
             'message': 'All caches cleared successfully',
             'redis_cleared': redis_cache.enabled,
-            'memory_cleared': True
+            'memory_cleared': True,
+            'stats_reset': True
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1691,12 +1778,13 @@ async def setup_bot():
             welcome_text += "🔒 **URL Verification Required**\n• Complete one-time verification\n• Valid for 6 hours\n\n"
         
         welcome_text += (
-            "✨ **Features:**\n"
-            "• 🎥 Latest movies & shows\n" 
+            "✨ **Enhanced Features:**\n"
+            "• 🎥 Latest movies from MULTIPLE channels\n" 
             "• 📺 Multiple quality options\n"
-            "• ⚡ Fast downloads\n"
+            "• ⚡ Fast multi-channel search\n"
             "• 🖼️ Video thumbnails\n"
-            "• 🔍 Redis-cached search\n\n"
+            "• 🔍 Redis-cached search\n"
+            "• 🔄 Concurrent channel processing\n\n"
             "👇 **Get started below:**"
         )
         
@@ -1834,6 +1922,10 @@ async def setup_bot():
             "• Latest movie releases\n"
             "• High quality files\n"
             "• Daily updates\n\n"
+            "🔎 **Movies Group:**\n"
+            "• Movie discussions\n"
+            "• Requests & updates\n"
+            "• Community interaction\n\n"
             "👇 **Click below to join:**",
             reply_markup=InlineKeyboardMarkup([
                 [
@@ -1865,13 +1957,15 @@ async def setup_bot():
         
         movie_db['stats']['redis_hits'] = 0
         movie_db['stats']['redis_misses'] = 0
+        movie_db['stats']['multi_channel_searches'] = 0
         
         await msg.edit_text(
             f"✅ **All caches cleared!**\n\n"
             f"• Redis cache: {'✅ Cleared' if redis_cleared else '❌ Failed'}\n"
             f"• Memory cache: ✅ Cleared\n"
             f"• Search cache: ✅ Cleared\n"
-            f"• Poster cache: ✅ Cleared\n\n"
+            f"• Poster cache: ✅ Cleared\n"
+            f"• Multi-channel stats: ✅ Reset\n\n"
             f"Next search will be fresh from database."
         )
     
@@ -1889,7 +1983,7 @@ async def setup_bot():
         last_msg_id = last_indexed['message_id'] if last_indexed else 'None'
         
         stats_text = (
-            f"📊 **SK4FiLM ENHANCED STATISTICS**\n\n"
+            f"📊 **SK4FiLM MULTI-CHANNEL STATISTICS**\n\n"
             f"📁 **Total Files:** {tf}\n"
             f"🎥 **Video Files:** {video_files}\n"
             f"🖼️ **Video Thumbnails:** {video_thumbnails}\n"
@@ -1899,8 +1993,9 @@ async def setup_bot():
             f"🔴 **Live Posts:** Active\n"
             f"🤖 **Bot Status:** Online\n"
             f"👤 **User Session:** {'Ready' if user_session_ready else 'Flood Wait'}\n"
-            f"🔧 **Indexing Mode:** ENHANCED (New Files Only)\n"
-            f"🔍 **Redis Cache:** {'✅ Enabled' if redis_cache.enabled else '❌ Disabled'}\n\n"
+            f"🔧 **Indexing Mode:** MULTI-CHANNEL ENHANCED\n"
+            f"🔍 **Redis Cache:** {'✅ Enabled' if redis_cache.enabled else '❌ Disabled'}\n"
+            f"📡 **Channels Active:** {len(Config.TEXT_CHANNEL_IDS)} text + 1 file\n\n"
             f"**🎨 Poster Sources:**\n"
             f"• Letterboxd: {movie_db['stats']['letterboxd']}\n"
             f"• IMDb: {movie_db['stats']['imdb']}\n"
@@ -1911,11 +2006,14 @@ async def setup_bot():
             f"• Custom: {movie_db['stats']['custom']}\n"
             f"• Cache Hits: {movie_db['stats']['cache_hits']}\n"
             f"• Video Thumbnails: {movie_db['stats']['video_thumbnails']}\n\n"
-            f"**🔍 Redis Cache Stats:**\n"
-            f"• Hits: {movie_db['stats']['redis_hits']}\n"
-            f"• Misses: {movie_db['stats']['redis_misses']}\n"
+            f"**🔍 Search Statistics:**\n"
+            f"• Redis Hits: {movie_db['stats']['redis_hits']}\n"
+            f"• Redis Misses: {movie_db['stats']['redis_misses']}\n"
+            f"• Multi-channel Searches: {movie_db['stats']['multi_channel_searches']}\n"
             f"• Hit Rate: {(movie_db['stats']['redis_hits']/(movie_db['stats']['redis_hits'] + movie_db['stats']['redis_misses'])*100):.1f}%\n\n"
-            f"**⚡ Features:**\n"
+            f"**⚡ Enhanced Features:**\n"
+            f"• ✅ Multi-channel search & posts\n"
+            f"• ✅ Concurrent channel processing\n"
             f"• ✅ Enhanced file indexing (NEW ONLY)\n"
             f"• ✅ Batch thumbnail processing\n"
             f"• ✅ Redis search caching\n"
@@ -1952,7 +2050,7 @@ async def init():
     global User, bot, bot_started, user_session_ready
     
     try:
-        logger.info("🚀 INITIALIZING ENHANCED SK4FiLM BOT...")
+        logger.info("🚀 INITIALIZING MULTI-CHANNEL SK4FiLM BOT...")
         
         # Initialize MongoDB first
         await init_mongodb()
@@ -2011,23 +2109,24 @@ async def init():
 
 async def main():
     logger.info("="*60)
-    logger.info("🎬 SK4FiLM v7.0 - ENHANCED INDEXING & CACHING")
+    logger.info("🎬 SK4FiLM v8.0 - MULTI-CHANNEL ENHANCED")
+    logger.info("✅ Multi-Channel Search | Concurrent Processing")
     logger.info("✅ Redis Search Caching | Batch Thumbnail Processing")
-    logger.info("✅ New Files Only | Enhanced Flood Protection")
+    logger.info(f"✅ Channels: {len(Config.TEXT_CHANNEL_IDS)} text + 1 file")
     logger.info(f"✅ Redis: {'ENABLED' if redis_cache.enabled else 'DISABLED'}")
     logger.info(f"✅ Verification: {'ENABLED (6 hours)' if Config.VERIFICATION_REQUIRED else 'DISABLED'}")
     logger.info("="*60)
     
     success = await init()
     if not success:
-        logger.error("❌ Failed to initialize enhanced bot")
+        logger.error("❌ Failed to initialize multi-channel bot")
         return
     
     config = HyperConfig()
     config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     config.loglevel = "warning"
     
-    logger.info(f"🌐 ENHANCED web server starting on port {Config.WEB_SERVER_PORT}...")
+    logger.info(f"🌐 MULTI-CHANNEL web server starting on port {Config.WEB_SERVER_PORT}...")
     await serve(app, config)
 
 if __name__ == "__main__":
