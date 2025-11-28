@@ -412,16 +412,27 @@ async def init_mongodb():
         logger.error(f"❌ MongoDB: {e}")
         return False
 
-# OPTIMIZED TITLE NORMALIZATION
+# IMPROVED TITLE NORMALIZATION FOR INDIAN MOVIES
 def normalize_title(title):
     if not title:
         return ""
     normalized = title.lower().strip()
-    normalized = re.sub(r'\b(19|20)\d{2}\b', '', normalized)
-    normalized = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv)\b', '', normalized, flags=re.IGNORECASE)
-    return ' '.join(normalized.split()).strip()
+    
+    # Remove years, quality indicators, and technical terms
+    normalized = re.sub(
+        r'\b(19|20)\d{2}\b|\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv|hdrip|webdl|hindi|english|tamil|telugu|malayalam|kannada|punjabi|bengali|marathi|gujarati|movie|film|series|complete|full|part|episode|season|hdrc|dvdscr|pre-dvd|p-dvd|pdc|rarbg|yts|amzn|netflix|hotstar|prime|disney|hc-esub|esub|subs)\b',
+        '', 
+        normalized, 
+        flags=re.IGNORECASE
+    )
+    
+    # Clean up extra spaces and special characters
+    normalized = re.sub(r'[\._\-]', ' ', normalized)
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    
+    return normalized
 
-# OPTIMIZED TITLE EXTRACTION
+# IMPROVED TITLE EXTRACTION FOR INDIAN MOVIE FORMATS
 def extract_title_smart(text):
     if not text or len(text) < 10:
         return None
@@ -437,14 +448,26 @@ def extract_title_smart(text):
         
         first_line = lines[0]
         
+        # IMPROVED PATTERNS FOR INDIAN MOVIE TITLES
         patterns = [
-            (r'🎬\s*([^\n\-\(]{3,60})', 1),
-            (r'^([^\(\n]{3,60})\s*\(\d{4}\)', 1),
-            (r'^([^\-\n]{3,60})\s*-', 1)
+            # Pattern for: "Tere Ishk Mein 2025 1080p Hindi HDTC x264 AAC HC-ESub"
+            (r'^([A-Za-z\s]{3,50}?)\s*(?:\(?\d{4}\)?|\b(?:480p|720p|1080p|2160p|4k|hd|fhd|uhd)\b)', 1),
+            
+            # Pattern for: "🎬 Tere Ishk Mein (2025)"
+            (r'🎬\s*([^\n\-\(]{3,60}?)\s*(?:\(\d{4}\)|$)', 1),
+            
+            # Pattern for: "Tere Ishk Mein - 2025 Movie"
+            (r'^([^\-\n]{3,60}?)\s*\-', 1),
+            
+            # Pattern for titles with year in parentheses: "Tere Ishk Mein (2025)"
+            (r'^([^\(\n]{3,60}?)\s*\(\d{4}\)', 1),
+            
+            # Pattern for Hindi/Indian movie titles with common keywords
+            (r'^([A-Za-z\s]{3,50}?)\s*(?:\d{4}|Hindi|Movie|Film|HDTC|WebDL|X264|AAC|ESub)', 1),
         ]
         
         for pattern, group in patterns:
-            match = re.search(pattern, first_line)
+            match = re.search(pattern, first_line, re.IGNORECASE)
             if match:
                 title = match.group(group).strip()
                 title = re.sub(r'\s+', ' ', title)
@@ -452,19 +475,35 @@ def extract_title_smart(text):
                     movie_db['title_cache'][text_hash] = title
                     return title
         
-        if len(first_line) >= 3 and len(first_line) <= 60:
-            title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hevc|x264|x265)\b', '', first_line, flags=re.IGNORECASE)
-            title = ' '.join(title.split()).strip()
-            if 3 <= len(title) <= 60:
-                movie_db['title_cache'][text_hash] = title
-                return title
-    except:
-        pass
+        # FALLBACK: Extract first meaningful words before quality indicators
+        if len(first_line) >= 3:
+            # Remove common technical terms and quality indicators
+            clean_title = re.sub(
+                r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv|hdrip|webdl|hindi|english|tamil|telugu|malayalam|kannada|punjabi|bengali|marathi|gujarati|movie|film|series|complete|full|part|episode|season|\d{4}|hdrc|dvdscr|pre-dvd|p-dvd|pdc|rarbg|yts|amzn|netflix|hotstar|prime|disney|hc-esub|esub|subs)\b',
+                '', 
+                first_line, 
+                flags=re.IGNORECASE
+            )
+            
+            # Clean up extra spaces and special characters
+            clean_title = re.sub(r'[\._\-]', ' ', clean_title)
+            clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+            
+            # Remove trailing year if any
+            clean_title = re.sub(r'\s+\(\d{4}\)$', '', clean_title)
+            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
+            
+            if 3 <= len(clean_title) <= 60:
+                movie_db['title_cache'][text_hash] = clean_title
+                return clean_title
+                
+    except Exception as e:
+        logger.error(f"Title extraction error: {e}")
     
     movie_db['title_cache'][text_hash] = None
     return None
 
-# OPTIMIZED FILE TITLE EXTRACTION
+# IMPROVED FILE TITLE EXTRACTION
 def extract_title_from_file(msg):
     try:
         if msg.caption:
@@ -474,14 +513,31 @@ def extract_title_from_file(msg):
         
         fn = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else None)
         if fn:
-            name = fn.rsplit('.', 1)[0]
+            # IMPROVED FILE NAME PARSING
+            name = fn.rsplit('.', 1)[0]  # Remove extension
+            
+            # Replace separators with spaces
             name = re.sub(r'[\._\-]', ' ', name)
-            name = re.sub(r'(720p|1080p|480p|2160p|HDRip|WEB|BluRay|x264|x265|HEVC)', '', name, flags=re.IGNORECASE)
-            name = ' '.join(name.split()).strip()
+            
+            # Remove quality and technical terms (IMPROVED LIST)
+            name = re.sub(
+                r'\b(720p|1080p|480p|2160p|4k|HDRip|WEBRip|WEB-DL|BluRay|BRRip|DVDRip|HDTV|HDTC|X264|X265|HEVC|H264|H265|AAC|AC3|DD5\.1|DDP5\.1|HC|ESub|Subs|Hindi|English|Dual|Multi|Complete|Full|Movie|Film|\d{4})\b',
+                '', 
+                name, 
+                flags=re.IGNORECASE
+            )
+            
+            # Clean up extra spaces
+            name = re.sub(r'\s+', ' ', name).strip()
+            
+            # Remove trailing year if any
+            name = re.sub(r'\s+\(\d{4}\)$', '', name)
+            name = re.sub(r'\s+\d{4}$', '', name)
+            
             if 4 <= len(name) <= 50:
                 return name
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"File title extraction error: {e}")
     return None
 
 # FAST UTILITY FUNCTIONS
