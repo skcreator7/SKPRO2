@@ -3,16 +3,14 @@ import logging
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection
 import aiohttp
-from quart import jsonify
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import random
 import string
-import urllib.parse
 
 logger = logging.getLogger(__name__)
 
-# Required Variables - YE APNE CONFIG.PY YA ENVIRONMENT MEIN SET KAREIN
+# Required Variables
 SHORTLINK_API = os.getenv("SHORTLINK_API", "02178e3fdd26bbd8eae0111a7aeb8ad11557c23d")
 SHORTLINK_URL = os.getenv("SHORTLINK_URL", "api.gplinks.com")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "SKadminrobot")
@@ -26,16 +24,12 @@ VERIFICATION_DURATION = int(os.getenv("VERIFICATION_DURATION", "21600"))
 async def get_verify_shorted_link(link):
     """Simple shortener that works with GPLinks"""
     try:
-        API = SHORTLINK_API
-        URL = SHORTLINK_URL
-        
         logger.info(f"🔄 Shortening URL: {link}")
-        logger.info(f"📡 Using API: {URL}")
         
         # GPLinks API format
-        url = f'https://{URL}/api'
+        url = f'https://{SHORTLINK_URL}/api'
         params = {
-            'api': API,
+            'api': SHORTLINK_API,
             'url': link,
         }
         
@@ -55,8 +49,7 @@ async def get_verify_shorted_link(link):
                     else:
                         logger.error(f"❌ API Error: {data.get('message', 'Unknown error')}")
                 else:
-                    response_text = await response.text()
-                    logger.error(f"❌ HTTP Error {response.status}: {response_text}")
+                    logger.error(f"❌ HTTP Error {response.status}")
         
         # If shortener fails, return original link
         logger.info("🔄 Shortener failed, using direct URL")
@@ -68,8 +61,10 @@ async def get_verify_shorted_link(link):
 
 class VerificationSystem:
     def __init__(self, verification_col: AsyncIOMotorCollection):
+        # ✅ ONLY 1 ARGUMENT NOW - verification_col
         self.verification_col = verification_col
         self.pending_verifications = {}
+        logger.info("✅ VerificationSystem initialized successfully")
     
     def is_admin(self, user_id):
         return user_id in ADMIN_IDS
@@ -108,7 +103,6 @@ class VerificationSystem:
             destination_url = f"https://t.me/{BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             
             logger.info(f"🔗 Creating verification for user {user_id}")
-            logger.info(f"📝 Destination URL: {destination_url}")
             
             # Generate short URL
             short_url = await get_verify_shorted_link(destination_url)
@@ -122,7 +116,6 @@ class VerificationSystem:
             }
             
             logger.info(f"✅ Verification created for user {user_id}")
-            logger.info(f"🎯 Short URL: {short_url}")
             
             return short_url, verification_code
             
@@ -418,24 +411,4 @@ class VerificationSystem:
                         ])
                     )
 
-        # Add test command for debugging
-        @bot.on_message(filters.command("test_verify") & filters.private)
-        async def test_verify_command(client, message):
-            user_id = message.from_user.id
-            user_name = message.from_user.first_name or "User"
-            
-            # Test shortener
-            test_url = f"https://t.me/{BOT_USERNAME}?start=test_123"
-            short_url = await get_verify_shorted_link(test_url)
-            
-            await message.reply_text(
-                f"🧪 **Test Results for {user_name}**\n\n"
-                f"📝 Original URL: `{test_url}`\n"
-                f"🔗 Short URL: `{short_url}`\n"
-                f"👑 Admin: `{self.is_admin(user_id)}`\n"
-                f"✅ Verification Required: `{VERIFICATION_REQUIRED}`\n\n"
-                f"📊 Pending Verifications: `{len(self.pending_verifications)}`",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔗 Test Short URL", url=short_url)]
-                ])
-            )
+        logger.info("✅ Verification handlers setup completed")
