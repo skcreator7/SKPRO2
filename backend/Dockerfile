@@ -15,10 +15,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy all application files
-COPY main.py .
-COPY verification_system.py .
-COPY poster_fetcher.py .
+# Copy all Python files
+COPY *.py .
 
 # Port
 EXPOSE 8000
