@@ -20,6 +20,10 @@ import time
 import redis.asyncio as redis
 import json
 
+# Import the separated modules
+from verification_system import VerificationSystem
+from poster_fetcher import PosterFetcher
+
 # FAST LOADING OPTIMIZATIONS
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -79,6 +83,10 @@ User = None
 bot = None
 bot_started = False
 user_session_ready = False
+
+# Initialize verification system and poster fetcher
+verification_system = None
+poster_fetcher = None
 
 # OPTIMIZED CACHE SYSTEM
 movie_db = {
@@ -608,7 +616,7 @@ async def process_thumbnail_batch(thumbnail_batch):
                 title = extract_title_from_file(file_data['message'])
                 if title:
                     async with aiohttp.ClientSession() as session:
-                        poster_data = await get_poster_guaranteed(title, session)
+                        poster_data = await poster_fetcher.get_poster_guaranteed(title, session)
                     if poster_data and poster_data.get('poster_url'):
                         return file_data['message'].id, poster_data['poster_url'], 'poster_api'
                 
@@ -694,58 +702,6 @@ async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
     except Exception as e:
         logger.error(f"    ❌ Telegram video thumbnail error: {e}")
         return None
-
-# OPTIMIZED VERIFICATION SYSTEM
-async def check_url_shortener_verification(user_id):
-    if not Config.VERIFICATION_REQUIRED:
-        return True, "verification_not_required"
-    
-    try:
-        verification = await verification_col.find_one({"user_id": user_id})
-        if verification:
-            verified_at = verification.get('verified_at')
-            if isinstance(verified_at, datetime):
-                time_elapsed = (datetime.now() - verified_at).total_seconds()
-                if time_elapsed < Config.VERIFICATION_DURATION:
-                    return True, "verified"
-                else:
-                    await verification_col.delete_one({"user_id": user_id})
-                    return False, "expired"
-        return False, "not_verified"
-    except Exception as e:
-        return False, "error"
-
-async def verify_user_with_url_shortener(user_id, verification_url=None):
-    if not Config.VERIFICATION_REQUIRED:
-        return True, "verification_not_required"
-    
-    try:
-        if not verification_url:
-            verification_url = await generate_verification_url(user_id)
-        
-        async with aiohttp.ClientSession() as session:
-            payload = {'user_id': user_id, 'verification_url': verification_url, 'api_key': Config.URL_SHORTENER_KEY}
-            async with session.post(Config.URL_SHORTENER_API, json=payload, timeout=5) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    if result.get('verified') == True:
-                        await verification_col.update_one(
-                            {"user_id": user_id},
-                            {"$set": {"verified_at": datetime.now(), "verification_url": verification_url, "verified_by": "url_shortener"}},
-                            upsert=True
-                        )
-                        return True, "verified"
-                    else:
-                        return False, result.get('message', 'verification_failed')
-                else:
-                    return False, "api_error"
-    except Exception as e:
-        return False, "error"
-
-async def generate_verification_url(user_id):
-    base_url = Config.WEBSITE_URL or Config.BACKEND_URL
-    verification_token = f"verify_{user_id}_{int(datetime.now().timestamp())}"
-    return f"{base_url}/verify?token={verification_token}&user_id={user_id}"
 
 # SMART BACKGROUND INDEXING - ONLY NEW FILES WITH BATCH THUMBNAIL PROCESSING
 async def index_files_background():
@@ -921,206 +877,6 @@ async def index_files_background():
         
     except Exception as e:
         logger.error(f"❌ Background indexing error: {e}")
-
-# OPTIMIZED POSTER FETCHING WITH CONCURRENT REQUESTS
-async def get_poster_letterboxd(title, session):
-    try:
-        clean_title = re.sub(r'[^\w\s]', '', title).strip()
-        slug = clean_title.lower().replace(' ', '-')
-        slug = re.sub(r'-+', '-', slug)
-        
-        patterns = [
-            f"https://letterboxd.com/film/{slug}/",
-            f"https://letterboxd.com/film/{slug}-2024/",
-            f"https://letterboxd.com/film/{slug}-2023/",
-        ]
-        
-        for url in patterns:
-            try:
-                async with session.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
-                    if r.status == 200:
-                        html_content = await r.text()
-                        poster_patterns = [
-                            r'<meta property="og:image" content="([^"]+)"',
-                            r'<img[^>]*class="[^"]*poster[^"]*"[^>]*src="([^"]+)"',
-                        ]
-                        
-                        for pattern in poster_patterns:
-                            poster_match = re.search(pattern, html_content)
-                            if poster_match:
-                                poster_url = poster_match.group(1)
-                                if poster_url and poster_url.startswith('http'):
-                                    if 'cloudfront.net' in poster_url:
-                                        poster_url = poster_url.replace('-0-500-0-750', '-0-1000-0-1500')
-                                    elif 's.ltrbxd.com' in poster_url:
-                                        poster_url = poster_url.replace('/width/500/', '/width/1000/')
-                                    
-                                    rating_match = re.search(r'<meta name="twitter:data2" content="([^"]+)"', html_content)
-                                    rating = rating_match.group(1) if rating_match else '0.0'
-                                    
-                                    res = {'poster_url': poster_url, 'source': 'Letterboxd', 'rating': rating}
-                                    movie_db['stats']['letterboxd'] += 1
-                                    return res
-            except:
-                continue
-        return None
-    except Exception as e:
-        return None
-
-async def get_poster_imdb(title, session):
-    try:
-        clean_title = re.sub(r'[^\w\s]', '', title).strip()
-        search_url = f"https://v2.sg.media-imdb.com/suggestion/{clean_title[0].lower()}/{urllib.parse.quote(clean_title.replace(' ', '_'))}.json"
-        
-        async with session.get(search_url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
-            if r.status == 200:
-                data = await r.json()
-                if data.get('d'):
-                    for item in data['d']:
-                        if item.get('i'):
-                            poster_url = item['i'][0] if isinstance(item['i'], list) else item['i']
-                            if poster_url and poster_url.startswith('http'):
-                                poster_url = poster_url.replace('._V1_UX128_', '._V1_UX512_')
-                                rating = str(item.get('yr', '0.0'))
-                                res = {'poster_url': poster_url, 'source': 'IMDb', 'rating': rating}
-                                movie_db['stats']['imdb'] += 1
-                                return res
-        return None
-    except Exception as e:
-        return None
-
-async def get_poster_justwatch(title, session):
-    try:
-        clean_title = re.sub(r'[^\w\s]', '', title).strip()
-        slug = clean_title.lower().replace(' ', '-')
-        slug = re.sub(r'[^\w\-]', '', slug)
-        
-        domains = ['com', 'in', 'uk']
-        
-        for domain in domains:
-            justwatch_url = f"https://www.justwatch.com/{domain}/movie/{slug}"
-            try:
-                async with session.get(justwatch_url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
-                    if r.status == 200:
-                        html_content = await r.text()
-                        poster_match = re.search(r'<meta property="og:image" content="([^"]+)"', html_content)
-                        if poster_match:
-                            poster_url = poster_match.group(1)
-                            if poster_url and poster_url.startswith('http'):
-                                poster_url = poster_url.replace('http://', 'https://')
-                                res = {'poster_url': poster_url, 'source': 'JustWatch', 'rating': '0.0'}
-                                movie_db['stats']['justwatch'] += 1
-                                return res
-            except:
-                continue
-        return None
-    except Exception as e:
-        return None
-
-async def get_poster_impawards(title, session):
-    try:
-        year_match = re.search(r'\b(19|20)\d{2}\b', title)
-        if not year_match:
-            return None
-            
-        year = year_match.group()
-        clean_title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
-        clean_title = re.sub(r'[^\w\s]', '', clean_title).strip()
-        slug = clean_title.lower().replace(' ', '_')
-        
-        formats = [
-            f"https://www.impawards.com/{year}/posters/{slug}_xlg.jpg",
-            f"https://www.impawards.com/{year}/posters/{slug}_ver7.jpg",
-            f"https://www.impawards.com/{year}/posters/{slug}.jpg",
-        ]
-        
-        for poster_url in formats:
-            try:
-                async with session.head(poster_url, timeout=3) as r:
-                    if r.status == 200:
-                        res = {'poster_url': poster_url, 'source': 'IMPAwards', 'rating': '0.0'}
-                        movie_db['stats']['impawards'] += 1
-                        return res
-            except:
-                continue
-        return None
-    except Exception as e:
-        return None
-
-async def get_poster_omdb_tmdb(title, session):
-    try:
-        for api_key in Config.OMDB_KEYS:
-            try:
-                url = f"http://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={api_key}"
-                async with session.get(url, timeout=5) as r:
-                    if r.status == 200:
-                        data = await r.json()
-                        if data.get('Response') == 'True' and data.get('Poster') and data.get('Poster') != 'N/A':
-                            poster_url = data['Poster'].replace('http://', 'https://')
-                            res = {'poster_url': poster_url, 'source': 'OMDB', 'rating': data.get('imdbRating', '0.0')}
-                            movie_db['stats']['omdb'] += 1
-                            return res
-            except:
-                continue
-        
-        for api_key in Config.TMDB_KEYS:
-            try:
-                url = "https://api.themoviedb.org/3/search/movie"
-                params = {'api_key': api_key, 'query': title}
-                async with session.get(url, params=params, timeout=5) as r:
-                    if r.status == 200:
-                        data = await r.json()
-                        if data.get('results') and len(data['results']) > 0:
-                            result = data['results'][0]
-                            poster_path = result.get('poster_path')
-                            if poster_path:
-                                poster_url = f"https://image.tmdb.org/t/p/w780{poster_path}"
-                                res = {'poster_url': poster_url, 'source': 'TMDB', 'rating': str(result.get('vote_average', 0.0))}
-                                movie_db['stats']['tmdb'] += 1
-                                return res
-            except:
-                continue
-        return None
-    except Exception as e:
-        return None
-
-# OPTIMIZED POSTER FETCHING WITH CONCURRENT REQUESTS
-async def get_poster_guaranteed(title, session):
-    ck = title.lower().strip()
-    
-    if ck in movie_db['poster_cache']:
-        c, ct = movie_db['poster_cache'][ck]
-        if (datetime.now() - ct).seconds < 3600:
-            movie_db['stats']['cache_hits'] += 1
-            return c
-    
-    sources = [
-        get_poster_letterboxd,
-        get_poster_imdb, 
-        get_poster_justwatch,
-        get_poster_impawards,
-        get_poster_omdb_tmdb,
-    ]
-    
-    tasks = [source(title, session) for source in sources]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    for result in results:
-        if isinstance(result, dict) and result:
-            movie_db['poster_cache'][ck] = (result, datetime.now())
-            return result
-    
-    year_match = re.search(r'\b(19|20)\d{2}\b', title)
-    year = year_match.group() if year_match else ""
-    
-    res = {
-        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}", 
-        'source': 'CUSTOM', 
-        'rating': '0.0'
-    }
-    movie_db['poster_cache'][ck] = (res, datetime.now())
-    movie_db['stats']['custom'] += 1
-    return res
 
 # ENHANCED MULTI-CHANNEL LIVE POSTS FETCHING
 async def get_live_posts_multi_channel(limit_per_channel=10):
@@ -1371,7 +1127,7 @@ async def get_home_movies_live():
     
     if movies:
         async with aiohttp.ClientSession() as session:
-            tasks = [get_poster_guaranteed(movie['title'], session) for movie in movies]
+            tasks = [poster_fetcher.get_poster_guaranteed(movie['title'], session) for movie in movies]
             posters = await asyncio.gather(*tasks, return_exceptions=True)
             
             for i, (movie, poster_result) in enumerate(zip(movies, posters)):
@@ -1430,52 +1186,18 @@ async def health():
         'timestamp': datetime.now().isoformat()
     })
 
+# Verification API routes
 @app.route('/api/verify_user', methods=['POST'])
 async def api_verify_user():
-    try:
-        data = await request.get_json()
-        user_id = data.get('user_id')
-        verification_url = data.get('verification_url')
-        
-        if not user_id:
-            return jsonify({'status': 'error', 'message': 'User ID required'}), 400
-        
-        is_verified, message = await verify_user_with_url_shortener(user_id, verification_url)
-        
-        return jsonify({
-            'status': 'success' if is_verified else 'error',
-            'verified': is_verified,
-            'message': message,
-            'user_id': user_id
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+    return await verification_system.api_verify_user(request)
 
 @app.route('/api/check_verification/<int:user_id>')
 async def api_check_verification(user_id):
-    try:
-        is_verified, message = await check_url_shortener_verification(user_id)
-        return jsonify({
-            'status': 'success',
-            'verified': is_verified,
-            'message': message,
-            'user_id': user_id,
-            'verification_required': Config.VERIFICATION_REQUIRED
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+    return await verification_system.api_check_verification(user_id)
 
 @app.route('/api/generate_verification_url/<int:user_id>')
 async def api_generate_verification_url(user_id):
-    try:
-        verification_url = await generate_verification_url(user_id)
-        return jsonify({
-            'status': 'success',
-            'verification_url': verification_url,
-            'user_id': user_id
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+    return await verification_system.api_generate_verification_url(user_id)
 
 @app.route('/api/index_status')
 async def api_index_status():
@@ -1576,6 +1298,9 @@ async def api_clear_cache():
         movie_db['poster_cache'].clear()
         movie_db['title_cache'].clear()
         
+        # Clear poster fetcher cache
+        poster_fetcher.clear_cache()
+        
         movie_db['stats']['redis_hits'] = 0
         movie_db['stats']['redis_misses'] = 0
         movie_db['stats']['multi_channel_searches'] = 0
@@ -1585,7 +1310,8 @@ async def api_clear_cache():
             'message': 'All caches cleared successfully',
             'redis_cleared': redis_cache.enabled,
             'memory_cleared': True,
-            'stats_reset': True
+            'stats_reset': True,
+            'poster_cache_cleared': True
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -1735,10 +1461,10 @@ async def setup_bot():
             fid = message.command[1]
             
             if Config.VERIFICATION_REQUIRED:
-                is_verified, status = await check_url_shortener_verification(uid)
+                is_verified, status = await verification_system.check_url_shortener_verification(uid)
                 
                 if not is_verified:
-                    verification_url = await generate_verification_url(uid)
+                    verification_url = await verification_system.generate_verification_url(uid)
                     
                     keyboard = InlineKeyboardMarkup([
                         [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
@@ -1846,7 +1572,7 @@ async def setup_bot():
         
         buttons = []
         if Config.VERIFICATION_REQUIRED:
-            verification_url = await generate_verification_url(uid)
+            verification_url = await verification_system.generate_verification_url(uid)
             buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", url=verification_url)])
         
         buttons.extend([
@@ -1860,45 +1586,8 @@ async def setup_bot():
         keyboard = InlineKeyboardMarkup(buttons)
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    @bot.on_callback_query(filters.regex(r"^check_verify_"))
-    async def check_verify_callback(client, callback_query):
-        user_id = callback_query.from_user.id
-        try:
-            is_verified, status = await check_url_shortener_verification(user_id)
-            
-            if is_verified:
-                await callback_query.message.edit_text(
-                    "✅ **Verification Successful!**\n\n"
-                    "You Can Now Download Files From The Website.\n\n"
-                    f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
-                    "⏰ **Verification Valid For 6 Hours**",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
-                        [
-                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
-                        ]
-                    ])
-                )
-            else:
-                verification_url = await generate_verification_url(user_id)
-                await callback_query.message.edit_text(
-                    "❌ **Not Verified Yet**\n\n"
-                    "Please complete the verification process first.\n\n"
-                    f"🔗 **Verification URL:** `{verification_url}`",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
-                        [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")],
-                        [
-                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
-                        ]
-                    ]),
-                    disable_web_page_preview=True
-                )
-                
-        except Exception as e:
-            await callback_query.answer("Error checking verification", show_alert=True)
+    # Setup verification system bot handlers
+    verification_system.setup_bot_handlers(bot, User, flood_protection)
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify', 'clear_cache']))
     async def text_handler(client, message):
@@ -1917,57 +1606,6 @@ async def setup_bot():
             ]),
             disable_web_page_preview=True
         )
-    
-    @bot.on_message(filters.command("verify") & filters.private)
-    async def verify_command(client, message):
-        user_id = message.from_user.id
-        user_name = message.from_user.first_name or "User"
-        
-        if Config.VERIFICATION_REQUIRED:
-            is_verified, status = await check_url_shortener_verification(user_id)
-            
-            if is_verified:
-                await message.reply_text(
-                    f"✅ **Already Verified, {user_name}!**\n\n"
-                    f"Your verification is active and valid for 6 hours.\n\n"
-                    "You can download files from the website now! 🎬",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
-                        [
-                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
-                        ]
-                    ])
-                )
-            else:
-                verification_url = await generate_verification_url(user_id)
-                await message.reply_text(
-                    f"🔗 **Verification Required, {user_name}**\n\n"
-                    "To download files, please complete the URL verification:\n\n"
-                    f"**Verification URL:** `{verification_url}`\n\n"
-                    "⏰ **Valid for 6 hours after verification**",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
-                        [
-                            InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
-                        ]
-                    ]),
-                    disable_web_page_preview=True
-                )
-        else:
-            await message.reply_text(
-                "ℹ️ **Verification Not Required**\n\n"
-                "URL shortener verification is currently disabled.\n"
-                "You can download files directly from the website.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
-                    [
-                        InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
-                        InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
-                    ]
-                ])
-            )
     
     @bot.on_message(filters.command("channel") & filters.private)
     async def channel_command(client, message):
@@ -2011,6 +1649,9 @@ async def setup_bot():
         movie_db['poster_cache'].clear()
         movie_db['title_cache'].clear()
         
+        # Clear poster fetcher cache
+        poster_fetcher.clear_cache()
+        
         movie_db['stats']['redis_hits'] = 0
         movie_db['stats']['redis_misses'] = 0
         movie_db['stats']['multi_channel_searches'] = 0
@@ -2021,6 +1662,7 @@ async def setup_bot():
             f"• Memory cache: ✅ Cleared\n"
             f"• Search cache: ✅ Cleared\n"
             f"• Poster cache: ✅ Cleared\n"
+            f"• Poster fetcher cache: ✅ Cleared\n"
             f"• Multi-channel stats: ✅ Reset\n\n"
             f"Next search will be fresh from database."
         )
@@ -2103,7 +1745,7 @@ async def user_session_recovery():
 
 # OPTIMIZED INITIALIZATION WITH ENHANCED FLOOD PROTECTION
 async def init():
-    global User, bot, bot_started, user_session_ready
+    global User, bot, bot_started, user_session_ready, verification_system, poster_fetcher
     
     try:
         logger.info("🚀 INITIALIZING MULTI-CHANNEL SK4FiLM BOT...")
@@ -2113,6 +1755,12 @@ async def init():
         
         # Initialize Redis cache
         await redis_cache.init_redis()
+        
+        # Initialize verification system
+        verification_system = VerificationSystem(verification_col, Config)
+        
+        # Initialize poster fetcher
+        poster_fetcher = PosterFetcher(Config, movie_db['stats'])
         
         # Initialize bot (this should work fine)
         bot = Client(
