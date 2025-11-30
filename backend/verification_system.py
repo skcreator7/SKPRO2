@@ -10,15 +10,22 @@ import string
 
 logger = logging.getLogger(__name__)
 
-# Required Variables
-SHORTLINK_API = os.getenv("SHORTLINK_API", "02178e3fdd26bbd8eae0111a7aeb8ad11557c23d")
-SHORTLINK_URL = os.getenv("SHORTLINK_URL", "api.gplinks.com")
-BOT_USERNAME = os.getenv("BOT_USERNAME", "SKadminrobot")
-MAIN_CHANNEL_LINK = os.getenv("MAIN_CHANNEL_LINK", "https://t.me/your_main_channel")
-UPDATES_CHANNEL_LINK = os.getenv("UPDATES_CHANNEL_LINK", "https://t.me/your_movies_group")
-ADMIN_IDS = [int(id.strip()) for id in os.getenv("ADMIN_IDS", "6920962552,7435781940").split(",")]
-VERIFICATION_REQUIRED = os.getenv("VERIFICATION_REQUIRED", "True").lower() == "true"
-VERIFICATION_DURATION = int(os.getenv("VERIFICATION_DURATION", "21600"))
+# Import config
+try:
+    from config import config
+except ImportError:
+    # Fallback if config not available
+    class FallbackConfig:
+        SHORTLINK_API = os.getenv("SHORTLINK_API", "02178e3fdd26bbd8eae0111a7aeb8ad11557c23d")
+        SHORTLINK_URL = os.getenv("SHORTLINK_URL", "api.gplinks.com")
+        BOT_USERNAME = os.getenv("BOT_USERNAME", "SKadminrobot")
+        MAIN_CHANNEL_LINK = os.getenv("MAIN_CHANNEL_LINK", "https://t.me/your_main_channel")
+        UPDATES_CHANNEL_LINK = os.getenv("UPDATES_CHANNEL_LINK", "https://t.me/your_movies_group")
+        ADMIN_IDS = [int(id.strip()) for id in os.getenv("ADMIN_IDS", "6920962552,7435781940").split(",")]
+        VERIFICATION_REQUIRED = os.getenv("VERIFICATION_REQUIRED", "True").lower() == "true"
+        VERIFICATION_DURATION = int(os.getenv("VERIFICATION_DURATION", "21600"))
+    
+    config = FallbackConfig()
 
 # Simple working shortener function
 async def get_verify_shorted_link(link):
@@ -27,11 +34,14 @@ async def get_verify_shorted_link(link):
         logger.info(f"🔄 Shortening URL: {link}")
         
         # GPLinks API format
-        url = f'https://{SHORTLINK_URL}/api'
+        url = f'https://{config.SHORTLINK_URL}/api'
         params = {
-            'api': SHORTLINK_API,
+            'api': config.SHORTLINK_API,
             'url': link,
         }
+        
+        logger.info(f"📡 Calling GPLinks API: {url}")
+        logger.info(f"🔑 Using API Key: {config.SHORTLINK_API[:10]}...")
         
         async with aiohttp.ClientSession() as session:
             async with session.get(url, params=params, ssl=False, timeout=10) as response:
@@ -46,10 +56,13 @@ async def get_verify_shorted_link(link):
                         if short_url:
                             logger.info(f"✅ Short URL Generated: {short_url}")
                             return short_url
+                        else:
+                            logger.error("❌ No shortenedUrl in response")
                     else:
                         logger.error(f"❌ API Error: {data.get('message', 'Unknown error')}")
                 else:
-                    logger.error(f"❌ HTTP Error {response.status}")
+                    response_text = await response.text()
+                    logger.error(f"❌ HTTP Error {response.status}: {response_text}")
         
         # If shortener fails, return original link
         logger.info("🔄 Shortener failed, using direct URL")
@@ -61,13 +74,12 @@ async def get_verify_shorted_link(link):
 
 class VerificationSystem:
     def __init__(self, verification_col: AsyncIOMotorCollection):
-        # ✅ ONLY 1 ARGUMENT NOW - verification_col
         self.verification_col = verification_col
         self.pending_verifications = {}
         logger.info("✅ VerificationSystem initialized successfully")
     
     def is_admin(self, user_id):
-        return user_id in ADMIN_IDS
+        return user_id in config.ADMIN_IDS
     
     def generate_verification_code(self):
         return ''.join(random.choices(string.digits, k=6))
@@ -75,7 +87,7 @@ class VerificationSystem:
     async def check_verification(self, user_id):
         """Check if user is verified"""
         try:
-            if not VERIFICATION_REQUIRED:
+            if not config.VERIFICATION_REQUIRED:
                 return True, "verification_not_required"
             
             if self.is_admin(user_id):
@@ -86,7 +98,7 @@ class VerificationSystem:
                 verified_at = verification.get('verified_at')
                 if isinstance(verified_at, datetime):
                     time_elapsed = (datetime.now() - verified_at).total_seconds()
-                    if time_elapsed < VERIFICATION_DURATION:
+                    if time_elapsed < config.VERIFICATION_DURATION:
                         return True, "verified"
                     else:
                         await self.verification_col.delete_one({"user_id": user_id})
@@ -100,7 +112,7 @@ class VerificationSystem:
         """Create verification link"""
         try:
             verification_code = self.generate_verification_code()
-            destination_url = f"https://t.me/{BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
+            destination_url = f"https://t.me/{config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             
             logger.info(f"🔗 Creating verification for user {user_id}")
             
@@ -116,6 +128,7 @@ class VerificationSystem:
             }
             
             logger.info(f"✅ Verification created for user {user_id}")
+            logger.info(f"🎯 Short URL: {short_url}")
             
             return short_url, verification_code
             
@@ -123,7 +136,7 @@ class VerificationSystem:
             logger.error(f"❌ Verification link creation error: {e}")
             # Fallback
             verification_code = self.generate_verification_code()
-            destination_url = f"https://t.me/{BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
+            destination_url = f"https://t.me/{config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             return destination_url, verification_code
 
     async def verify_user(self, user_id, verification_code):
@@ -199,10 +212,10 @@ class VerificationSystem:
                     await callback_query.message.edit_text(
                         message_text,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{BOT_USERNAME}")],
+                            [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
                             [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                             ]
                         ])
                     )
@@ -211,10 +224,10 @@ class VerificationSystem:
                         await callback_query.message.edit_text(
                             "✅ **ADMIN Access Granted!**",
                             reply_markup=InlineKeyboardMarkup([
-                                [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{BOT_USERNAME}")],
+                                [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
                                 [
-                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                                 ]
                             ])
                         )
@@ -235,8 +248,8 @@ class VerificationSystem:
                             [InlineKeyboardButton("🔗 CLICK TO AUTO-VERIFY", url=short_url)],
                             [InlineKeyboardButton("🔄 CHECK STATUS", callback_data=f"check_verify_{user_id}")],
                             [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                             ]
                         ]),
                         disable_web_page_preview=True
@@ -259,25 +272,25 @@ class VerificationSystem:
                     "You have **ADMIN privileges** - no verification required.\n\n"
                     "You can directly download files! 🎬",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
                 return
             
-            if not VERIFICATION_REQUIRED:
+            if not config.VERIFICATION_REQUIRED:
                 await message.reply_text(
                     "ℹ️ **Verification Not Required**\n\n"
                     "URL verification is currently disabled.\n"
                     "You can download files directly.",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
@@ -291,10 +304,10 @@ class VerificationSystem:
                     f"Your verification is active and valid for 6 hours.\n\n"
                     "You can download files now! 🎬",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
@@ -313,8 +326,8 @@ class VerificationSystem:
                         [InlineKeyboardButton("🔗 CLICK TO AUTO-VERIFY", url=short_url)],
                         [InlineKeyboardButton("🔄 CHECK STATUS", callback_data=f"check_verify_{user_id}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                         ]
                     ]),
                     disable_web_page_preview=True
@@ -345,10 +358,10 @@ class VerificationSystem:
                             "You can now download files! 🎬\n\n"
                             "Return to the bot and use /search command.",
                             reply_markup=InlineKeyboardMarkup([
-                                [InlineKeyboardButton("🎬 START DOWNLOADING", url=f"https://t.me/{BOT_USERNAME}")],
+                                [InlineKeyboardButton("🎬 START DOWNLOADING", url=f"https://t.me/{config.BOT_USERNAME}")],
                                 [
-                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                                 ]
                             ])
                         )
@@ -370,10 +383,10 @@ class VerificationSystem:
                     "You have **ADMIN privileges** - no verification required.\n\n"
                     "Use /search to find movies! 🎬",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 SEARCH MOVIES", url=f"https://t.me/{BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 SEARCH MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
@@ -386,10 +399,10 @@ class VerificationSystem:
                         "You are already verified and can download files!\n\n"
                         "Use /search to find movies.",
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🎬 SEARCH MOVIES", url=f"https://t.me/{BOT_USERNAME}")],
+                            [InlineKeyboardButton("🎬 SEARCH MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
                             [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                             ]
                         ])
                     )
@@ -405,8 +418,8 @@ class VerificationSystem:
                         reply_markup=InlineKeyboardMarkup([
                             [InlineKeyboardButton("🔗 START VERIFICATION", url=short_url)],
                             [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=UPDATES_CHANNEL_LINK)
+                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
+                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
                             ]
                         ])
                     )
