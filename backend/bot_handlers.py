@@ -22,7 +22,7 @@ async def setup_bot_handlers(bot, User, verification_system, files_col, redis_ca
             fid = message.command[1]
             
             if Config.VERIFICATION_REQUIRED:
-                is_verified, status = await verification_system.check_url_shortener_verification(uid)
+                is_verified, status = await verification_system.check_verification(uid)
                 
                 if not is_verified:
                     verification_url = await verification_system.generate_verification_url(uid)
@@ -148,7 +148,7 @@ async def setup_bot_handlers(bot, User, verification_system, files_col, redis_ca
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
     # Setup verification system bot handlers
-    verification_system.setup_bot_handlers(bot, User, flood_protection)
+    verification_system.setup_handlers(bot)
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify', 'clear_cache']))
     async def text_handler(client, message):
