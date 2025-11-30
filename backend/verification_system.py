@@ -6,6 +6,8 @@ import aiohttp
 from quart import jsonify
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import random
+import string
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +15,15 @@ class VerificationSystem:
     def __init__(self, verification_col: AsyncIOMotorCollection, config):
         self.verification_col = verification_col
         self.config = config
+        self.pending_verifications = {}  # Store pending verifications
     
     def is_admin(self, user_id):
         """Check if user is admin"""
         return user_id in self.config.ADMIN_IDS
+    
+    def generate_verification_code(self):
+        """Generate random verification code"""
+        return ''.join(random.choices(string.digits, k=6))
     
     async def check_url_shortener_verification(self, user_id):
         """Check if user is verified via URL shortener"""
@@ -43,94 +50,116 @@ class VerificationSystem:
             logger.error(f"Verification check error: {e}")
             return False, "error"
 
-    async def verify_user_with_url_shortener(self, user_id, verification_url=None):
-        """Verify user using URL shortener service"""
-        if not self.config.VERIFICATION_REQUIRED:
-            return True, "verification_not_required"
-        
-        # Admin users are always verified automatically
-        if self.is_admin(user_id):
-            return True, "admin_auto_verified"
-        
+    async def create_gplink_verification(self, user_id):
+        """Create GP Link verification for user"""
         try:
-            if not verification_url:
-                verification_url = await self.generate_verification_url(user_id)
+            # Generate verification code
+            verification_code = self.generate_verification_code()
             
+            # Create GP Link with verification code
+            gplink_url = await self.generate_gplink_with_code(verification_code, user_id)
+            
+            # Store verification data temporarily
+            self.pending_verifications[user_id] = {
+                'code': verification_code,
+                'created_at': datetime.now(),
+                'gplink_url': gplink_url
+            }
+            
+            return gplink_url, verification_code
+            
+        except Exception as e:
+            logger.error(f"GP Link creation error: {e}")
+            return None, None
+
+    async def generate_gplink_with_code(self, verification_code, user_id):
+        """Generate GP Link with verification code"""
+        try:
+            # GP Link API configuration
+            api_key = self.config.URL_SHORTENER_KEY
+            base_url = "https://gplinks.in/api"
+            
+            # Create destination URL with verification data
+            # We'll use a callback system where GP Link redirects to our bot
+            destination_url = f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
+            
+            # Shorten with GP Link
             async with aiohttp.ClientSession() as session:
                 payload = {
-                    'user_id': user_id, 
-                    'verification_url': verification_url, 
-                    'api_key': self.config.URL_SHORTENER_KEY
+                    'url': destination_url,
+                    'api_key': api_key
                 }
+                
                 async with session.post(
-                    self.config.URL_SHORTENER_API, 
-                    json=payload, 
-                    timeout=5
+                    f"{base_url}/shorten",
+                    json=payload,
+                    timeout=10
                 ) as response:
+                    
                     if response.status == 200:
                         result = await response.json()
-                        if result.get('verified') == True:
-                            await self.verification_col.update_one(
-                                {"user_id": user_id},
-                                {
-                                    "$set": {
-                                        "verified_at": datetime.now(), 
-                                        "verification_url": verification_url, 
-                                        "verified_by": "url_shortener"
-                                    }
-                                },
-                                upsert=True
-                            )
-                            return True, "verified"
-                        else:
-                            return False, result.get('message', 'verification_failed')
+                        if result.get('status') == 'success':
+                            shortened_url = result.get('shortenedUrl')
+                            logger.info(f"✅ GP Link created: {shortened_url}")
+                            return shortened_url
                     else:
-                        return False, "api_error"
+                        logger.error(f"GP Link API error: {response.status}")
+                        
+        except Exception as e:
+            logger.error(f"GP Link generation failed: {e}")
+        
+        # Fallback: Create direct bot link
+        return f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
+
+    async def verify_user_with_code(self, user_id, verification_code):
+        """Verify user using verification code"""
+        try:
+            # Check if verification exists and is valid
+            if user_id in self.pending_verifications:
+                pending_data = self.pending_verifications[user_id]
+                
+                # Check if code matches and is not expired (10 minutes)
+                if (pending_data['code'] == verification_code and 
+                    (datetime.now() - pending_data['created_at']).total_seconds() < 600):
+                    
+                    # Mark user as verified
+                    await self.verification_col.update_one(
+                        {"user_id": user_id},
+                        {
+                            "$set": {
+                                "verified_at": datetime.now(),
+                                "verified_by": "gplink_shortener",
+                                "verification_code": verification_code
+                            }
+                        },
+                        upsert=True
+                    )
+                    
+                    # Remove from pending
+                    del self.pending_verifications[user_id]
+                    
+                    return True, "verified_successfully"
+            
+            return False, "invalid_or_expired_code"
+            
         except Exception as e:
             logger.error(f"Verification error: {e}")
             return False, "error"
 
-    async def generate_verification_url(self, user_id):
-        """Generate GP Link shortner verification URL for user"""
-        # Use GP Link shortner service
-        base_url = "https://gplinks.in/api"
-        api_key = self.config.URL_SHORTENER_KEY
-        
-        # Create verification token
-        verification_token = f"sk4film_verify_{user_id}_{int(datetime.now().timestamp())}"
-        verification_page_url = f"{self.config.WEBSITE_URL}/verify?token={verification_token}"
-        
-        try:
-            # Shorten the verification URL using GP Link
-            async with aiohttp.ClientSession() as session:
-                payload = {
-                    'url': verification_page_url,
-                    'api_key': api_key
-                }
-                async with session.post(
-                    f"{base_url}/shorten",
-                    json=payload,
-                    timeout=5
-                ) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        if result.get('status') == 'success':
-                            return result.get('shortenedUrl', verification_page_url)
-        except Exception as e:
-            logger.error(f"GP Link shortening failed: {e}")
-        
-        # Fallback to direct URL if shortening fails
-        return verification_page_url
+    async def process_verification_start(self, user_id, verification_code):
+        """Process verification when user clicks GP Link"""
+        is_verified, message = await self.verify_user_with_code(user_id, verification_code)
+        return is_verified, message
 
     async def api_verify_user(self, request):
         """API endpoint to verify user"""
         try:
             data = await request.get_json()
             user_id = data.get('user_id')
-            verification_url = data.get('verification_url')
+            verification_code = data.get('verification_code')
             
-            if not user_id:
-                return jsonify({'status': 'error', 'message': 'User ID required'}), 400
+            if not user_id or not verification_code:
+                return jsonify({'status': 'error', 'message': 'User ID and verification code required'}), 400
             
             # Check if admin
             if self.is_admin(user_id):
@@ -141,7 +170,7 @@ class VerificationSystem:
                     'user_id': user_id
                 })
             
-            is_verified, message = await self.verify_user_with_url_shortener(user_id, verification_url)
+            is_verified, message = await self.verify_user_with_code(user_id, verification_code)
             
             return jsonify({
                 'status': 'success' if is_verified else 'error',
@@ -179,13 +208,22 @@ class VerificationSystem:
                     'message': 'admin_no_verification_needed'
                 })
             
-            verification_url = await self.generate_verification_url(user_id)
-            return jsonify({
-                'status': 'success',
-                'verification_url': verification_url,
-                'user_id': user_id,
-                'is_gplink': 'gplinks.in' in verification_url
-            })
+            gplink_url, verification_code = await self.create_gplink_verification(user_id)
+            
+            if gplink_url:
+                return jsonify({
+                    'status': 'success',
+                    'verification_url': gplink_url,
+                    'verification_code': verification_code,
+                    'user_id': user_id,
+                    'is_gplink': 'gplinks.in' in gplink_url
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'failed_to_generate_verification'
+                })
+                
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -202,12 +240,12 @@ class VerificationSystem:
                     if status == "admin_user":
                         message_text = "✅ **You are an ADMIN!**\n\nNo verification required. You can download files directly."
                     else:
-                        message_text = "✅ **Verification Successful!**\n\nYou Can Now Download Files From The Website.\n\n⏰ **Verification Valid For 6 Hours**"
+                        message_text = "✅ **GP Link Verification Successful!**\n\nYou Can Now Download Files! 🎬\n\n⏰ **Verification Valid For 6 Hours**"
                     
                     await callback_query.message.edit_text(
                         message_text,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
+                            [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                             [
                                 InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
                                 InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
@@ -220,7 +258,7 @@ class VerificationSystem:
                         await callback_query.message.edit_text(
                             "✅ **ADMIN Access Granted!**\n\nYou can download files directly.",
                             reply_markup=InlineKeyboardMarkup([
-                                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
+                                [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                                 [
                                     InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
                                     InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
@@ -229,25 +267,35 @@ class VerificationSystem:
                         )
                         return
                     
-                    verification_url = await self.generate_verification_url(user_id)
-                    await callback_query.message.edit_text(
-                        "❌ **Not Verified Yet**\n\n"
-                        "Please complete the GP Link verification process first.\n\n"
-                        f"🔗 **Verification URL:** `{verification_url}`\n\n"
-                        "📱 **Steps:**\n"
-                        "1. Click VERIFY NOW below\n"
-                        "2. Complete GP Link verification\n"
-                        "3. Come back and click CHECK AGAIN",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔗 VERIFY NOW (GP Link)", url=verification_url)],
-                            [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")],
-                            [
-                                InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
-                            ]
-                        ]),
-                        disable_web_page_preview=True
-                    )
+                    gplink_url, verification_code = await self.create_gplink_verification(user_id)
+                    
+                    if gplink_url:
+                        await callback_query.message.edit_text(
+                            "🔗 **GP Link Verification Required**\n\n"
+                            "📱 **Complete Verification in 3 Steps:**\n\n"
+                            "1. **Click GP LINK below**\n"
+                            "2. **Complete GP Link action**\n" 
+                            "3. **Return to bot automatically**\n\n"
+                            "⏰ **Code valid for 10 minutes**\n"
+                            f"🔢 **Your Code:** `{verification_code}`\n\n"
+                            "🚀 **Click below to verify:**",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🔗 VERIFY WITH GP LINK", url=gplink_url)],
+                                [InlineKeyboardButton("🔄 CHECK VERIFICATION", callback_data=f"check_verify_{user_id}")],
+                                [
+                                    InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
+                                ]
+                            ]),
+                            disable_web_page_preview=True
+                        )
+                    else:
+                        await callback_query.message.edit_text(
+                            "❌ **Failed to generate verification link**\n\nPlease try again later.",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🔄 TRY AGAIN", callback_data=f"check_verify_{user_id}")]
+                            ])
+                        )
                     
             except Exception as e:
                 await callback_query.answer("Error checking verification", show_alert=True)
@@ -262,9 +310,9 @@ class VerificationSystem:
                 await message.reply_text(
                     f"👑 **Welcome Admin {user_name}!**\n\n"
                     "You have **ADMIN privileges** and don't require verification.\n\n"
-                    "You can directly download files from the website! 🎬",
+                    "You can directly download files! 🎬",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                         [
                             InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
                             InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
@@ -280,9 +328,9 @@ class VerificationSystem:
                     await message.reply_text(
                         f"✅ **Already Verified, {user_name}!**\n\n"
                         f"Your GP Link verification is active and valid for 6 hours.\n\n"
-                        "You can download files from the website now! 🎬",
+                        "You can download files now! 🎬",
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
+                            [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                             [
                                 InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
                                 InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
@@ -290,32 +338,42 @@ class VerificationSystem:
                         ])
                     )
                 else:
-                    verification_url = await self.generate_verification_url(user_id)
-                    await message.reply_text(
-                        f"🔗 **GP Link Verification Required, {user_name}**\n\n"
-                        "To download files, please complete the GP Link URL verification:\n\n"
-                        f"**Verification URL:** `{verification_url}`\n\n"
-                        "📋 **Process:**\n"
-                        "• Click VERIFY NOW below\n"
-                        "• Complete GP Link verification\n"
-                        "• Return to bot and use /verify again\n\n"
-                        "⏰ **Valid for 6 hours after verification**",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔗 GP LINK VERIFY", url=verification_url)],
-                            [
-                                InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
-                            ]
-                        ]),
-                        disable_web_page_preview=True
-                    )
+                    gplink_url, verification_code = await self.create_gplink_verification(user_id)
+                    
+                    if gplink_url:
+                        await message.reply_text(
+                            f"🔗 **GP Link Verification Required, {user_name}**\n\n"
+                            "📋 **Verification Process:**\n\n"
+                            "1. **Click GP LINK VERIFY below**\n"
+                            "2. **Complete GP Link action**\n"
+                            "3. **You'll return to bot automatically**\n\n"
+                            "⏰ **Code valid for 10 minutes**\n"
+                            f"🔢 **Your Code:** `{verification_code}`\n\n"
+                            "🚀 **Click below to start verification:**",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🔗 GP LINK VERIFY", url=gplink_url)],
+                                [InlineKeyboardButton("🔄 CHECK STATUS", callback_data=f"check_verify_{user_id}")],
+                                [
+                                    InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
+                                ]
+                            ]),
+                            disable_web_page_preview=True
+                        )
+                    else:
+                        await message.reply_text(
+                            "❌ **Failed to generate verification link**\n\nPlease try the /verify command again.",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🔄 TRY AGAIN", callback_data=f"check_verify_{user_id}")]
+                            ])
+                        )
             else:
                 await message.reply_text(
                     "ℹ️ **Verification Not Required**\n\n"
                     "GP Link verification is currently disabled.\n"
-                    "You can download files directly from the website.",
+                    "You can download files directly.",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                         [
                             InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=self.config.MAIN_CHANNEL_LINK),
                             InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=self.config.UPDATES_CHANNEL_LINK)
