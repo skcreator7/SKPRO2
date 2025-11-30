@@ -48,7 +48,7 @@ class VerificationSystem:
             return False, "error"
 
     async def generate_short_url(self, destination_url):
-        """Generate short URL using only configured shortener"""
+        """Generate short URL using configured shortener"""
         api_url = getattr(self.config, 'URL_SHORTENER_API', '').strip()
         api_key = getattr(self.config, 'URL_SHORTENER_KEY', '').strip()
         
@@ -57,82 +57,234 @@ class VerificationSystem:
             logger.info("No shortener configured, using direct URL")
             return destination_url, 'Direct'
         
+        logger.info(f"Trying shortener: {api_url}")
+        
+        try:
+            # Try different shortener services based on API URL pattern
+            if 'gplinks.in' in api_url:
+                return await self._try_gplinks(destination_url, api_key)
+            elif 'bit.ly' in api_url or 'bitly.com' in api_url:
+                return await self._try_bitly(destination_url, api_key)
+            elif 'cutt.ly' in api_url:
+                return await self._try_cuttly(destination_url, api_key)
+            elif 'short.io' in api_url:
+                return await self._try_shortio(destination_url, api_key)
+            elif 'shorte.st' in api_url:
+                return await self._try_shorte(destination_url, api_key)
+            elif 'ouo.io' in api_url:
+                return await self._try_ouo(destination_url, api_key)
+            else:
+                # Generic API try
+                return await self._try_generic_api(destination_url, api_url, api_key)
+                
+        except Exception as e:
+            logger.error(f"Shortener error: {e}")
+            return destination_url, 'Direct'
+
+    async def _try_gplinks(self, destination_url, api_key):
+        """Try GPLinks shortener"""
         try:
             async with aiohttp.ClientSession() as session:
-                # Try common API formats
-                headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {api_key}'
-                }
-                
                 payload = {
                     'url': destination_url,
                     'api_key': api_key
                 }
                 
-                # First attempt with standard format
-                async with session.post(api_url, json=payload, headers=headers, timeout=10) as response:
+                async with session.post(
+                    "https://gplinks.in/api/shorten",
+                    json=payload,
+                    timeout=10
+                ) as response:
+                    
                     if response.status == 200:
                         result = await response.json()
-                        
-                        # Try different response field names
-                        if isinstance(result, dict):
-                            if result.get('shortenedUrl'):
-                                return result['shortenedUrl'], 'Configured'
-                            elif result.get('short_url'):
-                                return result['short_url'], 'Configured'
-                            elif result.get('link'):
-                                return result['link'], 'Configured'
-                            elif result.get('url'):
-                                return result['url'], 'Configured'
-                            elif result.get('result_url'):
-                                return result['result_url'], 'Configured'
-                        elif isinstance(result, str) and result.startswith('http'):
-                            return result, 'Configured'
+                        if result.get('status') == 'success':
+                            return result.get('shortenedUrl'), 'GPLinks'
+        except Exception as e:
+            logger.error(f"GPLinks error: {e}")
+        return destination_url, 'Direct'
+
+    async def _try_bitly(self, destination_url, api_key):
+        """Try Bitly shortener"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json'
+                }
+                payload = {'long_url': destination_url}
                 
-                # Second attempt with different header format
-                headers_alt = {'public-api-token': api_key}
-                async with session.post(api_url, json={'url': destination_url}, headers=headers_alt, timeout=10) as response:
+                async with session.post(
+                    "https://api-ssl.bitly.com/v4/shorten",
+                    json=payload,
+                    headers=headers,
+                    timeout=10
+                ) as response:
+                    
                     if response.status == 200:
                         result = await response.json()
-                        if isinstance(result, dict) and result.get('shortenedUrl'):
-                            return result['shortenedUrl'], 'Configured'
+                        return result.get('link'), 'Bitly'
+        except Exception as e:
+            logger.error(f"Bitly error: {e}")
+        return destination_url, 'Direct'
+
+    async def _try_cuttly(self, destination_url, api_key):
+        """Try Cuttly shortener"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                api_url = f"https://cutt.ly/api/api.php?key={api_key}&short={urllib.parse.quote(destination_url)}"
+                async with session.get(api_url, timeout=10) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get('url', {}).get('status') == 7:
+                            return result['url']['shortLink'], 'Cuttly'
+        except Exception as e:
+            logger.error(f"Cuttly error: {e}")
+        return destination_url, 'Direct'
+
+    async def _try_shortio(self, destination_url, api_key):
+        """Try Short.io shortener"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    'Authorization': api_key,
+                    'Content-Type': 'application/json'
+                }
+                payload = {
+                    'originalURL': destination_url,
+                    'domain': 'short.io'
+                }
                 
-                # Third attempt with form data
-                form_data = {'url': destination_url, 'api': api_key}
-                async with session.post(api_url, data=form_data, timeout=10) as response:
+                async with session.post(
+                    "https://api.short.io/links",
+                    json=payload,
+                    headers=headers,
+                    timeout=10
+                ) as response:
+                    
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get('shortURL'), 'ShortIO'
+        except Exception as e:
+            logger.error(f"ShortIO error: {e}")
+        return destination_url, 'Direct'
+
+    async def _try_shorte(self, destination_url, api_key):
+        """Try Shorte.st shortener"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {'public-api-token': api_key}
+                payload = {'urlToShorten': destination_url}
+                
+                async with session.post(
+                    "https://api.shorte.st/s/2/shorten",
+                    json=payload,
+                    headers=headers,
+                    timeout=10
+                ) as response:
+                    
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get('shortenedUrl'), 'Shorte'
+        except Exception as e:
+            logger.error(f"Shorte error: {e}")
+        return destination_url, 'Direct'
+
+    async def _try_ouo(self, destination_url, api_key):
+        """Try Ouo.io shortener"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    's': destination_url,
+                    'api': api_key
+                }
+                
+                async with session.post(
+                    "https://ouo.io/api/",
+                    data=payload,
+                    timeout=10
+                ) as response:
+                    
                     if response.status == 200:
                         result = await response.text()
                         if result.startswith('http'):
-                            return result.strip(), 'Configured'
+                            return result.strip(), 'Ouo'
+        except Exception as e:
+            logger.error(f"Ouo error: {e}")
+        return destination_url, 'Direct'
+
+    async def _try_generic_api(self, destination_url, api_url, api_key):
+        """Try generic API with common formats"""
+        try:
+            async with aiohttp.ClientSession() as session:
                 
-                logger.error(f"Configured shortener failed with status: {response.status}")
-                return destination_url, 'Direct'
+                # Try format 1: JSON with api_key in payload
+                payload1 = {
+                    'url': destination_url,
+                    'api_key': api_key
+                }
+                headers1 = {'Content-Type': 'application/json'}
+                
+                async with session.post(api_url, json=payload1, headers=headers1, timeout=10) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if isinstance(result, dict):
+                            for key in ['shortenedUrl', 'short_url', 'link', 'url', 'result_url']:
+                                if result.get(key):
+                                    return result[key], 'Generic'
+                        elif isinstance(result, str) and result.startswith('http'):
+                            return result, 'Generic'
+                
+                # Try format 2: Authorization header
+                headers2 = {
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json'
+                }
+                payload2 = {'url': destination_url}
+                
+                async with session.post(api_url, json=payload2, headers=headers2, timeout=10) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if isinstance(result, dict):
+                            for key in ['shortenedUrl', 'short_url', 'link', 'url', 'result_url']:
+                                if result.get(key):
+                                    return result[key], 'Generic'
+                
+                # Try format 3: public-api-token header
+                headers3 = {'public-api-token': api_key}
+                payload3 = {'url': destination_url}
+                
+                async with session.post(api_url, json=payload3, headers=headers3, timeout=10) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if isinstance(result, dict) and result.get('shortenedUrl'):
+                            return result['shortenedUrl'], 'Generic'
                 
         except Exception as e:
-            logger.error(f"Configured shortener error: {e}")
-            return destination_url, 'Direct'
+            logger.error(f"Generic API error: {e}")
+        
+        return destination_url, 'Direct'
 
     async def create_verification_link(self, user_id):
-        """Create verification link with configured shortener only"""
+        """Create verification link"""
         try:
             verification_code = self.generate_verification_code()
             destination_url = f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             
-            # Generate short URL using only configured shortener
-            short_url, service_type = await self.generate_short_url(destination_url)
+            # Generate short URL
+            short_url, service_name = await self.generate_short_url(destination_url)
             
             # Store verification data
             self.pending_verifications[user_id] = {
                 'code': verification_code,
                 'created_at': datetime.now(),
                 'short_url': short_url,
-                'service_type': service_type,
+                'service_name': service_name,
                 'destination_url': destination_url
             }
             
-            logger.info(f"✅ Generated {service_type} URL: {short_url}")
-            return short_url, verification_code, service_type
+            logger.info(f"✅ Generated {service_name} URL: {short_url}")
+            return short_url, verification_code, service_name
             
         except Exception as e:
             logger.error(f"Verification link creation error: {e}")
@@ -180,13 +332,14 @@ class VerificationSystem:
             if self.is_admin(user_id):
                 return None
             
-            short_url, verification_code, service_type = await self.create_verification_link(user_id)
+            short_url, verification_code, service_name = await self.create_verification_link(user_id)
             return short_url
                 
         except Exception as e:
             logger.error(f"Generate verification URL error: {e}")
             return None
 
+    # ... (rest of the API methods remain the same)
     async def api_verify_user(self, request):
         try:
             data = await request.get_json()
@@ -239,13 +392,13 @@ class VerificationSystem:
                     'message': 'admin_no_verification_needed'
                 })
             
-            short_url, verification_code, service_type = await self.create_verification_link(user_id)
+            short_url, verification_code, service_name = await self.create_verification_link(user_id)
             
             return jsonify({
                 'status': 'success',
                 'verification_url': short_url,
                 'verification_code': verification_code,
-                'service_type': service_type,
+                'service_name': service_name,
                 'user_id': user_id
             })
                 
@@ -289,12 +442,10 @@ class VerificationSystem:
                         )
                         return
                     
-                    short_url, verification_code, service_type = await self.create_verification_link(user_id)
-                    
-                    service_display = "Configured Shortener" if service_type == "Configured" else "Direct Link"
+                    short_url, verification_code, service_name = await self.create_verification_link(user_id)
                     
                     await callback_query.message.edit_text(
-                        f"🔗 **{service_display} Verification**\n\n"
+                        f"🔗 **{service_name} Verification**\n\n"
                         "📱 **Complete Verification:**\n\n"
                         "1. **Click VERIFY LINK below**\n"
                         "2. **Complete the action**\n" 
@@ -353,12 +504,10 @@ class VerificationSystem:
                         ])
                     )
                 else:
-                    short_url, verification_code, service_type = await self.create_verification_link(user_id)
-                    
-                    service_display = "Configured Shortener" if service_type == "Configured" else "Direct Link"
+                    short_url, verification_code, service_name = await self.create_verification_link(user_id)
                     
                     await message.reply_text(
-                        f"🔗 **{service_display} Verification Required, {user_name}**\n\n"
+                        f"🔗 **{service_name} Verification Required, {user_name}**\n\n"
                         "📋 **Verification Process:**\n\n"
                         "1. **Click VERIFY NOW below**\n"
                         "2. **Complete the action**\n"
