@@ -1498,77 +1498,7 @@ async def user_session_recovery():
 async def setup_bot_handlers():
     """Setup all bot handlers directly in main.py to avoid circular imports"""
     
-    @bot.on_message(filters.command("start") & filters.private)
-    async def start_handler(client, message):
-        uid = message.from_user.id
-        user_name = message.from_user.first_name or "User"
-        
-        if len(message.command) > 1:
-            fid = message.command[1]
-            
-            if Config.VERIFICATION_REQUIRED:
-                is_verified, status = await verification_system.check_verification(uid)
-                
-                if not is_verified:
-                    verification_url = await verification_system.generate_verification_url(uid)
-                    
-                    keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
-                        [InlineKeyboardButton("🔄 CHECK VERIFICATION", callback_data=f"check_verify_{uid}")],
-                        [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)]
-                    ])
-                    
-                    await message.reply_text(
-                        f"👋 **Hello {user_name}!**\n\n"
-                        "🔒 **Verification Required**\n"
-                        "To download files, you need to complete URL verification.\n\n"
-                        "🚀 **Quick Steps:**\n"
-                        "1. Click **VERIFY NOW** below\n"
-                        "2. Complete the verification process\n"
-                        "3. Come back and click **CHECK VERIFICATION**\n"
-                        "4. Start downloading!\n\n"
-                        "⏰ **Verification valid for 6 hours**",
-                        reply_markup=keyboard,
-                        disable_web_page_preview=True
-                    )
-                    return
-            
-            try:
-                parts = fid.split('_')
-                if len(parts) >= 2:
-                    channel_id = int(parts[0])
-                    message_id = int(parts[1])
-                    quality = parts[2] if len(parts) > 2 else "HD"
-                    
-                    pm = await message.reply_text(f"⏳ **Preparing your file...**\n\n📦 Quality: {quality}")
-                    
-                    file_message = await safe_telegram_operation(
-                        bot.get_messages,
-                        channel_id, 
-                        message_id
-                    )
-                    
-                    if not file_message or (not file_message.document and not file_message.video):
-                        await pm.edit_text("❌ **File not found**\n\nThe file may have been deleted.")
-                        return
-                    
-                    if file_message.document:
-                        sent = await safe_telegram_operation(
-                            bot.send_document,
-                            uid, 
-                            file_message.document.file_id, 
-                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
-                                   f"📹 Quality: {quality}\n"
-                                   f"📦 Size: {format_size(file_message.document.file_size)}\n\n"
-                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"@SK4FiLM 🍿"
-                        )
-                    else:
-                        sent = await safe_telegram_operation(
-                            bot.send_video,
-                            uid, 
-                            file_message.video.file_id, 
-
+verification_system.setup_handlers
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify', 'clear_cache']))
     async def text_handler(client, message):
