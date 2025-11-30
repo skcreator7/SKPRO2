@@ -1568,72 +1568,7 @@ async def setup_bot_handlers():
                             bot.send_video,
                             uid, 
                             file_message.video.file_id, 
-                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
-                                   f"📹 Quality: {quality}\n" 
-                                   f"📦 Size: {format_size(file_message.video.file_size)}\n\n"
-                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"@SK4FiLM 🍿"
-                        )
-                    
-                    await pm.delete()
-                    
-                    if Config.AUTO_DELETE_TIME > 0:
-                        async def auto_delete():
-                            await asyncio.sleep(Config.AUTO_DELETE_TIME)
-                            try:
-                                await sent.delete()
-                            except:
-                                pass
-                        asyncio.create_task(auto_delete())
-                        
-                else:
-                    await message.reply_text("❌ **Invalid file link**\n\nPlease get a fresh link from the website.")
-                    
-            except Exception as e:
-                try:
-                    await message.reply_text(f"❌ **Download Failed**\n\nError: `{str(e)}`")
-                except:
-                    pass
-            return
-        
-        welcome_text = (
-            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
-            "🌐 **Use our website to browse and download movies:**\n"
-            f"{Config.WEBSITE_URL}\n\n"
-        )
-        
-        if Config.VERIFICATION_REQUIRED:
-            welcome_text += "🔒 **URL Verification Required**\n• Complete one-time verification\n• Valid for 6 hours\n\n"
-        
-        welcome_text += (
-            "✨ **Enhanced Features:**\n"
-            "• 🎥 Latest movies from MULTIPLE channels\n" 
-            "• 📺 Multiple quality options\n"
-            "• ⚡ Fast multi-channel search\n"
-            "• 🖼️ Video thumbnails\n"
-            "• 🔍 Redis-cached search\n"
-            "• 🔄 Concurrent channel processing\n\n"
-            "👇 **Get started below:**"
-        )
-        
-        buttons = []
-        if Config.VERIFICATION_REQUIRED:
-            verification_url = await verification_system.generate_verification_url(uid)
-            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", url=verification_url)])
-        
-        buttons.extend([
-            [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
-            [
-                InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
-                InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
-            ]
-        ])
-        
-        keyboard = InlineKeyboardMarkup(buttons)
-        await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
-    
-    # Setup verification system bot handlers
-    verification_system.setup_handlers(bot)
+
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify', 'clear_cache']))
     async def text_handler(client, message):
