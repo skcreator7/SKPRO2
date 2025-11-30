@@ -142,7 +142,6 @@ class VerificationSystem:
             destination_url = f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             return destination_url, verification_code, 'Direct'
 
-    # ADD THIS MISSING METHOD
     async def generate_verification_url(self, user_id):
         """Generate verification URL - this method was missing"""
         try:
@@ -191,71 +190,6 @@ class VerificationSystem:
             logger.error(f"Verification error: {e}")
             return False, "error"
 
-    async def api_verify_user(self, request):
-        try:
-            data = await request.get_json()
-            user_id = data.get('user_id')
-            verification_code = data.get('verification_code')
-            
-            if not user_id or not verification_code:
-                return jsonify({'status': 'error', 'message': 'User ID and verification code required'}), 400
-            
-            if self.is_admin(user_id):
-                return jsonify({
-                    'status': 'success',
-                    'verified': True,
-                    'message': 'admin_auto_verified',
-                    'user_id': user_id
-                })
-            
-            is_verified, message = await self.verify_user_with_code(user_id, verification_code)
-            
-            return jsonify({
-                'status': 'success' if is_verified else 'error',
-                'verified': is_verified,
-                'message': message,
-                'user_id': user_id
-            })
-        except Exception as e:
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-
-    async def api_check_verification(self, user_id):
-        try:
-            is_verified, message = await self.check_url_shortener_verification(user_id)
-            return jsonify({
-                'status': 'success',
-                'verified': is_verified,
-                'message': message,
-                'user_id': user_id,
-                'is_admin': self.is_admin(user_id),
-                'verification_required': self.config.VERIFICATION_REQUIRED
-            })
-        except Exception as e:
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-
-    async def api_generate_verification_url(self, user_id):
-        try:
-            if self.is_admin(user_id):
-                return jsonify({
-                    'status': 'success',
-                    'verification_url': None,
-                    'user_id': user_id,
-                    'message': 'admin_no_verification_needed'
-                })
-            
-            short_url, verification_code, service_name = await self.create_verification_link(user_id)
-            
-            return jsonify({
-                'status': 'success',
-                'verification_url': short_url,
-                'verification_code': verification_code,
-                'service_name': service_name,
-                'user_id': user_id
-            })
-                
-        except Exception as e:
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-
     def setup_bot_handlers(self, bot, User, flood_protection):
         @bot.on_callback_query(filters.regex(r"^check_verify_"))
         async def check_verify_callback(client, callback_query):
@@ -293,6 +227,7 @@ class VerificationSystem:
                         )
                         return
                     
+                    # Generate shorted link for VERIFY button
                     short_url, verification_code, service_name = await self.create_verification_link(user_id)
                     
                     await callback_query.message.edit_text(
@@ -304,6 +239,7 @@ class VerificationSystem:
                         "⏰ **Link valid for 10 minutes**\n\n"
                         "🚀 **Click below to auto-verify:**",
                         reply_markup=InlineKeyboardMarkup([
+                            # ✅ YAHAN SHORTED LINK HI USE HOGI - GPLinks wali link
                             [InlineKeyboardButton("🔗 CLICK TO AUTO-VERIFY", url=short_url)],
                             [InlineKeyboardButton("🔄 CHECK STATUS", callback_data=f"check_verify_{user_id}")],
                             [
@@ -354,6 +290,7 @@ class VerificationSystem:
                         ])
                     )
                 else:
+                    # Generate shorted link for VERIFY button
                     short_url, verification_code, service_name = await self.create_verification_link(user_id)
                     
                     await message.reply_text(
@@ -364,6 +301,7 @@ class VerificationSystem:
                         "⏰ **Link valid for 10 minutes**\n\n"
                         "🚀 **Click below to start:**",
                         reply_markup=InlineKeyboardMarkup([
+                            # ✅ YAHAN SHORTED LINK HI USE HOGI - GPLinks wali link
                             [InlineKeyboardButton("🔗 CLICK TO AUTO-VERIFY", url=short_url)],
                             [InlineKeyboardButton("🔄 CHECK STATUS", callback_data=f"check_verify_{user_id}")],
                             [
@@ -456,13 +394,17 @@ class VerificationSystem:
                         ])
                     )
                 else:
+                    # Generate shorted link for START VERIFICATION button
+                    short_url, verification_code, service_name = await self.create_verification_link(user_id)
+                    
                     await message.reply_text(
                         f"🔗 **Welcome {user_name}!**\n\n"
                         "To download movies, you need to complete a quick verification.\n\n"
                         "**It's just 1 click!**\n\n"
-                        "Use /verify to get started.",
+                        "Click below to start verification:",
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔗 START VERIFICATION", callback_data=f"check_verify_{user_id}")],
+                            # ✅ YAHAN SHORTED LINK HI USE HOGI - GPLinks wali link
+                            [InlineKeyboardButton("🔗 START VERIFICATION", url=short_url)],
                             [
                                 InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
                                 InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
