@@ -4,6 +4,8 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection
 import aiohttp
 from quart import jsonify
+from pyrogram import filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 logger = logging.getLogger(__name__)
 
