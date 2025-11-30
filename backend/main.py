@@ -1498,7 +1498,142 @@ async def user_session_recovery():
 async def setup_bot_handlers():
     """Setup all bot handlers directly in main.py to avoid circular imports"""
     
-verification_system.setup_handlers
+    @bot.on_message(filters.command("start") & filters.private)
+    async def start_handler(client, message):
+        uid = message.from_user.id
+        user_name = message.from_user.first_name or "User"
+        
+        if len(message.command) > 1:
+            fid = message.command[1]
+            
+            if Config.VERIFICATION_REQUIRED:
+                is_verified, status = await verification_system.check_verification(uid)
+                
+                if not is_verified:
+                    verification_url = await verification_system.generate_verification_url(uid)
+                    
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                        [InlineKeyboardButton("🔄 CHECK VERIFICATION", callback_data=f"check_verify_{uid}")],
+                        [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)]
+                    ])
+                    
+                    await message.reply_text(
+                        f"👋 **Hello {user_name}!**\n\n"
+                        "🔒 **Verification Required**\n"
+                        "To download files, you need to complete URL verification.\n\n"
+                        "🚀 **Quick Steps:**\n"
+                        "1. Click **VERIFY NOW** below\n"
+                        "2. Complete the verification process\n"
+                        "3. Come back and click **CHECK VERIFICATION**\n"
+                        "4. Start downloading!\n\n"
+                        "⏰ **Verification valid for 6 hours**",
+                        reply_markup=keyboard,
+                        disable_web_page_preview=True
+                    )
+                    return
+            
+            try:
+                parts = fid.split('_')
+                if len(parts) >= 2:
+                    channel_id = int(parts[0])
+                    message_id = int(parts[1])
+                    quality = parts[2] if len(parts) > 2 else "HD"
+                    
+                    pm = await message.reply_text(f"⏳ **Preparing your file...**\n\n📦 Quality: {quality}")
+                    
+                    file_message = await safe_telegram_operation(
+                        bot.get_messages,
+                        channel_id, 
+                        message_id
+                    )
+                    
+                    if not file_message or (not file_message.document and not file_message.video):
+                        await pm.edit_text("❌ **File not found**\n\nThe file may have been deleted.")
+                        return
+                    
+                    if file_message.document:
+                        sent = await safe_telegram_operation(
+                            bot.send_document,
+                            uid, 
+                            file_message.document.file_id, 
+                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
+                                   f"📹 Quality: {quality}\n"
+                                   f"📦 Size: {format_size(file_message.document.file_size)}\n\n"
+                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                                   f"@SK4FiLM 🍿"
+                        )
+                    else:
+                        sent = await safe_telegram_operation(
+                            bot.send_video,
+                            uid, 
+                            file_message.video.file_id, 
+                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
+                                   f"📹 Quality: {quality}\n" 
+                                   f"📦 Size: {format_size(file_message.video.file_size)}\n\n"
+                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                                   f"@SK4FiLM 🍿"
+                        )
+                    
+                    await pm.delete()
+                    
+                    if Config.AUTO_DELETE_TIME > 0:
+                        async def auto_delete():
+                            await asyncio.sleep(Config.AUTO_DELETE_TIME)
+                            try:
+                                await sent.delete()
+                            except:
+                                pass
+                        asyncio.create_task(auto_delete())
+                        
+                else:
+                    await message.reply_text("❌ **Invalid file link**\n\nPlease get a fresh link from the website.")
+                    
+            except Exception as e:
+                try:
+                    await message.reply_text(f"❌ **Download Failed**\n\nError: `{str(e)}`")
+                except:
+                    pass
+            return
+        
+        welcome_text = (
+            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
+            "🌐 **Use our website to browse and download movies:**\n"
+            f"{Config.WEBSITE_URL}\n\n"
+        )
+        
+        if Config.VERIFICATION_REQUIRED:
+            welcome_text += "🔒 **URL Verification Required**\n• Complete one-time verification\n• Valid for 6 hours\n\n"
+        
+        welcome_text += (
+            "✨ **Enhanced Features:**\n"
+            "• 🎥 Latest movies from MULTIPLE channels\n" 
+            "• 📺 Multiple quality options\n"
+            "• ⚡ Fast multi-channel search\n"
+            "• 🖼️ Video thumbnails\n"
+            "• 🔍 Redis-cached search\n"
+            "• 🔄 Concurrent channel processing\n\n"
+            "👇 **Get started below:**"
+        )
+        
+        buttons = []
+        if Config.VERIFICATION_REQUIRED:
+            verification_url = await verification_system.generate_verification_url(uid)
+            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", url=verification_url)])
+        
+        buttons.extend([
+            [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
+            [
+                InlineKeyboardButton("📢 Mᴀɪɴ Cʜᴀɴɴᴇʟ", url=Config.MAIN_CHANNEL_LINK),
+                InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Gʀᴏᴜᴘ", url=Config.UPDATES_CHANNEL_LINK)
+            ]
+        ])
+        
+        keyboard = InlineKeyboardMarkup(buttons)
+        await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+    
+    # Setup verification system bot handlers
+    verification_system.setup_handlers(bot)
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'index', 'verify', 'clear_cache']))
     async def text_handler(client, message):
