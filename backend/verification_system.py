@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 async def get_verify_shorted_link(link):
     API = SHORTLINK_API
     URL = SHORTLINK_URL
+    
     https = link.split(":")[0]
     if "http" == https:
         https = "https"
@@ -140,6 +141,20 @@ class VerificationSystem:
             verification_code = self.generate_verification_code()
             destination_url = f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             return destination_url, verification_code, 'Direct'
+
+    # ADD THIS MISSING METHOD
+    async def generate_verification_url(self, user_id):
+        """Generate verification URL - this method was missing"""
+        try:
+            if self.is_admin(user_id):
+                return None
+            
+            short_url, verification_code, service_name = await self.create_verification_link(user_id)
+            return short_url
+                
+        except Exception as e:
+            logger.error(f"Generate verification URL error: {e}")
+            return None
 
     async def process_verification_start(self, user_id, verification_code):
         """Auto-verify when user clicks the short link"""
