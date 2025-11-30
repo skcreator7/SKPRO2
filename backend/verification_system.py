@@ -80,7 +80,6 @@ class VerificationSystem:
             base_url = "https://gplinks.in/api"
             
             # Create destination URL with verification data
-            # We'll use a callback system where GP Link redirects to our bot
             destination_url = f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             
             # Shorten with GP Link
@@ -150,6 +149,21 @@ class VerificationSystem:
         """Process verification when user clicks GP Link"""
         is_verified, message = await self.verify_user_with_code(user_id, verification_code)
         return is_verified, message
+
+    # ADD THIS MISSING METHOD
+    async def generate_verification_url(self, user_id):
+        """Generate verification URL - wrapper for create_gplink_verification"""
+        try:
+            # Admin users don't need verification
+            if self.is_admin(user_id):
+                return None
+            
+            gplink_url, verification_code = await self.create_gplink_verification(user_id)
+            return gplink_url
+            
+        except Exception as e:
+            logger.error(f"Generate verification URL error: {e}")
+            return None
 
     async def api_verify_user(self, request):
         """API endpoint to verify user"""
