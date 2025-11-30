@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection
 import aiohttp
+from quart import jsonify
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import random
@@ -10,97 +11,38 @@ import string
 
 logger = logging.getLogger(__name__)
 
-# Import config
-try:
-    from config import config
-except ImportError:
-    # Fallback if config not available
-    class FallbackConfig:
-        SHORTLINK_API = os.getenv("SHORTLINK_API", "02178e3fdd26bbd8eae0111a7aeb8ad11557c23d")
-        SHORTLINK_URL = os.getenv("SHORTLINK_URL", "api.gplinks.com")
-        BOT_USERNAME = os.getenv("BOT_USERNAME", "SKadminrobot")
-        MAIN_CHANNEL_LINK = os.getenv("MAIN_CHANNEL_LINK", "https://t.me/your_main_channel")
-        UPDATES_CHANNEL_LINK = os.getenv("UPDATES_CHANNEL_LINK", "https://t.me/your_movies_group")
-        ADMIN_IDS = [int(id.strip()) for id in os.getenv("ADMIN_IDS", "6920962552,7435781940").split(",")]
-        VERIFICATION_REQUIRED = os.getenv("VERIFICATION_REQUIRED", "True").lower() == "true"
-        VERIFICATION_DURATION = int(os.getenv("VERIFICATION_DURATION", "21600"))
-    
-    config = FallbackConfig()
-
-# Simple working shortener function
-async def get_verify_shorted_link(link):
-    """Simple shortener that works with GPLinks"""
-    try:
-        logger.info(f"🔄 Shortening URL: {link}")
-        
-        # GPLinks API format
-        url = f'https://{config.SHORTLINK_URL}/api'
-        params = {
-            'api': config.SHORTLINK_API,
-            'url': link,
-        }
-        
-        logger.info(f"📡 Calling GPLinks API: {url}")
-        logger.info(f"🔑 Using API Key: {config.SHORTLINK_API[:10]}...")
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, ssl=False, timeout=10) as response:
-                logger.info(f"📡 API Response Status: {response.status}")
-                
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"📄 API Response: {data}")
-                    
-                    if data.get("status") == "success":
-                        short_url = data.get('shortenedUrl')
-                        if short_url:
-                            logger.info(f"✅ Short URL Generated: {short_url}")
-                            return short_url
-                        else:
-                            logger.error("❌ No shortenedUrl in response")
-                    else:
-                        logger.error(f"❌ API Error: {data.get('message', 'Unknown error')}")
-                else:
-                    response_text = await response.text()
-                    logger.error(f"❌ HTTP Error {response.status}: {response_text}")
-        
-        # If shortener fails, return original link
-        logger.info("🔄 Shortener failed, using direct URL")
-        return link
-        
-    except Exception as e:
-        logger.error(f"💥 Shortener Exception: {e}")
-        return link
-
 class VerificationSystem:
-    def __init__(self, verification_col: AsyncIOMotorCollection):
+    def __init__(self, verification_col: AsyncIOMotorCollection, config):
         self.verification_col = verification_col
+        self.config = config
         self.pending_verifications = {}
-        logger.info("✅ VerificationSystem initialized successfully")
+        logger.info("✅ VerificationSystem initialized")
     
     def is_admin(self, user_id):
-        return user_id in config.ADMIN_IDS
+        return user_id in self.config.ADMIN_IDS
     
     def generate_verification_code(self):
         return ''.join(random.choices(string.digits, k=6))
     
     async def check_verification(self, user_id):
-        """Check if user is verified"""
+        """Check if user is verified in MongoDB"""
         try:
-            if not config.VERIFICATION_REQUIRED:
+            if not self.config.VERIFICATION_REQUIRED:
                 return True, "verification_not_required"
             
             if self.is_admin(user_id):
                 return True, "admin_user"
             
+            # Check in MongoDB
             verification = await self.verification_col.find_one({"user_id": user_id})
             if verification:
                 verified_at = verification.get('verified_at')
                 if isinstance(verified_at, datetime):
                     time_elapsed = (datetime.now() - verified_at).total_seconds()
-                    if time_elapsed < config.VERIFICATION_DURATION:
+                    if time_elapsed < self.config.VERIFICATION_DURATION:
                         return True, "verified"
                     else:
+                        # Remove expired verification
                         await self.verification_col.delete_one({"user_id": user_id})
                         return False, "expired"
             return False, "not_verified"
@@ -108,59 +50,89 @@ class VerificationSystem:
             logger.error(f"Verification check error: {e}")
             return False, "error"
 
+    async def get_shortened_url(self, destination_url):
+        """Get shortened URL using GPLinks"""
+        try:
+            api_url = f"https://{self.config.SHORTLINK_URL}/api"
+            params = {
+                'api': self.config.SHORTLINK_API,
+                'url': destination_url
+            }
+            
+            logger.info(f"🔄 Shortening URL: {destination_url}")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, params=params, timeout=10) as response:
+                    logger.info(f"📡 Shortener response status: {response.status}")
+                    
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.info(f"📄 Shortener response: {data}")
+                        
+                        if data.get("status") == "success":
+                            short_url = data.get('shortenedUrl')
+                            if short_url:
+                                logger.info(f"✅ Short URL generated: {short_url}")
+                                return short_url, 'GPLinks'
+                    
+                    # If shortener fails, return original URL
+                    logger.warning("❌ Shortener failed, using direct URL")
+                    return destination_url, 'Direct'
+                    
+        except Exception as e:
+            logger.error(f"💥 Shortener error: {e}")
+            return destination_url, 'Direct'
+
     async def create_verification_link(self, user_id):
-        """Create verification link"""
+        """Create verification link with shortened URL"""
         try:
             verification_code = self.generate_verification_code()
-            destination_url = f"https://t.me/{config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
+            destination_url = f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
             
-            logger.info(f"🔗 Creating verification for user {user_id}")
+            # Get shortened URL
+            short_url, service_name = await self.get_shortened_url(destination_url)
             
-            # Generate short URL
-            short_url = await get_verify_shorted_link(destination_url)
-            
-            # Store verification data
+            # Store in pending verifications
             self.pending_verifications[user_id] = {
                 'code': verification_code,
                 'created_at': datetime.now(),
                 'short_url': short_url,
+                'service_name': service_name,
                 'destination_url': destination_url
             }
             
-            logger.info(f"✅ Verification created for user {user_id}")
-            logger.info(f"🎯 Short URL: {short_url}")
-            
-            return short_url, verification_code
+            logger.info(f"✅ Verification link created for user {user_id}")
+            return short_url, verification_code, service_name
             
         except Exception as e:
             logger.error(f"❌ Verification link creation error: {e}")
             # Fallback
             verification_code = self.generate_verification_code()
-            destination_url = f"https://t.me/{config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
-            return destination_url, verification_code
+            destination_url = f"https://t.me/{self.config.BOT_USERNAME}?start=verify_{user_id}_{verification_code}"
+            return destination_url, verification_code, 'Direct'
 
     async def verify_user(self, user_id, verification_code):
-        """Verify user with code"""
+        """Verify user and save to MongoDB"""
         try:
             logger.info(f"🔍 Verifying user {user_id} with code {verification_code}")
             
             if user_id in self.pending_verifications:
                 pending_data = self.pending_verifications[user_id]
                 
-                # Check if code matches and not expired (10 minutes)
+                # Check if code is valid and not expired (10 minutes)
                 if (pending_data['code'] == verification_code and 
                     (datetime.now() - pending_data['created_at']).total_seconds() < 600):
                     
-                    logger.info(f"✅ Code valid for user {user_id}")
-                    
-                    # Save to database
+                    # Save to MongoDB
                     await self.verification_col.update_one(
                         {"user_id": user_id},
                         {
                             "$set": {
+                                "user_id": user_id,
                                 "verified_at": datetime.now(),
-                                "verified_by": "bot",
-                                "verification_code": verification_code
+                                "verified_by": "url_shortener",
+                                "verification_code": verification_code,
+                                "created_at": datetime.now()
                             }
                         },
                         upsert=True
@@ -168,13 +140,15 @@ class VerificationSystem:
                     
                     # Remove from pending
                     del self.pending_verifications[user_id]
-                    return True, "✅ Verification successful! You can now download files."
+                    
+                    logger.info(f"✅ User {user_id} verified successfully")
+                    return True, "🎉 **Verification Successful!**\n\nYou can now download movies! 🎬"
                 
                 else:
                     logger.error(f"❌ Invalid or expired code for user {user_id}")
                     return False, "❌ Invalid or expired verification code."
             
-            logger.error(f"❌ No pending verification found for user {user_id}")
+            logger.error(f"❌ No pending verification for user {user_id}")
             return False, "❌ No verification found. Please use /verify to get a new link."
             
         except Exception as e:
@@ -182,12 +156,12 @@ class VerificationSystem:
             return False, "❌ Verification failed. Please try again."
 
     async def generate_verification_url(self, user_id):
-        """Generate verification URL"""
+        """Generate verification URL for user"""
         try:
             if self.is_admin(user_id):
                 return None
             
-            short_url, verification_code = await self.create_verification_link(user_id)
+            short_url, verification_code, service_name = await self.create_verification_link(user_id)
             return short_url
                 
         except Exception as e:
@@ -199,8 +173,6 @@ class VerificationSystem:
         async def check_verify_callback(client, callback_query):
             user_id = callback_query.from_user.id
             try:
-                logger.info(f"🔄 Check verification for user {user_id}")
-                
                 is_verified, status = await self.check_verification(user_id)
                 
                 if is_verified:
@@ -212,10 +184,10 @@ class VerificationSystem:
                     await callback_query.message.edit_text(
                         message_text,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
+                            [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                             [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                                InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                                InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                             ]
                         ])
                     )
@@ -224,32 +196,32 @@ class VerificationSystem:
                         await callback_query.message.edit_text(
                             "✅ **ADMIN Access Granted!**",
                             reply_markup=InlineKeyboardMarkup([
-                                [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
+                                [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                                 [
-                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                                 ]
                             ])
                         )
                         return
                     
-                    # Generate verification link
-                    short_url, verification_code = await self.create_verification_link(user_id)
+                    # Generate new verification link
+                    short_url, verification_code, service_name = await self.create_verification_link(user_id)
                     
                     await callback_query.message.edit_text(
-                        f"🔗 **1-Click Auto-Verification**\n\n"
-                        "📱 **Complete Verification in 1 Click:**\n\n"
+                        f"🔗 **{service_name} Verification**\n\n"
+                        "📱 **Complete Verification:**\n\n"
                         "1. **Click VERIFY LINK below**\n"
                         "2. **You'll be automatically verified**\n" 
                         "3. **Return to bot and start downloading**\n\n"
                         "⏰ **Link valid for 10 minutes**\n\n"
-                        "🚀 **Click below to auto-verify:**",
+                        "🚀 **Click below to verify:**",
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔗 CLICK TO AUTO-VERIFY", url=short_url)],
+                            [InlineKeyboardButton("🔗 VERIFY NOW", url=short_url)],
                             [InlineKeyboardButton("🔄 CHECK STATUS", callback_data=f"check_verify_{user_id}")],
                             [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                                InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                                InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                             ]
                         ]),
                         disable_web_page_preview=True
@@ -264,7 +236,7 @@ class VerificationSystem:
             user_id = message.from_user.id
             user_name = message.from_user.first_name or "User"
             
-            logger.info(f"🔍 /verify command from user {user_id} ({user_name})")
+            logger.info(f"🔍 /verify command from user {user_id}")
             
             if self.is_admin(user_id):
                 await message.reply_text(
@@ -272,25 +244,25 @@ class VerificationSystem:
                     "You have **ADMIN privileges** - no verification required.\n\n"
                     "You can directly download files! 🎬",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
                 return
             
-            if not config.VERIFICATION_REQUIRED:
+            if not self.config.VERIFICATION_REQUIRED:
                 await message.reply_text(
                     "ℹ️ **Verification Not Required**\n\n"
                     "URL verification is currently disabled.\n"
                     "You can download files directly.",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
@@ -304,30 +276,30 @@ class VerificationSystem:
                     f"Your verification is active and valid for 6 hours.\n\n"
                     "You can download files now! 🎬",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 DOWNLOAD MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
             else:
-                # Generate verification link
-                short_url, verification_code = await self.create_verification_link(user_id)
+                short_url, verification_code, service_name = await self.create_verification_link(user_id)
                 
                 await message.reply_text(
-                    f"🔗 **1-Click Auto-Verification, {user_name}**\n\n"
-                    "📋 **Just 1 Step:**\n\n"
+                    f"🔗 **{service_name} Verification Required, {user_name}**\n\n"
+                    "📋 **Verification Process:**\n\n"
                     "1. **Click VERIFY NOW below**\n"
-                    "2. **You'll be automatically verified**\n\n"
+                    "2. **You'll be automatically verified**\n"
+                    "3. **Return to bot and start downloading**\n\n"
                     "⏰ **Link valid for 10 minutes**\n\n"
                     "🚀 **Click below to start:**",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔗 CLICK TO AUTO-VERIFY", url=short_url)],
+                        [InlineKeyboardButton("🔗 VERIFY NOW", url=short_url)],
                         [InlineKeyboardButton("🔄 CHECK STATUS", callback_data=f"check_verify_{user_id}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                         ]
                     ]),
                     disable_web_page_preview=True
@@ -338,7 +310,7 @@ class VerificationSystem:
             user_id = message.from_user.id
             user_name = message.from_user.first_name or "User"
             
-            logger.info(f"🔍 /start command from user {user_id} ({user_name})")
+            logger.info(f"🔍 /start command from user {user_id}")
             
             # Check if it's a verification start
             if len(message.command) > 1:
@@ -354,22 +326,18 @@ class VerificationSystem:
                     
                     if is_verified:
                         await message.reply_text(
-                            "✅ **Auto-Verification Successful!**\n\n"
-                            "You can now download files! 🎬\n\n"
-                            "Return to the bot and use /search command.",
+                            message_text,
                             reply_markup=InlineKeyboardMarkup([
-                                [InlineKeyboardButton("🎬 START DOWNLOADING", url=f"https://t.me/{config.BOT_USERNAME}")],
+                                [InlineKeyboardButton("🎬 START DOWNLOADING", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                                 [
-                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                                 ]
                             ])
                         )
                     else:
                         await message.reply_text(
-                            "❌ **Verification Failed**\n\n"
-                            f"{message_text}\n\n"
-                            "Please use /verify to get a new link.",
+                            f"❌ **Verification Failed**\n\n{message_text}",
                             reply_markup=InlineKeyboardMarkup([
                                 [InlineKeyboardButton("🔄 GET NEW VERIFICATION", callback_data=f"check_verify_{verify_user_id}")]
                             ])
@@ -377,51 +345,63 @@ class VerificationSystem:
                     return
             
             # Normal start command
-            if self.is_admin(user_id):
+            is_verified, status = await self.check_verification(user_id)
+            
+            if is_verified or self.is_admin(user_id):
                 await message.reply_text(
-                    f"👑 **Welcome Admin {user_name}!**\n\n"
-                    "You have **ADMIN privileges** - no verification required.\n\n"
-                    "Use /search to find movies! 🎬",
+                    f"🎬 **Welcome {user_name}!**\n\n"
+                    "You can search and download movies.\n\n"
+                    "Use /search to find movies or click below:",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎬 SEARCH MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
+                        [InlineKeyboardButton("🎬 SEARCH MOVIES", url=f"https://t.me/{self.config.BOT_USERNAME}")],
                         [
-                            InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                            InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
                         ]
                     ])
                 )
             else:
-                is_verified, status = await self.check_verification(user_id)
+                short_url, verification_code, service_name = await self.create_verification_link(user_id)
                 
-                if is_verified:
-                    await message.reply_text(
-                        f"🎬 **Welcome {user_name}!**\n\n"
-                        "You are already verified and can download files!\n\n"
-                        "Use /search to find movies.",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🎬 SEARCH MOVIES", url=f"https://t.me/{config.BOT_USERNAME}")],
-                            [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
-                            ]
-                        ])
-                    )
-                else:
-                    # Generate verification link for start button
-                    short_url, verification_code = await self.create_verification_link(user_id)
-                    
-                    await message.reply_text(
-                        f"🔗 **Welcome {user_name}!**\n\n"
-                        "To download movies, you need to complete a quick verification.\n\n"
-                        "**It's just 1 click!**\n\n"
-                        "Click below to start verification:",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔗 START VERIFICATION", url=short_url)],
-                            [
-                                InlineKeyboardButton("📢 MAIN CHANNEL", url=config.MAIN_CHANNEL_LINK),
-                                InlineKeyboardButton("🔎 MOVIES GROUP", url=config.UPDATES_CHANNEL_LINK)
-                            ]
-                        ])
-                    )
+                await message.reply_text(
+                    f"🔗 **Welcome {user_name}!**\n\n"
+                    "To download movies, you need to complete a quick verification.\n\n"
+                    "**It's just 1 click!**\n\n"
+                    "Click below to start verification:",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 START VERIFICATION", url=short_url)],
+                        [
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ])
+                )
+
+        # Test command for debugging
+        @bot.on_message(filters.command("test_verify") & filters.private)
+        async def test_verify_command(client, message):
+            user_id = message.from_user.id
+            user_name = message.from_user.first_name or "User"
+            
+            # Test shortener
+            test_url = f"https://t.me/{self.config.BOT_USERNAME}?start=test_123"
+            short_url, service_name = await self.get_shortened_url(test_url)
+            
+            # Check verification status
+            is_verified, status = await self.check_verification(user_id)
+            
+            await message.reply_text(
+                f"🧪 **Test Results for {user_name}**\n\n"
+                f"🔗 Shortener: `{service_name}`\n"
+                f"📝 Original: `{test_url[:50]}...`\n"
+                f"🎯 Shortened: `{short_url[:50]}...`\n"
+                f"✅ Verified: `{is_verified}`\n"
+                f"👑 Admin: `{self.is_admin(user_id)}`\n"
+                f"📊 Pending: `{len(self.pending_verifications)}`",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔗 Test Short URL", url=short_url)],
+                    [InlineKeyboardButton("🔄 Check Verify", callback_data=f"check_verify_{user_id}")]
+                ])
+            )
 
         logger.info("✅ Verification handlers setup completed")
