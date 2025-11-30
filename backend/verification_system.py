@@ -172,7 +172,7 @@ class VerificationSystem:
                 'destination_url': destination_url
             }
             
-            logger.info(f"✅ Verification link created for user {user_id}")
+            logger.info(f"✅ Verification link created for user {user_id}: {verification_code}")
             return short_url, verification_code, service_name
             
         except Exception as e:
@@ -190,12 +190,15 @@ class VerificationSystem:
                 return False, "❌ Too many verification attempts. Please try again in 5 minutes."
             
             logger.info(f"🔍 Verifying user {user_id} with code {verification_code}")
+            logger.info(f"📋 Pending verifications: {list(self.pending_verifications.keys())}")
             
             if user_id in self.pending_verifications:
                 pending_data = self.pending_verifications[user_id]
                 
                 # Check if code is valid and not expired (10 minutes)
                 time_elapsed = (datetime.now() - pending_data['created_at']).total_seconds()
+                
+                logger.info(f"⏰ Time elapsed: {time_elapsed}s, Code: {pending_data['code']}, Expected: {verification_code}")
                 
                 if time_elapsed > 600:  # 10 minutes
                     del self.pending_verifications[user_id]
@@ -467,6 +470,81 @@ class VerificationSystem:
                     disable_web_page_preview=True
                 )
 
+        # FIXED: Add proper start command handler for verification
+        @bot.on_message(filters.command("start") & filters.private)
+        async def start_verification_handler(client, message):
+            user_id = message.from_user.id
+            user_name = message.from_user.first_name or "User"
+            
+            logger.info(f"🔍 /start command from user {user_id}")
+            
+            # Check if it's a verification start
+            if len(message.command) > 1:
+                command_parts = message.command[1].split('_')
+                logger.info(f"📦 Command parts: {command_parts}")
+                
+                if len(command_parts) >= 3 and command_parts[0] == "verify":
+                    verify_user_id = int(command_parts[1])
+                    verification_code = command_parts[2]
+                    
+                    logger.info(f"🎯 Verification start: user {verify_user_id}, code {verification_code}")
+                    
+                    # Auto-verify the user
+                    is_verified, message_text = await self.verify_user(verify_user_id, verification_code)
+                    
+                    if is_verified:
+                        await message.reply_text(
+                            message_text,
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🎬 START DOWNLOADING", url=f"https://t.me/{self.config.BOT_USERNAME}")],
+                                [
+                                    InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
+                                ]
+                            ])
+                        )
+                    else:
+                        await message.reply_text(
+                            f"❌ **Verification Failed**\n\n{message_text}",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🔄 GET NEW VERIFICATION", callback_data=f"check_verify_{verify_user_id}")]
+                            ])
+                        )
+                    return
+            
+            # Normal start command - check verification status
+            is_verified, status = await self.check_verification(user_id)
+            
+            if is_verified or self.is_admin(user_id):
+                await message.reply_text(
+                    f"🎬 **Welcome {user_name}!**\n\n"
+                    "You can search and download movies.\n\n"
+                    "Use our website to browse movies or click below:",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 VISIT WEBSITE", url=self.config.WEBSITE_URL)],
+                        [
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ])
+                )
+            else:
+                short_url, verification_code, service_name = await self.create_verification_link(user_id)
+                
+                await message.reply_text(
+                    f"🔗 **Welcome {user_name}!**\n\n"
+                    "To download movies, you need to complete a quick verification.\n\n"
+                    "**It's just 1 click!**\n\n"
+                    "Click below to start verification:",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 START VERIFICATION", url=short_url)],
+                        [
+                            InlineKeyboardButton("📢 MAIN CHANNEL", url=self.config.MAIN_CHANNEL_LINK),
+                            InlineKeyboardButton("🔎 MOVIES GROUP", url=self.config.UPDATES_CHANNEL_LINK)
+                        ]
+                    ])
+                )
+
         @bot.on_message(filters.command("verification_status") & filters.private)
         async def verification_status_command(client, message):
             user_id = message.from_user.id
@@ -527,6 +605,37 @@ class VerificationSystem:
                 f"🛡️ Required: `{self.config.VERIFICATION_REQUIRED}`",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🔙 Back", callback_data=f"check_verify_{user_id}")]
+                ])
+            )
+
+        # Debug command to test verification
+        @bot.on_message(filters.command("debug_verify") & filters.private)
+        async def debug_verify_command(client, message):
+            user_id = message.from_user.id
+            user_name = message.from_user.first_name or "User"
+            
+            # Get current verification status
+            is_verified, status = await self.check_verification(user_id)
+            
+            # Get pending verification info
+            pending_info = "No pending verification"
+            if user_id in self.pending_verifications:
+                pending_data = self.pending_verifications[user_id]
+                time_elapsed = (datetime.now() - pending_data['created_at']).total_seconds()
+                pending_info = f"Code: {pending_data['code']}, Created: {time_elapsed:.0f}s ago"
+            
+            await message.reply_text(
+                f"🐛 **Debug Info for {user_name}**\n\n"
+                f"🆔 User ID: `{user_id}`\n"
+                f"✅ Verified: `{is_verified}`\n"
+                f"📊 Status: `{status}`\n"
+                f"👑 Admin: `{self.is_admin(user_id)}`\n"
+                f"⏳ Pending: `{pending_info}`\n"
+                f"🔗 Required: `{self.config.VERIFICATION_REQUIRED}`\n\n"
+                f"📋 All pending users: `{list(self.pending_verifications.keys())}`",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔄 Check Verify", callback_data=f"check_verify_{user_id}")],
+                    [InlineKeyboardButton("🔗 Get New Link", callback_data=f"get_new_link_{user_id}")]
                 ])
             )
 
