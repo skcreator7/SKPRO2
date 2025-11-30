@@ -48,8 +48,8 @@ class Config:
     UPDATES_CHANNEL_LINK = "https://t.me/sk4film_Request"
     CHANNEL_USERNAME = "sk4film"
     
-    URL_SHORTENER_API = os.environ.get("URL_SHORTENER_API", "https://your-shortener-api.com/verify")
-    URL_SHORTENER_KEY = os.environ.get("URL_SHORTENER_KEY", "")
+    SHORTLINK_URL = os.environ.get("SHORTLINK_URL", "https://your-shortener-api.com/verify")
+    SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
     VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "false").lower() == "true"
     VERIFICATION_DURATION = 6 * 60 * 60
     
