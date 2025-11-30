@@ -57,166 +57,66 @@ class VerificationSystem:
             logger.info("No shortener configured, using direct URL")
             return destination_url, 'Direct'
         
-        logger.info(f"Trying shortener: {api_url}")
+        logger.info(f"Trying shortener API: {api_url}")
         
         try:
-            # Try different shortener services based on API URL pattern
-            if 'gplinks.in' in api_url:
-                return await self._try_gplinks(destination_url, api_key)
-            elif 'bit.ly' in api_url or 'bitly.com' in api_url:
-                return await self._try_bitly(destination_url, api_key)
-            elif 'cutt.ly' in api_url:
-                return await self._try_cuttly(destination_url, api_key)
-            elif 'short.io' in api_url:
-                return await self._try_shortio(destination_url, api_key)
-            elif 'shorte.st' in api_url:
-                return await self._try_shorte(destination_url, api_key)
-            elif 'ouo.io' in api_url:
-                return await self._try_ouo(destination_url, api_key)
+            # For GPLinks - use correct API endpoint
+            if 'gplinks' in api_url.lower():
+                return await self._try_gplinks_fixed(destination_url, api_key)
             else:
-                # Generic API try
+                # For other shorteners, use the provided API URL
                 return await self._try_generic_api(destination_url, api_url, api_key)
                 
         except Exception as e:
             logger.error(f"Shortener error: {e}")
             return destination_url, 'Direct'
 
-    async def _try_gplinks(self, destination_url, api_key):
-        """Try GPLinks shortener"""
+    async def _try_gplinks_fixed(self, destination_url, api_key):
+        """Fixed GPLinks shortener with correct API endpoint"""
         try:
             async with aiohttp.ClientSession() as session:
+                # GPLinks correct API endpoint
+                api_endpoint = "https://gplinks.in/api/shorten"
+                
                 payload = {
                     'url': destination_url,
                     'api_key': api_key
                 }
                 
+                logger.info(f"Calling GPLinks API: {api_endpoint}")
+                
                 async with session.post(
-                    "https://gplinks.in/api/shorten",
+                    api_endpoint,
                     json=payload,
                     timeout=10
                 ) as response:
                     
+                    logger.info(f"GPLinks response status: {response.status}")
+                    
                     if response.status == 200:
                         result = await response.json()
+                        logger.info(f"GPLinks response: {result}")
+                        
                         if result.get('status') == 'success':
-                            return result.get('shortenedUrl'), 'GPLinks'
+                            short_url = result.get('shortenedUrl')
+                            logger.info(f"✅ GPLinks success: {short_url}")
+                            return short_url, 'GPLinks'
+                        else:
+                            logger.error(f"GPLinks API error: {result}")
+                    else:
+                        response_text = await response.text()
+                        logger.error(f"GPLinks HTTP error {response.status}: {response_text}")
+                        
         except Exception as e:
-            logger.error(f"GPLinks error: {e}")
-        return destination_url, 'Direct'
-
-    async def _try_bitly(self, destination_url, api_key):
-        """Try Bitly shortener"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    'Authorization': f'Bearer {api_key}',
-                    'Content-Type': 'application/json'
-                }
-                payload = {'long_url': destination_url}
-                
-                async with session.post(
-                    "https://api-ssl.bitly.com/v4/shorten",
-                    json=payload,
-                    headers=headers,
-                    timeout=10
-                ) as response:
-                    
-                    if response.status == 200:
-                        result = await response.json()
-                        return result.get('link'), 'Bitly'
-        except Exception as e:
-            logger.error(f"Bitly error: {e}")
-        return destination_url, 'Direct'
-
-    async def _try_cuttly(self, destination_url, api_key):
-        """Try Cuttly shortener"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                api_url = f"https://cutt.ly/api/api.php?key={api_key}&short={urllib.parse.quote(destination_url)}"
-                async with session.get(api_url, timeout=10) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        if result.get('url', {}).get('status') == 7:
-                            return result['url']['shortLink'], 'Cuttly'
-        except Exception as e:
-            logger.error(f"Cuttly error: {e}")
-        return destination_url, 'Direct'
-
-    async def _try_shortio(self, destination_url, api_key):
-        """Try Short.io shortener"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    'Authorization': api_key,
-                    'Content-Type': 'application/json'
-                }
-                payload = {
-                    'originalURL': destination_url,
-                    'domain': 'short.io'
-                }
-                
-                async with session.post(
-                    "https://api.short.io/links",
-                    json=payload,
-                    headers=headers,
-                    timeout=10
-                ) as response:
-                    
-                    if response.status == 200:
-                        result = await response.json()
-                        return result.get('shortURL'), 'ShortIO'
-        except Exception as e:
-            logger.error(f"ShortIO error: {e}")
-        return destination_url, 'Direct'
-
-    async def _try_shorte(self, destination_url, api_key):
-        """Try Shorte.st shortener"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {'public-api-token': api_key}
-                payload = {'urlToShorten': destination_url}
-                
-                async with session.post(
-                    "https://api.shorte.st/s/2/shorten",
-                    json=payload,
-                    headers=headers,
-                    timeout=10
-                ) as response:
-                    
-                    if response.status == 200:
-                        result = await response.json()
-                        return result.get('shortenedUrl'), 'Shorte'
-        except Exception as e:
-            logger.error(f"Shorte error: {e}")
-        return destination_url, 'Direct'
-
-    async def _try_ouo(self, destination_url, api_key):
-        """Try Ouo.io shortener"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                payload = {
-                    's': destination_url,
-                    'api': api_key
-                }
-                
-                async with session.post(
-                    "https://ouo.io/api/",
-                    data=payload,
-                    timeout=10
-                ) as response:
-                    
-                    if response.status == 200:
-                        result = await response.text()
-                        if result.startswith('http'):
-                            return result.strip(), 'Ouo'
-        except Exception as e:
-            logger.error(f"Ouo error: {e}")
+            logger.error(f"GPLinks error: {str(e)}")
+        
         return destination_url, 'Direct'
 
     async def _try_generic_api(self, destination_url, api_url, api_key):
         """Try generic API with common formats"""
         try:
             async with aiohttp.ClientSession() as session:
+                logger.info(f"Trying generic API: {api_url}")
                 
                 # Try format 1: JSON with api_key in payload
                 payload1 = {
@@ -226,13 +126,20 @@ class VerificationSystem:
                 headers1 = {'Content-Type': 'application/json'}
                 
                 async with session.post(api_url, json=payload1, headers=headers1, timeout=10) as response:
+                    logger.info(f"Generic API response status: {response.status}")
+                    
                     if response.status == 200:
                         result = await response.json()
+                        logger.info(f"Generic API response: {result}")
+                        
                         if isinstance(result, dict):
-                            for key in ['shortenedUrl', 'short_url', 'link', 'url', 'result_url']:
+                            for key in ['shortenedUrl', 'short_url', 'link', 'url', 'result_url', 'shortened_url']:
                                 if result.get(key):
-                                    return result[key], 'Generic'
+                                    short_url = result[key]
+                                    logger.info(f"✅ Generic API success with key '{key}': {short_url}")
+                                    return short_url, 'Generic'
                         elif isinstance(result, str) and result.startswith('http'):
+                            logger.info(f"✅ Generic API success with string: {result}")
                             return result, 'Generic'
                 
                 # Try format 2: Authorization header
@@ -243,25 +150,37 @@ class VerificationSystem:
                 payload2 = {'url': destination_url}
                 
                 async with session.post(api_url, json=payload2, headers=headers2, timeout=10) as response:
+                    logger.info(f"Generic API response status (Auth): {response.status}")
+                    
                     if response.status == 200:
                         result = await response.json()
+                        logger.info(f"Generic API response (Auth): {result}")
+                        
                         if isinstance(result, dict):
-                            for key in ['shortenedUrl', 'short_url', 'link', 'url', 'result_url']:
+                            for key in ['shortenedUrl', 'short_url', 'link', 'url', 'result_url', 'shortened_url']:
                                 if result.get(key):
-                                    return result[key], 'Generic'
+                                    short_url = result[key]
+                                    logger.info(f"✅ Generic API success with Auth: {short_url}")
+                                    return short_url, 'Generic'
                 
                 # Try format 3: public-api-token header
                 headers3 = {'public-api-token': api_key}
                 payload3 = {'url': destination_url}
                 
                 async with session.post(api_url, json=payload3, headers=headers3, timeout=10) as response:
+                    logger.info(f"Generic API response status (Token): {response.status}")
+                    
                     if response.status == 200:
                         result = await response.json()
+                        logger.info(f"Generic API response (Token): {result}")
+                        
                         if isinstance(result, dict) and result.get('shortenedUrl'):
-                            return result['shortenedUrl'], 'Generic'
+                            short_url = result['shortenedUrl']
+                            logger.info(f"✅ Generic API success with Token: {short_url}")
+                            return short_url, 'Generic'
                 
         except Exception as e:
-            logger.error(f"Generic API error: {e}")
+            logger.error(f"Generic API error: {str(e)}")
         
         return destination_url, 'Direct'
 
@@ -339,7 +258,6 @@ class VerificationSystem:
             logger.error(f"Generate verification URL error: {e}")
             return None
 
-    # ... (rest of the API methods remain the same)
     async def api_verify_user(self, request):
         try:
             data = await request.get_json()
