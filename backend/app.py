@@ -1,4 +1,4 @@
-# app.py - SK4FiLM v9.0 - Fixed Bot Initialization
+# app.py - SK4FiLM v9.0 - Complete with Video Thumbnails
 
 import asyncio
 import os
@@ -470,29 +470,174 @@ def is_new(date):
 def is_video_file(file_name):
     if not file_name:
         return False
-    video_ext = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
+    video_ext = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.mpg', '.mpeg']
     return any(file_name.lower().endswith(ext) for ext in video_ext)
 
-# INDEXING
+# ==========================================
+# VIDEO THUMBNAIL EXTRACTION
+# ==========================================
+
+async def extract_video_thumbnail(user_client, message):
+    """Extract thumbnail from video file with multiple fallback methods"""
+    try:
+        # Method 1: Get thumbnail from video message
+        if message.video:
+            thumbnail = message.video.thumbs[0] if message.video.thumbs else None
+            
+            if thumbnail:
+                try:
+                    # Download thumbnail
+                    thumbnail_bytes = await safe_telegram_operation(
+                        user_client.download_media,
+                        message.video.file_id,
+                        in_memory=True
+                    )
+                    
+                    if thumbnail_bytes and isinstance(thumbnail_bytes, BytesIO):
+                        # Convert to base64
+                        thumbnail_data = base64.b64encode(thumbnail_bytes.getvalue()).decode('utf-8')
+                        thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
+                        
+                        movie_db['stats']['video_thumbnails'] += 1
+                        logger.info("✅ Video thumbnail extracted (video.thumbs)")
+                        
+                        return thumbnail_url
+                except Exception as e:
+                    logger.warning(f"Video thumbnail method 1 failed: {e}")
+        
+        # Method 2: Try document thumbnail
+        if message.document:
+            file_name = message.document.file_name or ""
+            
+            if is_video_file(file_name):
+                thumbnail = message.document.thumbs[0] if message.document.thumbs else None
+                
+                if thumbnail:
+                    try:
+                        thumbnail_bytes = await safe_telegram_operation(
+                            user_client.download_media,
+                            message.document.file_id,
+                            in_memory=True
+                        )
+                        
+                        if thumbnail_bytes and isinstance(thumbnail_bytes, BytesIO):
+                            thumbnail_data = base64.b64encode(thumbnail_bytes.getvalue()).decode('utf-8')
+                            thumbnail_url = f"data:image/jpeg;base64,{thumbnail_data}"
+                            
+                            movie_db['stats']['video_thumbnails'] += 1
+                            logger.info("✅ Video thumbnail extracted (document.thumbs)")
+                            
+                            return thumbnail_url
+                    except Exception as e:
+                        logger.warning(f"Video thumbnail method 2 failed: {e}")
+        
+        return None
+    
+    except Exception as e:
+        logger.error(f"❌ Video thumbnail extraction failed: {e}")
+        return None
+
+async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
+    """Get thumbnail directly from Telegram video message"""
+    try:
+        msg = await safe_telegram_operation(
+            user_client.get_messages,
+            channel_id,
+            message_id
+        )
+        
+        if not msg or (not msg.video and not msg.document):
+            return None
+        
+        thumbnail_url = await extract_video_thumbnail(user_client, msg)
+        return thumbnail_url
+    
+    except Exception as e:
+        logger.error(f"❌ Telegram video thumbnail error: {e}")
+        return None
+
+# ==========================================
+# ENHANCED VIDEO THUMBNAIL BATCH PROCESSING
+# ==========================================
+
+async def process_thumbnail_batch(thumbnail_batch):
+    """Process thumbnails in batches for better performance"""
+    semaphore = asyncio.Semaphore(3)  # Limit concurrent processing
+    
+    async def process_single(file_data):
+        async with semaphore:
+            try:
+                # Try to extract video thumbnail first
+                thumbnail_url = await extract_video_thumbnail(User, file_data['message'])
+                
+                if thumbnail_url:
+                    logger.info(f"✅ Thumbnail: video_direct for msg {file_data['message'].id}")
+                    return file_data['message'].id, thumbnail_url, 'video_direct'
+                
+                # Fallback to poster from API
+                title = extract_title_from_file(file_data['message'])
+                
+                if title and poster_manager:
+                    async with aiohttp.ClientSession() as session:
+                        poster_data = await poster_manager.get_poster_guaranteed(title, session)
+                        
+                        if poster_data and poster_data.get('poster_url'):
+                            logger.info(f"✅ Thumbnail: poster_api for msg {file_data['message'].id}")
+                            return file_data['message'].id, poster_data['poster_url'], 'poster_api'
+                
+                logger.warning(f"⚠️ No thumbnail for msg {file_data['message'].id}")
+                return file_data['message'].id, None, 'none'
+            
+            except Exception as e:
+                logger.error(f"❌ Thumbnail processing failed for {file_data['message'].id}: {e}")
+                return file_data['message'].id, None, 'error'
+    
+    # Process all thumbnails concurrently
+    tasks = [process_single(file_data) for file_data in thumbnail_batch]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Collect results
+    thumbnails = {}
+    for result in results:
+        if isinstance(result, tuple) and len(result) == 3:
+            message_id, thumbnail_url, source = result
+            if thumbnail_url:
+                thumbnails[message_id] = (thumbnail_url, source)
+    
+    return thumbnails
+
+# ==========================================
+# INDEXING WITH THUMBNAIL SUPPORT
+# ==========================================
+
 async def index_files_background():
     if not User or files_col is None or not user_session_ready:
         logger.warning("⚠️ Cannot start indexing - User session not ready")
         return
     
-    logger.info("📁 Starting background indexing...")
+    logger.info("📁 Starting SMART background indexing with thumbnails...")
     
     try:
         new_files = 0
+        video_files = 0
+        successful_thumbnails = 0
         batch = []
         batch_size = 15
+        thumbnail_batch = []
         
         last_indexed = await files_col.find_one({}, sort=[('message_id', -1)])
         last_message_id = last_indexed['message_id'] if last_indexed else 0
         
         logger.info(f"🔄 Starting from message ID: {last_message_id}")
         
+        processed = 0
+        
         async for msg in safe_telegram_generator(User.get_chat_history, Config.FILE_CHANNEL_ID):
+            processed += 1
+            
             if msg.id <= last_message_id:
+                if processed % 100 == 0:
+                    logger.info(f"⏩ Skipped {processed} old messages")
                 continue
             
             if msg and (msg.document or msg.video):
@@ -510,7 +655,18 @@ async def index_files_background():
                     file_id = msg.document.file_id if msg.document else msg.video.file_id
                     file_size = msg.document.file_size if msg.document else (msg.video.file_size if msg.video else 0)
                     file_name = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else 'video.mp4')
+                    file_is_video = is_video_file(file_name)
                     
+                    # Add to thumbnail batch if video
+                    if file_is_video:
+                        video_files += 1
+                        thumbnail_batch.append({
+                            'message': msg,
+                            'title': title,
+                            'file_is_video': file_is_video
+                        })
+                    
+                    # Add to database batch
                     batch.append({
                         'channel_id': Config.FILE_CHANNEL_ID,
                         'message_id': msg.id,
@@ -523,11 +679,30 @@ async def index_files_background():
                         'caption': msg.caption or '',
                         'date': msg.date,
                         'indexed_at': datetime.now(),
-                        'is_video_file': is_video_file(file_name)
+                        'is_video_file': file_is_video,
+                        'thumbnail': None,
+                        'thumbnail_source': 'pending'
                     })
                     
                     new_files += 1
                     
+                    # Process thumbnail batch
+                    if len(thumbnail_batch) >= 10:
+                        logger.info(f"🖼️ Processing {len(thumbnail_batch)} thumbnails...")
+                        
+                        thumbnails = await process_thumbnail_batch(thumbnail_batch)
+                        
+                        # Update batch with thumbnails
+                        for doc in batch:
+                            if doc['message_id'] in thumbnails:
+                                thumb_url, source = thumbnails[doc['message_id']]
+                                doc['thumbnail'] = thumb_url
+                                doc['thumbnail_source'] = source
+                                successful_thumbnails += 1
+                        
+                        thumbnail_batch = []
+                    
+                    # Process database batch
                     if len(batch) >= batch_size:
                         for doc in batch:
                             await files_col.update_one(
@@ -535,10 +710,24 @@ async def index_files_background():
                                 {'$set': doc},
                                 upsert=True
                             )
-                        logger.info(f"✅ Batch: {new_files} new files")
+                        
+                        logger.info(f"✅ Batch: {new_files} files, {successful_thumbnails} thumbnails")
                         batch = []
                         await asyncio.sleep(3)
         
+        # Process remaining thumbnail batch
+        if thumbnail_batch:
+            logger.info(f"🖼️ Processing final {len(thumbnail_batch)} thumbnails...")
+            thumbnails = await process_thumbnail_batch(thumbnail_batch)
+            
+            for doc in batch:
+                if doc['message_id'] in thumbnails:
+                    thumb_url, source = thumbnails[doc['message_id']]
+                    doc['thumbnail'] = thumb_url
+                    doc['thumbnail_source'] = source
+                    successful_thumbnails += 1
+        
+        # Process remaining database batch
         if batch:
             for doc in batch:
                 await files_col.update_one(
@@ -547,11 +736,21 @@ async def index_files_background():
                     upsert=True
                 )
         
-        logger.info(f"✅ Indexing done: {new_files} NEW files")
+        logger.info(f"✅ Indexing complete: {new_files} files, {video_files} videos, {successful_thumbnails} thumbnails")
+        
         await redis_cache.clear_search_cache()
+        
+        # Stats
+        total = await files_col.count_documents({})
+        videos = await files_col.count_documents({'is_video_file': True})
+        thumbs = await files_col.count_documents({'thumbnail': {'$ne': None}})
+        
+        logger.info(f"📊 Database: {total} files, {videos} videos, {thumbs} with thumbnails")
     
     except Exception as e:
         logger.error(f"❌ Indexing error: {e}")
+        import traceback
+        traceback.print_exc()
 
 # SEARCH
 async def search_movies_multi_channel(query, limit=12, page=1):
@@ -584,6 +783,8 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                             'quality_options': {},
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
                             'is_video_file': doc.get('is_video_file', False),
+                            'thumbnail': doc.get('thumbnail'),
+                            'thumbnail_source': doc.get('thumbnail_source', 'none'),
                             'channel_id': doc.get('channel_id'),
                             'channel_name': channel_name(doc.get('channel_id'))
                         }
@@ -625,14 +826,30 @@ async def search_movies_multi_channel(query, limit=12, page=1):
 @app.route('/')
 async def root():
     tf = await files_col.count_documents({}) if files_col else 0
+    vf = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+    th = await files_col.count_documents({'thumbnail': {'$ne': None}}) if files_col else 0
     premium_count = await premium_manager.get_premium_users_count() if premium_manager else 0
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - Premium System',
-        'database': {'total_files': tf, 'premium_users': premium_count},
-        'features': ['Multi-Channel', 'Premium Plans', 'Free Verification', 'UPI Payment', 'Link Shortener'],
-        'bot_status': 'online' if bot_started else 'starting'
+        'service': 'SK4FiLM v9.0 - Complete System',
+        'database': {
+            'total_files': tf,
+            'video_files': vf,
+            'thumbnails': th,
+            'premium_users': premium_count
+        },
+        'features': [
+            'Multi-Channel Search',
+            'Video Thumbnails',
+            'Premium Plans (5 tiers)',
+            'Free Verification (6h)',
+            'UPI Payment',
+            'Auto Cleanup',
+            'Link Shortener'
+        ],
+        'bot_status': 'online' if bot_started else 'starting',
+        'user_session': 'ready' if user_session_ready else 'starting'
     })
 
 @app.route('/health')
@@ -643,6 +860,7 @@ async def health():
         'redis': redis_cache.enabled,
         'premium': premium_manager is not None,
         'verification': verification_manager is not None,
+        'poster': poster_manager is not None,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -719,13 +937,15 @@ async def premium_status(user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# BOT COMMAND HANDLERS (After bot initialization)
+# BOT HANDLERS
 def setup_bot_handlers():
-    """Setup bot handlers after bot is initialized"""
+    """Setup bot handlers after bot initialization"""
     
     @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
     async def stats_handler(client, message):
         tf = await files_col.count_documents({}) if files_col else 0
+        vf = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+        th = await files_col.count_documents({'thumbnail': {'$ne': None}}) if files_col else 0
         premium_count = await premium_manager.get_premium_users_count() if premium_manager else 0
         
         stats_text = f"""
@@ -733,6 +953,8 @@ def setup_bot_handlers():
 
 **Database:**
 📁 Files: {tf}
+🎬 Videos: {vf}
+🖼️ Thumbnails: {th}
 💎 Premium: {premium_count}
 
 **System:**
@@ -744,14 +966,25 @@ def setup_bot_handlers():
 🔍 Searches: {movie_db['stats']['multi_channel_searches']}
 ✅ Hits: {movie_db['stats']['redis_hits']}
 ❌ Misses: {movie_db['stats']['redis_misses']}
+🎨 Video Thumbnails: {movie_db['stats']['video_thumbnails']}
+
+**Posters:**
+📽️ Letterboxd: {movie_db['stats']['letterboxd']}
+🎬 IMDb: {movie_db['stats']['imdb']}
+📺 JustWatch: {movie_db['stats']['justwatch']}
+🖼️ IMPAwards: {movie_db['stats']['impawards']}
+🔑 OMDB: {movie_db['stats']['omdb']}
+🎞️ TMDB: {movie_db['stats']['tmdb']}
+🎯 Custom: {movie_db['stats']['custom']}
+💾 Cache Hits: {movie_db['stats']['cache_hits']}
 """
         await message.reply_text(stats_text)
     
     @bot.on_message(filters.command("index") & filters.user(Config.ADMIN_IDS))
     async def index_handler(client, message):
-        msg = await message.reply_text("Starting indexing...")
+        msg = await message.reply_text("📁 Starting background indexing with thumbnails...")
         asyncio.create_task(index_files_background())
-        await msg.edit_text("✅ Indexing started!")
+        await msg.edit_text("✅ Indexing started in background!\nCheck /stats for progress.")
     
     @bot.on_message(filters.command("clearcache") & filters.user(Config.ADMIN_IDS))
     async def clearcache_handler(client, message):
@@ -759,6 +992,8 @@ def setup_bot_handlers():
         movie_db['search_cache'].clear()
         movie_db['poster_cache'].clear()
         movie_db['title_cache'].clear()
+        movie_db['stats']['redis_hits'] = 0
+        movie_db['stats']['redis_misses'] = 0
         await message.reply_text("✅ All caches cleared!")
     
     logger.info("✅ Bot handlers registered")
@@ -770,33 +1005,25 @@ async def init():
     
     try:
         logger.info("="*60)
-        logger.info("SK4FiLM v9.0 - PREMIUM + VERIFICATION SYSTEM")
+        logger.info("SK4FiLM v9.0 - COMPLETE SYSTEM")
         logger.info("="*60)
         
-        # Initialize MongoDB
         await init_mongodb()
-        
-        # Initialize Redis
         await redis_cache.init_redis()
         
-        # Initialize Cache Manager
         cache_manager = CacheManager(Config)
         await cache_manager.init_redis()
         
-        # Initialize Poster Manager
         poster_manager = init_poster_manager(Config, movie_db)
         
-        # Initialize Premium Manager
         premium_manager = PremiumManager(Config, db)
         await premium_manager.init_indexes()
         logger.info("✅ Premium Manager initialized")
         
-        # Initialize Verification Manager
         verification_manager = VerificationManager(Config, db, premium_manager)
         await verification_manager.init_indexes()
         logger.info("✅ Verification Manager initialized")
         
-        # Initialize Bot
         bot = Client(
             "sk4film_bot",
             api_id=Config.API_ID,
@@ -809,16 +1036,10 @@ async def init():
         bot_started = True
         logger.info("✅ Bot started")
         
-        # Setup bot handlers AFTER bot initialization
         setup_bot_handlers()
-        
-        # Setup Premium Handlers
         await setup_premium_handlers(bot, premium_manager, Config)
-        
-        # Setup Verification Handlers
         await setup_verification_handlers(bot, verification_manager, premium_manager, Config)
         
-        # Initialize User Session
         User = Client(
             "user_session",
             api_id=Config.API_ID,
@@ -837,20 +1058,17 @@ async def init():
         except Exception as e:
             logger.error(f"❌ User session error: {e}")
         
-        # Start auto cleanup
         await cache_manager.start_auto_cleanup(premium_manager, verification_manager)
-        
-        # Start cache cleanup
         asyncio.create_task(cache_cleanup())
         
-        # Start indexing
         if user_session_ready:
             asyncio.create_task(index_files_background())
         
         logger.info("="*60)
         logger.info("✅ SYSTEM FULLY INITIALIZED")
         logger.info(f"💎 Premium Plans: {len(premium_manager.PREMIUM_PLANS)}")
-        logger.info(f"🔓 Verification: {'Enabled' if Config.VERIFICATION_REQUIRED else 'Disabled'}")
+        logger.info(f"🖼️ Video Thumbnails: Enabled")
+        logger.info(f"🎨 Poster Fetching: Enabled")
         logger.info("="*60)
         
         return True
