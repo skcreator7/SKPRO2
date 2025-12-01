@@ -11,7 +11,8 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 from enum import Enum
 from io import BytesIO
 import logging
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, asdict
 
 logger = logging.getLogger(__name__)
 
@@ -158,14 +159,15 @@ class PremiumSystem:
             )
         }
         
-        # Free tier limits
+        # Free tier limits - UNLIMITED downloads, all quality
         self.free_limits = {
-            'daily_downloads': 5,
-            'concurrent_downloads': 1,
-            'quality': ['480p'],
-            'priority': 'low',
+            'daily_downloads': 999999,  # Unlimited
+            'concurrent_downloads': 2,
+            'quality': ['480p', '720p', '1080p', '2160p'],  # All quality
+            'priority': 'medium',
             'verification_bypass': False,
-            'verification_duration': 6 * 60 * 60  # 6 hours
+            'verification_duration': 6 * 60 * 60,  # 6 hours
+            'is_unlimited': True  # Flag for unlimited downloads
         }
         
         # Payment methods
@@ -230,14 +232,16 @@ class PremiumSystem:
                 'expires_at': None,
                 'days_remaining': 0,
                 'features': [
-                    '480p Quality Only',
-                    '5 Downloads/Day',
-                    'URL Verification Required (6 hours)',
-                    'Basic Search'
+                    '✅ All Quality (480p-4K)',
+                    '✅ Unlimited Downloads',
+                    '🔒 URL Verification Required (6 hours)',
+                    '✅ Basic Search'
                 ],
                 'limits': self.free_limits,
-                'is_active': False,
-                'verification_required': True
+                'is_active': True,  # Free is always "active"
+                'verification_required': True,
+                'verification_hours': 6,
+                'is_unlimited': True
             }
         
         plan = self.plans[tier]
@@ -469,27 +473,16 @@ class PremiumSystem:
     async def can_user_download(self, user_id: int, file_size: int = 0) -> Tuple[bool, str, Dict[str, Any]]:
         """Check if user can download based on tier limits"""
         try:
-            # Reset daily usage if needed
-            await self._reset_daily_usage_if_needed(user_id)
-            
             tier = await self.get_user_tier(user_id)
             
             if tier == PremiumTier.FREE:
-                # Free user limits
-                user_usage = self.user_usage.get(user_id, {})
-                daily_downloads = user_usage.get('daily_downloads', 0)
-                
-                if daily_downloads >= self.free_limits['daily_downloads']:
-                    return False, "Daily download limit reached (5)", {
-                        'tier': 'free', 
-                        'limit': self.free_limits['daily_downloads'],
-                        'needs_verification': True
-                    }
-                
-                return True, "Free download allowed", {
+                # Free users have unlimited downloads
+                return True, "Free download allowed - Unlimited", {
                     'tier': 'free', 
-                    'remaining': self.free_limits['daily_downloads'] - daily_downloads,
-                    'needs_verification': True
+                    'unlimited': True,
+                    'quality': self.free_limits['quality'],
+                    'needs_verification': True,
+                    'verification_hours': 6
                 }
             
             # Premium user - unlimited downloads
@@ -676,6 +669,7 @@ class PremiumSystem:
             self.cleanup_task.cancel()
         
         self.cleanup_task = asyncio.create_task(self._cleanup_loop())
+        logger.info("🧹 Cleanup task started")
     
     async def _cleanup_loop(self):
         """Background cleanup loop"""
@@ -704,16 +698,132 @@ class PremiumSystem:
                     del self.pending_payments[payment_id]
                 
                 if expired_users or expired_payments:
-                    logger.info(f"🧹 Cleanup: {len(expired_users)} expired subs, {len(expired_payments)} expired payments")
+                    logger.info(f"🧹 Cleanup: {len(expired_users)} subscriptions, {len(expired_payments)} payments expired")
                     
+            except asyncio.CancelledError:
+                logger.info("🧹 Cleanup task cancelled")
+                break
             except Exception as e:
                 logger.error(f"Cleanup loop error: {e}")
     
-    async def stop(self):
-        """Stop premium system"""
+    async def stop_cleanup_task(self):
+        """Stop background cleanup task"""
         if self.cleanup_task:
             self.cleanup_task.cancel()
             try:
                 await self.cleanup_task
             except asyncio.CancelledError:
                 pass
+            logger.info("🧹 Cleanup task stopped")
+    
+    async def cancel_subscription(self, user_id: int, reason: str = "user_request") -> bool:
+        """Cancel user's subscription"""
+        try:
+            if user_id in self.user_subscriptions:
+                self.user_subscriptions[user_id]['status'] = PremiumStatus.CANCELLED.value
+                self.user_subscriptions[user_id]['cancelled_at'] = datetime.now()
+                self.user_subscriptions[user_id]['cancellation_reason'] = reason
+                
+                logger.info(f"❌ Subscription cancelled for user {user_id}: {reason}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Subscription cancellation error: {e}")
+            return False
+    
+    async def get_plan_by_tier(self, tier: PremiumTier) -> Optional[PremiumPlan]:
+        """Get plan details by tier"""
+        return self.plans.get(tier)
+    
+    async def validate_payment(self, payment_id: str) -> Tuple[bool, str]:
+        """Validate payment exists and is pending"""
+        if payment_id not in self.pending_payments:
+            return False, "Payment not found"
+        
+        payment = self.pending_payments[payment_id]
+        
+        if payment['status'] != 'pending':
+            return False, f"Payment already {payment['status']}"
+        
+        if datetime.now() > payment['expires_at']:
+            return False, "Payment expired"
+        
+        return True, "Payment valid"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Export system state to dictionary"""
+        return {
+            'user_subscriptions': {
+                str(k): {
+                    **v,
+                    'tier': v['tier'].value if isinstance(v.get('tier'), PremiumTier) else v.get('tier'),
+                    'expires_at': v.get('expires_at').isoformat() if v.get('expires_at') else None,
+                    'purchased_at': v.get('purchased_at').isoformat() if v.get('purchased_at') else None
+                }
+                for k, v in self.user_subscriptions.items()
+            },
+            'pending_payments': {
+                k: {
+                    **v,
+                    'created_at': v['created_at'].isoformat(),
+                    'expires_at': v['expires_at'].isoformat()
+                }
+                for k, v in self.pending_payments.items()
+            },
+            'user_usage': self.user_usage,
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    async def save_to_db(self):
+        """Save system state to database"""
+        if self.db_client:
+            try:
+                state = self.to_dict()
+                # Implement your DB save logic here
+                logger.info("💾 Premium system state saved to DB")
+            except Exception as e:
+                logger.error(f"DB save error: {e}")
+    
+    async def load_from_db(self):
+        """Load system state from database"""
+        if self.db_client:
+            try:
+                # Implement your DB load logic here
+                logger.info("📥 Premium system state loaded from DB")
+            except Exception as e:
+                logger.error(f"DB load error: {e}")
+
+
+# Example usage
+if __name__ == "__main__":
+    async def main():
+        # Initialize system
+        premium = PremiumSystem(config={})
+        
+        # Start cleanup task
+        await premium.start_cleanup_task()
+        
+        # Get all plans
+        plans = await premium.get_all_plans()
+        print(f"Available plans: {len(plans)}")
+        
+        # Simulate payment
+        payment = await premium.create_payment_request(12345, PremiumTier.PREMIUM)
+        print(f"Payment created: {payment['payment_id']}")
+        
+        # Activate premium
+        await premium.activate_premium(
+            admin_id=1,
+            user_id=12345,
+            tier=PremiumTier.PREMIUM,
+            payment_id=payment['payment_id']
+        )
+        
+        # Check subscription
+        sub = await premium.get_subscription_details(12345)
+        print(f"Subscription: {sub['tier_name']} - {sub['days_remaining']} days left")
+        
+        # Stop cleanup
+        await premium.stop_cleanup_task()
+    
+    asyncio.run(main())
