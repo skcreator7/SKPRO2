@@ -1,12 +1,10 @@
-"""
-poster_fetching.py - Movie poster and metadata fetching from various sources
-"""
 import asyncio
 import re
 import json
 import base64
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
+from enum import Enum  # ← ADD THIS IMPORT
 from io import BytesIO
 import aiohttp
 import urllib.parse
