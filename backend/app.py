@@ -180,17 +180,115 @@ def format_size(size):
 @app.route('/')
 async def root():
     """Root endpoint with system status"""
+    mongodb_count = 0
+    if files_col:
+        try:
+            mongodb_count = await files_col.count_documents({})
+        except:
+            pass
+    
     return jsonify({
         'status': 'healthy',
         'service': 'SK4FiLM v8.0 - Modular Architecture',
+        'version': '8.0',
+        'timestamp': datetime.now().isoformat(),
         'modules': {
             'verification': verification_system is not None,
             'premium': premium_system is not None,
             'poster_fetcher': poster_fetcher is not None,
             'cache': cache_manager is not None
         },
-        'bot_status': 'online' if bot_started else 'starting',
-        'user_session': 'ready' if user_session_ready else 'flood_wait'
+        'bot': {
+            'status': 'online' if bot_started else 'starting',
+            'username': Config.BOT_USERNAME
+        },
+        'user_session': 'ready' if user_session_ready else 'pending',
+        'database': {
+            'mongodb_connected': mongo_client is not None,
+            'total_files': mongodb_count
+        },
+        'channels': {
+            'text_channels': len(Config.TEXT_CHANNEL_IDS),
+            'file_channel': Config.FILE_CHANNEL_ID
+        },
+        'endpoints': {
+            'api': '/api/*',
+            'health': '/health',
+            'verify': '/api/verify/{user_id}',
+            'premium': '/api/premium/*',
+            'poster': '/api/poster/{title}',
+            'cache': '/api/cache/*'
+        }
+    })
+
+@app.route('/health')
+async def health():
+    """Health check endpoint"""
+    mongodb_status = False
+    if mongo_client:
+        try:
+            await mongo_client.admin.command('ping')
+            mongodb_status = True
+        except:
+            pass
+    
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat(),
+        'services': {
+            'bot': {
+                'started': bot_started,
+                'status': 'online' if bot_started else 'starting'
+            },
+            'user_session': user_session_ready,
+            'mongodb': mongodb_status,
+            'redis': cache_manager.redis_enabled if cache_manager else False,
+            'web_server': True
+        },
+        'modules': {
+            'verification': verification_system is not None,
+            'premium': premium_system is not None,
+            'poster_fetcher': poster_fetcher is not None,
+            'cache': cache_manager is not None
+        }
+    })
+
+@app.route('/api/status')
+async def api_status():
+    """Get detailed system status"""
+    # Get verification stats
+    verification_stats = await verification_system.get_user_stats() if verification_system else {}
+    
+    # Get cache stats
+    cache_stats = await cache_manager.get_stats_summary() if cache_manager else {}
+    
+    # Get poster fetcher stats
+    poster_stats = poster_fetcher.get_stats() if poster_fetcher else {}
+    
+    return jsonify({
+        'status': 'success',
+        'timestamp': datetime.now().isoformat(),
+        'services': {
+            'bot': {
+                'started': bot_started,
+                'username': Config.BOT_USERNAME,
+                'user_session_ready': user_session_ready
+            },
+            'mongodb': mongo_client is not None,
+            'redis': cache_manager.redis_enabled if cache_manager else False,
+            'web_server': True
+        },
+        'statistics': {
+            'verification': verification_stats,
+            'cache': cache_stats,
+            'poster_fetcher': poster_stats
+        },
+        'configuration': {
+            'verification_required': Config.VERIFICATION_REQUIRED,
+            'premium_enabled': premium_system is not None,
+            'channels': len(Config.TEXT_CHANNEL_IDS),
+            'auto_delete_minutes': Config.AUTO_DELETE_TIME // 60
+        }
     })
 
 @app.route('/api/verify/<int:user_id>', methods=['POST'])
@@ -301,6 +399,78 @@ async def api_clear_cache():
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/search')
+async def api_search():
+    """Search for movies"""
+    try:
+        q = request.args.get('query', '').strip()
+        p = int(request.args.get('page', 1))
+        l = int(request.args.get('limit', 12))
+        
+        if not q:
+            return jsonify({'status': 'error', 'message': 'Query required'}), 400
+        
+        # Check if user is verified if verification is required
+        if Config.VERIFICATION_REQUIRED:
+            user_id = request.args.get('user_id', type=int)
+            if user_id:
+                if verification_system:
+                    is_verified, message = await verification_system.check_user_verified(user_id)
+                    if not is_verified:
+                        return jsonify({
+                            'status': 'verification_required',
+                            'message': 'User verification required',
+                            'verification_url': f'/api/verify/{user_id}'
+                        }), 403
+        
+        # Simple search logic (you can enhance this later)
+        results = []
+        if files_col:
+            # Search in MongoDB
+            cursor = files_col.find({
+                '$or': [
+                    {'title': {'$regex': q, '$options': 'i'}},
+                    {'normalized_title': {'$regex': q, '$options': 'i'}}
+                ]
+            }).limit(l).skip((p - 1) * l)
+            
+            async for doc in cursor:
+                results.append({
+                    'title': doc.get('title'),
+                    'quality': doc.get('quality', '480p'),
+                    'file_size': doc.get('file_size'),
+                    'date': doc.get('date'),
+                    'is_new': is_new(doc.get('date')) if doc.get('date') else False
+                })
+        
+        total = len(results)
+        
+        return jsonify({
+            'status': 'success',
+            'query': q,
+            'results': results,
+            'pagination': {
+                'current_page': p,
+                'total_pages': math.ceil(total / l) if total > 0 else 1,
+                'total_results': total,
+                'per_page': l,
+                'has_next': p < math.ceil(total / l) if total > 0 else False,
+                'has_previous': p > 1
+            }
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+def is_new(date):
+    """Check if date is within 48 hours"""
+    try:
+        if isinstance(date, str):
+            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+        hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
+        return hours <= 48
+    except:
+        return False
 
 # Bot handlers
 async def setup_bot():
@@ -418,7 +588,122 @@ async def setup_bot():
                 disable_web_page_preview=True
             )
     
-    # Add other bot handlers as needed...
+    @bot.on_message(filters.command("stats") & filters.user(Config.ADMIN_IDS))
+    async def stats_handler(client, message):
+        """Admin stats command"""
+        try:
+            # Get MongoDB stats
+            total_files = await files_col.count_documents({}) if files_col else 0
+            video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+            
+            # Get verification stats
+            verification_stats = await verification_system.get_user_stats() if verification_system else {}
+            
+            # Get cache stats
+            cache_stats = await cache_manager.get_stats_summary() if cache_manager else {}
+            
+            stats_text = (
+                f"📊 **SK4FiLM STATISTICS**\n\n"
+                f"📁 **Total Files:** {total_files}\n"
+                f"🎥 **Video Files:** {video_files}\n"
+                f"🔐 **Pending Verifications:** {verification_stats.get('pending_verifications', 0)}\n"
+                f"✅ **Verified Users:** {verification_stats.get('verified_users', 0)}\n"
+                f"🔧 **Redis Enabled:** {cache_stats.get('redis_enabled', False)}\n"
+                f"📡 **Bot Status:** {'✅ Online' if bot_started else '⏳ Starting'}\n"
+                f"👤 **User Session:** {'✅ Ready' if user_session_ready else '⏳ Pending'}\n\n"
+                f"⚡ **All systems operational!**"
+            )
+            
+            await message.reply_text(stats_text)
+            
+        except Exception as e:
+            await message.reply_text(f"❌ Error getting stats: {e}")
+    
+    @bot.on_message(filters.command("help") & filters.private)
+    async def help_handler(client, message):
+        """Help command"""
+        help_text = (
+            "🎬 **SK4FiLM Bot Help**\n\n"
+            "**Available Commands:**\n"
+            "/start - Start the bot\n"
+            "/help - Show this help message\n"
+            "\n"
+            "**How to use:**\n"
+            "1. Browse movies on our website\n"
+            "2. Click on any movie to get download link\n"
+            "3. Send the link to this bot\n"
+            "4. Bot will send you the file\n"
+            "\n"
+            "**Website:** {Config.WEBSITE_URL}\n"
+            "\n"
+            "**Support:** @SK4FiLM_Support"
+        )
+        
+        await message.reply_text(help_text, disable_web_page_preview=True)
+    
+    @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'help']))
+    async def text_handler(client, message):
+        """Handle text messages"""
+        user_name = message.from_user.first_name or "User"
+        
+        # Check if message contains a file link
+        if 't.me' in message.text and ('/' in message.text):
+            # This could be a file link
+            await message.reply_text(
+                f"🔗 **File Link Detected**\n\n"
+                f"Processing your request, {user_name}...\n\n"
+                f"⏳ Please wait while we fetch the file.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                ])
+            )
+            # TODO: Implement file link processing
+        else:
+            # Generic text response
+            await message.reply_text(
+                f"👋 **Hi {user_name}!**\n\n"
+                "🔍 **Please use our website to search for movies:**\n\n"
+                f"{Config.WEBSITE_URL}\n\n"
+                "This bot handles file downloads from website links.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                ]),
+                disable_web_page_preview=True
+            )
+
+async def delayed_bot_start(delay: int):
+    """Start bot after delay"""
+    global bot_started
+    
+    logger.info(f"⏳ Waiting {delay} seconds before starting bot...")
+    await asyncio.sleep(delay)
+    
+    try:
+        await bot.start()
+        await setup_bot()
+        
+        me = await bot.get_me()
+        logger.info(f"✅ Bot started after delay: @{me.username}")
+        bot_started = True
+        
+    except Exception as e:
+        logger.error(f"❌ Delayed bot start failed: {e}")
+        # Try again in 5 minutes
+        await asyncio.sleep(300)
+        asyncio.create_task(delayed_bot_start(60))
+
+async def delayed_user_session_start(delay: int):
+    """Start user session after delay"""
+    global user_session_ready
+    
+    await asyncio.sleep(delay)
+    
+    try:
+        await user_client.start()
+        user_session_ready = True
+        logger.info("✅ User session started after delay")
+    except Exception as e:
+        logger.error(f"❌ Delayed user session failed: {e}")
 
 # Initialization
 async def init_modules():
@@ -485,12 +770,29 @@ async def init_bot():
             bot_token=Config.BOT_TOKEN
         )
         
-        await bot.start()
-        await setup_bot()
+        # Try to start bot with flood wait handling
+        try:
+            await bot.start()
+            await setup_bot()
+            
+            me = await bot.get_me()
+            logger.info(f"✅ Bot started: @{me.username}")
+            bot_started = True
+            
+        except FloodWait as e:
+            logger.warning(f"⚠️ Bot flood wait: {e.value}s")
+            logger.info(f"⏳ Bot will start automatically in {e.value} seconds...")
+            
+            # Schedule bot to start after flood wait
+            asyncio.create_task(delayed_bot_start(e.value))
+            
+            # Mark bot as "starting" but not fully started
+            bot_started = False
+            return True  # Return success so web server can start
         
-        me = await bot.get_me()
-        logger.info(f"✅ Bot started: @{me.username}")
-        bot_started = True
+        except Exception as e:
+            logger.error(f"❌ Bot initialization failed: {e}")
+            return False
         
         # Initialize user client (for file access)
         if Config.USER_SESSION_STRING:
@@ -518,19 +820,6 @@ async def init_bot():
         logger.error(f"❌ Bot initialization failed: {e}")
         return False
 
-async def delayed_user_session_start(delay: int):
-    """Start user session after delay"""
-    global user_session_ready
-    
-    await asyncio.sleep(delay)
-    
-    try:
-        await user_client.start()
-        user_session_ready = True
-        logger.info("✅ User session started after delay")
-    except Exception as e:
-        logger.error(f"❌ Delayed user session failed: {e}")
-
 async def main():
     """Main application entry point"""
     logger.info("="*60)
@@ -544,7 +833,10 @@ async def main():
     await init_mongodb()
     
     # Initialize bot
-    await init_bot()
+    bot_success = await init_bot()
+    
+    if not bot_success:
+        logger.warning("⚠️ Bot initialization had issues, but web server will start")
     
     # Start web server
     config = HyperConfig()
