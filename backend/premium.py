@@ -312,7 +312,7 @@ Get premium access and enjoy ad-free experience with fast downloads!
                 reply_markup=premium_manager.get_premium_plans_keyboard()
             )
     
-    @bot.on_message(filters.command("premiumuser") & filters.user(config.ADMINIDS))
+    @bot.on_message(filters.command("premiumuser") & filters.user(config.ADMIN_IDS))
     async def premiumuser_command(client, message):
         """Admin command to manage premium for specific user"""
         try:
