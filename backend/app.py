@@ -176,12 +176,22 @@ def format_size(size):
     else:
         return f"{size/(1024*1024*1024):.2f} GB"
 
+def is_new(date):
+    """Check if date is within 48 hours"""
+    try:
+        if isinstance(date, str):
+            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+        hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
+        return hours <= 48
+    except:
+        return False
+
 # API Routes
 @app.route('/')
 async def root():
     """Root endpoint with system status"""
     mongodb_count = 0
-    if files_col:
+    if files_col is not None:  # FIXED: Compare with None
         try:
             mongodb_count = await files_col.count_documents({})
         except:
@@ -225,7 +235,7 @@ async def root():
 async def health():
     """Health check endpoint"""
     mongodb_status = False
-    if mongo_client:
+    if mongo_client is not None:  # FIXED: Compare with None
         try:
             await mongo_client.admin.command('ping')
             mongodb_status = True
@@ -242,7 +252,7 @@ async def health():
             },
             'user_session': user_session_ready,
             'mongodb': mongodb_status,
-            'redis': cache_manager.redis_enabled if cache_manager else False,
+            'redis': cache_manager.redis_enabled if cache_manager is not None else False,
             'web_server': True
         },
         'modules': {
@@ -257,13 +267,19 @@ async def health():
 async def api_status():
     """Get detailed system status"""
     # Get verification stats
-    verification_stats = await verification_system.get_user_stats() if verification_system else {}
+    verification_stats = {}
+    if verification_system is not None:  # FIXED: Compare with None
+        verification_stats = await verification_system.get_user_stats()
     
     # Get cache stats
-    cache_stats = await cache_manager.get_stats_summary() if cache_manager else {}
+    cache_stats = {}
+    if cache_manager is not None:  # FIXED: Compare with None
+        cache_stats = await cache_manager.get_stats_summary()
     
     # Get poster fetcher stats
-    poster_stats = poster_fetcher.get_stats() if poster_fetcher else {}
+    poster_stats = {}
+    if poster_fetcher is not None:  # FIXED: Compare with None
+        poster_stats = poster_fetcher.get_stats()
     
     return jsonify({
         'status': 'success',
@@ -275,7 +291,7 @@ async def api_status():
                 'user_session_ready': user_session_ready
             },
             'mongodb': mongo_client is not None,
-            'redis': cache_manager.redis_enabled if cache_manager else False,
+            'redis': cache_manager.redis_enabled if cache_manager is not None else False,
             'web_server': True
         },
         'statistics': {
@@ -294,7 +310,7 @@ async def api_status():
 @app.route('/api/verify/<int:user_id>', methods=['POST'])
 async def api_verify_user(user_id):
     """Create verification link for user"""
-    if not verification_system:
+    if verification_system is None:  # FIXED: Compare with None
         return jsonify({'status': 'error', 'message': 'Verification system not initialized'}), 500
     
     try:
@@ -311,7 +327,7 @@ async def api_verify_user(user_id):
 @app.route('/api/verify/check/<int:user_id>')
 async def api_check_verification(user_id):
     """Check user verification status"""
-    if not verification_system:
+    if verification_system is None:  # FIXED: Compare with None
         return jsonify({'status': 'error', 'message': 'Verification system not initialized'}), 500
     
     try:
@@ -328,7 +344,7 @@ async def api_check_verification(user_id):
 @app.route('/api/premium/tiers')
 async def api_get_premium_tiers():
     """Get available premium tiers"""
-    if not premium_system:
+    if premium_system is None:  # FIXED: Compare with None
         return jsonify({'status': 'error', 'message': 'Premium system not initialized'}), 500
     
     try:
@@ -343,7 +359,7 @@ async def api_get_premium_tiers():
 @app.route('/api/premium/user/<int:user_id>')
 async def api_get_user_premium(user_id):
     """Get user premium status"""
-    if not premium_system:
+    if premium_system is None:  # FIXED: Compare with None
         return jsonify({'status': 'error', 'message': 'Premium system not initialized'}), 500
     
     try:
@@ -358,7 +374,7 @@ async def api_get_user_premium(user_id):
 @app.route('/api/poster/<path:title>')
 async def api_get_poster(title):
     """Get movie poster"""
-    if not poster_fetcher:
+    if poster_fetcher is None:  # FIXED: Compare with None
         return jsonify({'status': 'error', 'message': 'Poster fetcher not initialized'}), 500
     
     try:
@@ -373,7 +389,7 @@ async def api_get_poster(title):
 @app.route('/api/cache/stats')
 async def api_cache_stats():
     """Get cache statistics"""
-    if not cache_manager:
+    if cache_manager is None:  # FIXED: Compare with None
         return jsonify({'status': 'error', 'message': 'Cache manager not initialized'}), 500
     
     try:
@@ -388,7 +404,7 @@ async def api_cache_stats():
 @app.route('/api/cache/clear', methods=['POST'])
 async def api_clear_cache():
     """Clear cache"""
-    if not cache_manager:
+    if cache_manager is None:  # FIXED: Compare with None
         return jsonify({'status': 'error', 'message': 'Cache manager not initialized'}), 500
     
     try:
@@ -415,7 +431,7 @@ async def api_search():
         if Config.VERIFICATION_REQUIRED:
             user_id = request.args.get('user_id', type=int)
             if user_id:
-                if verification_system:
+                if verification_system is not None:  # FIXED: Compare with None
                     is_verified, message = await verification_system.check_user_verified(user_id)
                     if not is_verified:
                         return jsonify({
@@ -424,9 +440,9 @@ async def api_search():
                             'verification_url': f'/api/verify/{user_id}'
                         }), 403
         
-        # Simple search logic (you can enhance this later)
+        # Simple search logic
         results = []
-        if files_col:
+        if files_col is not None:  # FIXED: Compare with None
             # Search in MongoDB
             cursor = files_col.find({
                 '$or': [
@@ -462,16 +478,6 @@ async def api_search():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-def is_new(date):
-    """Check if date is within 48 hours"""
-    try:
-        if isinstance(date, str):
-            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
-        hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
-        return hours <= 48
-    except:
-        return False
-
 # Bot handlers
 async def setup_bot():
     """Setup bot commands and handlers"""
@@ -488,26 +494,27 @@ async def setup_bot():
                 token = command_arg[7:]
                 
                 # Verify token
-                is_verified, verified_user_id, verify_message = await verification_system.verify_user_token(token)
-                
-                if is_verified and verified_user_id == user_id:
-                    await message.reply_text(
-                        f"✅ **Verification Successful, {user_name}!**\n\n"
-                        "You are now verified and can download files.\n\n"
-                        f"🌐 **Website:** {Config.WEBSITE_URL}\n"
-                        f"⏰ **Verification valid for 6 hours**",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
-                        ])
-                    )
-                    return
-                else:
-                    await message.reply_text(
-                        "❌ **Verification Failed**\n\n"
-                        f"Error: {verify_message}\n\n"
-                        "Please generate a new verification link."
-                    )
-                    return
+                if verification_system is not None:  # FIXED: Compare with None
+                    is_verified, verified_user_id, verify_message = await verification_system.verify_user_token(token)
+                    
+                    if is_verified and verified_user_id == user_id:
+                        await message.reply_text(
+                            f"✅ **Verification Successful, {user_name}!**\n\n"
+                            "You are now verified and can download files.\n\n"
+                            f"🌐 **Website:** {Config.WEBSITE_URL}\n"
+                            f"⏰ **Verification valid for 6 hours**",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                            ])
+                        )
+                        return
+                    else:
+                        await message.reply_text(
+                            "❌ **Verification Failed**\n\n"
+                            f"Error: {verify_message}\n\n"
+                            "Please generate a new verification link."
+                        )
+                        return
         
         # Regular start command
         welcome_text = (
@@ -516,7 +523,7 @@ async def setup_bot():
             f"{Config.WEBSITE_URL}\n\n"
         )
         
-        if Config.VERIFICATION_REQUIRED:
+        if Config.VERIFICATION_REQUIRED and verification_system is not None:  # FIXED: Compare with None
             # Check if user is verified
             is_verified, status = await verification_system.check_user_verified(user_id)
             
@@ -548,7 +555,7 @@ async def setup_bot():
             ])
         
         # Add premium info if available
-        if premium_system:
+        if premium_system is not None:  # FIXED: Compare with None
             tier = await premium_system.get_user_tier(user_id)
             if tier != PremiumTier.FREE:
                 welcome_text += f"🌟 **Premium Status:** {tier.value.upper()}\n"
@@ -559,7 +566,7 @@ async def setup_bot():
     async def check_verify_callback(client, callback_query):
         user_id = int(callback_query.data.split('_')[2])
         
-        if not verification_system:
+        if verification_system is None:  # FIXED: Compare with None
             await callback_query.answer("Verification system not available", show_alert=True)
             return
         
@@ -593,14 +600,21 @@ async def setup_bot():
         """Admin stats command"""
         try:
             # Get MongoDB stats
-            total_files = await files_col.count_documents({}) if files_col else 0
-            video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+            total_files = 0
+            video_files = 0
+            if files_col is not None:  # FIXED: Compare with None
+                total_files = await files_col.count_documents({})
+                video_files = await files_col.count_documents({'is_video_file': True})
             
             # Get verification stats
-            verification_stats = await verification_system.get_user_stats() if verification_system else {}
+            verification_stats = {}
+            if verification_system is not None:  # FIXED: Compare with None
+                verification_stats = await verification_system.get_user_stats()
             
             # Get cache stats
-            cache_stats = await cache_manager.get_stats_summary() if cache_manager else {}
+            cache_stats = {}
+            if cache_manager is not None:  # FIXED: Compare with None
+                cache_stats = await cache_manager.get_stats_summary()
             
             stats_text = (
                 f"📊 **SK4FiLM STATISTICS**\n\n"
@@ -634,7 +648,7 @@ async def setup_bot():
             "3. Send the link to this bot\n"
             "4. Bot will send you the file\n"
             "\n"
-            "**Website:** {Config.WEBSITE_URL}\n"
+            f"**Website:** {Config.WEBSITE_URL}\n"
             "\n"
             "**Support:** @SK4FiLM_Support"
         )
