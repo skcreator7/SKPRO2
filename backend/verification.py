@@ -20,6 +20,9 @@ class VerificationSystem:
         self.verification_tokens = {}    # token -> user_id
         self.verified_users = {}         # user_id -> expiry_time
         
+        # Verification duration: 6 hours
+        self.verification_duration = 6 * 60 * 60
+        
         # Cleanup task
         self.cleanup_task = None
     
@@ -60,7 +63,7 @@ class VerificationSystem:
         return destination_url, 'Direct'
     
     async def create_verification_link(self, user_id: int) -> Dict[str, Any]:
-        """Create verification link with unique token"""
+        """Create verification link with unique token (valid for 6 hours)"""
         try:
             # Generate unique verification token
             verification_token = self.generate_unique_token()
@@ -81,14 +84,16 @@ class VerificationSystem:
                 'service_name': service_name,
                 'destination_url': destination_url,
                 'attempts': 0,
-                'status': 'pending'
+                'status': 'pending',
+                'valid_for_hours': 6,
+                'expires_at': datetime.now() + timedelta(hours=1)  # Link valid for 1 hour
             }
             
             # Store in memory caches
             self.pending_verifications[user_id] = verification_data
             self.verification_tokens[verification_token] = user_id
             
-            logger.info(f"✅ Verification link created for user {user_id}")
+            logger.info(f"✅ Verification link created for user {user_id} (valid for 6 hours)")
             
             return verification_data
             
@@ -107,7 +112,9 @@ class VerificationSystem:
                 'service_name': 'Direct',
                 'destination_url': direct_url,
                 'attempts': 0,
-                'status': 'pending'
+                'status': 'pending',
+                'valid_for_hours': 6,
+                'expires_at': datetime.now() + timedelta(hours=1)
             }
             
             self.pending_verifications[user_id] = verification_data
@@ -130,26 +137,26 @@ class VerificationSystem:
             if verification_data['token'] != token:
                 return False, user_id, "Token mismatch"
             
-            # Check expiry (1 hour)
+            # Check link expiry (1 hour)
             created_at = verification_data['created_at']
             if datetime.now() - created_at > timedelta(hours=1):
                 # Cleanup expired
                 self._cleanup_user_verification(user_id)
-                return False, user_id, "Token expired"
+                return False, user_id, "Verification link expired (1 hour)"
             
-            # Mark as verified
+            # Mark as verified - valid for 6 hours
             verification_data['status'] = 'verified'
             verification_data['verified_at'] = datetime.now()
             
             # Store in verified users (valid for 6 hours)
-            expiry_time = datetime.now() + timedelta(hours=6)
+            expiry_time = datetime.now() + timedelta(seconds=self.verification_duration)
             self.verified_users[user_id] = expiry_time
             
             # Cleanup from pending
             self._cleanup_user_verification(user_id)
             
-            logger.info(f"✅ User {user_id} verified successfully")
-            return True, user_id, "Verification successful"
+            logger.info(f"✅ User {user_id} verified successfully (valid for 6 hours)")
+            return True, user_id, "Verification successful - Valid for 6 hours"
             
         except Exception as e:
             logger.error(f"❌ Token verification error: {e}")
@@ -163,17 +170,45 @@ class VerificationSystem:
                 del self.verification_tokens[token]
             del self.pending_verifications[user_id]
     
-    async def check_user_verified(self, user_id: int) -> Tuple[bool, str]:
-        """Check if user is currently verified"""
+    async def check_user_verified(self, user_id: int, premium_system=None) -> Tuple[bool, str]:
+        """Check if user is currently verified (6 hours) or premium"""
+        # Check if user is premium (premium users don't need verification)
+        if premium_system:
+            try:
+                is_premium = await premium_system.is_premium_user(user_id)
+                if is_premium:
+                    return True, "Premium user - verification not required"
+            except:
+                pass
+        
+        # Check verification for free users
         if user_id in self.verified_users:
             expiry_time = self.verified_users[user_id]
+            remaining = expiry_time - datetime.now()
+            
             if datetime.now() < expiry_time:
-                return True, f"Verified (expires in {expiry_time - datetime.now()})"
+                hours = int(remaining.total_seconds() / 3600)
+                minutes = int((remaining.total_seconds() % 3600) / 60)
+                return True, f"Verified (expires in {hours}h {minutes}m)"
             else:
                 # Expired, cleanup
                 del self.verified_users[user_id]
                 return False, "Verification expired"
-        return False, "Not verified"
+        return False, "Not verified (6 hours verification required)"
+    
+    async def check_user_access(self, user_id: int, premium_system=None) -> Tuple[bool, str]:
+        """Check user access with premium bypass"""
+        # Premium users always have access
+        if premium_system:
+            try:
+                is_premium = await premium_system.is_premium_user(user_id)
+                if is_premium:
+                    return True, "Premium access granted"
+            except:
+                pass
+        
+        # Free users need verification
+        return await self.check_user_verified(user_id)
     
     async def extend_verification(self, user_id: int, hours: int = 6) -> bool:
         """Extend user verification"""
@@ -183,20 +218,22 @@ class VerificationSystem:
             return True
         return False
     
-    async def revoke_verification(self, user_id: int) -> bool:
-        """Revoke user verification"""
-        if user_id in self.verified_users:
-            del self.verified_users[user_id]
-            logger.info(f"✅ Revoked verification for user {user_id}")
-            return True
-        return False
-    
     async def get_user_stats(self) -> Dict[str, Any]:
         """Get verification statistics"""
+        # Count verified users still within 6 hours
+        active_verified = 0
+        now = datetime.now()
+        
+        for user_id, expiry in self.verified_users.items():
+            if now < expiry:
+                active_verified += 1
+        
         return {
             'pending_verifications': len(self.pending_verifications),
-            'verified_users': len(self.verified_users),
-            'active_tokens': len(self.verification_tokens)
+            'active_verified_users': active_verified,
+            'total_verified_users': len(self.verified_users),
+            'active_tokens': len(self.verification_tokens),
+            'verification_duration_hours': 6
         }
     
     async def start_cleanup_task(self):
@@ -212,7 +249,7 @@ class VerificationSystem:
             try:
                 await asyncio.sleep(300)  # Run every 5 minutes
                 
-                # Cleanup expired pending verifications
+                # Cleanup expired pending verifications (1 hour)
                 now = datetime.now()
                 expired_users = []
                 
@@ -224,7 +261,7 @@ class VerificationSystem:
                 for user_id in expired_users:
                     self._cleanup_user_verification(user_id)
                 
-                # Cleanup expired verified users
+                # Cleanup expired verified users (6 hours)
                 expired_verified = [
                     user_id for user_id, expiry in self.verified_users.items()
                     if now > expiry
@@ -234,7 +271,7 @@ class VerificationSystem:
                     del self.verified_users[user_id]
                 
                 if expired_users or expired_verified:
-                    logger.info(f"🧹 Cleanup: {len(expired_users)} pending, {len(expired_verified)} verified")
+                    logger.info(f"🧹 Verification cleanup: {len(expired_users)} pending, {len(expired_verified)} verified")
                     
             except Exception as e:
                 logger.error(f"Cleanup loop error: {e}")
