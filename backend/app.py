@@ -1,5 +1,5 @@
 """
-app.py - Main SK4FiLM Bot Web Server
+app.py - Main SK4FiLM Bot Web Server - UPDATED
 """
 import asyncio
 import os
@@ -34,7 +34,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration class - Moved here to avoid circular imports
+# Global instances
+bot_instance = None
+db_manager = None
+api_rate_limiter = None
+search_rate_limiter = None
+
+# Configuration class
 class Config:
     # Telegram API
     API_ID = int(os.environ.get("API_ID", "0"))
@@ -65,7 +71,7 @@ class Config:
     
     # Shortener & Verification
     SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
-    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "false").lower() == "true"
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "true").lower() == "true"
     VERIFICATION_DURATION = 6 * 60 * 60
     
     # Server
@@ -78,11 +84,12 @@ class Config:
     # UPI IDs for Premium
     UPI_ID_BASIC = os.environ.get("UPI_ID_BASIC", "sk4filmbot@ybl")
     UPI_ID_PREMIUM = os.environ.get("UPI_ID_PREMIUM", "sk4filmbot@ybl")
-    UPI_ID_ULTIMATE = os.environ.get("UPI_ID_ULTIMATE", "sk4filmbot@ybl")
-    UPI_ID_LIFETIME = os.environ.get("UPI_ID_LIFETIME", "sk4filmbot@ybl")
     
     # Admin
     ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "admin123")
+    
+    # Website Integration
+    WEBSITE_SECRET_KEY = os.environ.get("WEBSITE_SECRET_KEY", "sk4film_secret_key")
     
     @classmethod
     def validate(cls):
@@ -106,38 +113,16 @@ class Config:
 
 # Initialize Quart app
 app = Quart(__name__)
+app.secret_key = Config.WEBSITE_SECRET_KEY
 
 @app.after_request
 async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return response
 
-# Global instances - Will be set by main()
-bot_instance = None
-db_manager = None
-
-# Rate limiters
-api_rate_limiter = None
-search_rate_limiter = None
-
-# Enhanced search statistics
-search_stats = {
-    'redis_hits': 0,
-    'redis_misses': 0,
-    'multi_channel_searches': 0,
-    'total_searches': 0
-}
-
-# Channel configuration
-CHANNEL_CONFIG = {
-    -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'search_priority': 1},
-    -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'search_priority': 2},
-    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0}
-}
-
-# Utility functions - These are standalone functions used by both modules
+# Utility functions
 def normalize_title(title):
     """Normalize movie title for searching"""
     if not title:
@@ -159,67 +144,6 @@ def normalize_title(title):
     normalized = re.sub(r'\s+', ' ', normalized).strip()
     
     return normalized
-
-def extract_title_smart(text):
-    """Extract movie title from text"""
-    if not text or len(text) < 10:
-        return None
-    
-    lines = [l.strip() for l in text.split('\n') if l.strip()]
-    if not lines:
-        return None
-    
-    first_line = lines[0]
-    
-    patterns = [
-        (r'^([A-Za-z\s]{3,50}?)\s*(?:\(?\d{4}\)?|\b(?:480p|720p|1080p|2160p|4k|hd|fhd|uhd)\b)', 1),
-        (r'🎬\s*([^\n\-\(]{3,60}?)\s*(?:\(\d{4}\)|$)', 1),
-        (r'^([^\-\n]{3,60}?)\s*\-', 1),
-        (r'^([^\(\n]{3,60}?)\s*\(\d{4}\)', 1),
-        (r'^([A-Za-z\s]{3,50}?)\s*(?:\d{4}|Hindi|Movie|Film|HDTC|WebDL|X264|AAC|ESub)', 1),
-    ]
-    
-    for pattern, group in patterns:
-        match = re.search(pattern, first_line, re.IGNORECASE)
-        if match:
-            title = match.group(group).strip()
-            title = re.sub(r'\s+', ' ', title)
-            if 3 <= len(title) <= 60:
-                return title
-    
-    return None
-
-def extract_title_from_file(msg):
-    """Extract title from file message"""
-    try:
-        if msg.caption:
-            t = extract_title_smart(msg.caption)
-            if t:
-                return t
-        
-        fn = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else None)
-        if fn:
-            name = fn.rsplit('.', 1)[0]
-            name = re.sub(r'[\._\-]', ' ', name)
-            
-            name = re.sub(
-                r'\b(720p|1080p|480p|2160p|4k|HDRip|WEBRip|WEB-DL|BluRay|BRRip|DVDRip|HDTV|HDTC|'
-                r'X264|X265|HEVC|H264|H265|AAC|AC3|DD5\.1|DDP5\.1|HC|ESub|Subs|Hindi|English|'
-                r'Dual|Multi|Complete|Full|Movie|Film|\d{4})\b',
-                '', 
-                name, 
-                flags=re.IGNORECASE
-            )
-            
-            name = re.sub(r'\s+', ' ', name).strip()
-            name = re.sub(r'\s+\(\d{4}\)$', '', name)
-            name = re.sub(r'\s+\d{4}$', '', name)
-            
-            if 4 <= len(name) <= 50:
-                return name
-    except Exception as e:
-        logger.error(f"File title extraction error: {e}")
-    return None
 
 def format_size(size):
     """Format file size"""
@@ -248,28 +172,6 @@ def detect_quality(filename):
         return "480p HEVC" if is_hevc else "480p"
     return "480p"
 
-def format_post(text):
-    """Format post text for HTML"""
-    if not text:
-        return ""
-    text = html.escape(text)
-    text = re.sub(r'(https?://[^\s]+)', r'<a href="\1" target="_blank" style="color:#00ccff">\1</a>', text)
-    return text.replace('\n', '<br>')
-
-def channel_name(cid):
-    """Get channel name from config"""
-    return CHANNEL_CONFIG.get(cid, {}).get('name', f"Channel {cid}")
-
-def is_new(date):
-    """Check if date is within 48 hours"""
-    try:
-        if isinstance(date, str):
-            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
-        hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
-        return hours <= 48
-    except:
-        return False
-
 def is_video_file(file_name):
     """Check if file is video"""
     if not file_name:
@@ -278,7 +180,6 @@ def is_video_file(file_name):
     file_name_lower = file_name.lower()
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
-# Missing functions that were referenced but not defined in original
 async def safe_telegram_operation(func, *args, **kwargs):
     """Safely execute Telegram operations with error handling"""
     try:
@@ -286,24 +187,6 @@ async def safe_telegram_operation(func, *args, **kwargs):
     except Exception as e:
         logger.error(f"Telegram operation error: {e}")
         return None
-
-async def safe_telegram_generator(func, *args, **kwargs):
-    """Safely iterate through Telegram generator"""
-    try:
-        async for item in func(*args, **kwargs):
-            yield item
-    except Exception as e:
-        logger.error(f"Telegram generator error: {e}")
-
-async def index_single_file(tg_message):
-    """Index a single file from Telegram message"""
-    try:
-        # This is a placeholder for actual indexing logic
-        logger.info(f"Indexing file from message {tg_message.id}")
-        return True
-    except Exception as e:
-        logger.error(f"Indexing error: {e}")
-        return False
 
 async def auto_delete_file(message, delay_seconds):
     """Auto-delete file after specified delay"""
@@ -314,7 +197,7 @@ async def auto_delete_file(message, delay_seconds):
     except Exception as e:
         logger.error(f"Auto-delete error: {e}")
 
-# Database Manager (moved here to avoid circular imports)
+# Database Manager
 class DatabaseManager:
     def __init__(self, uri, max_pool_size=10):
         self.uri = uri
@@ -366,7 +249,7 @@ class DatabaseManager:
             self.client.close()
             logger.info("✅ MongoDB connection closed")
 
-# Rate Limiter (moved here)
+# Rate Limiter
 class RateLimiter:
     def __init__(self, max_requests, window_seconds):
         self.max_requests = max_requests
@@ -389,12 +272,27 @@ class RateLimiter:
         self.requests[key].append(now)
         return True
 
+# Auth decorator for website
+def require_website_auth(f):
+    @wraps(f)
+    async def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'status': 'error', 'message': 'Authorization required'}), 401
+        
+        token = auth_header.split(' ')[1]
+        if token != Config.WEBSITE_SECRET_KEY:
+            return jsonify({'status': 'error', 'message': 'Invalid token'}), 403
+        
+        return await f(*args, **kwargs)
+    return decorated_function
+
 async def idle():
     """Keep the bot running"""
     while True:
         await asyncio.sleep(3600)
 
-# API Routes
+# API Routes for Website Integration
 @app.route('/')
 async def root():
     """Root endpoint with system status"""
@@ -417,7 +315,8 @@ async def root():
             'health': '/health',
             'search': '/api/search',
             'movies': '/api/movies',
-            'verify': '/api/verify/{user_id}',
+            'verify': '/api/verify',
+            'download': '/api/download',
             'premium': '/api/premium/*',
             'poster': '/api/poster',
             'stats': '/api/search/stats',
@@ -440,121 +339,225 @@ async def health():
         'web_server': True
     })
 
-@app.route('/api/search')
-async def api_search():
-    """Search for movies"""
+@app.route('/api/verify', methods=['POST'])
+@require_website_auth
+async def api_verify():
+    """Get verification link for user (website calls this)"""
     try:
-        # Get query parameters
-        query = request.args.get('query', '').strip()
-        page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 12))
+        data = await request.get_json()
+        if not data or 'user_id' not in data:
+            return jsonify({'status': 'error', 'message': 'user_id required'}), 400
         
-        # Validate query
-        if len(query) < 2:
-            return jsonify({'status': 'error', 'message': 'Query too short'}), 400
+        user_id = int(data['user_id'])
         
-        # Basic search response
-        response_data = {
-            'status': 'success',
-            'query': query,
-            'results': [],
-            'pagination': {
-                'current_page': page,
-                'total_pages': 1,
-                'total_results': 0,
-                'per_page': limit,
-                'has_next': False,
-                'has_previous': False
-            },
-            'search_mode': 'basic',
-            'bot_username': Config.BOT_USERNAME
-        }
-        
-        return jsonify(response_data)
-        
+        if bot_instance and bot_instance.verification_system:
+            verification_link = await bot_instance.verification_system.get_verification_link_for_user(user_id)
+            
+            return jsonify({
+                'status': 'success',
+                'user_id': user_id,
+                'verification_url': verification_link['short_url'],
+                'expires_in': '1 hour',
+                'bot_username': Config.BOT_USERNAME
+            })
+        else:
+            return jsonify({'status': 'error', 'message': 'Verification system not available'}), 500
+            
     except Exception as e:
-        logger.error(f"Search error: {e}")
+        logger.error(f"Verification API error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/movies')
-async def api_movies():
-    """Get latest movies"""
+@app.route('/api/download', methods=['POST'])
+@require_website_auth
+async def api_download():
+    """Request file download (website calls this)"""
     try:
-        return jsonify({
-            'status': 'success',
-            'movies': [],
-            'total': 0,
-            'mode': 'basic',
-            'bot_username': Config.BOT_USERNAME
-        })
+        data = await request.get_json()
+        if not data or 'user_id' not in data or 'channel_id' not in data or 'message_id' not in data:
+            return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
+        
+        user_id = int(data['user_id'])
+        channel_id = int(data['channel_id'])
+        message_id = int(data['message_id'])
+        quality = data.get('quality', 'HD')
+        
+        # Check if bot instance is available
+        if not bot_instance or not bot_instance.bot:
+            return jsonify({'status': 'error', 'message': 'Bot not ready'}), 500
+        
+        # Check user access
+        has_access = False
+        access_message = ""
+        
+        if bot_instance.premium_system:
+            try:
+                is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+                if is_premium:
+                    has_access = True
+                    access_message = "Premium user"
+            except Exception as e:
+                logger.error(f"Premium check error: {e}")
+        
+        if not has_access and bot_instance.verification_system:
+            is_verified, verify_msg = await bot_instance.verification_system.check_user_verified(user_id)
+            if is_verified:
+                has_access = True
+                access_message = "Verified user"
+        
+        if not has_access:
+            return jsonify({
+                'status': 'verification_required',
+                'message': 'Verification required',
+                'user_id': user_id
+            }), 403
+        
+        # Get file from Telegram
+        file_message = await safe_telegram_operation(
+            bot_instance.bot.get_messages,
+            channel_id, 
+            message_id
+        )
+        
+        if not file_message or (not file_message.document and not file_message.video):
+            return jsonify({'status': 'error', 'message': 'File not found'}), 404
+        
+        # Send file to user via bot
+        try:
+            if file_message.document:
+                sent = await safe_telegram_operation(
+                    bot_instance.bot.send_document,
+                    user_id, 
+                    file_message.document.file_id,
+                    caption=f"✅ **File from SK4FiLM**\n\n📦 Quality: {quality}\n📊 Size: {format_size(file_message.document.file_size)}\n⏰ Auto-delete in {Config.AUTO_DELETE_TIME//60} minutes"
+                )
+            else:
+                sent = await safe_telegram_operation(
+                    bot_instance.bot.send_video,
+                    user_id, 
+                    file_message.video.file_id,
+                    caption=f"✅ **File from SK4FiLM**\n\n📦 Quality: {quality}\n📊 Size: {format_size(file_message.video.file_size)}\n⏰ Auto-delete in {Config.AUTO_DELETE_TIME//60} minutes"
+                )
+            
+            if sent:
+                # Auto-delete file after specified time
+                if Config.AUTO_DELETE_TIME > 0:
+                    asyncio.create_task(auto_delete_file(sent, Config.AUTO_DELETE_TIME))
+                
+                # Record download
+                if bot_instance.premium_system:
+                    try:
+                        await bot_instance.premium_system.record_download(user_id)
+                    except:
+                        pass
+                
+                logger.info(f"File sent to user {user_id} via website API")
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'File sent successfully',
+                    'user_id': user_id,
+                    'access_type': access_message,
+                    'timestamp': datetime.now().isoformat()
+                })
+            else:
+                return jsonify({'status': 'error', 'message': 'Failed to send file'}), 500
+                
+        except Exception as e:
+            logger.error(f"Error sending file: {e}")
+            return jsonify({'status': 'error', 'message': f'Error sending file: {str(e)}'}), 500
+            
     except Exception as e:
+        logger.error(f"Download API error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/verify/<int:user_id>')
-async def api_verify_user(user_id):
-    """Get verification link for user"""
+@app.route('/api/check-access', methods=['POST'])
+@require_website_auth
+async def api_check_access():
+    """Check user access status (website calls this)"""
     try:
+        data = await request.get_json()
+        if not data or 'user_id' not in data:
+            return jsonify({'status': 'error', 'message': 'user_id required'}), 400
+        
+        user_id = int(data['user_id'])
+        
+        has_access = False
+        access_type = "none"
+        access_message = ""
+        verification_link = None
+        
+        if bot_instance.premium_system:
+            try:
+                is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+                if is_premium:
+                    has_access = True
+                    access_type = "premium"
+                    tier = await bot_instance.premium_system.get_user_tier(user_id)
+                    access_message = f"Premium ({tier.value})"
+            except Exception as e:
+                logger.error(f"Premium check error: {e}")
+        
+        if not has_access and bot_instance.verification_system:
+            is_verified, verify_msg = await bot_instance.verification_system.check_user_verified(user_id)
+            if is_verified:
+                has_access = True
+                access_type = "verified"
+                access_message = verify_msg
+            else:
+                # Get verification link
+                verification_link_data = await bot_instance.verification_system.get_verification_link_for_user(user_id)
+                if verification_link_data:
+                    verification_link = verification_link_data['short_url']
+        
         return jsonify({
             'status': 'success',
             'user_id': user_id,
-            'verification_url': f'https://t.me/{Config.BOT_USERNAME}?start=verify_{user_id}',
-            'expires_in': '1 hour',
+            'has_access': has_access,
+            'access_type': access_type,
+            'access_message': access_message,
+            'verification_required': not has_access,
+            'verification_link': verification_link,
             'bot_username': Config.BOT_USERNAME
         })
+            
     except Exception as e:
+        logger.error(f"Check access API error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/premium/plans')
-async def api_premium_plans():
-    """Get all premium plans"""
+@app.route('/api/send-message', methods=['POST'])
+@require_website_auth
+async def api_send_message():
+    """Send message to user (website calls this)"""
     try:
-        plans = [
-            {
-                'tier': 'basic',
-                'name': 'Basic Plan',
-                'price': 99,
-                'duration_days': 30,
-                'features': ['1080p Quality', '10 Daily Downloads', 'Priority Support'],
-                'description': 'Perfect for casual users'
-            },
-            {
-                'tier': 'premium',
-                'name': 'Premium Plan',
-                'price': 199,
-                'duration_days': 30,
-                'features': ['4K Quality', 'Unlimited Downloads', 'Priority Support', 'No Ads'],
-                'description': 'Best value for movie lovers'
-            }
-        ]
+        data = await request.get_json()
+        if not data or 'user_id' not in data or 'message' not in data:
+            return jsonify({'status': 'error', 'message': 'user_id and message required'}), 400
         
-        return jsonify({
-            'status': 'success',
-            'plans': plans,
-            'currency': 'INR'
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/poster')
-async def api_poster():
-    """Get poster for movie"""
-    try:
-        title = request.args.get('title', '').strip()
-        if not title:
-            return jsonify({'status': 'error', 'message': 'Title required'}), 400
+        user_id = int(data['user_id'])
+        message_text = data['message']
         
-        return jsonify({
-            'status': 'success',
-            'poster_url': f"{Config.BACKEND_URL}/static/default_poster.jpg",
-            'source': 'default',
-            'rating': '0.0',
-            'year': '2024'
-        })
+        if not bot_instance or not bot_instance.bot:
+            return jsonify({'status': 'error', 'message': 'Bot not ready'}), 500
+        
+        # Send message to user
+        sent = await safe_telegram_operation(
+            bot_instance.bot.send_message,
+            user_id,
+            message_text
+        )
+        
+        if sent:
+            return jsonify({
+                'status': 'success',
+                'message': 'Message sent',
+                'user_id': user_id
+            })
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to send message'}), 500
+            
     except Exception as e:
+        logger.error(f"Send message API error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# Import bot_handlers AFTER defining all utility functions
-# This is done in main() function to avoid circular imports
 
 async def main():
     """Main function to start the bot"""
@@ -574,7 +577,7 @@ async def main():
             db_manager = DatabaseManager(config.MONGODB_URI)
             await db_manager.connect()
         
-        # Now import bot_handlers (after all dependencies are defined)
+        # Import bot_handlers
         from bot_handlers import SK4FiLMBot, setup_bot_handlers
         
         # Create bot instance
@@ -594,6 +597,7 @@ async def main():
         logger.info(f"🚀 Starting web server on port {config.WEB_SERVER_PORT}")
         logger.info(f"🤖 Bot username: @{config.BOT_USERNAME}")
         logger.info(f"🌐 Website: {config.WEBSITE_URL}")
+        logger.info(f"🔗 Backend API: {config.BACKEND_URL}")
         
         # Run both web server and bot
         await asyncio.gather(
