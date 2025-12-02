@@ -278,6 +278,42 @@ def is_video_file(file_name):
     file_name_lower = file_name.lower()
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
+# Missing functions that were referenced but not defined in original
+async def safe_telegram_operation(func, *args, **kwargs):
+    """Safely execute Telegram operations with error handling"""
+    try:
+        return await func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Telegram operation error: {e}")
+        return None
+
+async def safe_telegram_generator(func, *args, **kwargs):
+    """Safely iterate through Telegram generator"""
+    try:
+        async for item in func(*args, **kwargs):
+            yield item
+    except Exception as e:
+        logger.error(f"Telegram generator error: {e}")
+
+async def index_single_file(tg_message):
+    """Index a single file from Telegram message"""
+    try:
+        # This is a placeholder for actual indexing logic
+        logger.info(f"Indexing file from message {tg_message.id}")
+        return True
+    except Exception as e:
+        logger.error(f"Indexing error: {e}")
+        return False
+
+async def auto_delete_file(message, delay_seconds):
+    """Auto-delete file after specified delay"""
+    try:
+        await asyncio.sleep(delay_seconds)
+        await message.delete()
+        logger.info(f"Auto-deleted file message after {delay_seconds} seconds")
+    except Exception as e:
+        logger.error(f"Auto-delete error: {e}")
+
 # Database Manager (moved here to avoid circular imports)
 class DatabaseManager:
     def __init__(self, uri, max_pool_size=10):
@@ -352,6 +388,11 @@ class RateLimiter:
         # Add current request
         self.requests[key].append(now)
         return True
+
+async def idle():
+    """Keep the bot running"""
+    while True:
+        await asyncio.sleep(3600)
 
 # API Routes
 @app.route('/')
