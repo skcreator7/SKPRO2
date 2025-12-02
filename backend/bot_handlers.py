@@ -411,105 +411,117 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             await msg.edit_text(f"❌ **Indexing Failed:** {e}")
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'premium', 'verify', 'index', 'broadcast', 'premiumuser']))
-    async def text_handler(client, message):
-        """Handle file download links"""
-        user_id = message.from_user.id
-        user_name = message.from_user.first_name or "User"
-        
-        # Check if message contains a file link
-        if message.text and '_' in message.text:
-            # This could be a file link format: channel_message_quality
-            try:
-                parts = message.text.split('_')
-                if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
-                    channel_id = int(parts[0])
-                    message_id = int(parts[1])
-                    quality = parts[2] if len(parts) > 2 else "HD"
-                    
-                    # Check user access
-                    can_download = True
-                    message_text = "Access granted"
-                    
-                    processing_msg = await message.reply_text(f"⏳ **Preparing your file...**\n\n📦 Quality: {quality}")
-                    
-                    # Get file from channel
-                    file_message = await safe_telegram_operation(
-                        client.get_messages,
-                        channel_id, 
-                        message_id
+async def text_handler(client, message):
+    """Handle file download links or direct file requests"""
+    user_id = message.from_user.id
+    user_name = message.from_user.first_name or "User"
+    
+    # Agar message me file link format hai (channel_message_quality)
+    if message.text and '_' in message.text:
+        try:
+            parts = message.text.split('_')
+            if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+                channel_id = int(parts[0])
+                message_id = int(parts[1])
+                quality = parts[2] if len(parts) > 2 else "HD"
+                
+                # Check user access via verification system
+                if bot_instance.verification_system:
+                    can_access, access_msg, access_details = await bot_instance.verification_system.check_user_access(
+                        user_id, 
+                        bot_instance.premium_system
                     )
                     
-                    if not file_message or (not file_message.document and not file_message.video):
-                        await processing_msg.edit_text("❌ **File not found**\n\nThe file may have been deleted.")
+                    if not can_access:
+                        # User needs verification
+                        verification_link = await bot_instance.verification_system.get_verification_link_for_user(user_id)
+                        
+                        await message.reply_text(
+                            f"🔒 **Verification Required, {user_name}!**\n\n"
+                            f"To download files directly, you need to complete verification.\n\n"
+                            f"🔗 **Verification Link:** {verification_link['short_url']}\n"
+                            f"⏰ **Valid for:** 1 hour\n\n"
+                            f"Click the link above and then click 'Start' in the bot.\n"
+                            f"Once verified, you can download files directly!",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_link['short_url'])],
+                                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+                            ]),
+                            disable_web_page_preview=True
+                        )
                         return
-                    
-                    # Send file to user
-                    if file_message.document:
-                        sent = await safe_telegram_operation(
-                            client.send_document,
-                            user_id, 
-                            file_message.document.file_id, 
-                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
-                                   f"📹 Quality: {quality}\n"
-                                   f"📦 Size: {format_size(file_message.document.file_size)}\n\n"
-                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"@SK4FiLM 🍿"
-                        )
-                    else:
-                        sent = await safe_telegram_operation(
-                            client.send_video,
-                            user_id, 
-                            file_message.video.file_id, 
-                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
-                                   f"📹 Quality: {quality}\n" 
-                                   f"📦 Size: {format_size(file_message.video.file_size)}\n\n"
-                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"@SK4FiLM 🍿"
-                        )
-                    
-                    await processing_msg.delete()
-                    
-                    # Record download for user
-                    if bot_instance.premium_system is not None:
-                        try:
-                            await bot_instance.premium_system.record_download(user_id)
-                        except:
-                            pass
-                    
-                    # Auto-delete file after specified time
-                    if Config.AUTO_DELETE_TIME > 0:
-                        asyncio.create_task(auto_delete_file(sent, Config.AUTO_DELETE_TIME))
-                    
-                    logger.info(f"File sent to user {user_id}: {quality} quality")
-                    
-                    # Send success message
-                    await message.reply_text(
-                        f"✅ **File sent successfully!**\n\n"
-                        f"📦 **Quality:** {quality}\n"
-                        f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                        f"♻ **Please forward to saved messages**\n"
-                        f"⭐ **Consider upgrading to Premium for better features!**",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-                        ])
-                    )
-                    
+                
+                # User has access (verified or premium)
+                processing_msg = await message.reply_text(f"⏳ **Preparing your file...**\n\n📦 Quality: {quality}")
+                
+                # Get file from channel
+                file_message = await safe_telegram_operation(
+                    client.get_messages,
+                    channel_id, 
+                    message_id
+                )
+                
+                if not file_message or (not file_message.document and not file_message.video):
+                    await processing_msg.edit_text("❌ **File not found**\n\nThe file may have been deleted.")
                     return
-            except Exception as e:
-                logger.error(f"File download error: {e}")
-                try:
-                    await processing_msg.edit_text("❌ **Error downloading file**\n\nPlease try again later.")
-                except:
-                    pass
-        
-        # If not a file link, show help
-        await message.reply_text(
-            "🎬 **SK4FiLM File Download**\n\n"
-            "To download a file, use the website:\n"
-            f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
-            "Find your movie and click download to get the file link.\n"
-            "Then paste the link here and I'll send you the file! 🍿"
-        )
+                
+                # Send file to user
+                if file_message.document:
+                    sent = await safe_telegram_operation(
+                        client.send_document,
+                        user_id, 
+                        file_message.document.file_id, 
+                        caption=f"✅ **File Sent Successfully!**\n\n"
+                               f"📦 **Quality:** {quality}\n"
+                               f"📊 **Size:** {format_size(file_message.document.file_size)}\n"
+                               f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                               f"♻ **Please forward to saved messages**\n"
+                               f"⭐ **Consider upgrading to Premium for better features!**\n\n"
+                               f"@SK4FiLM 🍿"
+                    )
+                else:
+                    sent = await safe_telegram_operation(
+                        client.send_video,
+                        user_id, 
+                        file_message.video.file_id, 
+                        caption=f"✅ **File Sent Successfully!**\n\n"
+                               f"📦 **Quality:** {quality}\n" 
+                               f"📊 **Size:** {format_size(file_message.video.file_size)}\n"
+                               f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                               f"♻ **Please forward to saved messages**\n"
+                               f"⭐ **Consider upgrading to Premium for better features!**\n\n"
+                               f"@SK4FiLM 🍿"
+                    )
+                
+                await processing_msg.delete()
+                
+                # Record download for user
+                if bot_instance.premium_system is not None:
+                    try:
+                        await bot_instance.premium_system.record_download(user_id)
+                    except:
+                        pass
+                
+                # Auto-delete file after specified time
+                if Config.AUTO_DELETE_TIME > 0:
+                    asyncio.create_task(auto_delete_file(sent, Config.AUTO_DELETE_TIME))
+                
+                logger.info(f"File sent to user {user_id}: {quality} quality")
+                
+                return
+        except Exception as e:
+            logger.error(f"File download error: {e}")
+            try:
+                await processing_msg.edit_text("❌ **Error downloading file**\n\nPlease try again later.")
+            except:
+                pass
+    
+    # Agar koi aur text message hai (search ya help)
+    await message.reply_text(
+        "🎬 **SK4FiLM File Download**\n\n"
+        f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
+       "🔒 **Note:** First-time users need to verify once for direct file access!"
+    )
     
     @bot.on_callback_query(filters.regex(r"^back_to_start$"))
     async def back_to_start_callback(client, callback_query):
