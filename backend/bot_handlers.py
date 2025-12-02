@@ -92,73 +92,92 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     """Setup bot commands and handlers"""
     
     @bot.on_message(filters.command("start") & filters.private)
-    async def start_handler(client, message):
-        user_id = message.from_user.id
-        user_name = message.from_user.first_name or "User"
+async def start_handler(client, message):
+    user_id = message.from_user.id
+    user_name = message.from_user.first_name or "User"
+    
+    # Check if this is a verification token
+    if len(message.command) > 1:
+        command_arg = message.command[1]
         
-        # Check if this is a verification token
-        if len(message.command) > 1:
-            command_arg = message.command[1]
+        if command_arg.startswith('verify_'):
+            token = command_arg[7:]
             
-            if command_arg.startswith('verify_'):
-                token = command_arg[7:]
-                await message.reply_text(
-                    f"✅ **Verification Successful, {user_name}!**\n\n"
-                    "You are now verified and can download files.\n\n"
-                    f"🌐 **Website:** {Config.WEBSITE_URL}\n"
-                    f"⏰ **Verification valid for 6 hours**",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
-                    ])
-                )
-                return
-        
-        # Regular start command
-        welcome_text = (
-            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
-            "🌐 **Use our website to browse and download movies:**\n"
-            f"{Config.WEBSITE_URL}\n\n"
-        )
-        
-        # Check premium status
-        is_premium = False
-        if bot_instance.premium_system is not None:
-            try:
-                is_premium = await bot_instance.premium_system.is_premium_user(user_id)
-            except:
-                pass
-        
-        if is_premium:
-            welcome_text += f"🌟 **Premium User**\n✅ **You have full access to all features!**\n\n"
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
-                [InlineKeyboardButton("📊 PREMIUM STATUS", callback_data=f"premium_status_{user_id}")]
-            ])
-        elif Config.VERIFICATION_REQUIRED:
-            # Create verification link
-            verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
+            # Verify the token
+            if bot_instance.verification_system:
+                success, verified_user_id, msg = await bot_instance.verification_system.verify_user_token(token)
+                
+                if success and verified_user_id == user_id:
+                    await message.reply_text(
+                        f"✅ **Verification Successful, {user_name}!**\n\n"
+                        "You are now verified and can download files directly!\n\n"
+                        f"🌐 **Website:** {Config.WEBSITE_URL}\n"
+                        f"⏰ **Verification valid for 6 hours**\n\n"
+                        "✨ **You can now paste file details directly to download!**",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                            [InlineKeyboardButton("📥 DOWNLOAD FILES", url=Config.WEBSITE_URL)]
+                        ])
+                    )
+                    return
+                else:
+                    await message.reply_text(
+                        f"❌ **Verification Failed**\n\n"
+                        f"{msg}\n\n"
+                        f"Please try again or contact support."
+                    )
+                    return
+    
+    # Regular start command
+    welcome_text = (
+        f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
+        "🌐 **Use our website to browse and download movies:**\n"
+        f"{Config.WEBSITE_URL}\n\n"
+    )
+    
+    # Check premium status
+    is_premium = False
+    if bot_instance.premium_system is not None:
+        try:
+            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+        except:
+            pass
+    
+    if is_premium:
+        welcome_text += f"🌟 **Premium User**\n✅ **You have full access to all features!**\n\n"
+        welcome_text += "✨ **You can paste file details directly to download!**"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+            [InlineKeyboardButton("📊 PREMIUM STATUS", callback_data=f"premium_status_{user_id}")]
+        ])
+    elif Config.VERIFICATION_REQUIRED:
+        # Create verification link (will be shortened)
+        if bot_instance.verification_system:
+            verification_link = await bot_instance.verification_system.get_verification_link_for_user(user_id)
+            
             welcome_text += (
                 "🔒 **Verification Required**\n"
-                "Please complete verification to download files:\n\n"
-                f"🔗 **Verification Link:** {verification_url}\n\n"
+                "Please complete verification to download files directly:\n\n"
+                f"🔗 **Verification Link:** {verification_link['short_url']}\n\n"
                 "Click the link above and then click 'Start' in the bot.\n"
                 "⏰ **Valid for 1 hour**\n\n"
-                "✨ **Or upgrade to Premium for instant access!**"
+                "✨ **Once verified, you can paste file details directly!**\n"
+                "⭐ **Or upgrade to Premium for instant access!**"
             )
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_link['short_url'])],
                 [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
                 [InlineKeyboardButton("🔄 CHECK VERIFICATION", callback_data=f"check_verify_{user_id}")]
             ])
-        else:
-            welcome_text += "✨ **Start browsing movies now!**\n\n"
-            welcome_text += "⭐ **Upgrade to Premium for:**\n• Higher quality\n• More downloads\n• Faster speeds"
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
-                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-            ])
-        
-        await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+    else:
+        welcome_text += "✨ **Start browsing movies now!**\n\n"
+        welcome_text += "⭐ **Upgrade to Premium for:**\n• Higher quality\n• More downloads\n• Faster speeds"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+        ])
+    
+    await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
     @bot.on_callback_query(filters.regex(r"^check_verify_"))
     async def check_verify_callback(client, callback_query):
