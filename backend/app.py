@@ -2383,7 +2383,6 @@ async def setup_bot():
                     
                     return
         
-        # If not a file link, show help
         await message.reply_text(
             "🎬 **SK4FiLM File Download**\n\n"
             "To download a file, use the website:\n"
