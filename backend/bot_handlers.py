@@ -31,12 +31,28 @@ class SK4FiLMBot:
         self.bot_started = False
         self.user_session_ready = False
         
-        # Initialize placeholder systems
-        self.verification_system = None
-        self.premium_system = None
-        self.poster_fetcher = None
-        self.cache_manager = None
-        self.task_manager = None
+        # Initialize all systems
+        try:
+            from verification import VerificationSystem
+            from premium import PremiumSystem
+            from poster_fetching import PosterFetcher
+            from cache import CacheManager
+            
+            self.verification_system = VerificationSystem(config, db_manager)
+            self.premium_system = PremiumSystem(config, db_manager)
+            self.poster_fetcher = PosterFetcher(config)
+            self.cache_manager = CacheManager(config)
+            
+            # Initialize cache
+            asyncio.create_task(self.cache_manager.init_redis())
+            
+            logger.info("✅ All systems initialized")
+        except Exception as e:
+            logger.error(f"System initialization error: {e}")
+            self.verification_system = None
+            self.premium_system = None
+            self.poster_fetcher = None
+            self.cache_manager = None
     
     async def initialize(self):
         """Initialize bot"""
@@ -69,6 +85,14 @@ class SK4FiLMBot:
             self.bot_started = True
             logger.info("✅ Bot started successfully")
             
+            # Start cleanup tasks
+            if self.verification_system:
+                asyncio.create_task(self.verification_system.start_cleanup_task())
+            if self.premium_system:
+                asyncio.create_task(self.premium_system.start_cleanup_task())
+            if self.cache_manager:
+                asyncio.create_task(self.cache_manager.start_cleanup_task())
+            
             return True
             
         except Exception as e:
@@ -85,6 +109,14 @@ class SK4FiLMBot:
             if self.user_client and self.user_session_ready:
                 await self.user_client.stop()
                 logger.info("✅ User client stopped")
+                
+            # Stop cleanup tasks
+            if self.verification_system:
+                await self.verification_system.stop_cleanup_task()
+            if self.premium_system:
+                await self.premium_system.stop_cleanup_task()
+            if self.cache_manager:
+                await self.cache_manager.stop()
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
 
@@ -102,22 +134,43 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             
             if command_arg.startswith('verify_'):
                 token = command_arg[7:]
-                await message.reply_text(
-                    f"✅ **Verification Successful, {user_name}!**\n\n"
-                    "You are now verified and can download files.\n\n"
-                    f"🌐 **Website:** {Config.WEBSITE_URL}\n"
-                    f"⏰ **Verification valid for 6 hours**",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
-                    ])
-                )
-                return
+                
+                # Verify token if verification system exists
+                if bot_instance.verification_system:
+                    success, verified_user_id, message_text = await bot_instance.verification_system.verify_user_token(token)
+                    if success and verified_user_id == user_id:
+                        await message.reply_text(
+                            f"✅ **Verification Successful, {user_name}!**\n\n"
+                            "You are now verified and can download files.\n\n"
+                            f"🌐 **Website:** {Config.WEBSITE_URL}\n"
+                            f"⏰ **Verification valid for 6 hours**",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                                [InlineKeyboardButton("📥 DOWNLOAD FILES", url=Config.WEBSITE_URL)]
+                            ])
+                        )
+                        return
+                else:
+                    # Fallback verification
+                    await message.reply_text(
+                        f"✅ **Verification Successful, {user_name}!**\n\n"
+                        "You are now verified and can download files.\n\n"
+                        f"🌐 **Website:** {Config.WEBSITE_URL}\n"
+                        f"⏰ **Verification valid for 6 hours**",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                        ])
+                    )
+                    return
         
-        # Regular start command
+        # Regular start command with better instructions
         welcome_text = (
             f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
-            "🌐 **Use our website to browse and download movies:**\n"
-            f"{Config.WEBSITE_URL}\n\n"
+            "**How to download movies:**\n"
+            f"1. **Visit:** {Config.WEBSITE_URL}\n"
+            "2. **Search for any movie**\n"
+            "3. **Click download button**\n"
+            "4. **File will appear here automatically**\n\n"
         )
         
         # Check premium status
@@ -129,30 +182,61 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 pass
         
         if is_premium:
-            welcome_text += f"🌟 **Premium User**\n✅ **You have full access to all features!**\n\n"
+            welcome_text += "🌟 **Premium User**\n✅ **Instant access to all files!**\n\n"
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
-                [InlineKeyboardButton("📊 PREMIUM STATUS", callback_data=f"premium_status_{user_id}")]
+                [InlineKeyboardButton("📥 START DOWNLOADING", url=Config.WEBSITE_URL)],
+                [InlineKeyboardButton("⭐ PREMIUM STATUS", callback_data=f"premium_status_{user_id}")]
             ])
         elif Config.VERIFICATION_REQUIRED:
             # Create verification link
-            verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
-            welcome_text += (
-                "🔒 **Verification Required**\n"
-                "Please complete verification to download files:\n\n"
-                f"🔗 **Verification Link:** {verification_url}\n\n"
-                "Click the link above and then click 'Start' in the bot.\n"
-                "⏰ **Valid for 1 hour**\n\n"
-                "✨ **Or upgrade to Premium for instant access!**"
-            )
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
-                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                [InlineKeyboardButton("🔄 CHECK VERIFICATION", callback_data=f"check_verify_{user_id}")]
-            ])
+            if bot_instance.verification_system:
+                try:
+                    verification_data = await bot_instance.verification_system.create_verification_link(user_id)
+                    verification_url = verification_data['short_url']
+                    welcome_text += (
+                        "🔒 **Verification Required**\n"
+                        "Please complete verification to download files:\n\n"
+                        f"🔗 **Verification Link:** {verification_url}\n\n"
+                        "Click the link above to verify your account.\n"
+                        "⏰ **Valid for 1 hour**\n\n"
+                        "✨ **Or upgrade to Premium for instant access!**"
+                    )
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 CLICK TO VERIFY", url=verification_url)],
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                    ])
+                except Exception as e:
+                    logger.error(f"Verification link creation error: {e}")
+                    # Fallback
+                    verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
+                    welcome_text += (
+                        "🔒 **Verification Required**\n"
+                        f"🔗 **Verification Link:** {verification_url}\n\n"
+                        "Click the link above to verify your account.\n"
+                        "⏰ **Valid for 1 hour**"
+                    )
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔗 CLICK TO VERIFY", url=verification_url)],
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+                    ])
+            else:
+                # Fallback if verification system not initialized
+                verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
+                welcome_text += (
+                    "🔒 **Verification Required**\n"
+                    f"🔗 **Verification Link:** {verification_url}\n\n"
+                    "Click the link above to verify your account.\n"
+                    "⏰ **Valid for 1 hour**"
+                )
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔗 CLICK TO VERIFY", url=verification_url)],
+                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+                ])
         else:
-            welcome_text += "✨ **Start browsing movies now!**\n\n"
-            welcome_text += "⭐ **Upgrade to Premium for:**\n• Higher quality\n• More downloads\n• Faster speeds"
+            welcome_text += "✨ **Start downloading movies now!**\n\n"
+            welcome_text += "⭐ **Upgrade to Premium for:**\n• Faster downloads\n• No verification\n• Higher priority"
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
                 [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
@@ -165,16 +249,50 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         user_id = int(callback_query.data.split('_')[2])
         user_name = callback_query.from_user.first_name or "User"
         
-        verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
-        await callback_query.message.edit_text(
-            "❌ **Not Verified Yet**\n\n"
-            "Please complete the verification process:\n\n"
-            f"🔗 **Verification Link:** {verification_url}\n\n"
-            "Click the link above and then click 'Start' in the bot.",
-            reply_markup=InlineKeyboardMarkup([
+        # Create new verification link
+        if bot_instance.verification_system:
+            try:
+                verification_data = await bot_instance.verification_system.create_verification_link(user_id)
+                verification_url = verification_data['short_url']
+                message_text = (
+                    "❌ **Not Verified Yet**\n\n"
+                    "Please complete the verification process:\n\n"
+                    f"🔗 **Verification Link:** {verification_url}\n\n"
+                    "Click the link above to verify your account."
+                )
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                    [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")]
+                ])
+            except Exception as e:
+                logger.error(f"Verification link creation error: {e}")
+                verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
+                message_text = (
+                    "❌ **Not Verified Yet**\n\n"
+                    "Please complete the verification process:\n\n"
+                    f"🔗 **Verification Link:** {verification_url}\n\n"
+                    "Click the link above and then click 'Start' in the bot."
+                )
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
+                    [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")]
+                ])
+        else:
+            verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
+            message_text = (
+                "❌ **Not Verified Yet**\n\n"
+                "Please complete the verification process:\n\n"
+                f"🔗 **Verification Link:** {verification_url}\n\n"
+                "Click the link above and then click 'Start' in the bot."
+            )
+            keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_url)],
                 [InlineKeyboardButton("🔄 CHECK AGAIN", callback_data=f"check_verify_{user_id}")]
-            ]),
+            ])
+        
+        await callback_query.message.edit_text(
+            message_text,
+            reply_markup=keyboard,
             disable_web_page_preview=True
         )
     
@@ -304,9 +422,20 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         text += f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
         
         if Config.VERIFICATION_REQUIRED:
-            verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
-            text += f"🔗 **Verification Link:** {verification_url}\n\n"
-            text += "Click the link above to verify your account."
+            if bot_instance.verification_system:
+                try:
+                    verification_data = await bot_instance.verification_system.create_verification_link(user_id)
+                    verification_url = verification_data['short_url']
+                    text += f"🔗 **Verification Link:** {verification_url}\n\n"
+                    text += "Click the link above to verify your account."
+                except Exception as e:
+                    verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
+                    text += f"🔗 **Verification Link:** {verification_url}\n\n"
+                    text += "Click the link above to verify your account."
+            else:
+                verification_url = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{secrets.token_urlsafe(16)}"
+                text += f"🔗 **Verification Link:** {verification_url}\n\n"
+                text += "Click the link above to verify your account."
         
         await message.reply_text(text, disable_web_page_preview=True)
     
@@ -412,89 +541,123 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     
     @bot.on_message(filters.text & filters.private & ~filters.command(['start', 'stats', 'premium', 'verify', 'index', 'broadcast', 'premiumuser']))
     async def text_handler(client, message):
-        """Handle file download links"""
+        """Handle file download links from website"""
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "User"
         
-        # Check if message contains a file link
-        if message.text and '_' in message.text:
-            # This could be a file link format: channel_message_quality
+        # Check if message contains a file link from website
+        text = message.text.strip()
+        
+        # Pattern 1: channel_message_quality (from website)
+        if '_' in text:
             try:
-                parts = message.text.split('_')
+                parts = text.split('_')
                 if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
                     channel_id = int(parts[0])
                     message_id = int(parts[1])
                     quality = parts[2] if len(parts) > 2 else "HD"
                     
-                    # Check user access
-                    can_download = True
-                    message_text = "Access granted"
-                    
-                    processing_msg = await message.reply_text(f"⏳ **Preparing your file...**\n\n📦 Quality: {quality}")
+                    processing_msg = await message.reply_text(
+                        f"⏳ **Preparing your file...**\n\n"
+                        f"📹 **Quality:** {quality}\n"
+                        f"🔄 **Please wait...**"
+                    )
                     
                     # Get file from channel
-                    file_message = await safe_telegram_operation(
-                        client.get_messages,
-                        channel_id, 
-                        message_id
-                    )
+                    if bot_instance.user_session_ready:
+                        file_message = await safe_telegram_operation(
+                            bot_instance.user_client.get_messages,
+                            channel_id, 
+                            message_id
+                        )
+                    else:
+                        file_message = await safe_telegram_operation(
+                            client.get_messages,
+                            channel_id, 
+                            message_id
+                        )
                     
                     if not file_message or (not file_message.document and not file_message.video):
                         await processing_msg.edit_text("❌ **File not found**\n\nThe file may have been deleted.")
                         return
                     
-                    # Send file to user
+                    # Prepare file info
                     if file_message.document:
-                        sent = await safe_telegram_operation(
-                            client.send_document,
-                            user_id, 
-                            file_message.document.file_id, 
-                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
-                                   f"📹 Quality: {quality}\n"
-                                   f"📦 Size: {format_size(file_message.document.file_size)}\n\n"
-                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"@SK4FiLM 🍿"
-                        )
+                        file_name = file_message.document.file_name or "file"
+                        file_size = file_message.document.file_size
+                        file_id = file_message.document.file_id
                     else:
-                        sent = await safe_telegram_operation(
-                            client.send_video,
-                            user_id, 
-                            file_message.video.file_id, 
-                            caption=f"♻ **Please forward this file/video to your saved messages**\n\n"
-                                   f"📹 Quality: {quality}\n" 
-                                   f"📦 Size: {format_size(file_message.video.file_size)}\n\n"
-                                   f"⚠️ Will auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                   f"@SK4FiLM 🍿"
+                        file_name = file_message.video.file_name or "video.mp4"
+                        file_size = file_message.video.file_size
+                        file_id = file_message.video.file_id
+                    
+                    # Send file to user
+                    try:
+                        if file_message.document:
+                            sent = await safe_telegram_operation(
+                                client.send_document,
+                                user_id,
+                                file_id,
+                                caption=(
+                                    f"📁 **File:** {file_name}\n"
+                                    f"📦 **Size:** {format_size(file_size)}\n"
+                                    f"📹 **Quality:** {quality}\n\n"
+                                    f"♻ **Please forward to saved messages for safety**\n"
+                                    f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                                    f"@SK4FiLM 🎬"
+                                )
+                            )
+                        else:
+                            sent = await safe_telegram_operation(
+                                client.send_video,
+                                user_id,
+                                file_id,
+                                caption=(
+                                    f"🎬 **Video:** {file_name}\n"
+                                    f"📦 **Size:** {format_size(file_size)}\n"
+                                    f"📹 **Quality:** {quality}\n\n"
+                                    f"♻ **Please forward to saved messages for safety**\n"
+                                    f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+                                    f"@SK4FiLM 🎬"
+                                )
+                            )
+                        
+                        await processing_msg.delete()
+                        
+                        # Auto-delete file after specified time
+                        if Config.AUTO_DELETE_TIME > 0:
+                            asyncio.create_task(auto_delete_file(sent, Config.AUTO_DELETE_TIME))
+                        
+                        logger.info(f"✅ File sent to user {user_id}: {file_name}")
+                        
+                        # Send success message
+                        success_text = (
+                            f"✅ **File sent successfully!**\n\n"
+                            f"📁 **File:** {file_name}\n"
+                            f"📦 **Size:** {format_size(file_size)}\n"
+                            f"📹 **Quality:** {quality}\n\n"
+                            f"♻ **Please forward to saved messages**\n"
+                            f"⏰ **Auto-deletes in:** {Config.AUTO_DELETE_TIME//60} minutes\n\n"
                         )
-                    
-                    await processing_msg.delete()
-                    
-                    # Record download for user
-                    if bot_instance.premium_system is not None:
-                        try:
-                            await bot_instance.premium_system.record_download(user_id)
-                        except:
-                            pass
-                    
-                    # Auto-delete file after specified time
-                    if Config.AUTO_DELETE_TIME > 0:
-                        asyncio.create_task(auto_delete_file(sent, Config.AUTO_DELETE_TIME))
-                    
-                    logger.info(f"File sent to user {user_id}: {quality} quality")
-                    
-                    # Send success message
-                    await message.reply_text(
-                        f"✅ **File sent successfully!**\n\n"
-                        f"📦 **Quality:** {quality}\n"
-                        f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME//60} minutes\n\n"
-                        f"♻ **Please forward to saved messages**\n"
-                        f"⭐ **Consider upgrading to Premium for better features!**",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-                        ])
-                    )
-                    
-                    return
+                        
+                        # Add premium upsell
+                        success_text += "⭐ **Upgrade to Premium for:**\n• Faster downloads\n• No verification\n• Higher priority"
+                        
+                        await message.reply_text(
+                            success_text,
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                            ])
+                        )
+                        
+                        return
+                        
+                    except Exception as e:
+                        logger.error(f"File sending error: {e}")
+                        await processing_msg.edit_text("❌ **Error sending file**\n\nPlease try again later.")
+                        return
+                        
             except Exception as e:
                 logger.error(f"File download error: {e}")
                 try:
@@ -502,13 +665,21 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 except:
                     pass
         
-        # If not a file link, show help
+        # If not a file link, show help message
         await message.reply_text(
             "🎬 **SK4FiLM File Download**\n\n"
-            "To download a file, use the website:\n"
-            f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
-            "Find your movie and click download to get the file link.\n"
-            "Then paste the link here and I'll send you the file! 🍿"
+            "**How to download:**\n"
+            f"1. **Visit website:** {Config.WEBSITE_URL}\n"
+            "2. **Find any movie**\n"
+            "3. **Click download button**\n"
+            "4. **File link will appear here automatically**\n\n"
+            "The bot will automatically send you the file! 🍿\n\n"
+            "⭐ **Premium users get instant access!**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+            ]),
+            disable_web_page_preview=True
         )
     
     @bot.on_callback_query(filters.regex(r"^back_to_start$"))
@@ -519,8 +690,11 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         welcome_text = (
             f"🎬 **Welcome back to SK4FiLM, {user_name}!**\n\n"
-            "🌐 **Use our website to browse and download movies:**\n"
-            f"{Config.WEBSITE_URL}\n\n"
+            "**How to download movies:**\n"
+            f"1. **Visit:** {Config.WEBSITE_URL}\n"
+            "2. **Search for any movie**\n"
+            "3. **Click download button**\n"
+            "4. **File will appear here automatically**\n\n"
         )
         
         keyboard = InlineKeyboardMarkup([
