@@ -1,5 +1,5 @@
 """
-app.py - Main SK4FiLM Bot Web Server
+app.py - Main SK4FiLM Bot Web Server - Simplified Version
 """
 import asyncio
 import os
@@ -23,8 +23,6 @@ from quart import Quart, jsonify, request, Response
 from hypercorn.asyncio import serve
 from hypercorn.config import Config as HyperConfig
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, ValidationError
-from bson import ObjectId
 import redis.asyncio as redis
 
 # Import bot handlers
@@ -40,22 +38,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-# Pydantic Models for Validation
-class SearchQuery(BaseModel):
-    query: str
-    page: int = 1
-    limit: int = 12
-    user_id: Optional[int] = None
-
-class PremiumActivation(BaseModel):
-    user_id: int
-    tier: str
-    duration_days: Optional[int] = 30
-
-class BroadcastMessage(BaseModel):
-    message: str
-    user_type: str = 'premium'  # 'all', 'premium', 'free'
 
 # Custom Exceptions
 class BotError(Exception):
@@ -768,15 +750,25 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     total = len(results_list)
     paginated = results_list[offset:offset + limit]
     
-    # Get posters for results
+    # Get posters for results (skip if poster_fetcher has errors)
     if bot_instance and bot_instance.poster_fetcher and paginated:
-        titles = [result['title'] for result in paginated]
-        posters = await bot_instance.poster_fetcher.fetch_batch_posters(titles)
-        
-        for result in paginated:
-            if result['title'] in posters:
-                result['poster'] = posters[result['title']]
-            else:
+        try:
+            titles = [result['title'] for result in paginated]
+            posters = await bot_instance.poster_fetcher.fetch_batch_posters(titles)
+            
+            for result in paginated:
+                if result['title'] in posters:
+                    result['poster'] = posters[result['title']]
+                else:
+                    result['poster'] = {
+                        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result['title'])}",
+                        'source': 'custom',
+                        'rating': '0.0'
+                    }
+        except Exception as e:
+            logger.error(f"Poster fetching error: {e}")
+            # Add default posters if fetching fails
+            for result in paginated:
                 result['poster'] = {
                     'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result['title'])}",
                     'source': 'custom',
@@ -833,13 +825,22 @@ async def get_home_movies_live():
     
     # Get posters
     if movies and bot_instance and bot_instance.poster_fetcher:
-        titles = [movie['title'] for movie in movies]
-        posters = await bot_instance.poster_fetcher.fetch_batch_posters(titles)
-        
-        for movie in movies:
-            if movie['title'] in posters:
-                movie.update(posters[movie['title']])
-            else:
+        try:
+            titles = [movie['title'] for movie in movies]
+            posters = await bot_instance.poster_fetcher.fetch_batch_posters(titles)
+            
+            for movie in movies:
+                if movie['title'] in posters:
+                    movie.update(posters[movie['title']])
+                else:
+                    movie.update({
+                        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}",
+                        'source': 'custom',
+                        'rating': '0.0'
+                    })
+        except Exception as e:
+            logger.error(f"Poster fetching error in get_home_movies: {e}")
+            for movie in movies:
                 movie.update({
                     'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}",
                     'source': 'custom',
@@ -1070,47 +1071,45 @@ async def api_search():
                 'message': 'Rate limit exceeded. Please try again later.'
             }), 429
         
-        # Validate input
-        search_data = SearchQuery(
-            query=request.args.get('query', '').strip(),
-            page=int(request.args.get('page', 1)),
-            limit=int(request.args.get('limit', 12)),
-            user_id=request.args.get('user_id', type=int)
-        )
+        # Get query parameters
+        query = request.args.get('query', '').strip()
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 12))
+        user_id = request.args.get('user_id', type=int)
         
         # Validate query length
-        if len(search_data.query) < 2:
+        if len(query) < 2:
             return jsonify({'status': 'error', 'message': 'Query too short'}), 400
         
-        if len(search_data.query) > 100:
+        if len(query) > 100:
             return jsonify({'status': 'error', 'message': 'Query too long'}), 400
         
         # Check user access
-        if search_data.user_id and bot_instance:
+        if user_id and bot_instance:
             # Check if premium user (bypasses verification)
             if bot_instance.premium_system is not None:
-                is_premium = await bot_instance.premium_system.is_premium_user(search_data.user_id)
+                is_premium = await bot_instance.premium_system.is_premium_user(user_id)
                 if is_premium:
                     # Premium user, allow access
                     pass
                 elif Config.VERIFICATION_REQUIRED and bot_instance.verification_system is not None:
                     # Check verification for non-premium users
-                    is_verified, message = await bot_instance.verification_system.check_user_verified(search_data.user_id)
+                    is_verified, message = await bot_instance.verification_system.check_user_verified(user_id)
                     if not is_verified:
                         return jsonify({
                             'status': 'verification_required',
                             'message': 'User verification required',
-                            'verification_url': f'/api/verify/{search_data.user_id}'
+                            'verification_url': f'/api/verify/{user_id}'
                         }), 403
         
         # Use enhanced search if available and requested
         search_mode = request.args.get('mode', 'enhanced')
         if search_mode == 'enhanced' and bot_instance and bot_instance.user_session_ready:
             try:
-                result = await search_movies_multi_channel(search_data.query, search_data.limit, search_data.page)
+                result = await search_movies_multi_channel(query, limit, page)
                 return jsonify({
                     'status': 'success',
-                    'query': search_data.query,
+                    'query': query,
                     'results': result['results'],
                     'pagination': result['pagination'],
                     'search_metadata': result.get('search_metadata', {}),
@@ -1122,7 +1121,7 @@ async def api_search():
                 # Fall back to basic search
         
         # Basic search (existing functionality)
-        cache_key = f"search:basic:{search_data.query}:{search_data.page}:{search_data.limit}"
+        cache_key = f"search:basic:{query}:{page}:{limit}"
         if bot_instance and bot_instance.cache_manager:
             cached = await bot_instance.cache_manager.get(cache_key)
             if cached:
@@ -1133,10 +1132,10 @@ async def api_search():
             # Search in MongoDB
             cursor = db_manager.files_col.find({
                 '$or': [
-                    {'title': {'$regex': search_data.query, '$options': 'i'}},
-                    {'normalized_title': {'$regex': search_data.query, '$options': 'i'}}
+                    {'title': {'$regex': query, '$options': 'i'}},
+                    {'normalized_title': {'$regex': query, '$options': 'i'}}
                 ]
-            }).limit(search_data.limit).skip((search_data.page - 1) * search_data.limit)
+            }).limit(limit).skip((page - 1) * limit)
             
             async for doc in cursor:
                 results.append({
@@ -1158,15 +1157,15 @@ async def api_search():
         total = len(results)
         response_data = {
             'status': 'success',
-            'query': search_data.query,
+            'query': query,
             'results': results,
             'pagination': {
-                'current_page': search_data.page,
-                'total_pages': math.ceil(total / search_data.limit) if total > 0 else 1,
+                'current_page': page,
+                'total_pages': math.ceil(total / limit) if total > 0 else 1,
                 'total_results': total,
-                'per_page': search_data.limit,
-                'has_next': search_data.page < math.ceil(total / search_data.limit) if total > 0 else False,
-                'has_previous': search_data.page > 1
+                'per_page': limit,
+                'has_next': page < math.ceil(total / limit) if total > 0 else False,
+                'has_previous': page > 1
             },
             'search_mode': 'basic'
         }
@@ -1177,8 +1176,6 @@ async def api_search():
         
         return jsonify(response_data)
         
-    except ValidationError as e:
-        return jsonify({'status': 'error', 'message': 'Invalid parameters'}), 400
     except Exception as e:
         logger.error(f"Search error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
