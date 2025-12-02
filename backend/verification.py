@@ -1,5 +1,5 @@
 """
-verification.py - URL shortener and verification system
+verification.py - URL shortener and verification system (UPDATED)
 """
 import asyncio
 import json
@@ -105,11 +105,11 @@ class VerificationSystem:
             # Generate unique verification token
             verification_token = self.generate_unique_token()
             
-            # Create Telegram deep link
+            # Create Telegram deep link with verification
             bot_username = getattr(self.config, 'BOT_USERNAME', 'sk4filmbot')
             destination_url = f"https://t.me/{bot_username}?start=verify_{verification_token}"
             
-            # Get shortened URL
+            # Get shortened URL - ALWAYS try to shorten
             short_url, service_name = await self.get_shortened_url(destination_url)
             
             # Calculate expiry times
@@ -121,7 +121,7 @@ class VerificationSystem:
                 'user_id': user_id,
                 'token': verification_token,
                 'created_at': datetime.now(),
-                'short_url': short_url,
+                'short_url': short_url,  # This will be shortened URL
                 'service_name': service_name,
                 'destination_url': destination_url,
                 'content_type': content_type,
@@ -129,7 +129,8 @@ class VerificationSystem:
                 'status': 'pending',
                 'valid_for_hours': 6,
                 'link_expires_at': link_expiry,
-                'verification_expires_at': verification_expiry
+                'verification_expires_at': verification_expiry,
+                'needs_file_access': True  # Flag to indicate user needs file access
             }
             
             # Store in memory caches
@@ -137,6 +138,8 @@ class VerificationSystem:
             self.verification_tokens[verification_token] = user_id
             
             logger.info(f"✅ Verification link created for user {user_id} via {service_name}")
+            logger.info(f"   Short URL: {short_url}")
+            logger.info(f"   Original URL: {destination_url}")
             
             return verification_data
             
@@ -159,7 +162,8 @@ class VerificationSystem:
                 'status': 'pending',
                 'valid_for_hours': 6,
                 'link_expires_at': datetime.now() + timedelta(hours=1),
-                'verification_expires_at': datetime.now() + timedelta(hours=6)
+                'verification_expires_at': datetime.now() + timedelta(hours=6),
+                'needs_file_access': True
             }
             
             self.pending_verifications[user_id] = verification_data
@@ -198,6 +202,7 @@ class VerificationSystem:
             # Mark as verified - valid for 6 hours
             verification_data['status'] = 'verified'
             verification_data['verified_at'] = datetime.now()
+            verification_data['needs_file_access'] = True  # User can now access files directly
             
             # Store in verified users (valid for 6 hours)
             expiry_time = datetime.now() + timedelta(seconds=self.verification_duration)
@@ -205,14 +210,17 @@ class VerificationSystem:
                 'verified_at': datetime.now(),
                 'expires_at': expiry_time,
                 'token': token,
-                'verification_count': self.verified_users.get(user_id, {}).get('verification_count', 0) + 1
+                'verification_count': self.verified_users.get(user_id, {}).get('verification_count', 0) + 1,
+                'can_access_files': True,  # User can access files directly
+                'access_granted_at': datetime.now()
             }
             
             # Cleanup from pending
             self._cleanup_user_verification(user_id)
             
             logger.info(f"✅ User {user_id} verified successfully (valid for 6 hours)")
-            return True, user_id, "Verification successful - Valid for 6 hours"
+            logger.info(f"   User can now access files directly without file links")
+            return True, user_id, "Verification successful - You can now access files directly for 6 hours!"
             
         except Exception as e:
             logger.error(f"❌ Token verification error: {e}")
@@ -235,7 +243,7 @@ class VerificationSystem:
                 is_premium = await premium_system.is_premium_user(user_id)
                 if is_premium:
                     tier = await premium_system.get_user_tier(user_id)
-                    return True, f"Premium user ({tier.value}) - verification not required"
+                    return True, f"Premium user ({tier.value}) - direct file access available"
             except Exception as e:
                 logger.error(f"Premium check error: {e}")
         
@@ -248,33 +256,36 @@ class VerificationSystem:
             if datetime.now() < expiry_time:
                 hours = int(remaining.total_seconds() / 3600)
                 minutes = int((remaining.total_seconds() % 3600) / 60)
-                return True, f"Verified ✅ (expires in {hours}h {minutes}m)"
+                return True, f"Verified ✅ (direct file access for {hours}h {minutes}m)"
             else:
                 # Expired, cleanup
                 del self.verified_users[user_id]
                 logger.info(f"⏰ Verification expired for user {user_id}")
-                return False, "Verification expired - Please verify again"
+                return False, "Verification expired - Please verify again for direct file access"
         
-        return False, "Not verified - 6 hours verification required"
+        return False, "Not verified - Need verification for direct file access"
     
     async def check_user_access(self, user_id: int, premium_system=None) -> Tuple[bool, str, Dict[str, Any]]:
-        """Check user access with premium bypass"""
-        # Premium users always have access
+        """Check user access with premium bypass - UPDATED for direct file access"""
+        # Premium users always have direct access
         if premium_system:
             try:
                 is_premium = await premium_system.is_premium_user(user_id)
                 if is_premium:
                     tier = await premium_system.get_user_tier(user_id)
                     sub_details = await premium_system.get_subscription_details(user_id)
-                    return True, "Premium access granted", {
+                    return True, "Premium user - Direct file access", {
                         'access_type': 'premium',
                         'tier': tier.value,
-                        'days_remaining': sub_details.get('days_remaining', 0)
+                        'days_remaining': sub_details.get('days_remaining', 0),
+                        'can_access_files': True,
+                        'requires_verification': False,
+                        'access_method': 'direct'
                     }
             except Exception as e:
                 logger.error(f"Premium check error: {e}")
         
-        # Free users need verification
+        # Free users need verification for direct access
         is_verified, message = await self.check_user_verified(user_id, premium_system)
         
         if is_verified:
@@ -283,13 +294,117 @@ class VerificationSystem:
             return True, message, {
                 'access_type': 'verified',
                 'tier': 'free',
-                'hours_remaining': int(remaining.total_seconds() / 3600)
+                'hours_remaining': int(remaining.total_seconds() / 3600),
+                'can_access_files': True,
+                'requires_verification': True,
+                'access_method': 'direct'
             }
         else:
             return False, message, {
                 'access_type': 'none',
                 'tier': 'free',
-                'needs_verification': True
+                'needs_verification': True,
+                'can_access_files': False,
+                'requires_verification': True,
+                'access_method': 'verification_required'
+            }
+    
+    async def get_verification_link_for_user(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Get verification link for user, create if not exists"""
+        try:
+            # Check if user already has pending verification
+            if user_id in self.pending_verifications:
+                verification_data = self.pending_verifications[user_id]
+                
+                # Check if link is still valid
+                if datetime.now() < verification_data['link_expires_at']:
+                    logger.info(f"✅ Using existing verification link for user {user_id}")
+                    return verification_data
+                else:
+                    # Link expired, create new one
+                    logger.info(f"⏰ Existing verification link expired for user {user_id}, creating new")
+                    self._cleanup_user_verification(user_id)
+            
+            # Create new verification link
+            return await self.create_verification_link(user_id, "file_access")
+            
+        except Exception as e:
+            logger.error(f"Error getting verification link for user {user_id}: {e}")
+            return None
+    
+    async def can_user_access_file(self, user_id: int, file_info: Dict[str, Any] = None) -> Tuple[bool, str, Dict[str, Any]]:
+        """Check if user can access file directly (without file links)"""
+        access_granted, message, access_details = await self.check_user_access(user_id)
+        
+        if access_granted:
+            # User is verified or premium, can access files directly
+            return True, "✅ Direct file access granted", {
+                **access_details,
+                'file_access_method': 'direct',
+                'requires_file_link': False,
+                'can_download_directly': True
+            }
+        else:
+            # User needs verification
+            verification_link = await self.get_verification_link_for_user(user_id)
+            
+            return False, "❌ Verification required for direct file access", {
+                **access_details,
+                'file_access_method': 'verification_required',
+                'requires_file_link': False,
+                'can_download_directly': False,
+                'verification_required': True,
+                'verification_link': verification_link['short_url'] if verification_link else None,
+                'verification_service': verification_link['service_name'] if verification_link else None
+            }
+    
+    async def process_file_request(self, user_id: int, file_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process file request from user - UPDATED for direct access"""
+        try:
+            # Check if user can access files
+            can_access, message, access_details = await self.can_user_access_file(user_id, file_data)
+            
+            if can_access:
+                # User can access file directly
+                logger.info(f"✅ User {user_id} granted direct file access")
+                
+                # Return file data for direct sending
+                return {
+                    'status': 'success',
+                    'message': 'Direct file access granted',
+                    'access_type': access_details.get('access_type'),
+                    'can_download_directly': True,
+                    'file_data': file_data,
+                    'requires_verification': False,
+                    'user_id': user_id,
+                    'timestamp': datetime.now().isoformat()
+                }
+            else:
+                # User needs verification
+                logger.info(f"🔒 User {user_id} needs verification for file access")
+                
+                verification_link = await self.get_verification_link_for_user(user_id)
+                
+                return {
+                    'status': 'verification_required',
+                    'message': 'Verification required for direct file access',
+                    'access_type': 'none',
+                    'can_download_directly': False,
+                    'requires_verification': True,
+                    'verification_link': verification_link['short_url'] if verification_link else None,
+                    'verification_service': verification_link['service_name'] if verification_link else None,
+                    'verification_expires_in': '1 hour',
+                    'user_id': user_id,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"Error processing file request for user {user_id}: {e}")
+            return {
+                'status': 'error',
+                'message': str(e),
+                'can_download_directly': False,
+                'requires_verification': False
             }
     
     async def extend_verification(self, user_id: int, hours: int = 6) -> bool:
@@ -297,6 +412,7 @@ class VerificationSystem:
         if user_id in self.verified_users:
             new_expiry = datetime.now() + timedelta(hours=hours)
             self.verified_users[user_id]['expires_at'] = new_expiry
+            self.verified_users[user_id]['can_access_files'] = True
             logger.info(f"✅ Extended verification for user {user_id} by {hours} hours")
             return True
         else:
@@ -317,7 +433,8 @@ class VerificationSystem:
             'user_id': user_id,
             'is_verified': user_id in self.verified_users,
             'has_pending': user_id in self.pending_verifications,
-            'verification_duration_hours': 6
+            'verification_duration_hours': 6,
+            'can_access_files': user_id in self.verified_users
         }
         
         if user_id in self.verified_users:
@@ -328,16 +445,20 @@ class VerificationSystem:
                 'expires_at': user_data['expires_at'].isoformat(),
                 'hours_remaining': int(remaining.total_seconds() / 3600),
                 'minutes_remaining': int((remaining.total_seconds() % 3600) / 60),
-                'verification_count': user_data.get('verification_count', 1)
+                'verification_count': user_data.get('verification_count', 1),
+                'can_access_files': True,
+                'file_access_method': 'direct'
             })
         
         if user_id in self.pending_verifications:
             pending = self.pending_verifications[user_id]
             info.update({
                 'pending_created_at': pending['created_at'].isoformat(),
-                'pending_short_url': pending['short_url'],
+                'pending_short_url': pending['short_url'],  # This is the shortened URL
                 'pending_service': pending['service_name'],
-                'pending_expires_at': pending['link_expires_at'].isoformat()
+                'pending_expires_at': pending['link_expires_at'].isoformat(),
+                'can_access_files': False,
+                'needs_verification': True
             })
         
         return info
@@ -379,7 +500,8 @@ class VerificationSystem:
                 'expires_at': user_data['expires_at'].isoformat(),
                 'hours_remaining': int(remaining.total_seconds() / 3600),
                 'is_expired': now > user_data['expires_at'],
-                'verification_count': user_data.get('verification_count', 1)
+                'verification_count': user_data.get('verification_count', 1),
+                'can_access_files': True
             })
         
         return verified_list
@@ -490,13 +612,13 @@ class VerificationSystem:
                 logger.error(f"DB load error: {e}")
 
 
-# Example usage
+# Example usage showing direct file access
 if __name__ == "__main__":
     async def main():
         # Mock config
         class Config:
             BOT_USERNAME = "sk4filmbot"
-            SHORTLINK_API = None  # Set your API key here
+            SHORTLINK_API = "your_gplinks_api_key_here"  # Set your API key here
         
         # Initialize system
         verification = VerificationSystem(Config())
@@ -504,9 +626,10 @@ if __name__ == "__main__":
         # Start cleanup task
         await verification.start_cleanup_task()
         
-        # Create verification link
+        # Create verification link (will be shortened)
         link_data = await verification.create_verification_link(12345, "movie_download")
         print(f"✅ Verification link: {link_data['short_url']}")
+        print(f"   Service: {link_data['service_name']}")
         print(f"   Token: {link_data['token']}")
         print(f"   Valid until: {link_data['link_expires_at']}")
         
@@ -517,6 +640,11 @@ if __name__ == "__main__":
         # Check verification
         is_verified, status = await verification.check_user_verified(12345)
         print(f"✅ User verified: {is_verified} - {status}")
+        
+        # Check file access
+        can_access, access_message, access_details = await verification.can_user_access_file(12345)
+        print(f"✅ File access: {can_access} - {access_message}")
+        print(f"   Access details: {access_details}")
         
         # Get stats
         stats = await verification.get_user_stats()
