@@ -26,25 +26,6 @@ class VerificationSystem:
         # Cleanup task
         self.cleanup_task = None
         
-        # Supported URL shortener services
-        self.shortener_services = {
-            'gplinks': {
-                'api_url': 'https://gplinks.in/api',
-                'enabled': True,
-                'priority': 1
-            },
-            'short.io': {
-                'api_url': 'https://api.short.io/links',
-                'enabled': False,
-                'priority': 2
-            },
-            'bitly': {
-                'api_url': 'https://api-ssl.bitly.com/v4/shorten',
-                'enabled': False,
-                'priority': 3
-            }
-        }
-    
     def generate_unique_token(self, length=32) -> str:
         """Generate unique verification token"""
         return secrets.token_urlsafe(length)
@@ -62,41 +43,59 @@ class VerificationSystem:
                 logger.warning("No shortlink API configured, using direct URL")
                 return destination_url, 'Direct'
             
-            # Try GPLinks first
+            # Try GPLinks
             api_url = "https://gplinks.in/api"
             params = {
                 'api': self.config.SHORTLINK_API,
                 'url': destination_url
             }
             
-            timeout = aiohttp.ClientTimeout(total=30)
+            timeout = aiohttp.ClientTimeout(total=10)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(api_url, params=params) as response:
                     if response.status == 200:
                         response_text = await response.text()
                         
-                        # Try JSON first
+                        # Try to extract URL from response
                         try:
                             data = json.loads(response_text)
                             if data.get("status") == "success":
-                                short_url = data.get('shortenedUrl', destination_url)
-                                logger.info(f"✅ URL shortened via GPLinks: {short_url}")
-                                return short_url, 'GPLinks'
+                                short_url = data.get('shortenedUrl') or data.get('shortenedurl') or data.get('short_url')
+                                if short_url:
+                                    logger.info(f"✅ URL shortened via GPLinks: {short_url}")
+                                    return short_url, 'GPLinks'
                         except json.JSONDecodeError:
-                            # Try direct URL response
+                            # If response is direct URL
                             if response_text.startswith('http'):
-                                logger.info(f"✅ URL shortened via GPLinks (direct): {response_text}")
+                                logger.info(f"✅ URL shortened via GPLinks: {response_text}")
                                 return response_text, 'GPLinks'
-                    else:
-                        logger.warning(f"GPLinks API returned status {response.status}")
         
-        except asyncio.TimeoutError:
-            logger.warning("Shortener API timeout")
         except Exception as e:
-            logger.warning(f"Shortener failed: {e}")
+            logger.warning(f"GPLinks failed: {e}")
         
-        # Fallback to direct URL
-        logger.info("Using direct URL (no shortener)")
+        # Fallback to other shorteners
+        shorteners = [
+            # TinyURL
+            ("https://tinyurl.com/api-create.php", {'url': destination_url}, 'TinyURL'),
+            # Is.gd
+            ("https://is.gd/create.php", {'format': 'simple', 'url': destination_url}, 'Is.gd'),
+            # Cutt.ly
+            ("https://cutt.ly/api/api.php", {'key': getattr(self.config, 'CUTTLY_API', ''), 'short': destination_url}, 'Cutt.ly'),
+        ]
+        
+        for api_url, params, name in shorteners:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(api_url, params=params, timeout=5) as r:
+                        if r.status == 200:
+                            response_text = await r.text()
+                            if response_text.startswith('http'):
+                                logger.info(f"✅ URL shortened via {name}: {response_text}")
+                                return response_text.strip(), name
+            except:
+                continue
+        
+        logger.warning("All shorteners failed, using direct URL")
         return destination_url, 'Direct'
     
     async def create_verification_link(self, user_id: int, content_type: str = "download") -> Dict[str, Any]:
@@ -488,45 +487,3 @@ class VerificationSystem:
                 logger.info("📥 Verification system state loaded from DB")
             except Exception as e:
                 logger.error(f"DB load error: {e}")
-
-
-# Example usage
-if __name__ == "__main__":
-    async def main():
-        # Mock config
-        class Config:
-            BOT_USERNAME = "sk4filmbot"
-            SHORTLINK_API = None  # Set your API key here
-        
-        # Initialize system
-        verification = VerificationSystem(Config())
-        
-        # Start cleanup task
-        await verification.start_cleanup_task()
-        
-        # Create verification link
-        link_data = await verification.create_verification_link(12345, "movie_download")
-        print(f"✅ Verification link: {link_data['short_url']}")
-        print(f"   Token: {link_data['token']}")
-        print(f"   Valid until: {link_data['link_expires_at']}")
-        
-        # Simulate verification
-        success, user_id, message = await verification.verify_user_token(link_data['token'])
-        print(f"✅ Verification: {success} - {message}")
-        
-        # Check verification
-        is_verified, status = await verification.check_user_verified(12345)
-        print(f"✅ User verified: {is_verified} - {status}")
-        
-        # Get stats
-        stats = await verification.get_user_stats()
-        print(f"📊 Stats: {stats}")
-        
-        # Get user info
-        user_info = await verification.get_user_verification_info(12345)
-        print(f"👤 User info: {user_info}")
-        
-        # Stop cleanup
-        await verification.stop()
-    
-    asyncio.run(main())
