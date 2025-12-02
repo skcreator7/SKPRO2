@@ -13,3 +13,5 @@ redis
 qrcode[pil]==7.4.2
 Pillow==10.1.0
 hiredis
+pydantic==2.5.0
+pydantic-settings==2.1.0
