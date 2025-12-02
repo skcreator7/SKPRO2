@@ -278,7 +278,6 @@ def is_video_file(file_name):
     file_name_lower = file_name.lower()
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
-# Missing functions that were referenced but not defined in original
 async def safe_telegram_operation(func, *args, **kwargs):
     """Safely execute Telegram operations with error handling"""
     try:
@@ -314,7 +313,7 @@ async def auto_delete_file(message, delay_seconds):
     except Exception as e:
         logger.error(f"Auto-delete error: {e}")
 
-# Database Manager (moved here to avoid circular imports)
+# Database Manager
 class DatabaseManager:
     def __init__(self, uri, max_pool_size=10):
         self.uri = uri
@@ -345,14 +344,31 @@ class DatabaseManager:
             self.users_col = self.db['users']
             self.premium_col = self.db['premium']
             
-            # Create indexes
-            await self.files_col.create_index([('normalized_title', 'text')])
-            await self.files_col.create_index([('channel_id', 1), ('message_id', 1)], unique=True)
-            await self.files_col.create_index([('date', -1)])
-            await self.files_col.create_index([('is_video_file', 1)])
+            # Create indexes with error handling
+            try:
+                await self.files_col.drop_index("title_text")
+                await self.files_col.create_index([('normalized_title', 'text')])
+            except Exception as e:
+                if "ns not found" in str(e):
+                    # Collection doesn't exist yet, create it with index
+                    await self.files_col.create_index([('normalized_title', 'text')])
+                elif "IndexOptionsConflict" in str(e):
+                    logger.warning("Index already exists with different options, using existing...")
+                else:
+                    logger.warning(f"Index creation warning: {e}")
             
-            await self.premium_col.create_index([('user_id', 1)], unique=True)
-            await self.premium_col.create_index([('expires_at', 1)])
+            try:
+                await self.files_col.create_index([('channel_id', 1), ('message_id', 1)], unique=True)
+                await self.files_col.create_index([('date', -1)])
+                await self.files_col.create_index([('is_video_file', 1)])
+            except Exception as e:
+                logger.warning(f"Index creation warning: {e}")
+            
+            try:
+                await self.premium_col.create_index([('user_id', 1)], unique=True)
+                await self.premium_col.create_index([('expires_at', 1)])
+            except Exception as e:
+                logger.warning(f"Premium index creation warning: {e}")
             
             logger.info("✅ MongoDB connected with connection pooling")
             return True
@@ -366,7 +382,7 @@ class DatabaseManager:
             self.client.close()
             logger.info("✅ MongoDB connection closed")
 
-# Rate Limiter (moved here)
+# Rate Limiter
 class RateLimiter:
     def __init__(self, max_requests, window_seconds):
         self.max_requests = max_requests
@@ -552,9 +568,6 @@ async def api_poster():
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# Import bot_handlers AFTER defining all utility functions
-# This is done in main() function to avoid circular imports
 
 async def main():
     """Main function to start the bot"""
