@@ -1,126 +1,201 @@
 """
-app.py - Main SK4FiLM Bot - Complete Version
+SK4FiLM - Main Application
+Flask Web Server + Telegram Bot Integration
+FIXED: No circular imports - all utilities moved to utils.py
 """
-import asyncio
+
 import os
 import logging
-import json
+import asyncio
+from datetime import datetime
+from typing import Optional, Dict, Any, List
 import re
-import math
-import html
-import time
-import secrets
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Tuple, Union
-from collections import defaultdict
-from functools import wraps
 
-import aiohttp
-import urllib.parse
-from quart import Quart, jsonify, request, Response
-from hypercorn.asyncio import serve
-from hypercorn.config import Config as HyperConfig
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 from motor.motor_asyncio import AsyncIOMotorClient
-import redis.asyncio as redis
+import redis.asyncio as aioredis
 
-# Import bot handlers
-from bot_handlers import setup_bot_handlers, SK4FiLMBot
+# Import from config and utils (NO circular imports!)
+from config import Config
+from utils import (
+    normalize_title, extract_title_from_file, extract_title_smart,
+    format_size, detect_quality, is_video_file,
+    safe_telegram_operation, safe_telegram_generator,
+    auto_delete_file, index_single_file
+)
 
-# Logging configuration
+# Import bot components
+from bot_handlers import SK4FiLMBot, setup_bot_handlers
+
+# Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, Config.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('sk4film.log')
+        logging.FileHandler(Config.LOG_FILE),
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-# Custom Exceptions
-class BotError(Exception):
-    """Base exception for bot errors"""
-    pass
+# ==================== FLASK APP INITIALIZATION ====================
 
-class SearchError(BotError):
-    """Search-related errors"""
-    pass
+app = Flask(__name__)
+CORS(app)
 
-class DatabaseError(BotError):
-    """Database-related errors"""
-    pass
+# Global variables
+db_client: Optional[AsyncIOMotorClient] = None
+db = None
+redis_client: Optional[aioredis.Redis] = None
+bot_instance: Optional[SK4FiLMBot] = None
 
-class RateLimitError(BotError):
-    """Rate limit exceeded"""
-    pass
 
-# Rate Limiter
-class RateLimiter:
-    def __init__(self, max_requests, window_seconds):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.requests = defaultdict(list)
-    
-    async def is_allowed(self, key):
-        now = time.time()
-        window_start = now - self.window_seconds
-        
-        # Clean old requests
-        self.requests[key] = [req_time for req_time in self.requests[key] 
-                             if req_time > window_start]
-        
-        # Check limit
-        if len(self.requests[key]) >= self.max_requests:
-            return False
-        
-        # Add current request
-        self.requests[key].append(now)
-        return True
+# ==================== DATABASE MANAGER CLASS ====================
 
-# Database Manager
 class DatabaseManager:
-    def __init__(self, uri, max_pool_size=10):
-        self.uri = uri
-        self.max_pool_size = max_pool_size
-        self.client = None
+    """Manages MongoDB connections and operations"""
+    
+    def __init__(self, mongodb_uri: str, database_name: str):
+        self.mongodb_uri = mongodb_uri
+        self.database_name = database_name
+        self.client: Optional[AsyncIOMotorClient] = None
         self.db = None
-        self.files_col = None
-        self.users_col = None
-        self.premium_col = None
+        self.collections = {}
     
     async def connect(self):
-        """Connect to MongoDB with connection pooling"""
+        """Connect to MongoDB"""
         try:
-            self.client = AsyncIOMotorClient(
-                self.uri,
-                maxPoolSize=self.max_pool_size,
-                minPoolSize=5,
-                maxIdleTimeMS=60000,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=10000
-            )
+            self.client = AsyncIOMotorClient(self.mongodb_uri)
+            self.db = self.client[self.database_name]
+            
+            # Initialize collections
+            self.collections = {
+                'files': self.db.files,
+                'users': self.db.users,
+                'premium': self.db.premium_users,
+                'verification': self.db.verification_tokens,
+                'downloads': self.db.download_logs,
+                'search_cache': self.db.search_cache
+            }
             
             # Test connection
             await self.client.admin.command('ping')
-            
-            self.db = self.client['sk4film']
-            self.files_col = self.db['files']
-            self.users_col = self.db['users']
-            self.premium_col = self.db['premium']
+            logger.info("✅ MongoDB connected successfully")
             
             # Create indexes
-            await self.files_col.create_index([('normalized_title', 'text')])
-            await self.files_col.create_index([('channel_id', 1), ('message_id', 1)], unique=True)
-            await self.files_col.create_index([('date', -1)])
-            await self.files_col.create_index([('is_video_file', 1)])
+            await self._create_indexes()
             
-            await self.premium_col.create_index([('user_id', 1)], unique=True)
-            await self.premium_col.create_index([('expires_at', 1)])
-            
-            logger.info("✅ MongoDB connected with connection pooling")
             return True
         except Exception as e:
             logger.error(f"❌ MongoDB connection failed: {e}")
+            return False
+    
+    async def _create_indexes(self):
+        """Create database indexes for better performance"""
+        try:
+            # Files collection indexes
+            await self.collections['files'].create_index("file_id", unique=True)
+            await self.collections['files'].create_index("normalized_title")
+            await self.collections['files'].create_index([("title", "text")])
+            await self.collections['files'].create_index("quality")
+            
+            # Users collection indexes
+            await self.collections['users'].create_index("user_id", unique=True)
+            
+            # Premium users indexes
+            await self.collections['premium'].create_index("user_id", unique=True)
+            await self.collections['premium'].create_index("expiry_date")
+            
+            # Verification tokens indexes
+            await self.collections['verification'].create_index("token", unique=True)
+            await self.collections['verification'].create_index("expiry_date")
+            
+            # Download logs indexes
+            await self.collections['downloads'].create_index([("user_id", 1), ("timestamp", -1)])
+            
+            logger.info("✅ Database indexes created")
+        except Exception as e:
+            logger.error(f"Index creation error: {e}")
+    
+    async def store_file(self, file_data: Dict[str, Any]) -> bool:
+        """Store file metadata in database"""
+        try:
+            await self.collections['files'].update_one(
+                {'file_id': file_data['file_id']},
+                {'$set': file_data},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error storing file: {e}")
+            return False
+    
+    async def search_files(self, query: str, limit: int = 50) -> List[Dict]:
+        """Search files by title"""
+        try:
+            normalized_query = normalize_title(query)
+            
+            # Text search
+            results = await self.collections['files'].find(
+                {'$text': {'$search': query}},
+                {'score': {'$meta': 'textScore'}}
+            ).sort([('score', {'$meta': 'textScore'})]).limit(limit).to_list(length=limit)
+            
+            # If no results, try normalized title match
+            if not results:
+                results = await self.collections['files'].find(
+                    {'normalized_title': {'$regex': normalized_query, '$options': 'i'}}
+                ).limit(limit).to_list(length=limit)
+            
+            return results
+        except Exception as e:
+            logger.error(f"Search error: {e}")
+            return []
+    
+    async def get_file_by_id(self, file_id: str) -> Optional[Dict]:
+        """Get file by file_id"""
+        try:
+            return await self.collections['files'].find_one({'file_id': file_id})
+        except Exception as e:
+            logger.error(f"Error getting file: {e}")
+            return None
+    
+    async def get_user(self, user_id: int) -> Optional[Dict]:
+        """Get user data"""
+        try:
+            return await self.collections['users'].find_one({'user_id': user_id})
+        except Exception as e:
+            logger.error(f"Error getting user: {e}")
+            return None
+    
+    async def update_user(self, user_id: int, user_data: Dict) -> bool:
+        """Update user data"""
+        try:
+            await self.collections['users'].update_one(
+                {'user_id': user_id},
+                {'$set': user_data},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error updating user: {e}")
+            return False
+    
+    async def log_download(self, user_id: int, file_id: str, file_name: str) -> bool:
+        """Log download activity"""
+        try:
+            log_entry = {
+                'user_id': user_id,
+                'file_id': file_id,
+                'file_name': file_name,
+                'timestamp': datetime.utcnow(),
+                'ip_address': request.remote_addr if request else None
+            }
+            await self.collections['downloads'].insert_one(log_entry)
+            return True
+        except Exception as e:
+            logger.error(f"Error logging download: {e}")
             return False
     
     async def close(self):
@@ -129,910 +204,387 @@ class DatabaseManager:
             self.client.close()
             logger.info("✅ MongoDB connection closed")
 
-# Task Manager
-class TaskManager:
-    def __init__(self):
-        self.tasks = {}
-        self.running = False
-    
-    async def start_task(self, name, coro_func, interval=3600):
-        """Start a background task"""
-        if name in self.tasks:
-            self.tasks[name].cancel()
-        
-        async def task_wrapper():
-            while self.running:
-                try:
-                    await coro_func()
-                    await asyncio.sleep(interval)
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error(f"Task {name} error: {e}")
-                    await asyncio.sleep(60)
-        
-        task = asyncio.create_task(task_wrapper(), name=f"bg_{name}")
-        self.tasks[name] = task
-        logger.info(f"✅ Started background task: {name}")
-    
-    async def stop_all(self):
-        """Stop all background tasks"""
-        self.running = False
-        for name, task in self.tasks.items():
-            if not task.done():
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-        self.tasks.clear()
 
-# Decorator for error handling
-def handle_errors(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
+# ==================== CACHE MANAGER CLASS ====================
+
+class CacheManager:
+    """Manages Redis cache operations"""
+    
+    def __init__(self, host: str, port: int, password: str = None, db: int = 0):
+        self.host = host
+        self.port = port
+        self.password = password
+        self.db = db
+        self.client: Optional[aioredis.Redis] = None
+        self.redis_enabled = False
+    
+    async def connect(self):
+        """Connect to Redis"""
         try:
-            return await func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in {func.__name__}: {e}")
-            raise BotError(f"{func.__name__} failed: {str(e)}")
-    return wrapper
-
-class Config:
-    # Telegram API
-    API_ID = int(os.environ.get("API_ID", "0"))
-    API_HASH = os.environ.get("API_HASH", "")
-    USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-    
-    # Database
-    MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
-    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
-    
-    # Channels
-    MAIN_CHANNEL_ID = -1001891090100
-    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
-    FILE_CHANNEL_ID = -1001768249569
-    
-    # URLs
-    MAIN_CHANNEL_LINK = "https://t.me/sk4film"
-    UPDATES_CHANNEL_LINK = "https://t.me/sk4film_Request"
-    CHANNEL_USERNAME = "sk4film"
-    WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
-    BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
-    
-    # Bot
-    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
-    ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
-    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "300"))
-    
-    # Shortener & Verification
-    SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
-    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "false").lower() == "true"
-    VERIFICATION_DURATION = 6 * 60 * 60
-    
-    # Server
-    WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
-    
-    # API Keys
-    OMDB_KEYS = os.environ.get("OMDB_KEYS", "8265bd1c,b9bd48a6,3e7e1e9d").split(",")
-    TMDB_KEYS = os.environ.get("TMDB_KEYS", "e547e17d4e91f3e62a571655cd1ccaff,8265bd1f").split(",")
-    
-    # UPI IDs for Premium
-    UPI_ID_BASIC = os.environ.get("UPI_ID_BASIC", "sk4filmbot@ybl")
-    UPI_ID_PREMIUM = os.environ.get("UPI_ID_PREMIUM", "sk4filmbot@ybl")
-    UPI_ID_ULTIMATE = os.environ.get("UPI_ID_ULTIMATE", "sk4filmbot@ybl")
-    UPI_ID_LIFETIME = os.environ.get("UPI_ID_LIFETIME", "sk4filmbot@ybl")
-    
-    # Admin
-    ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "admin123")
-    
-    @classmethod
-    def validate(cls):
-        """Validate required configuration"""
-        errors = []
-        
-        if not cls.API_ID or cls.API_ID == 0:
-            errors.append("API_ID is required")
-        
-        if not cls.API_HASH:
-            errors.append("API_HASH is required")
-        
-        if not cls.BOT_TOKEN:
-            errors.append("BOT_TOKEN is required")
-        
-        if not cls.ADMIN_IDS:
-            errors.append("ADMIN_IDS is required")
-        
-        if errors:
-            raise ValueError(f"Configuration errors: {', '.join(errors)}")
-
-# Initialize Quart app
-app = Quart(__name__)
-
-@app.after_request
-async def add_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return response
-
-# Global instances
-bot_instance = None
-db_manager = None
-
-# Rate limiters
-api_rate_limiter = RateLimiter(max_requests=100, window_seconds=300)
-search_rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
-
-# Enhanced search statistics
-search_stats = {
-    'redis_hits': 0,
-    'redis_misses': 0,
-    'multi_channel_searches': 0,
-    'total_searches': 0
-}
-
-# Channel configuration
-CHANNEL_CONFIG = {
-    -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'search_priority': 1},
-    -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'search_priority': 2},
-    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0}
-}
-
-# Utility functions
-def normalize_title(title):
-    """Normalize movie title for searching"""
-    if not title:
-        return ""
-    normalized = title.lower().strip()
-    
-    normalized = re.sub(
-        r'\b(19|20)\d{2}\b|\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|'
-        r'bluray|webrip|hdrip|web-dl|hdtv|hdrip|webdl|hindi|english|tamil|telugu|'
-        r'malayalam|kannada|punjabi|bengali|marathi|gujarati|movie|film|series|'
-        r'complete|full|part|episode|season|hdrc|dvdscr|pre-dvd|p-dvd|pdc|'
-        r'rarbg|yts|amzn|netflix|hotstar|prime|disney|hc-esub|esub|subs)\b',
-        '', 
-        normalized, 
-        flags=re.IGNORECASE
-    )
-    
-    normalized = re.sub(r'[\._\-]', ' ', normalized)
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
-    
-    return normalized
-
-def extract_title_smart(text):
-    """Extract movie title from text"""
-    if not text or len(text) < 10:
-        return None
-    
-    lines = [l.strip() for l in text.split('\n') if l.strip()]
-    if not lines:
-        return None
-    
-    first_line = lines[0]
-    
-    patterns = [
-        (r'^([A-Za-z\s]{3,50}?)\s*(?:\(?\d{4}\)?|\b(?:480p|720p|1080p|2160p|4k|hd|fhd|uhd)\b)', 1),
-        (r'🎬\s*([^\n\-\(]{3,60}?)\s*(?:\(\d{4}\)|$)', 1),
-        (r'^([^\-\n]{3,60}?)\s*\-', 1),
-        (r'^([^\(\n]{3,60}?)\s*\(\d{4}\)', 1),
-        (r'^([A-Za-z\s]{3,50}?)\s*(?:\d{4}|Hindi|Movie|Film|HDTC|WebDL|X264|AAC|ESub)', 1),
-    ]
-    
-    for pattern, group in patterns:
-        match = re.search(pattern, first_line, re.IGNORECASE)
-        if match:
-            title = match.group(group).strip()
-            title = re.sub(r'\s+', ' ', title)
-            if 3 <= len(title) <= 60:
-                return title
-    
-    return None
-
-def extract_title_from_file(msg):
-    """Extract title from file message"""
-    try:
-        if msg.caption:
-            t = extract_title_smart(msg.caption)
-            if t:
-                return t
-        
-        fn = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else None)
-        if fn:
-            name = fn.rsplit('.', 1)[0]
-            name = re.sub(r'[\._\-]', ' ', name)
-            
-            name = re.sub(
-                r'\b(720p|1080p|480p|2160p|4k|HDRip|WEBRip|WEB-DL|BluRay|BRRip|DVDRip|HDTV|HDTC|'
-                r'X264|X265|HEVC|H264|H265|AAC|AC3|DD5\.1|DDP5\.1|HC|ESub|Subs|Hindi|English|'
-                r'Dual|Multi|Complete|Full|Movie|Film|\d{4})\b',
-                '', 
-                name, 
-                flags=re.IGNORECASE
+            self.client = await aioredis.from_url(
+                f"redis://{self.host}:{self.port}/{self.db}",
+                password=self.password if self.password else None,
+                encoding="utf-8",
+                decode_responses=True
             )
             
-            name = re.sub(r'\s+', ' ', name).strip()
-            name = re.sub(r'\s+\(\d{4}\)$', '', name)
-            name = re.sub(r'\s+\d{4}$', '', name)
-            
-            if 4 <= len(name) <= 50:
-                return name
-    except Exception as e:
-        logger.error(f"File title extraction error: {e}")
-    return None
-
-def format_size(size):
-    """Format file size"""
-    if not size:
-        return "Unknown"
-    if size < 1024*1024:
-        return f"{size/1024:.1f} KB"
-    elif size < 1024*1024*1024:
-        return f"{size/(1024*1024):.1f} MB"
-    else:
-        return f"{size/(1024*1024*1024):.2f} GB"
-
-def detect_quality(filename):
-    """Detect video quality from filename"""
-    if not filename:
-        return "480p"
-    fl = filename.lower()
-    is_hevc = 'hevc' in fl or 'x265' in fl
-    if '2160p' in fl or '4k' in fl:
-        return "2160p HEVC" if is_hevc else "2160p"
-    elif '1080p' in fl:
-        return "1080p HEVC" if is_hevc else "1080p"
-    elif '720p' in fl:
-        return "720p HEVC" if is_hevc else "720p"
-    elif '480p' in fl:
-        return "480p HEVC" if is_hevc else "480p"
-    return "480p"
-
-def format_post(text):
-    """Format post text for HTML"""
-    if not text:
-        return ""
-    text = html.escape(text)
-    text = re.sub(r'(https?://[^\s]+)', r'<a href="\1" target="_blank" style="color:#00ccff">\1</a>', text)
-    return text.replace('\n', '<br>')
-
-def channel_name(cid):
-    """Get channel name from config"""
-    return CHANNEL_CONFIG.get(cid, {}).get('name', f"Channel {cid}")
-
-def is_new(date):
-    """Check if date is within 48 hours"""
-    try:
-        if isinstance(date, str):
-            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
-        hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
-        return hours <= 48
-    except:
-        return False
-
-def is_video_file(file_name):
-    """Check if file is video"""
-    if not file_name:
-        return False
-    video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.mpg', '.mpeg']
-    file_name_lower = file_name.lower()
-    return any(file_name_lower.endswith(ext) for ext in video_extensions)
-
-# Flood wait protection
-class FloodWaitProtection:
-    def __init__(self):
-        self.last_request_time = 0
-        self.min_interval = 3
-        self.request_count = 0
-        self.reset_time = time.time()
-    
-    async def wait_if_needed(self):
-        current_time = time.time()
-        
-        # Reset counter every 2 minutes
-        if current_time - self.reset_time > 120:
-            self.request_count = 0
-            self.reset_time = current_time
-        
-        # Limit to 20 requests per 2 minutes
-        if self.request_count >= 20:
-            wait_time = 120 - (current_time - self.reset_time)
-            if wait_time > 0:
-                await asyncio.sleep(wait_time)
-                self.request_count = 0
-                self.reset_time = time.time()
-        
-        # Ensure minimum interval between requests
-        time_since_last = current_time - self.last_request_time
-        if time_since_last < self.min_interval:
-            await asyncio.sleep(self.min_interval - time_since_last)
-        
-        self.last_request_time = time.time()
-        self.request_count += 1
-
-flood_protection = FloodWaitProtection()
-
-async def safe_telegram_operation(operation, *args, **kwargs):
-    """Safely execute Telegram operations with flood wait protection"""
-    max_retries = 2
-    base_delay = 5
-    
-    for attempt in range(max_retries):
-        try:
-            await flood_protection.wait_if_needed()
-            result = await operation(*args, **kwargs)
-            return result
+            # Test connection
+            await self.client.ping()
+            self.redis_enabled = True
+            logger.info("✅ Redis connected successfully")
+            return True
         except Exception as e:
-            logger.error(f"Telegram operation failed: {e}")
-            if attempt == max_retries - 1:
-                raise e
-            await asyncio.sleep(base_delay * (2 ** attempt))
-    return None
-
-async def safe_telegram_generator(operation, *args, limit=None, **kwargs):
-    """Safely iterate over Telegram async generators"""
-    max_retries = 2
-    count = 0
+            logger.warning(f"⚠️ Redis connection failed (continuing without cache): {e}")
+            self.redis_enabled = False
+            return False
     
-    for attempt in range(max_retries):
+    async def get(self, key: str) -> Optional[str]:
+        """Get value from cache"""
+        if not self.redis_enabled:
+            return None
         try:
-            await flood_protection.wait_if_needed()
-            async for item in operation(*args, **kwargs):
-                yield item
-                count += 1
-                
-                if count % 10 == 0:
-                    await asyncio.sleep(1)
-                    
-                if limit and count >= limit:
-                    break
-            break
+            return await self.client.get(key)
         except Exception as e:
-            logger.error(f"Telegram generator failed: {e}")
-            if attempt == max_retries - 1:
-                raise e
-            await asyncio.sleep(5 * (2 ** attempt))
-
-# ==============================
-# ENHANCED SEARCH FUNCTIONS
-# ==============================
-
-async def get_live_posts_multi_channel(limit_per_channel=10):
-    """Get posts from multiple channels concurrently"""
-    if not bot_instance or not bot_instance.user_session_ready:
-        return []
+            logger.error(f"Cache get error: {e}")
+            return None
     
-    all_posts = []
-    
-    async def fetch_channel_posts(channel_id):
-        posts = []
+    async def set(self, key: str, value: str, expire: int = None) -> bool:
+        """Set value in cache"""
+        if not self.redis_enabled:
+            return False
         try:
-            async for msg in safe_telegram_generator(bot_instance.user_client.get_chat_history, channel_id, limit=limit_per_channel):
-                if msg and msg.text and len(msg.text) > 15:
-                    title = extract_title_smart(msg.text)
-                    if title:
-                        posts.append({
-                            'title': title,
-                            'normalized_title': normalize_title(title),
-                            'content': msg.text,
-                            'channel_name': channel_name(channel_id),
-                            'channel_id': channel_id,
-                            'message_id': msg.id,
-                            'date': msg.date,
-                            'is_new': is_new(msg.date) if msg.date else False
-                        })
+            if expire:
+                await self.client.setex(key, expire, value)
+            else:
+                await self.client.set(key, value)
+            return True
         except Exception as e:
-            logger.error(f"Error getting posts from channel {channel_id}: {e}")
-        return posts
+            logger.error(f"Cache set error: {e}")
+            return False
     
-    # Fetch from all text channels concurrently
-    tasks = [fetch_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    async def delete(self, key: str) -> bool:
+        """Delete key from cache"""
+        if not self.redis_enabled:
+            return False
+        try:
+            await self.client.delete(key)
+            return True
+        except Exception as e:
+            logger.error(f"Cache delete error: {e}")
+            return False
     
-    for result in results:
-        if isinstance(result, list):
-            all_posts.extend(result)
+    async def exists(self, key: str) -> bool:
+        """Check if key exists in cache"""
+        if not self.redis_enabled:
+            return False
+        try:
+            return await self.client.exists(key) > 0
+        except Exception as e:
+            logger.error(f"Cache exists error: {e}")
+            return False
     
-    # Sort by date (newest first) and remove duplicates
-    seen_titles = set()
-    unique_posts = []
-    
-    for post in sorted(all_posts, key=lambda x: x.get('date', datetime.min), reverse=True):
-        if post['normalized_title'] not in seen_titles:
-            seen_titles.add(post['normalized_title'])
-            unique_posts.append(post)
-    
-    return unique_posts[:20]
+    async def close(self):
+        """Close Redis connection"""
+        if self.client:
+            await self.client.close()
+            logger.info("✅ Redis connection closed")
 
-@handle_errors
-async def search_movies_multi_channel(query, limit=12, page=1):
-    """Search across multiple channels with enhanced results"""
-    offset = (page - 1) * limit
-    search_stats['total_searches'] += 1
-    search_stats['multi_channel_searches'] += 1
-    
-    result_data = {
-        'results': [],
-        'pagination': {
-            'current_page': page,
-            'total_pages': 1,
-            'total_results': 0,
-            'per_page': limit,
-            'has_next': False,
-            'has_previous': False
-        },
-        'search_metadata': {
-            'channels_searched': len(Config.TEXT_CHANNEL_IDS),
-            'channels_found': 0,
-            'query': query,
-            'search_mode': 'multi_channel_enhanced',
-            'cache_status': 'miss'
-        }
-    }
-    
-    return result_data
 
-async def get_home_movies_live():
-    """Get latest movies from multiple channels"""
-    posts = await get_live_posts_multi_channel(limit_per_channel=15)
-    
-    movies = []
-    seen = set()
-    
-    for post in posts:
-        tk = post['title'].lower().strip()
-        if tk not in seen:
-            seen.add(tk)
-            movies.append({
-                'title': post['title'],
-                'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
-                'is_new': post.get('is_new', False),
-                'channel': post.get('channel_name', 'SK4FiLM'),
-                'channel_id': post.get('channel_id')
-            })
-            if len(movies) >= 20:
-                break
-    
-    return movies
+# ==================== APPLICATION INITIALIZATION ====================
 
-async def index_files_background():
-    """Background file indexing"""
-    if not bot_instance or not bot_instance.user_session_ready or not bot_instance.user_client:
-        return
+async def initialize_app():
+    """Initialize all application components"""
+    global db_client, db, redis_client, bot_instance
     
     try:
-        logger.info("🔄 Starting background indexing...")
-        logger.info("✅ Background indexing completed")
+        logger.info("🚀 Starting SK4FiLM Application...")
         
-    except Exception as e:
-        logger.error(f"Background indexing error: {e}")
-
-async def index_single_file(message):
-    """Index a single file message"""
-    title = extract_title_from_file(message)
-    if not title:
-        return
-    
-    logger.info(f"Indexing file: {title}")
-
-async def auto_delete_file(message, delay_seconds):
-    """Auto-delete file after specified delay"""
-    await asyncio.sleep(delay_seconds)
-    try:
-        await message.delete()
-        logger.info(f"Auto-deleted file for user {message.chat.id}")
-    except Exception as e:
-        logger.error(f"Failed to auto-delete file: {e}")
-
-# API Routes
-@app.route('/')
-async def root():
-    """Root endpoint with system status"""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'SK4FiLM v8.0 - Complete System',
-        'version': '8.0',
-        'timestamp': datetime.now().isoformat(),
-        'bot_username': Config.BOT_USERNAME,
-        'website': Config.WEBSITE_URL,
-        'endpoints': {
-            'api': '/api/*',
-            'health': '/health',
-            'search': '/api/search',
-            'movies': '/api/movies',
-            'verify': '/api/verify/{user_id}',
-            'premium': '/api/premium/*',
-            'poster': '/api/poster',
-            'stats': '/api/search/stats',
-            'system': '/api/system/stats'
-        }
-    })
-
-@app.route('/health')
-async def health():
-    """Health check endpoint"""
-    bot_started = bot_instance.bot_started if bot_instance else False
-    
-    return jsonify({
-        'status': 'ok',
-        'timestamp': datetime.now().isoformat(),
-        'bot': {
-            'started': bot_started,
-            'status': 'online' if bot_started else 'starting'
-        },
-        'web_server': True
-    })
-
-@app.route('/api/search')
-async def api_search():
-    """Search for movies"""
-    try:
-        # Rate limiting
-        ip = request.remote_addr
-        if not await api_rate_limiter.is_allowed(ip):
-            return jsonify({
-                'status': 'error',
-                'message': 'Rate limit exceeded. Please try again later.'
-            }), 429
+        # Validate configuration
+        Config.validate()
+        logger.info("✅ Configuration validated")
         
-        # Get query parameters
-        query = request.args.get('query', '').strip()
-        page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 12))
-        user_id = request.args.get('user_id', type=int)
+        # Initialize database
+        db_manager = DatabaseManager(Config.MONGODB_URI, Config.DATABASE_NAME)
+        if await db_manager.connect():
+            db_client = db_manager.client
+            db = db_manager.db
+            logger.info("✅ Database initialized")
+        else:
+            logger.error("❌ Database initialization failed")
+            return False
         
-        # Validate query
-        if len(query) < 2:
-            return jsonify({'status': 'error', 'message': 'Query too short'}), 400
-        
-        # Use enhanced search if available
-        search_mode = request.args.get('mode', 'enhanced')
-        if search_mode == 'enhanced' and bot_instance and bot_instance.user_session_ready:
-            try:
-                result = await search_movies_multi_channel(query, limit, page)
-                return jsonify({
-                    'status': 'success',
-                    'query': query,
-                    'results': result['results'],
-                    'pagination': result['pagination'],
-                    'search_metadata': result.get('search_metadata', {}),
-                    'bot_username': Config.BOT_USERNAME,
-                    'search_mode': 'enhanced_multi_channel'
-                })
-            except Exception as e:
-                logger.error(f"Enhanced search failed: {e}")
-        
-        # Basic search response
-        response_data = {
-            'status': 'success',
-            'query': query,
-            'results': [],
-            'pagination': {
-                'current_page': page,
-                'total_pages': 1,
-                'total_results': 0,
-                'per_page': limit,
-                'has_next': False,
-                'has_previous': False
-            },
-            'search_mode': 'basic'
-        }
-        
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logger.error(f"Search error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/search/enhanced')
-async def api_enhanced_search():
-    """Force enhanced multi-channel search"""
-    try:
-        # Rate limiting
-        ip = request.remote_addr
-        if not await search_rate_limiter.is_allowed(ip):
-            return jsonify({
-                'status': 'error',
-                'message': 'Search rate limit exceeded. Please try again later.'
-            }), 429
-        
-        q = request.args.get('query', '').strip()
-        p = int(request.args.get('page', 1))
-        l = int(request.args.get('limit', 12))
-        
-        if not q:
-            return jsonify({'status': 'error', 'message': 'Query required'}), 400
-        
-        if not bot_instance or not bot_instance.user_session_ready:
-            return jsonify({
-                'status': 'error',
-                'message': 'Enhanced search requires user session. Try basic search.',
-                'basic_search_url': f'/api/search?query={urllib.parse.quote(q)}&page={p}&limit={l}'
-            }), 503
-        
-        result = await search_movies_multi_channel(q, l, p)
-        return jsonify({
-            'status': 'success',
-            'query': q,
-            'results': result['results'],
-            'pagination': result['pagination'],
-            'search_metadata': result.get('search_metadata', {}),
-            'bot_username': Config.BOT_USERNAME,
-            'search_mode': 'enhanced_multi_channel_forced'
-        })
-        
-    except Exception as e:
-        logger.error(f"Enhanced search error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/search/stats')
-async def api_search_stats():
-    """Get search statistics"""
-    try:
-        hit_rate = 0
-        if search_stats['redis_hits'] + search_stats['redis_misses'] > 0:
-            hit_rate = (search_stats['redis_hits'] / (search_stats['redis_hits'] + search_stats['redis_misses'])) * 100
-        
-        return jsonify({
-            'status': 'success',
-            'stats': {
-                'total_searches': search_stats['total_searches'],
-                'multi_channel_searches': search_stats['multi_channel_searches'],
-                'redis_hits': search_stats['redis_hits'],
-                'redis_misses': search_stats['redis_misses'],
-                'redis_hit_rate': f"{hit_rate:.1f}%",
-                'enhanced_search_available': bot_instance.user_session_ready if bot_instance else False,
-                'channels_active': len(Config.TEXT_CHANNEL_IDS)
-            }
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/search/clear_cache', methods=['POST'])
-async def api_clear_search_cache():
-    """Clear search cache"""
-    try:
-        # Check admin key
-        data = await request.get_json() or {}
-        admin_key = data.get('admin_key') or request.args.get('admin_key')
-        
-        if admin_key != Config.ADMIN_API_KEY:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        # Reset search stats
-        global search_stats
-        search_stats = {
-            'redis_hits': 0,
-            'redis_misses': 0,
-            'multi_channel_searches': 0,
-            'total_searches': 0
-        }
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Search cache cleared',
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/movies')
-async def api_movies():
-    """Get latest movies"""
-    try:
-        if not bot_instance or not bot_instance.bot_started:
-            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
-        
-        # Try to get live movies
-        movies = await get_home_movies_live()
-        
-        return jsonify({
-            'status': 'success', 
-            'movies': movies, 
-            'total': len(movies), 
-            'bot_username': Config.BOT_USERNAME,
-            'mode': 'multi_channel_enhanced',
-            'channels_searched': len(Config.TEXT_CHANNEL_IDS),
-            'live_posts': True
-        })
-    except Exception as e:
-        logger.error(f"Movies error: {e}")
-        return jsonify({
-            'status': 'success',
-            'movies': [],
-            'total': 0,
-            'mode': 'basic'
-        })
-
-@app.route('/api/background/index', methods=['POST'])
-async def api_background_index():
-    """Start background indexing (admin only)"""
-    try:
-        # Check admin key
-        data = await request.get_json() or {}
-        admin_key = data.get('admin_key') or request.args.get('admin_key')
-        
-        if admin_key != Config.ADMIN_API_KEY:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        # Start indexing in background
-        asyncio.create_task(index_files_background())
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Background indexing started',
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/verify/<int:user_id>')
-async def api_verify_user(user_id):
-    """Get verification link for user"""
-    try:
-        return jsonify({
-            'status': 'success',
-            'user_id': user_id,
-            'verification_url': f'https://t.me/{Config.BOT_USERNAME}?start=verify_{user_id}',
-            'expires_in': '1 hour',
-            'bot_username': Config.BOT_USERNAME
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/premium/plans')
-async def api_premium_plans():
-    """Get all premium plans"""
-    try:
-        plans = [
-            {
-                'tier': 'basic',
-                'name': 'Basic Plan',
-                'price': 99,
-                'duration_days': 30,
-                'features': ['1080p Quality', '10 Daily Downloads', 'Priority Support'],
-                'description': 'Perfect for casual users'
-            },
-            {
-                'tier': 'premium',
-                'name': 'Premium Plan',
-                'price': 199,
-                'duration_days': 30,
-                'features': ['4K Quality', 'Unlimited Downloads', 'Priority Support', 'No Ads'],
-                'description': 'Best value for movie lovers'
-            }
-        ]
-        
-        return jsonify({
-            'status': 'success',
-            'plans': plans,
-            'currency': 'INR'
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/premium/status/<int:user_id>')
-async def api_premium_status(user_id):
-    """Get premium status for user"""
-    try:
-        details = {
-            'is_active': False,
-            'tier_name': 'Free',
-            'expires_at': None,
-            'days_remaining': 0,
-            'features': ['Basic access'],
-            'limits': {'daily_downloads': 5},
-            'daily_downloads': 0,
-            'total_downloads': 0
-        }
-        
-        return jsonify({
-            'status': 'success',
-            'user_id': user_id,
-            'premium_details': details
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/poster')
-async def api_poster():
-    """Get poster for movie"""
-    try:
-        title = request.args.get('title', '').strip()
-        if not title:
-            return jsonify({'status': 'error', 'message': 'Title required'}), 400
-        
-        return jsonify({
-            'status': 'success',
-            'poster_url': f"{Config.BACKEND_URL}/static/default_poster.jpg",
-            'source': 'default',
-            'rating': '0.0',
-            'year': '2024'
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/system/stats')
-async def api_system_stats():
-    """Get system statistics (admin only)"""
-    try:
-        # Check admin key
-        admin_key = request.args.get('admin_key')
-        if admin_key != Config.ADMIN_API_KEY:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        hit_rate = 0
-        if search_stats['redis_hits'] + search_stats['redis_misses'] > 0:
-            hit_rate = (search_stats['redis_hits'] / (search_stats['redis_hits'] + search_stats['redis_misses'])) * 100
-        
-        return jsonify({
-            'status': 'success',
-            'timestamp': datetime.now().isoformat(),
-            'search': {
-                **search_stats,
-                'redis_hit_rate': f"{hit_rate:.1f}%"
-            },
-            'system': {
-                'bot_online': bot_instance.bot_started if bot_instance else False,
-                'user_session_online': bot_instance.user_session_ready if bot_instance else False,
-                'channels_configured': len(CHANNEL_CONFIG),
-                'text_channels': len(Config.TEXT_CHANNEL_IDS)
-            }
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# Main function
-async def main():
-    """Main function to start the bot"""
-    global bot_instance, db_manager
-    
-    try:
-        # Initialize configuration
-        config = Config()
-        config.validate()
-        
-        # Initialize database if MONGODB_URI is provided
-        if config.MONGODB_URI and config.MONGODB_URI != "mongodb://localhost:27017":
-            db_manager = DatabaseManager(config.MONGODB_URI)
-            await db_manager.connect()
-        
-        # Create bot instance
-        bot_instance = SK4FiLMBot(config, db_manager)
+        # Initialize cache
+        cache_manager = CacheManager(
+            Config.REDIS_HOST,
+            Config.REDIS_PORT,
+            Config.REDIS_PASSWORD,
+            Config.REDIS_DB
+        )
+        await cache_manager.connect()
+        redis_client = cache_manager.client
         
         # Initialize bot
-        await bot_instance.initialize()
+        bot_instance = SK4FiLMBot(Config, db_manager)
+        bot_instance.cache_manager = cache_manager
+        
+        if await bot_instance.initialize():
+            logger.info("✅ Bot initialized")
+        else:
+            logger.error("❌ Bot initialization failed")
+            return False
         
         # Setup bot handlers
         await setup_bot_handlers(bot_instance.bot, bot_instance)
+        logger.info("✅ Bot handlers registered")
         
-        # Start web server
-        hypercorn_config = HyperConfig()
-        hypercorn_config.bind = [f"0.0.0.0:{config.WEB_SERVER_PORT}"]
-        hypercorn_config.workers = 1
+        logger.info("🎉 Application started successfully!")
+        return True
         
-        logger.info(f"🚀 Starting web server on port {config.WEB_SERVER_PORT}")
-        
-        # Run both web server and bot
-        await asyncio.gather(
-            serve(app, hypercorn_config),
-            idle()
-        )
-        
-    except KeyboardInterrupt:
-        logger.info("Received interrupt signal")
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
-    finally:
-        # Cleanup
+        logger.error(f"❌ Application initialization failed: {e}")
+        return False
+
+
+async def shutdown_app():
+    """Cleanup on shutdown"""
+    global db_client, redis_client, bot_instance
+    
+    try:
+        logger.info("🛑 Shutting down application...")
+        
         if bot_instance:
             await bot_instance.shutdown()
-        if db_manager:
-            await db_manager.close()
-        logger.info("Bot stopped")
+        
+        if redis_client:
+            await redis_client.close()
+        
+        if db_client:
+            db_client.close()
+        
+        logger.info("✅ Application shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+
+# ==================== FLASK ROUTES ====================
+
+@app.route('/')
+def home():
+    """Home page"""
+    return jsonify({
+        'status': 'running',
+        'service': 'SK4FiLM API',
+        'version': '1.0.0',
+        'endpoints': {
+            'search': '/api/search?q=<query>',
+            'file': '/api/file/<file_id>',
+            'health': '/health'
+        }
+    })
+
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'bot': bot_instance.bot_started if bot_instance else False,
+        'database': db is not None,
+        'cache': redis_client is not None,
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+
+@app.route('/api/search')
+def search_api():
+    """Search API endpoint"""
+    query = request.args.get('q', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Query parameter required'}), 400
+    
+    try:
+        # Run async search in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Search in database
+        db_manager = DatabaseManager(Config.MONGODB_URI, Config.DATABASE_NAME)
+        results = loop.run_until_complete(db_manager.search_files(query, limit=50))
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': results,
+            'count': len(results)
+        })
+    
+    except Exception as e:
+        logger.error(f"Search API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/file/<file_id>')
+def get_file_api(file_id):
+    """Get file details API endpoint"""
+    try:
+        # Run async get in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        db_manager = DatabaseManager(Config.MONGODB_URI, Config.DATABASE_NAME)
+        file_data = loop.run_until_complete(db_manager.get_file_by_id(file_id))
+        
+        if not file_data:
+            return jsonify({'error': 'File not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'file': file_data
+        })
+    
+    except Exception as e:
+        logger.error(f"Get file API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/verify/<token>')
+def verify_token_api(token):
+    """Verify user token"""
+    # TODO: Implement verification logic
+    return jsonify({
+        'success': True,
+        'message': 'Token verified',
+        'valid_until': datetime.utcnow().isoformat()
+    })
+
+
+@app.route('/api/stats')
+def stats_api():
+    """Get system statistics"""
+    try:
+        return jsonify({
+            'success': True,
+            'stats': {
+                'bot_status': bot_instance.bot_started if bot_instance else False,
+                'user_session': bot_instance.user_session_ready if bot_instance else False,
+                'database': db is not None,
+                'cache': redis_client is not None,
+                'uptime': 'N/A'  # TODO: Track actual uptime
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== UTILITY FUNCTIONS (Keep all existing) ====================
+
+def create_verification_link(user_id: int) -> str:
+    """Create verification link for user"""
+    token = secrets.token_urlsafe(16)
+    # TODO: Store token in database
+    return f"https://t.me/{Config.BOT_USERNAME}?start=verify_{token}"
+
+
+def validate_file_request(user_id: int, file_id: str) -> tuple[bool, str]:
+    """Validate if user can download file"""
+    # TODO: Implement validation logic
+    return True, "Access granted"
+
+
+async def get_file_from_channel(channel_id: int, message_id: int):
+    """Get file from Telegram channel"""
+    if not bot_instance or not bot_instance.user_session_ready:
+        return None
+    
+    try:
+        message = await safe_telegram_operation(
+            bot_instance.user_client.get_messages,
+            channel_id,
+            message_id
+        )
+        return message
+    except Exception as e:
+        logger.error(f"Error getting file from channel: {e}")
+        return None
+
+
+async def send_file_to_user(user_id: int, file_message, quality: str = "HD"):
+    """Send file to user"""
+    if not bot_instance or not bot_instance.bot_started:
+        return None
+    
+    try:
+        caption = (
+            f"♻ **Please forward to saved messages**\n\n"
+            f"📹 Quality: {quality}\n"
+            f"⚠️ Auto-delete in {Config.AUTO_DELETE_TIME//60} minutes\n\n"
+            f"@{Config.BOT_USERNAME} 🍿"
+        )
+        
+        if file_message.document:
+            sent = await safe_telegram_operation(
+                bot_instance.bot.send_document,
+                user_id,
+                file_message.document.file_id,
+                caption=caption
+            )
+        elif file_message.video:
+            sent = await safe_telegram_operation(
+                bot_instance.bot.send_video,
+                user_id,
+                file_message.video.file_id,
+                caption=caption
+            )
+        else:
+            return None
+        
+        # Auto-delete after specified time
+        if Config.AUTO_DELETE_TIME > 0:
+            asyncio.create_task(auto_delete_file(sent, Config.AUTO_DELETE_TIME))
+        
+        return sent
+    
+    except Exception as e:
+        logger.error(f"Error sending file to user: {e}")
+        return None
+
+
+def parse_file_link(link: str) -> Optional[Dict[str, Any]]:
+    """Parse file download link"""
+    try:
+        # Format: channel_message_quality
+        parts = link.strip().split('_')
+        if len(parts) >= 2:
+            return {
+                'channel_id': int(parts[0]),
+                'message_id': int(parts[1]),
+                'quality': parts[2] if len(parts) > 2 else 'HD'
+            }
+    except Exception as e:
+        logger.error(f"Error parsing file link: {e}")
+    return None
+
+
+# ==================== MAIN ENTRY POINT ====================
+
+if __name__ == '__main__':
+    # Initialize app
+    loop = asyncio.get_event_loop()
+    success = loop.run_until_complete(initialize_app())
+    
+    if not success:
+        logger.error("Failed to initialize application")
+        exit(1)
+    
+    # Run Flask app
+    try:
+        app.run(
+            host='0.0.0.0',
+            port=Config.PORT,
+            debug=False
+        )
+    except KeyboardInterrupt:
+        logger.info("Received shutdown signal")
+    finally:
+        loop.run_until_complete(shutdown_app())
