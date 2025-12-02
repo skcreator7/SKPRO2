@@ -1,5 +1,5 @@
 """
-bot_handlers.py - Telegram Bot Handlers for SK4FiLM
+bot_handlers.py - Telegram Bot Handlers for SK4FiLM - FIXED VERSION
 """
 import asyncio
 import logging
@@ -641,29 +641,34 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_message(filters.photo & filters.private)
     async def handle_screenshot(client, message):
         """Handle payment screenshots"""
-        if not message.caption and not message.reply_to_message:
-            return
+        # This handler was missing a proper try/except block
+        try:
+            if not message.caption and not message.reply_to_message:
+                return
+            
+            # Check if this is a payment screenshot
+            user_id = message.from_user.id
+            user_name = message.from_user.first_name or "User"
+            
+            await message.reply_text(
+                f"✅ **Screenshot Received, {user_name}!**\n\n"
+                "Your payment screenshot has been received.\n"
+                "Our admin will verify and activate your premium subscription within 24 hours.\n\n"
+                "Thank you for your purchase! 🎬"
+            )
+            
+            # Notify admin about the screenshot
+            for admin_id in Config.ADMIN_IDS:
+                try:
+                    await client.send_message(
+                        admin_id,
+                        f"📸 **New Payment Screenshot Received**\n\n"
+                        f"**User:** {user_id} ({user_name})\n"
+                        f"**Screenshot:** [View Photo]({message.link})\n\n"
+                        "Please verify and activate premium subscription."
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to notify admin {admin_id}: {e}")
         
-        # Check if this is a payment screenshot
-        user_id = message.from_user.id
-        user_name = message.from_user.first_name or "User"
-        
-        await message.reply_text(
-            f"✅ **Screenshot Received, {user_name}!**\n\n"
-            "Your payment screenshot has been received.\n"
-            "Our admin will verify and activate your premium subscription within 24 hours.\n\n"
-            "Thank you for your purchase! 🎬"
-        )
-        
-        # Notify admin about the screenshot
-        for admin_id in Config.ADMIN_IDS:
-            try:
-                await client.send_message(
-                    admin_id,
-                    f"📸 **New Payment Screenshot Received**\n\n"
-                    f"**User:** {user_id} ({user_name})\n"
-                    f"**Screenshot:** [View Photo]({message.link})\n\n"
-                    "Please verify and activate premium subscription."
-                )
-            except Exception as e:
-                logger.error(f"Failed to notify admin {admin_id}: {e}")
+        except Exception as e:
+            logger.error(f"Error handling screenshot: {e}")
