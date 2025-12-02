@@ -1,5 +1,5 @@
 """
-app.py - Main SK4FiLM Bot - Complete Version
+app.py - Main SK4FiLM Bot Web Server
 """
 import asyncio
 import os
@@ -23,9 +23,6 @@ from hypercorn.config import Config as HyperConfig
 from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
-# Import bot handlers
-from bot_handlers import setup_bot_handlers, SK4FiLMBot
-
 # Logging configuration
 logging.basicConfig(
     level=logging.INFO,
@@ -37,147 +34,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Custom Exceptions
-class BotError(Exception):
-    """Base exception for bot errors"""
-    pass
-
-class SearchError(BotError):
-    """Search-related errors"""
-    pass
-
-class DatabaseError(BotError):
-    """Database-related errors"""
-    pass
-
-class RateLimitError(BotError):
-    """Rate limit exceeded"""
-    pass
-
-# Rate Limiter
-class RateLimiter:
-    def __init__(self, max_requests, window_seconds):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.requests = defaultdict(list)
-    
-    async def is_allowed(self, key):
-        now = time.time()
-        window_start = now - self.window_seconds
-        
-        # Clean old requests
-        self.requests[key] = [req_time for req_time in self.requests[key] 
-                             if req_time > window_start]
-        
-        # Check limit
-        if len(self.requests[key]) >= self.max_requests:
-            return False
-        
-        # Add current request
-        self.requests[key].append(now)
-        return True
-
-# Database Manager
-class DatabaseManager:
-    def __init__(self, uri, max_pool_size=10):
-        self.uri = uri
-        self.max_pool_size = max_pool_size
-        self.client = None
-        self.db = None
-        self.files_col = None
-        self.users_col = None
-        self.premium_col = None
-    
-    async def connect(self):
-        """Connect to MongoDB with connection pooling"""
-        try:
-            self.client = AsyncIOMotorClient(
-                self.uri,
-                maxPoolSize=self.max_pool_size,
-                minPoolSize=5,
-                maxIdleTimeMS=60000,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=10000
-            )
-            
-            # Test connection
-            await self.client.admin.command('ping')
-            
-            self.db = self.client['sk4film']
-            self.files_col = self.db['files']
-            self.users_col = self.db['users']
-            self.premium_col = self.db['premium']
-            
-            # Create indexes
-            await self.files_col.create_index([('normalized_title', 'text')])
-            await self.files_col.create_index([('channel_id', 1), ('message_id', 1)], unique=True)
-            await self.files_col.create_index([('date', -1)])
-            await self.files_col.create_index([('is_video_file', 1)])
-            
-            await self.premium_col.create_index([('user_id', 1)], unique=True)
-            await self.premium_col.create_index([('expires_at', 1)])
-            
-            logger.info("✅ MongoDB connected with connection pooling")
-            return True
-        except Exception as e:
-            logger.error(f"❌ MongoDB connection failed: {e}")
-            return False
-    
-    async def close(self):
-        """Close database connection"""
-        if self.client:
-            self.client.close()
-            logger.info("✅ MongoDB connection closed")
-
-# Task Manager
-class TaskManager:
-    def __init__(self):
-        self.tasks = {}
-        self.running = False
-    
-    async def start_task(self, name, coro_func, interval=3600):
-        """Start a background task"""
-        if name in self.tasks:
-            self.tasks[name].cancel()
-        
-        async def task_wrapper():
-            while self.running:
-                try:
-                    await coro_func()
-                    await asyncio.sleep(interval)
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error(f"Task {name} error: {e}")
-                    await asyncio.sleep(60)
-        
-        task = asyncio.create_task(task_wrapper(), name=f"bg_{name}")
-        self.tasks[name] = task
-        logger.info(f"✅ Started background task: {name}")
-    
-    async def stop_all(self):
-        """Stop all background tasks"""
-        self.running = False
-        for name, task in self.tasks.items():
-            if not task.done():
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-        self.tasks.clear()
-
-# Decorator for error handling
-def handle_errors(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        try:
-            return await func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in {func.__name__}: {e}")
-            raise BotError(f"{func.__name__} failed: {str(e)}")
-    return wrapper
-
+# Configuration class - Moved here to avoid circular imports
 class Config:
     # Telegram API
     API_ID = int(os.environ.get("API_ID", "0"))
@@ -257,13 +114,13 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response
 
-# Global instances
+# Global instances - Will be set by main()
 bot_instance = None
 db_manager = None
 
 # Rate limiters
-api_rate_limiter = RateLimiter(max_requests=100, window_seconds=300)
-search_rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
+api_rate_limiter = None
+search_rate_limiter = None
 
 # Enhanced search statistics
 search_stats = {
@@ -280,7 +137,7 @@ CHANNEL_CONFIG = {
     -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0}
 }
 
-# Utility functions
+# Utility functions - These are standalone functions used by both modules
 def normalize_title(title):
     """Normalize movie title for searching"""
     if not title:
@@ -421,222 +278,98 @@ def is_video_file(file_name):
     file_name_lower = file_name.lower()
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
-# Flood wait protection
-class FloodWaitProtection:
-    def __init__(self):
-        self.last_request_time = 0
-        self.min_interval = 3
-        self.request_count = 0
-        self.reset_time = time.time()
+# Database Manager (moved here to avoid circular imports)
+class DatabaseManager:
+    def __init__(self, uri, max_pool_size=10):
+        self.uri = uri
+        self.max_pool_size = max_pool_size
+        self.client = None
+        self.db = None
+        self.files_col = None
+        self.users_col = None
+        self.premium_col = None
     
-    async def wait_if_needed(self):
-        current_time = time.time()
-        
-        # Reset counter every 2 minutes
-        if current_time - self.reset_time > 120:
-            self.request_count = 0
-            self.reset_time = current_time
-        
-        # Limit to 20 requests per 2 minutes
-        if self.request_count >= 20:
-            wait_time = 120 - (current_time - self.reset_time)
-            if wait_time > 0:
-                await asyncio.sleep(wait_time)
-                self.request_count = 0
-                self.reset_time = time.time()
-        
-        # Ensure minimum interval between requests
-        time_since_last = current_time - self.last_request_time
-        if time_since_last < self.min_interval:
-            await asyncio.sleep(self.min_interval - time_since_last)
-        
-        self.last_request_time = time.time()
-        self.request_count += 1
-
-flood_protection = FloodWaitProtection()
-
-async def safe_telegram_operation(operation, *args, **kwargs):
-    """Safely execute Telegram operations with flood wait protection"""
-    max_retries = 2
-    base_delay = 5
-    
-    for attempt in range(max_retries):
+    async def connect(self):
+        """Connect to MongoDB with connection pooling"""
         try:
-            await flood_protection.wait_if_needed()
-            result = await operation(*args, **kwargs)
-            return result
+            self.client = AsyncIOMotorClient(
+                self.uri,
+                maxPoolSize=self.max_pool_size,
+                minPoolSize=5,
+                maxIdleTimeMS=60000,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=10000
+            )
+            
+            # Test connection
+            await self.client.admin.command('ping')
+            
+            self.db = self.client['sk4film']
+            self.files_col = self.db['files']
+            self.users_col = self.db['users']
+            self.premium_col = self.db['premium']
+            
+            # Create indexes
+            await self.files_col.create_index([('normalized_title', 'text')])
+            await self.files_col.create_index([('channel_id', 1), ('message_id', 1)], unique=True)
+            await self.files_col.create_index([('date', -1)])
+            await self.files_col.create_index([('is_video_file', 1)])
+            
+            await self.premium_col.create_index([('user_id', 1)], unique=True)
+            await self.premium_col.create_index([('expires_at', 1)])
+            
+            logger.info("✅ MongoDB connected with connection pooling")
+            return True
         except Exception as e:
-            logger.error(f"Telegram operation failed: {e}")
-            if attempt == max_retries - 1:
-                raise e
-            await asyncio.sleep(base_delay * (2 ** attempt))
-    return None
+            logger.error(f"❌ MongoDB connection failed: {e}")
+            return False
+    
+    async def close(self):
+        """Close database connection"""
+        if self.client:
+            self.client.close()
+            logger.info("✅ MongoDB connection closed")
 
-async def safe_telegram_generator(operation, *args, limit=None, **kwargs):
-    """Safely iterate over Telegram async generators"""
-    max_retries = 2
-    count = 0
+# Rate Limiter (moved here)
+class RateLimiter:
+    def __init__(self, max_requests, window_seconds):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests = defaultdict(list)
     
-    for attempt in range(max_retries):
-        try:
-            await flood_protection.wait_if_needed()
-            async for item in operation(*args, **kwargs):
-                yield item
-                count += 1
-                
-                if count % 10 == 0:
-                    await asyncio.sleep(1)
-                    
-                if limit and count >= limit:
-                    break
-            break
-        except Exception as e:
-            logger.error(f"Telegram generator failed: {e}")
-            if attempt == max_retries - 1:
-                raise e
-            await asyncio.sleep(5 * (2 ** attempt))
-
-# ==============================
-# ENHANCED SEARCH FUNCTIONS
-# ==============================
-
-async def get_live_posts_multi_channel(limit_per_channel=10):
-    """Get posts from multiple channels concurrently"""
-    if not bot_instance or not bot_instance.user_session_ready:
-        return []
-    
-    all_posts = []
-    
-    async def fetch_channel_posts(channel_id):
-        posts = []
-        try:
-            async for msg in safe_telegram_generator(bot_instance.user_client.get_chat_history, channel_id, limit=limit_per_channel):
-                if msg and msg.text and len(msg.text) > 15:
-                    title = extract_title_smart(msg.text)
-                    if title:
-                        posts.append({
-                            'title': title,
-                            'normalized_title': normalize_title(title),
-                            'content': msg.text,
-                            'channel_name': channel_name(channel_id),
-                            'channel_id': channel_id,
-                            'message_id': msg.id,
-                            'date': msg.date,
-                            'is_new': is_new(msg.date) if msg.date else False
-                        })
-        except Exception as e:
-            logger.error(f"Error getting posts from channel {channel_id}: {e}")
-        return posts
-    
-    # Fetch from all text channels concurrently
-    tasks = [fetch_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    for result in results:
-        if isinstance(result, list):
-            all_posts.extend(result)
-    
-    # Sort by date (newest first) and remove duplicates
-    seen_titles = set()
-    unique_posts = []
-    
-    for post in sorted(all_posts, key=lambda x: x.get('date', datetime.min), reverse=True):
-        if post['normalized_title'] not in seen_titles:
-            seen_titles.add(post['normalized_title'])
-            unique_posts.append(post)
-    
-    return unique_posts[:20]
-
-@handle_errors
-async def search_movies_multi_channel(query, limit=12, page=1):
-    """Search across multiple channels with enhanced results"""
-    offset = (page - 1) * limit
-    search_stats['total_searches'] += 1
-    search_stats['multi_channel_searches'] += 1
-    
-    result_data = {
-        'results': [],
-        'pagination': {
-            'current_page': page,
-            'total_pages': 1,
-            'total_results': 0,
-            'per_page': limit,
-            'has_next': False,
-            'has_previous': False
-        },
-        'search_metadata': {
-            'channels_searched': len(Config.TEXT_CHANNEL_IDS),
-            'channels_found': 0,
-            'query': query,
-            'search_mode': 'multi_channel_enhanced',
-            'cache_status': 'miss'
-        }
-    }
-    
-    return result_data
-
-async def get_home_movies_live():
-    """Get latest movies from multiple channels"""
-    posts = await get_live_posts_multi_channel(limit_per_channel=15)
-    
-    movies = []
-    seen = set()
-    
-    for post in posts:
-        tk = post['title'].lower().strip()
-        if tk not in seen:
-            seen.add(tk)
-            movies.append({
-                'title': post['title'],
-                'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
-                'is_new': post.get('is_new', False),
-                'channel': post.get('channel_name', 'SK4FiLM'),
-                'channel_id': post.get('channel_id')
-            })
-            if len(movies) >= 20:
-                break
-    
-    return movies
-
-async def index_files_background():
-    """Background file indexing"""
-    if not bot_instance or not bot_instance.user_session_ready or not bot_instance.user_client:
-        return
-    
-    try:
-        logger.info("🔄 Starting background indexing...")
-        logger.info("✅ Background indexing completed")
+    async def is_allowed(self, key):
+        now = time.time()
+        window_start = now - self.window_seconds
         
-    except Exception as e:
-        logger.error(f"Background indexing error: {e}")
-
-async def index_single_file(message):
-    """Index a single file message"""
-    title = extract_title_from_file(message)
-    if not title:
-        return
-    
-    logger.info(f"Indexing file: {title}")
-
-async def auto_delete_file(message, delay_seconds):
-    """Auto-delete file after specified delay"""
-    await asyncio.sleep(delay_seconds)
-    try:
-        await message.delete()
-        logger.info(f"Auto-deleted file for user {message.chat.id}")
-    except Exception as e:
-        logger.error(f"Failed to auto-delete file: {e}")
+        # Clean old requests
+        self.requests[key] = [req_time for req_time in self.requests[key] 
+                             if req_time > window_start]
+        
+        # Check limit
+        if len(self.requests[key]) >= self.max_requests:
+            return False
+        
+        # Add current request
+        self.requests[key].append(now)
+        return True
 
 # API Routes
 @app.route('/')
 async def root():
     """Root endpoint with system status"""
+    bot_started = bot_instance.bot_started if bot_instance else False
+    user_session_ready = bot_instance.user_session_ready if bot_instance else False
+    
     return jsonify({
-        'status': 'healthy',
+        'status': 'healthy' if bot_started else 'starting',
         'service': 'SK4FiLM v8.0 - Complete System',
         'version': '8.0',
         'timestamp': datetime.now().isoformat(),
-        'bot_username': Config.BOT_USERNAME,
+        'bot': {
+            'started': bot_started,
+            'user_session_ready': user_session_ready,
+            'username': Config.BOT_USERNAME
+        },
         'website': Config.WEBSITE_URL,
         'endpoints': {
             'api': '/api/*',
@@ -657,7 +390,7 @@ async def health():
     bot_started = bot_instance.bot_started if bot_instance else False
     
     return jsonify({
-        'status': 'ok',
+        'status': 'ok' if bot_started else 'starting',
         'timestamp': datetime.now().isoformat(),
         'bot': {
             'started': bot_started,
@@ -670,40 +403,14 @@ async def health():
 async def api_search():
     """Search for movies"""
     try:
-        # Rate limiting
-        ip = request.remote_addr
-        if not await api_rate_limiter.is_allowed(ip):
-            return jsonify({
-                'status': 'error',
-                'message': 'Rate limit exceeded. Please try again later.'
-            }), 429
-        
         # Get query parameters
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 12))
-        user_id = request.args.get('user_id', type=int)
         
         # Validate query
         if len(query) < 2:
             return jsonify({'status': 'error', 'message': 'Query too short'}), 400
-        
-        # Use enhanced search if available
-        search_mode = request.args.get('mode', 'enhanced')
-        if search_mode == 'enhanced' and bot_instance and bot_instance.user_session_ready:
-            try:
-                result = await search_movies_multi_channel(query, limit, page)
-                return jsonify({
-                    'status': 'success',
-                    'query': query,
-                    'results': result['results'],
-                    'pagination': result['pagination'],
-                    'search_metadata': result.get('search_metadata', {}),
-                    'bot_username': Config.BOT_USERNAME,
-                    'search_mode': 'enhanced_multi_channel'
-                })
-            except Exception as e:
-                logger.error(f"Enhanced search failed: {e}")
         
         # Basic search response
         response_data = {
@@ -718,7 +425,8 @@ async def api_search():
                 'has_next': False,
                 'has_previous': False
             },
-            'search_mode': 'basic'
+            'search_mode': 'basic',
+            'bot_username': Config.BOT_USERNAME
         }
         
         return jsonify(response_data)
@@ -727,144 +435,16 @@ async def api_search():
         logger.error(f"Search error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/search/enhanced')
-async def api_enhanced_search():
-    """Force enhanced multi-channel search"""
-    try:
-        # Rate limiting
-        ip = request.remote_addr
-        if not await search_rate_limiter.is_allowed(ip):
-            return jsonify({
-                'status': 'error',
-                'message': 'Search rate limit exceeded. Please try again later.'
-            }), 429
-        
-        q = request.args.get('query', '').strip()
-        p = int(request.args.get('page', 1))
-        l = int(request.args.get('limit', 12))
-        
-        if not q:
-            return jsonify({'status': 'error', 'message': 'Query required'}), 400
-        
-        if not bot_instance or not bot_instance.user_session_ready:
-            return jsonify({
-                'status': 'error',
-                'message': 'Enhanced search requires user session. Try basic search.',
-                'basic_search_url': f'/api/search?query={urllib.parse.quote(q)}&page={p}&limit={l}'
-            }), 503
-        
-        result = await search_movies_multi_channel(q, l, p)
-        return jsonify({
-            'status': 'success',
-            'query': q,
-            'results': result['results'],
-            'pagination': result['pagination'],
-            'search_metadata': result.get('search_metadata', {}),
-            'bot_username': Config.BOT_USERNAME,
-            'search_mode': 'enhanced_multi_channel_forced'
-        })
-        
-    except Exception as e:
-        logger.error(f"Enhanced search error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/search/stats')
-async def api_search_stats():
-    """Get search statistics"""
-    try:
-        hit_rate = 0
-        if search_stats['redis_hits'] + search_stats['redis_misses'] > 0:
-            hit_rate = (search_stats['redis_hits'] / (search_stats['redis_hits'] + search_stats['redis_misses'])) * 100
-        
-        return jsonify({
-            'status': 'success',
-            'stats': {
-                'total_searches': search_stats['total_searches'],
-                'multi_channel_searches': search_stats['multi_channel_searches'],
-                'redis_hits': search_stats['redis_hits'],
-                'redis_misses': search_stats['redis_misses'],
-                'redis_hit_rate': f"{hit_rate:.1f}%",
-                'enhanced_search_available': bot_instance.user_session_ready if bot_instance else False,
-                'channels_active': len(Config.TEXT_CHANNEL_IDS)
-            }
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/search/clear_cache', methods=['POST'])
-async def api_clear_search_cache():
-    """Clear search cache"""
-    try:
-        # Check admin key
-        data = await request.get_json() or {}
-        admin_key = data.get('admin_key') or request.args.get('admin_key')
-        
-        if admin_key != Config.ADMIN_API_KEY:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        # Reset search stats
-        global search_stats
-        search_stats = {
-            'redis_hits': 0,
-            'redis_misses': 0,
-            'multi_channel_searches': 0,
-            'total_searches': 0
-        }
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Search cache cleared',
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 @app.route('/api/movies')
 async def api_movies():
     """Get latest movies"""
     try:
-        if not bot_instance or not bot_instance.bot_started:
-            return jsonify({'status': 'error', 'message': 'Starting...'}), 503
-        
-        # Try to get live movies
-        movies = await get_home_movies_live()
-        
-        return jsonify({
-            'status': 'success', 
-            'movies': movies, 
-            'total': len(movies), 
-            'bot_username': Config.BOT_USERNAME,
-            'mode': 'multi_channel_enhanced',
-            'channels_searched': len(Config.TEXT_CHANNEL_IDS),
-            'live_posts': True
-        })
-    except Exception as e:
-        logger.error(f"Movies error: {e}")
         return jsonify({
             'status': 'success',
             'movies': [],
             'total': 0,
-            'mode': 'basic'
-        })
-
-@app.route('/api/background/index', methods=['POST'])
-async def api_background_index():
-    """Start background indexing (admin only)"""
-    try:
-        # Check admin key
-        data = await request.get_json() or {}
-        admin_key = data.get('admin_key') or request.args.get('admin_key')
-        
-        if admin_key != Config.ADMIN_API_KEY:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        # Start indexing in background
-        asyncio.create_task(index_files_background())
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Background indexing started',
-            'timestamp': datetime.now().isoformat()
+            'mode': 'basic',
+            'bot_username': Config.BOT_USERNAME
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -914,29 +494,6 @@ async def api_premium_plans():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/premium/status/<int:user_id>')
-async def api_premium_status(user_id):
-    """Get premium status for user"""
-    try:
-        details = {
-            'is_active': False,
-            'tier_name': 'Free',
-            'expires_at': None,
-            'days_remaining': 0,
-            'features': ['Basic access'],
-            'limits': {'daily_downloads': 5},
-            'daily_downloads': 0,
-            'total_downloads': 0
-        }
-        
-        return jsonify({
-            'status': 'success',
-            'user_id': user_id,
-            'premium_details': details
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 @app.route('/api/poster')
 async def api_poster():
     """Get poster for movie"""
@@ -955,50 +512,29 @@ async def api_poster():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/system/stats')
-async def api_system_stats():
-    """Get system statistics (admin only)"""
-    try:
-        # Check admin key
-        admin_key = request.args.get('admin_key')
-        if admin_key != Config.ADMIN_API_KEY:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        hit_rate = 0
-        if search_stats['redis_hits'] + search_stats['redis_misses'] > 0:
-            hit_rate = (search_stats['redis_hits'] / (search_stats['redis_hits'] + search_stats['redis_misses'])) * 100
-        
-        return jsonify({
-            'status': 'success',
-            'timestamp': datetime.now().isoformat(),
-            'search': {
-                **search_stats,
-                'redis_hit_rate': f"{hit_rate:.1f}%"
-            },
-            'system': {
-                'bot_online': bot_instance.bot_started if bot_instance else False,
-                'user_session_online': bot_instance.user_session_ready if bot_instance else False,
-                'channels_configured': len(CHANNEL_CONFIG),
-                'text_channels': len(Config.TEXT_CHANNEL_IDS)
-            }
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+# Import bot_handlers AFTER defining all utility functions
+# This is done in main() function to avoid circular imports
 
-# Main function
 async def main():
     """Main function to start the bot"""
-    global bot_instance, db_manager
+    global bot_instance, db_manager, api_rate_limiter, search_rate_limiter
     
     try:
         # Initialize configuration
         config = Config()
         config.validate()
         
+        # Initialize rate limiters
+        api_rate_limiter = RateLimiter(max_requests=100, window_seconds=300)
+        search_rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
+        
         # Initialize database if MONGODB_URI is provided
         if config.MONGODB_URI and config.MONGODB_URI != "mongodb://localhost:27017":
             db_manager = DatabaseManager(config.MONGODB_URI)
             await db_manager.connect()
+        
+        # Now import bot_handlers (after all dependencies are defined)
+        from bot_handlers import SK4FiLMBot, setup_bot_handlers
         
         # Create bot instance
         bot_instance = SK4FiLMBot(config, db_manager)
@@ -1015,6 +551,8 @@ async def main():
         hypercorn_config.workers = 1
         
         logger.info(f"🚀 Starting web server on port {config.WEB_SERVER_PORT}")
+        logger.info(f"🤖 Bot username: @{config.BOT_USERNAME}")
+        logger.info(f"🌐 Website: {config.WEBSITE_URL}")
         
         # Run both web server and bot
         await asyncio.gather(
@@ -1026,6 +564,8 @@ async def main():
         logger.info("Received interrupt signal")
     except Exception as e:
         logger.error(f"Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         # Cleanup
         if bot_instance:
