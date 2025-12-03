@@ -161,12 +161,41 @@ class RedisCache:
     async def connect(self):
         try:
             if self.redis_url and self.redis_url != "redis://localhost:6379":
-                self.client = await redis.from_url(self.redis_url, decode_responses=True)
-                await self.client.ping()
-                self.enabled = True
-                logger.info("✅ Redis cache connected")
+                # Fix Redis URL parsing issue
+                if "redis://" in self.redis_url:
+                    # Extract host and port from URL
+                    parsed = urllib.parse.urlparse(self.redis_url)
+                    host = parsed.hostname
+                    port = parsed.port or 6379
+                    
+                    # Extract password if present
+                    password = parsed.password
+                    
+                    # Reconstruct URL properly
+                    if password:
+                        # Remove password from URL for logging
+                        safe_url = f"redis://{host}:{port}"
+                        logger.info(f"Connecting to Redis with password at {safe_url}")
+                        self.client = await redis.from_url(
+                            self.redis_url,
+                            decode_responses=True
+                        )
+                    else:
+                        logger.info(f"Connecting to Redis at {self.redis_url}")
+                        self.client = await redis.from_url(
+                            self.redis_url,
+                            decode_responses=True
+                        )
+                    
+                    await self.client.ping()
+                    self.enabled = True
+                    logger.info("✅ Redis cache connected")
+                else:
+                    logger.warning(f"Invalid Redis URL format: {self.redis_url}")
+                    self.enabled = False
             else:
                 logger.warning("Redis URL not configured, using memory cache")
+                self.enabled = False
         except Exception as e:
             logger.warning(f"Redis connection failed, using memory cache: {e}")
             self.enabled = False
@@ -209,6 +238,7 @@ class RedisCache:
         if self.client:
             await self.client.close()
 
+# Initialize Redis cache with URL validation
 redis_cache = RedisCache(Config.REDIS_URL)
 
 # Utility functions
@@ -613,14 +643,27 @@ class DatabaseManager:
             self.users_col = self.db['users']
             self.premium_col = self.db['premium']
             
-            # Create indexes with error handling
+            # Create indexes with error handling (skip if duplicates exist)
             try:
+                # Try to create indexes, but continue if they already exist
                 await self.files_col.create_index([('normalized_title', 'text')])
             except Exception as e:
-                logger.warning(f"Text index warning: {e}")
+                if "already exists with different options" not in str(e):
+                    logger.warning(f"Text index warning: {e}")
             
             try:
-                await self.files_col.create_index([('channel_id', 1), ('message_id', 1)], unique=True)
+                # For unique index, drop duplicates first if needed
+                await self.files_col.create_index(
+                    [('channel_id', 1), ('message_id', 1)], 
+                    unique=True
+                )
+            except Exception as e:
+                if "E11000 duplicate key error" in str(e):
+                    logger.warning("Duplicate data found in database. Using existing unique index.")
+                else:
+                    logger.warning(f"Unique index warning: {e}")
+            
+            try:
                 await self.files_col.create_index([('date', -1)])
                 await self.files_col.create_index([('is_video_file', 1)])
             except Exception as e:
@@ -676,7 +719,7 @@ async def idle():
     while True:
         await asyncio.sleep(3600)
 
-# OPTIMIZED API ROUTES (as per your request)
+# OPTIMIZED API ROUTES
 @app.route('/')
 async def root():
     tf = await files_col.count_documents({}) if files_col is not None else 0
@@ -776,10 +819,10 @@ async def api_index_status():
         video_thumbnails = await files_col.count_documents({'is_video_file': True, 'thumbnail': {'$ne': None}})
         total_thumbnails = await files_col.count_documents({'thumbnail': {'$ne': None}})
         
-        latest = await files_col.find_one({}, sort=[('indexed_at', -1)])
+        latest = await files_col.find_one({}, sort=[('date', -1)])
         last_indexed = "Never"
-        if latest and latest.get('indexed_at'):
-            dt = latest['indexed_at']
+        if latest and latest.get('date'):
+            dt = latest['date']
             if isinstance(dt, datetime):
                 mins_ago = int((datetime.now() - dt).total_seconds() / 60)
                 last_indexed = f"{mins_ago} min ago" if mins_ago > 0 else "Just now"
@@ -1027,9 +1070,14 @@ async def main():
         # Initialize database if MONGODB_URI is provided
         if config.MONGODB_URI and config.MONGODB_URI != "mongodb://localhost:27017":
             db_manager = DatabaseManager(config.MONGODB_URI)
-            await db_manager.connect()
-            if db_manager.files_col:
+            db_connected = await db_manager.connect()
+            if db_connected and db_manager.files_col is not None:
                 files_col = db_manager.files_col
+                logger.info(f"✅ Database files collection initialized")
+            else:
+                logger.warning("⚠️ Database files collection not available")
+        else:
+            logger.warning("⚠️ MongoDB URI not configured")
         
         # Now import bot_handlers (after all dependencies are defined)
         try:
@@ -1053,7 +1101,10 @@ async def main():
             
         except ImportError as e:
             logger.warning(f"Bot handlers not available: {e}")
-            bot_started = True  # Start web server anyway
+            # Set default values for web server to work
+            bot_started = True
+            user_session_ready = False
+            logger.info("⚠️ Running in web-only mode (bot handlers disabled)")
         
         # Start web server
         hypercorn_config = HyperConfig()
