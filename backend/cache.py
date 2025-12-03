@@ -4,6 +4,7 @@ cache.py - Redis and in-memory caching system
 import asyncio
 import json
 import pickle
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Union, List
 import logging
@@ -32,84 +33,116 @@ class CacheManager:
         self.cleanup_task = None
     
     async def init_redis(self) -> bool:
-    """Initialize Redis connection"""
-    try:
-        # Check if Redis URL is configured
-        if not hasattr(self.config, 'REDIS_URL') or not self.config.REDIS_URL:
-            logger.warning("⚠️ Redis URL not configured, using memory cache only")
-            return False
-        
-        # Parse Redis URL
-        redis_url = self.config.REDIS_URL
-        
-        # Special handling for Redis Labs format
-        if 'redislabs.com' in redis_url or 'cloud.redislabs.com' in redis_url:
-            # Parse Redis Labs URL format properly
-            # Example: redis-17119.c283.us-east-1-4.ec2.cloud.redislabs.com:17119
-            try:
-                # Extract host and port from URL
-                import re
-                match = re.search(r'redis-(\d+)\.([^:]+):(\d+)', redis_url)
-                if match:
-                    host = match.group(0).split(':')[0]  # Get host part
-                    port = int(match.group(3))  # Get port
-                    
-                    # Get password from config
-                    password = getattr(self.config, 'REDIS_PASSWORD', 'EjtnvQpIkLv5Z3g9Fr4FQDLfmLKZVqML')
-                    
-                    self.redis_client = redis.Redis(
-                        host=host,
-                        port=port,
-                        password=password,
-                        decode_responses=True,
-                        encoding='utf-8',
-                        socket_connect_timeout=10,
-                        socket_timeout=10,
-                        max_connections=10,
-                        health_check_interval=30
-                    )
-                else:
-                    # Fallback to from_url
+        """Initialize Redis connection"""
+        try:
+            # Check if Redis URL is configured
+            if not hasattr(self.config, 'REDIS_URL') or not self.config.REDIS_URL:
+                logger.warning("⚠️ Redis URL not configured, using memory cache only")
+                return False
+            
+            # Parse Redis URL
+            redis_url = self.config.REDIS_URL
+            
+            # Special handling for Redis Labs format
+            if 'redislabs.com' in redis_url or 'cloud.redislabs.com' in redis_url:
+                # Parse Redis Labs URL format: redis://username:password@host:port
+                try:
+                    # Extract host and port from URL
+                    match = re.search(r'redis-(\d+)\.([^:]+):(\d+)', redis_url)
+                    if match:
+                        # Full host with port
+                        host_with_port = match.group(0)
+                        host = host_with_port.split(':')[0]
+                        port = int(host_with_port.split(':')[1]) if ':' in host_with_port else 6379
+                        
+                        # Get password from config or extract from URL
+                        password = getattr(self.config, 'REDIS_PASSWORD', None)
+                        if not password and '@' in redis_url:
+                            # Extract password from URL: redis://default:password@host:port
+                            password_part = redis_url.split('@')[0]
+                            if ':' in password_part:
+                                password = password_part.split(':')[-1]
+                        
+                        logger.info(f"🔌 Connecting to Redis Labs: {host}:{port}")
+                        
+                        self.redis_client = redis.Redis(
+                            host=host,
+                            port=port,
+                            password=password,
+                            decode_responses=True,
+                            encoding='utf-8',
+                            socket_connect_timeout=10,
+                            socket_timeout=10,
+                            max_connections=10,
+                            health_check_interval=30
+                        )
+                    else:
+                        # Fallback to from_url
+                        logger.info(f"🔌 Connecting to Redis via URL: {redis_url}")
+                        self.redis_client = redis.from_url(
+                            redis_url,
+                            decode_responses=True,
+                            encoding='utf-8',
+                            socket_connect_timeout=10,
+                            socket_timeout=10
+                        )
+                except Exception as e:
+                    logger.warning(f"Redis Labs parsing failed: {e}")
+                    # Simple fallback
                     self.redis_client = redis.from_url(
                         redis_url,
                         decode_responses=True,
                         encoding='utf-8'
                     )
-            except:
-                # Fallback to simple connection
+            else:
+                # Standard Redis URL
                 self.redis_client = redis.from_url(
                     redis_url,
                     decode_responses=True,
                     encoding='utf-8'
                 )
-        else:
-            # Standard Redis URL
-            self.redis_client = redis.from_url(
-                redis_url,
-                decode_responses=True,
-                encoding='utf-8'
-            )
-        
-        # Test connection
-        await self.redis_client.ping()
-        self.redis_enabled = True
-        
-        # Test basic operations
-        await self.redis_client.set('connection_test', 'success', ex=60)
-        test_result = await self.redis_client.get('connection_test')
-        
-        if test_result == 'success':
-            logger.info("✅ Redis connected successfully!")
-        else:
-            logger.warning("⚠️ Redis connected but operations test failed")
+            
+            # Test connection
+            await self.redis_client.ping()
+            self.redis_enabled = True
+            
+            # Test basic operations
+            await self.redis_client.set('connection_test', 'success', ex=60)
+            test_result = await self.redis_client.get('connection_test')
+            
+            if test_result == 'success':
+                logger.info("✅ Redis connected successfully!")
+            else:
+                logger.warning("⚠️ Redis connected but operations test failed")
+                self.redis_enabled = False
+            
+            return self.redis_enabled
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Redis connection failed: {e}")
             self.redis_enabled = False
+            return False
+    
+    def _serialize_value(self, value: Any) -> str:
+        """Serialize value for storage"""
+        try:
+            return json.dumps(value, default=str)
+        except:
+            # Fallback to pickle for complex objects
+            return pickle.dumps(value).decode('latin-1')
+    
+    def _deserialize_value(self, value: str, use_json: bool = True) -> Any:
+        """Deserialize stored value"""
+        if value is None:
+            return None
         
-        return self.redis_enabled
-        
-    except Exception as e:
-        logger.warning(f"⚠️ Redis connection failed: {e}")
-        self.redis_enabled = False
-        return False
+        try:
+            if use_json:
+                return json.loads(value)
+            else:
+                return pickle.loads(value.encode('latin-1'))
+        except:
+            return value
     
     async def get(self, key: str, use_redis: bool = True) -> Optional[Any]:
         """Get value from cache"""
