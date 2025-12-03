@@ -1,6 +1,6 @@
 """
 app.py - Complete SK4FiLM Web API System with Multi-Channel Search
-MODULAR VERSION - Integrates all separate modules
+FIXED: No circular imports - All modules integrated
 """
 import asyncio
 import os
@@ -29,6 +29,20 @@ from cache import CacheManager
 from verification import VerificationSystem
 from premium import PremiumSystem, PremiumTier
 from poster_fetching import PosterFetcher, PosterSource
+
+# Import shared utilities
+from utils import (
+    normalize_title,
+    extract_title_smart,
+    extract_title_from_file,
+    format_size,
+    detect_quality,
+    is_video_file,
+    format_post,
+    is_new
+)
+
+# Import bot_handlers AFTER all other imports
 from bot_handlers import SK4FiLMBot, setup_bot_handlers
 
 # FAST LOADING OPTIMIZATIONS
@@ -222,169 +236,25 @@ async def cache_cleanup():
         except Exception as e:
             logger.error(f"Cache cleanup error: {e}")
 
-# UTILITY FUNCTIONS
-def normalize_title(title):
-    if not title:
-        return ""
-    normalized = title.lower().strip()
-    
-    normalized = re.sub(
-        r'\b(19|20)\d{2}\b|\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv|hdrip|webdl|hindi|english|tamil|telugu|malayalam|kannada|punjabi|bengali|marathi|gujarati|movie|film|series|complete|full|part|episode|season|hdrc|dvdscr|pre-dvd|p-dvd|pdc|rarbg|yts|amzn|netflix|hotstar|prime|disney|hc-esub|esub|subs)\b',
-        '', 
-        normalized, 
-        flags=re.IGNORECASE
-    )
-    
-    normalized = re.sub(r'[\._\-]', ' ', normalized)
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
-    
-    return normalized
-
-def extract_title_smart(text):
-    if not text or len(text) < 10:
-        return None
-    
-    text_hash = hash(text[:200])
-    
-    # Try cache manager first
-    if cache_manager and cache_manager.redis_enabled:
-        cached = asyncio.run(cache_manager.get(f"title:{text_hash}"))
-        if cached:
-            return cached
-    
+# UTILITY FUNCTION FOR EXTRACTING TITLE FROM TELEGRAM MESSAGE
+async def extract_title_from_telegram_msg(msg):
+    """Extract title from Telegram message"""
     try:
-        lines = [l.strip() for l in text.split('\n') if l.strip()]
-        if not lines:
-            return None
+        caption = msg.caption if hasattr(msg, 'caption') else None
+        file_name = None
         
-        first_line = lines[0]
-        
-        patterns = [
-            (r'^([A-Za-z\s]{3,50}?)\s*(?:\(?\d{4}\)?|\b(?:480p|720p|1080p|2160p|4k|hd|fhd|uhd)\b)', 1),
-            (r'🎬\s*([^\n\-\(]{3,60}?)\s*(?:\(\d{4}\)|$)', 1),
-            (r'^([^\-\n]{3,60}?)\s*\-', 1),
-            (r'^([^\(\n]{3,60}?)\s*\(\d{4}\)', 1),
-            (r'^([A-Za-z\s]{3,50}?)\s*(?:\d{4}|Hindi|Movie|Film|HDTC|WebDL|X264|AAC|ESub)', 1),
-        ]
-        
-        for pattern, group in patterns:
-            match = re.search(pattern, first_line, re.IGNORECASE)
-            if match:
-                title = match.group(group).strip()
-                title = re.sub(r'\s+', ' ', title)
-                if 3 <= len(title) <= 60:
-                    # Cache the result
-                    if cache_manager:
-                        asyncio.create_task(cache_manager.set(f"title:{text_hash}", title, expire_seconds=1800))
-                    return title
-        
-        # FALLBACK
-        if len(first_line) >= 3:
-            clean_title = re.sub(
-                r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv|hdrip|webdl|hindi|english|tamil|telugu|malayalam|kannada|punjabi|bengali|marathi|gujarati|movie|film|series|complete|full|part|episode|season|\d{4}|hdrc|dvdscr|pre-dvd|p-dvd|pdc|rarbg|yts|amzn|netflix|hotstar|prime|disney|hc-esub|esub|subs)\b',
-                '', 
-                first_line, 
-                flags=re.IGNORECASE
-            )
+        if msg.document:
+            file_name = msg.document.file_name
+        elif msg.video:
+            file_name = msg.video.file_name
             
-            clean_title = re.sub(r'[\._\-]', ' ', clean_title)
-            clean_title = re.sub(r'\s+', ' ', clean_title).strip()
-            
-            clean_title = re.sub(r'\s+\(\d{4}\)$', '', clean_title)
-            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
-            
-            if 3 <= len(clean_title) <= 60:
-                # Cache the result
-                if cache_manager:
-                    asyncio.create_task(cache_manager.set(f"title:{text_hash}", clean_title, expire_seconds=1800))
-                return clean_title
-                
-    except Exception as e:
-        logger.error(f"Title extraction error: {e}")
-    
-    if cache_manager:
-        asyncio.create_task(cache_manager.set(f"title:{text_hash}", None, expire_seconds=1800))
-    return None
-
-def extract_title_from_file(msg):
-    try:
-        if msg.caption:
-            t = extract_title_smart(msg.caption)
-            if t:
-                return t
-        
-        fn = msg.document.file_name if msg.document else (msg.video.file_name if msg.video else None)
-        if fn:
-            name = fn.rsplit('.', 1)[0]
-            name = re.sub(r'[\._\-]', ' ', name)
-            
-            name = re.sub(
-                r'\b(720p|1080p|480p|2160p|4k|HDRip|WEBRip|WEB-DL|BluRay|BRRip|DVDRip|HDTV|HDTC|X264|X265|HEVC|H264|H265|AAC|AC3|DD5\.1|DDP5\.1|HC|ESub|Subs|Hindi|English|Dual|Multi|Complete|Full|Movie|Film|\d{4})\b',
-                '', 
-                name, 
-                flags=re.IGNORECASE
-            )
-            
-            name = re.sub(r'\s+', ' ', name).strip()
-            name = re.sub(r'\s+\(\d{4}\)$', '', name)
-            name = re.sub(r'\s+\d{4}$', '', name)
-            
-            if 4 <= len(name) <= 50:
-                return name
+        return extract_title_from_file(file_name, caption)
     except Exception as e:
         logger.error(f"File title extraction error: {e}")
-    return None
-
-def format_size(size):
-    if not size:
-        return "Unknown"
-    if size < 1024*1024:
-        return f"{size/1024:.1f} KB"
-    elif size < 1024*1024*1024:
-        return f"{size/(1024*1024):.1f} MB"
-    else:
-        return f"{size/(1024*1024*1024):.2f} GB"
-
-def detect_quality(filename):
-    if not filename:
-        return "480p"
-    fl = filename.lower()
-    is_hevc = 'hevc' in fl or 'x265' in fl
-    if '2160p' in fl or '4k' in fl:
-        return "2160p HEVC" if is_hevc else "2160p"
-    elif '1080p' in fl:
-        return "1080p HEVC" if is_hevc else "1080p"
-    elif '720p' in fl:
-        return "720p HEVC" if is_hevc else "720p"
-    elif '480p' in fl:
-        return "480p HEVC" if is_hevc else "480p"
-    return "480p"
-
-def format_post(text):
-    if not text:
-        return ""
-    text = html.escape(text)
-    text = re.sub(r'(https?://[^\s]+)', r'<a href="\1" target="_blank" style="color:#00ccff">\1</a>', text)
-    return text.replace('\n', '<br>')
+        return None
 
 def channel_name(cid):
     return CHANNEL_CONFIG.get(cid, {}).get('name', f"Channel {cid}")
-
-def is_new(date):
-    try:
-        if isinstance(date, str):
-            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
-        hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
-        return hours <= 48
-    except:
-        return False
-
-def is_video_file(file_name):
-    if not file_name:
-        return False
-    video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.mpg', '.mpeg']
-    file_name_lower = file_name.lower()
-    return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
 # VIDEO THUMBNAIL PROCESSING
 async def extract_video_thumbnail(user_client, message):
@@ -519,7 +389,7 @@ async def index_single_file(message):
         if existing:
             return True
         
-        title = extract_title_from_file(message)
+        title = await extract_title_from_telegram_msg(message)
         if not title:
             return False
         
@@ -641,7 +511,7 @@ async def index_files_background():
         logger.error(f"❌ Background indexing error: {e}")
 
 # POSTER FETCHING USING MODULAR COMPONENT
-async def get_poster_guaranteed(title, session):
+async def get_poster_guaranteed(title):
     """Get poster using PosterFetcher module"""
     if poster_fetcher:
         return await poster_fetcher.fetch_poster(title)
@@ -902,7 +772,7 @@ async def search_movies_api(query, limit=12, page=1):
         async with aiohttp.ClientSession() as session:
             for result in result_data['results']:
                 try:
-                    poster_data = await get_poster_guaranteed(result['title'], session)
+                    poster_data = await get_poster_guaranteed(result['title'])
                     if poster_data and poster_data.get('poster_url'):
                         result['poster_url'] = poster_data['poster_url']
                         result['poster_source'] = poster_data['source']
@@ -963,25 +833,24 @@ async def get_home_movies_live():
                     movie['has_poster'] = True
         else:
             # Fallback to individual fetching
-            async with aiohttp.ClientSession() as session:
-                for movie in movies:
-                    try:
-                        poster_data = await get_poster_guaranteed(movie['title'], session)
-                        if poster_data and poster_data.get('poster_url'):
-                            movie['poster_url'] = poster_data['poster_url']
-                            movie['poster_source'] = poster_data['source']
-                            movie['poster_rating'] = poster_data.get('rating', '0.0')
-                            movie['has_poster'] = True
-                        else:
-                            movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                            movie['poster_source'] = 'custom'
-                            movie['poster_rating'] = '0.0'
-                            movie['has_poster'] = True
-                    except:
+            for movie in movies:
+                try:
+                    poster_data = await get_poster_guaranteed(movie['title'])
+                    if poster_data and poster_data.get('poster_url'):
+                        movie['poster_url'] = poster_data['poster_url']
+                        movie['poster_source'] = poster_data['source']
+                        movie['poster_rating'] = poster_data.get('rating', '0.0')
+                        movie['has_poster'] = True
+                    else:
                         movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
                         movie['poster_source'] = 'custom'
                         movie['poster_rating'] = '0.0'
                         movie['has_poster'] = True
+                except:
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'custom'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
     
     return movies
 
@@ -1252,11 +1121,6 @@ async def init_telegram_clients():
             logger.error(f"❌ Bot Error: {e}")
             bot_started = False
         
-        # Setup bot handlers if SK4FiLMBot instance exists
-        if sk4film_bot and sk4film_bot.bot_started:
-            await setup_bot_handlers(bot, sk4film_bot)
-            logger.info("✅ Bot handlers setup complete")
-        
         return True
         
     except Exception as e:
@@ -1312,6 +1176,11 @@ async def init_system():
         telegram_ok = await init_telegram_clients()
         if not telegram_ok:
             logger.warning("⚠️ Telegram clients not initialized")
+        
+        # Setup bot handlers
+        if sk4film_bot and sk4film_bot.bot_started and bot:
+            await setup_bot_handlers(bot, sk4film_bot)
+            logger.info("✅ Bot handlers setup complete")
         
         # Start background tasks
         asyncio.create_task(cache_cleanup())
