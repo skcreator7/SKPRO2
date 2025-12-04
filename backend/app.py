@@ -933,40 +933,91 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
 # OPTIMIZED API FUNCTIONS
 @performance_monitor.measure("search_api")
 async def search_movies_api(query, limit=12, page=1):
-    """Optimized search API"""
-    result_data = await search_movies_multi_channel(query, limit, page)
-    
-    # Enhance with posters using batch fetching
-    if poster_fetcher:
-        # Get posters for all results in batch
-        titles = [result['title'] for result in result_data['results']]
-        posters = await poster_fetcher.fetch_batch_posters(titles)
+    """Optimized search API with timeout protection"""
+    try:
+        # Set timeout for search
+        search_task = asyncio.create_task(search_movies_multi_channel(query, limit, page))
         
-        for result in result_data['results']:
-            if result['title'] in posters:
-                poster_data = posters[result['title']]
-                result['poster_url'] = poster_data['poster_url']
-                result['poster_source'] = poster_data['source']
-                result['poster_rating'] = poster_data.get('rating', '0.0')
-                result['has_poster'] = True
-            else:
-                # Fast fallback
-                result['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result['title'])}"
-                result['poster_source'] = 'custom'
-                result['poster_rating'] = '0.0'
-                result['has_poster'] = False
-    
-    return result_data
+        try:
+            result_data = await asyncio.wait_for(search_task, timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning(f"⏰ Search timeout for query: {query}")
+            # Return cached or empty results
+            if cache_manager:
+                cached = await cache_manager.get_search_results(query, page, limit)
+                if cached:
+                    return cached
+            
+            return {
+                'results': [],
+                'pagination': {
+                    'current_page': page,
+                    'total_pages': 1,
+                    'total_results': 0,
+                    'per_page': limit,
+                    'has_next': False,
+                    'has_previous': False
+                },
+                'search_metadata': {
+                    'timeout': True,
+                    'query': query
+                }
+            }
+        
+        # Enhance with posters using batch fetching with timeout
+        if poster_fetcher and result_data.get('results'):
+            titles = [result['title'] for result in result_data['results']]
+            
+            # Fetch posters with timeout
+            try:
+                posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
+                posters = await asyncio.wait_for(posters_task, timeout=3.0)
+                
+                for result in result_data['results']:
+                    if result['title'] in posters:
+                        poster_data = posters[result['title']]
+                        result['poster_url'] = poster_data.get('poster_url', '')
+                        result['poster_source'] = poster_data.get('source', 'custom')
+                        result['poster_rating'] = poster_data.get('rating', '0.0')
+                        result['has_poster'] = True
+                    else:
+                        # Fast fallback
+                        result['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result['title'])}"
+                        result['poster_source'] = 'custom'
+                        result['poster_rating'] = '0.0'
+                        result['has_poster'] = False
+                        
+            except asyncio.TimeoutError:
+                logger.warning("⏰ Poster fetch timeout")
+                # Set default posters
+                for result in result_data['results']:
+                    result['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result['title'])}"
+                    result['poster_source'] = 'custom'
+                    result['poster_rating'] = '0.0'
+                    result['has_poster'] = False
+        
+        return result_data
+        
+    except Exception as e:
+        logger.error(f"Search API error: {e}")
+        raise
 
+# Update get_home_movies_live function:
 @performance_monitor.measure("home_movies")
 async def get_home_movies_live():
-    """Optimized home movies"""
-    posts = await get_live_posts_multi_channel(limit_per_channel=15)
+    """Optimized home movies with timeout"""
+    try:
+        posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=10))
+        posts = await asyncio.wait_for(posts_task, timeout=3.0)
+        
+    except asyncio.TimeoutError:
+        logger.warning("⏰ Home movies timeout")
+        return []
     
     movies = []
     seen = set()
     
-    for post in posts:
+    for post in posts[:15]:  # Limit to 15
         tk = post['title'].lower().strip()
         if tk not in seen:
             seen.add(tk)
@@ -977,29 +1028,38 @@ async def get_home_movies_live():
                 'channel': post.get('channel_name', 'SK4FiLM'),
                 'channel_id': post.get('channel_id')
             })
-            if len(movies) >= 20:
-                break
     
-    # Batch fetch posters
+    # Fetch posters with timeout
     if movies and poster_fetcher:
         titles = [movie['title'] for movie in movies]
-        posters = await poster_fetcher.fetch_batch_posters(titles)
         
-        for movie in movies:
-            if movie['title'] in posters:
-                poster_data = posters[movie['title']]
-                movie['poster_url'] = poster_data['poster_url']
-                movie['poster_source'] = poster_data['source']
-                movie['poster_rating'] = poster_data.get('rating', '0.0')
-                movie['has_poster'] = True
-            else:
+        try:
+            posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
+            posters = await asyncio.wait_for(posters_task, timeout=2.0)
+            
+            for movie in movies:
+                if movie['title'] in posters:
+                    poster_data = posters[movie['title']]
+                    movie['poster_url'] = poster_data.get('poster_url', '')
+                    movie['poster_source'] = poster_data.get('source', 'custom')
+                    movie['poster_rating'] = poster_data.get('rating', '0.0')
+                    movie['has_poster'] = True
+                else:
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'custom'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
+                    
+        except asyncio.TimeoutError:
+            logger.warning("⏰ Home posters timeout")
+            for movie in movies:
                 movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
                 movie['poster_source'] = 'custom'
                 movie['poster_rating'] = '0.0'
                 movie['has_poster'] = True
     
     return movies
-
+    
 # TELEGRAM BOT INITIALIZATION
 @performance_monitor.measure("telegram_init")
 async def init_telegram_clients():
