@@ -4,12 +4,11 @@ import json
 import base64
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
-from enum import Enum
+from enum import Enum  # ← ADD THIS IMPORT
 from io import BytesIO
 import aiohttp
 import urllib.parse
 import logging
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -132,109 +131,39 @@ class PosterFetcher:
             logger.error(f"Letterboxd fetch error: {e}")
             return None
     
-    # ✅ FIXED: IMDb fetch method with proper error handling
     async def fetch_from_imdb(self, title: str, session: aiohttp.ClientSession) -> Optional[Dict[str, Any]]:
-        """Fetch poster from IMDb with robust error handling"""
+        """Fetch poster from IMDb"""
         try:
             clean_title = re.sub(r'[^\w\s]', '', title).strip()
-            if not clean_title or len(clean_title) < 2:
-                return None
-                
-            # URL encode the title
-            encoded_title = urllib.parse.quote(clean_title.replace(' ', '_'))
-            search_url = f"https://v2.sg.media-imdb.com/suggestion/{clean_title[0].lower()}/{encoded_title}.json"
+            search_url = f"https://v2.sg.media-imdb.com/suggestion/{clean_title[0].lower()}/" \
+                        f"{urllib.parse.quote(clean_title.replace(' ', '_'))}.json"
             
-            async with session.get(search_url, timeout=5, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json'
-            }) as r:
-                if r.status != 200:
-                    return None
-                    
-                try:
+            async with session.get(search_url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'}) as r:
+                if r.status == 200:
                     data = await r.json()
-                except:
-                    return None
-                    
-                if not data.get('d'):
-                    return None
-                
-                for item in data['d']:
-                    try:
-                        # ✅ FIXED: Handle different IMDB response formats
-                        poster_url = None
-                        
-                        if isinstance(item.get('i'), dict):
-                            # Format: {'height': 800, 'imageUrl': 'https://...', 'width': 600}
-                            poster_url = item['i'].get('imageUrl')
-                        elif isinstance(item.get('i'), list):
-                            # Format: ['https://...', 800, 600]
-                            if item['i'] and len(item['i']) > 0:
-                                poster_url = item['i'][0] if isinstance(item['i'][0], str) else None
-                        elif isinstance(item.get('i'), str):
-                            # Direct string URL
-                            poster_url = item['i']
-                        
-                        # ✅ FIXED: Validate poster_url is a string and starts with http
-                        if not poster_url or not isinstance(poster_url, str):
-                            continue
-                        
-                        # Clean up the URL
-                        poster_url = str(poster_url).strip()
-                        if not poster_url.startswith('http'):
-                            continue
-                        
-                        # Enhance quality
-                        poster_url = poster_url.replace('._V1_', '._V1_UX512_')
-                        poster_url = poster_url.replace('._V1_UX128_', '._V1_UX512_')
-                        poster_url = poster_url.replace('._V1_UX256_', '._V1_UX512_')
-                        
-                        # Extract year
-                        year = ''
-                        if isinstance(item.get('y'), (int, str)):
-                            year = str(item['y'])
-                        elif isinstance(item.get('yr'), (int, str)):
-                            year = str(item['yr'])
-                        
-                        if year == 'None' or year == '0':
-                            year = ''
-                        
-                        # Extract rating
-                        rating = '0.0'
-                        if isinstance(item.get('rank'), (int, float, str)):
-                            rating = str(item['rank'])
-                        elif isinstance(item.get('rating'), (int, float, str)):
-                            rating = str(item['rating'])
-                        
-                        if rating == 'None':
-                            rating = '0.0'
-                        
-                        result = {
-                            'poster_url': poster_url,
-                            'source': PosterSource.IMDB.value,
-                            'rating': rating,
-                            'year': year,
-                            'title': item.get('l', clean_title),
-                            'imdb_id': item.get('id', '')
-                        }
-                        
-                        self.stats['imdb'] += 1
-                        return result
-                        
-                    except Exception as e:
-                        logger.debug(f"IMDb item processing error: {e}")
-                        continue
-                        
+                    if data.get('d'):
+                        for item in data['d']:
+                            if item.get('i'):
+                                poster_url = item['i'][0] if isinstance(item['i'], list) else item['i']
+                                if poster_url and poster_url.startswith('http'):
+                                    # Enhance quality
+                                    poster_url = poster_url.replace('._V1_UX128_', '._V1_UX512_')
+                                    
+                                    result = {
+                                        'poster_url': poster_url,
+                                        'source': PosterSource.IMDB.value,
+                                        'rating': str(item.get('yr', '0.0')),
+                                        'year': str(item.get('yr', '')),
+                                        'title': item.get('l', clean_title),
+                                        'imdb_id': item.get('id')
+                                    }
+                                    
+                                    self.stats['imdb'] += 1
+                                    return result
             return None
             
-        except aiohttp.ClientError as e:
-            logger.debug(f"IMDb network error: {e}")
-            return None
-        except json.JSONDecodeError as e:
-            logger.debug(f"IMDb JSON decode error: {e}")
-            return None
         except Exception as e:
-            logger.debug(f"IMDb fetch error: {e}")
+            logger.error(f"IMDb fetch error: {e}")
             return None
     
     async def fetch_from_justwatch(self, title: str, session: aiohttp.ClientSession) -> Optional[Dict[str, Any]]:
@@ -454,9 +383,8 @@ class PosterFetcher:
                 'title': title
             }
     
-    # ✅ IMPROVED: fetch_poster with timeout and better error handling
     async def fetch_poster(self, title: str, use_cache: bool = True) -> Dict[str, Any]:
-        """Fetch poster for movie title from multiple sources with timeout"""
+        """Fetch poster for movie title from multiple sources"""
         cache_key = title.lower().strip()
         
         # Check cache first
@@ -466,85 +394,36 @@ class PosterFetcher:
                 self.stats['cache_hits'] += 1
                 return data
         
-        # Create session with timeout
-        timeout = aiohttp.ClientTimeout(total=8, connect=3, sock_read=5)
+        async with aiohttp.ClientSession() as session:
+            # Try all sources concurrently
+            sources = [
+                self.fetch_from_letterboxd(title, session),
+                self.fetch_from_imdb(title, session),
+                self.fetch_from_justwatch(title, session),
+                self.fetch_from_impawards(title, session),
+                self.fetch_from_omdb_tmdb(title, session),
+            ]
+            
+            results = await asyncio.gather(*sources, return_exceptions=True)
+            
+            # Find first successful result
+            for result in results:
+                if isinstance(result, dict) and result:
+                    # Cache the result
+                    self.poster_cache[cache_key] = (result, datetime.now())
+                    return result
         
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                # Try all sources with timeout
-                tasks = [
-                    asyncio.create_task(self.fetch_from_letterboxd(title, session)),
-                    asyncio.create_task(self.fetch_from_imdb(title, session)),
-                    asyncio.create_task(self.fetch_from_justwatch(title, session)),
-                    asyncio.create_task(self.fetch_from_impawards(title, session)),
-                    asyncio.create_task(self.fetch_from_omdb_tmdb(title, session)),
-                ]
-                
-                # Wait for first successful result with timeout
-                done, pending = await asyncio.wait(
-                    tasks,
-                    timeout=6.0,
-                    return_when=asyncio.FIRST_COMPLETED
-                )
-                
-                # Cancel pending tasks
-                for task in pending:
-                    task.cancel()
-                
-                # Check results
-                for task in done:
-                    try:
-                        result = task.result()
-                        if isinstance(result, dict) and result:
-                            # Cache the result
-                            self.poster_cache[cache_key] = (result, datetime.now())
-                            return result
-                    except Exception:
-                        continue
-            
-            # Fallback to custom poster
-            year_match = re.search(r'\b(19|20)\d{2}\b', title)
-            year = year_match.group() if year_match else ""
-            
-            custom_poster = await self.create_custom_poster(title, year)
-            self.poster_cache[cache_key] = (custom_poster, datetime.now())
-            
-            return custom_poster
-            
-        except asyncio.TimeoutError:
-            logger.debug(f"⏰ Poster fetch timeout for: {title}")
-            # Return custom poster
-            year_match = re.search(r'\b(19|20)\d{2}\b', title)
-            year = year_match.group() if year_match else ""
-            
-            custom_poster = {
-                'poster_url': f"{self.config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
-                'source': PosterSource.CUSTOM.value,
-                'rating': '0.0',
-                'year': year,
-                'title': title
-            }
-            self.poster_cache[cache_key] = (custom_poster, datetime.now())
-            return custom_poster
-            
-        except Exception as e:
-            logger.error(f"Poster fetch error for {title}: {e}")
-            year_match = re.search(r'\b(19|20)\d{2}\b', title)
-            year = year_match.group() if year_match else ""
-            
-            custom_poster = {
-                'poster_url': f"{self.config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
-                'source': PosterSource.CUSTOM.value,
-                'rating': '0.0',
-                'year': year,
-                'title': title
-            }
-            self.poster_cache[cache_key] = (custom_poster, datetime.now())
-            return custom_poster
+        # Fallback to custom poster
+        year_match = re.search(r'\b(19|20)\d{2}\b', title)
+        year = year_match.group() if year_match else ""
+        
+        custom_poster = await self.create_custom_poster(title, year)
+        self.poster_cache[cache_key] = (custom_poster, datetime.now())
+        
+        return custom_poster
     
-    # ✅ IMPROVED: fetch_batch_posters with concurrency limit
     async def fetch_batch_posters(self, titles: List[str]) -> Dict[str, Dict[str, Any]]:
-        """Fetch posters for multiple titles efficiently with concurrency limit"""
+        """Fetch posters for multiple titles efficiently"""
         results = {}
         
         # First, check cache for all titles
@@ -565,24 +444,14 @@ class PosterFetcher:
         if not pending_titles:
             return results
         
-        # Fetch remaining posters with concurrency limit
-        semaphore = asyncio.Semaphore(3)  # Limit to 3 concurrent requests
-        
-        async def fetch_with_limit(title):
-            async with semaphore:
-                return await self.fetch_poster(title, use_cache=False)
-        
-        # Create tasks
-        tasks = [fetch_with_limit(title) for title in pending_titles]
-        
-        try:
+        # Fetch remaining posters
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.fetch_poster(title, use_cache=False) for title in pending_titles]
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
             
             for title, result in zip(pending_titles, batch_results):
                 if isinstance(result, dict) and result:
                     results[title] = result
-        except Exception as e:
-            logger.error(f"Batch poster fetch error: {e}")
         
         return results
     
