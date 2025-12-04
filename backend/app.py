@@ -25,7 +25,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
 # ADD THIS IMPORT:
-from pyrogram import Client as TelegramClient
+from pyrogram import Client
 from pyrogram.errors import FloodWait
 
 # Import modular components
