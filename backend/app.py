@@ -24,8 +24,9 @@ from hypercorn.config import Config as HyperConfig
 from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
-# ADD PYROGRAM IMPORT HERE
+# ✅ ADD THESE PYROGRAM IMPORTS
 from pyrogram import Client
+from pyrogram.errors import FloodWait
 
 # Import modular components
 from cache import CacheManager
