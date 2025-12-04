@@ -109,6 +109,9 @@ class SK4FiLMBot:
             self.bot_started = True
             logger.info("✅ Bot started successfully")
             
+            # Setup handlers
+            await setup_bot_handlers(self.bot, self)
+            
             # Start cleanup tasks
             if self.verification_system:
                 asyncio.create_task(self.verification_system.start_cleanup_task())
@@ -144,11 +147,7 @@ class SK4FiLMBot:
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
 
-async def setup_bot_handlers(bot: Client, bot_instance):
-    """Setup bot commands and handlers"""
-    config = bot_instance.config
-    
-    async def send_file_to_user(client, user_id, file_message, quality="480p"):
+async def send_file_to_user(client, user_id, file_message, quality="480p", config=None):
     """Send file to user with proper error handling"""
     try:
         # Prepare file info
@@ -241,10 +240,12 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     except Exception as e:
         logger.error(f"File sending error: {e}")
         return False, f"Error: {str(e)}", 0
-    
-    async def handle_file_request(client, message, file_text):
+
+async def handle_file_request(client, message, file_text, bot_instance):
     """Handle file download request"""
     try:
+        config = bot_instance.config
+        
         # Clean the text
         clean_text = file_text.strip()
         logger.info(f"📥 Processing file request: {clean_text}")
@@ -374,7 +375,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         # Send file to user
         success, result_msg, file_size = await send_file_to_user(
-            client, message.chat.id, file_message, quality
+            client, message.chat.id, file_message, quality, config
         )
         
         if success:
@@ -411,11 +412,22 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "❌ **An error occurred**\n\n"
             "Please try again or contact support."
         )
+
+async def setup_bot_handlers(bot: Client, bot_instance):
+    """Setup bot commands and handlers"""
+    config = bot_instance.config
     
     # ✅ START COMMAND HANDLER
+    @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
         """Handle /start command"""
         user_name = message.from_user.first_name or "User"
+        
+        # Check if there's additional text (file request)
+        if len(message.command) > 1:
+            file_text = ' '.join(message.command[1:])
+            await handle_file_request(client, message, file_text, bot_instance)
+            return
         
         welcome_text = (
             f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
@@ -433,6 +445,13 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         ])
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+    
+    # ✅ Also handle direct messages with file format
+    @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+'))
+    async def handle_direct_file_request(client, message):
+        """Handle direct file format messages like -1001768249569_16066_480p"""
+        file_text = message.text.strip()
+        await handle_file_request(client, message, file_text, bot_instance)
     
     # ✅ PREMIUM CALLBACK
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
@@ -512,5 +531,32 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         await callback_query.message.edit_text(text, reply_markup=keyboard)
     
+    # ✅ SCREENSHOT CALLBACK
+    @bot.on_callback_query(filters.regex(r"^send_screenshot_"))
+    async def send_screenshot_callback(client, callback_query):
+        payment_id = callback_query.data.split('_')[2]
+        
+        text = (
+            "📸 **Please send the payment screenshot now**\n\n"
+            "1. Take a clear screenshot of the payment\n"
+            "2. Send it to this chat\n"
+            "3. Our admin will verify and activate your premium\n\n"
+            f"**Payment ID:** `{payment_id}`\n"
+            "⏰ Please send within 1 hour of payment"
+        )
+        
+        await callback_query.message.edit_text(text)
+    
+    # ✅ HANDLE SCREENSHOT MESSAGES
+    @bot.on_message(filters.private & (filters.photo | filters.document))
+    async def handle_screenshot(client, message):
+        """Handle payment screenshots"""
+        # Check if it's likely a screenshot
+        if message.photo or (message.document and message.document.mime_type and 'image' in message.document.mime_type):
+            await message.reply_text(
+                "✅ **Screenshot received!**\n\n"
+                "Our admin will verify your payment and activate your premium within 24 hours.\n"
+                "Thank you for choosing SK4FiLM! 🎬"
+            )
+    
     logger.info("✅ Bot handlers setup complete - Ready to send files!")
-    return bot
