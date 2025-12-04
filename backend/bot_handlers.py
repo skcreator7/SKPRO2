@@ -1,6 +1,6 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FIXED: Handles /start -1001768249569_16066_480p format
+FIXED: Handles /start -1001768249569_16066_480p format with access control
 """
 import asyncio
 import logging
@@ -147,10 +147,66 @@ class SK4FiLMBot:
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
 
-async def send_file_to_user(client, user_id, file_message, quality="480p", config=None):
-    """Send file to user with proper error handling"""
+async def send_file_to_user(client, user_id, file_message, quality="480p", config=None, bot_instance=None):
+    """Send file to user with verification check AND SUCCESS MESSAGE WITH BUTTONS"""
     try:
-        # Prepare file info
+        # ✅ FIRST CHECK: Verify user is premium/verified/admin
+        user_status = "Checking..."
+        status_icon = "⏳"
+        can_download = False
+        
+        # Check if user is admin
+        is_admin = user_id in getattr(config, 'ADMIN_IDS', [])
+        
+        if is_admin:
+            can_download = True
+            user_status = "Admin User 👑"
+            status_icon = "👑"
+        elif bot_instance and bot_instance.premium_system:
+            # Check premium status
+            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+            if is_premium:
+                can_download = True
+                user_status = "Premium User ⭐"
+                status_icon = "⭐"
+            else:
+                # Check verification status
+                if bot_instance.verification_system:
+                    is_verified, _ = await bot_instance.verification_system.check_user_verified(
+                        user_id, bot_instance.premium_system
+                    )
+                    if is_verified:
+                        can_download = True
+                        user_status = "Verified User ✅"
+                        status_icon = "✅"
+                    else:
+                        # User needs verification
+                        verification_data = await bot_instance.verification_system.create_verification_link(user_id)
+                        return False, {
+                            'message': f"🔒 **Access Restricted**\n\n❌ You need to verify or purchase premium to download files.",
+                            'buttons': [
+                                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_data['short_url'])],
+                                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+                            ]
+                        }, 0
+                else:
+                    return False, {
+                        'message': "❌ Verification system not available. Please try again later.",
+                        'buttons': []
+                    }, 0
+        else:
+            return False, {
+                'message': "❌ System temporarily unavailable. Please try again later.",
+                'buttons': []
+            }, 0
+        
+        if not can_download:
+            return False, {
+                'message': "❌ Access denied. Please upgrade to premium or complete verification.",
+                'buttons': []
+            }, 0
+        
+        # ✅ FILE SENDING LOGIC
         if file_message.document:
             file_name = file_message.document.file_name or "file"
             file_size = file_message.document.file_size or 0
@@ -162,44 +218,64 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
             file_id = file_message.video.file_id
             is_video = True
         else:
-            return False, "No downloadable file found in this message", 0
+            return False, {
+                'message': "❌ No downloadable file found in this message",
+                'buttons': []
+            }, 0
         
         # ✅ FIX: Validate file ID
         if not file_id:
             logger.error(f"❌ Empty file ID for message {file_message.id}")
-            return False, "File ID is empty", 0
+            return False, {
+                'message': "❌ File ID is empty. Please try download again.",
+                'buttons': []
+            }, 0
         
-        # ✅ FIX: Try to send with different methods
+        # ✅ FILE CAPTION WITH STATUS
+        file_caption = (
+            f"📁 **File:** `{file_name}`\n"
+            f"📦 **Size:** {format_size(file_size)}\n"
+            f"📹 **Quality:** {quality}\n"
+            f"{status_icon} **Status:** {user_status}\n\n"
+            f"♻ **Forward to saved messages for safety**\n"
+            f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
+            f"@SK4FiLM 🎬"
+        )
+        
         try:
             if file_message.document:
                 sent = await client.send_document(
                     user_id,
                     file_id,
-                    caption=(
-                        f"📁 **File:** {file_name}\n"
-                        f"📦 **Size:** {format_size(file_size)}\n"
-                        f"📹 **Quality:** {quality}\n\n"
-                        f"♻ **Forward to saved messages for safety**\n"
-                        f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
-                        f"@SK4FiLM 🎬"
-                    )
+                    caption=file_caption,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
+                    ])
                 )
             else:
                 sent = await client.send_video(
                     user_id,
                     file_id,
-                    caption=(
-                        f"🎬 **Video:** {file_name}\n"
-                        f"📦 **Size:** {format_size(file_size)}\n"
-                        f"📹 **Quality:** {quality}\n\n"
-                        f"♻ **Forward to saved messages for safety**\n"
-                        f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
-                        f"@SK4FiLM 🎬"
-                    )
+                    caption=file_caption,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
+                    ])
                 )
             
-            logger.info(f"✅ File sent to user {user_id}: {file_name}")
-            return True, file_name, file_size
+            logger.info(f"✅ File sent to {user_status} user {user_id}: {file_name}")
+            
+            # ✅ SUCCESS RESPONSE WITH DATA FOR SUCCESS MESSAGE
+            return True, {
+                'success': True,
+                'file_name': file_name,
+                'file_size': file_size,
+                'quality': quality,
+                'user_status': user_status,
+                'status_icon': status_icon,
+                'auto_delete_minutes': config.AUTO_DELETE_TIME//60
+            }, file_size
             
         except BadRequest as e:
             if "MEDIA_EMPTY" in str(e) or "FILE_REFERENCE_EXPIRED" in str(e):
@@ -217,39 +293,79 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                     elif fresh_msg.video:
                         new_file_id = fresh_msg.video.file_id
                     else:
-                        return False, "File reference expired, please try download again", 0
+                        return False, {
+                            'message': "❌ File reference expired, please try download again",
+                            'buttons': []
+                        }, 0
                     
                     # Retry with new file ID
                     if file_message.document:
-                        sent = await client.send_document(user_id, new_file_id)
+                        sent = await client.send_document(
+                            user_id, 
+                            new_file_id,
+                            caption=file_caption,
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
+                            ])
+                        )
                     else:
-                        sent = await client.send_video(user_id, new_file_id)
+                        sent = await client.send_video(
+                            user_id, 
+                            new_file_id,
+                            caption=file_caption,
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
+                            ])
+                        )
                     
                     logger.info(f"✅ File sent with refreshed reference to {user_id}")
-                    return True, file_name, file_size
+                    
+                    return True, {
+                        'success': True,
+                        'file_name': file_name,
+                        'file_size': file_size,
+                        'quality': quality,
+                        'user_status': user_status,
+                        'status_icon': status_icon,
+                        'auto_delete_minutes': config.AUTO_DELETE_TIME//60,
+                        'refreshed': True
+                    }, file_size
                     
                 except Exception as retry_error:
                     logger.error(f"❌ Retry failed: {retry_error}")
-                    return False, "File reference expired, please try download again", 0
+                    return False, {
+                        'message': "❌ File reference expired, please try download again",
+                        'buttons': []
+                    }, 0
             else:
                 raise e  # Re-raise other BadRequest errors
                 
     except FloodWait as e:
         logger.warning(f"⏳ Flood wait: {e.value}s")
-        return False, f"Please wait {e.value} seconds (Telegram limit)", 0
+        return False, {
+            'message': f"⏳ Please wait {e.value} seconds (Telegram limit)",
+            'buttons': []
+        }, 0
     except Exception as e:
         logger.error(f"File sending error: {e}")
-        return False, f"Error: {str(e)}", 0
+        return False, {
+            'message': f"❌ Error: {str(e)}",
+            'buttons': []
+        }, 0
 
 async def handle_file_request(client, message, file_text, bot_instance):
-    """Handle file download request"""
+    """Handle file download request with user verification"""
     try:
         config = bot_instance.config
+        user_id = message.from_user.id
         
         # Clean the text
         clean_text = file_text.strip()
-        logger.info(f"📥 Processing file request: {clean_text}")
+        logger.info(f"📥 Processing file request from user {user_id}: {clean_text}")
         
+        # Parse file request
         # Remove /start if present
         if clean_text.startswith('/start'):
             clean_text = clean_text.replace('/start', '').strip()
@@ -305,7 +421,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
         processing_msg = await message.reply_text(
             f"⏳ **Preparing your file...**\n\n"
             f"📹 **Quality:** {quality}\n"
-            f"🔄 **Please wait...**"
+            f"🔄 **Checking access...**"
         )
         
         # Get file from channel
@@ -357,60 +473,77 @@ async def handle_file_request(client, message, file_text, bot_instance):
             )
             return
         
-        # ✅ FIX: Check if file exists and has valid file_id
-        if file_message.document:
-            if not file_message.document.file_id:
-                await processing_msg.edit_text(
-                    "❌ **File reference expired**\n\n"
-                    "Please try downloading again from the website."
-                )
-                return
-        elif file_message.video:
-            if not file_message.video.file_id:
-                await processing_msg.edit_text(
-                    "❌ **Video reference expired**\n\n"
-                    "Please try downloading again from the website."
-                )
-                return
-        
-        # Send file to user
-        success, result_msg, file_size = await send_file_to_user(
-            client, message.chat.id, file_message, quality, config
+        # ✅ Send file to user with bot_instance parameter
+        success, result_data, file_size = await send_file_to_user(
+            client, message.chat.id, file_message, quality, config, bot_instance
         )
         
         if success:
+            # File was sent with caption and buttons
             await processing_msg.delete()
             
-            # Send success message
+            # ✅ SEND SUCCESS MESSAGE WITH MORE BUTTONS
+            success_buttons = []
+            
+            if result_data.get('user_status') == "Verified User ✅":
+                # Verified users see upgrade button
+                success_buttons.append([InlineKeyboardButton("⭐ UPGRADE TO PREMIUM", callback_data="buy_premium")])
+            
+            success_buttons.extend([
+                [InlineKeyboardButton("🔍 SEARCH MORE", url=config.WEBSITE_URL)],
+                [InlineKeyboardButton("📱 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
+                [InlineKeyboardButton("🔄 GET ANOTHER FILE", callback_data="back_to_start")]
+            ])
+            
             success_text = (
-                f"✅ **File sent successfully!**\n\n"
-                f"📁 **File:** {result_msg}\n"
-                f"📦 **Size:** {format_size(file_size)}\n"
-                f"📹 **Quality:** {quality}\n\n"
-                f"♻ **Forward to saved messages**\n"
-                f"⏰ **Auto-deletes in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
-                f"⭐ **Upgrade to Premium for faster downloads!**"
+                f"🎉 **Download Complete!** 🎉\n\n"
+                f"✅ **File successfully sent!**\n"
+                f"📁 **Name:** `{result_data['file_name']}`\n"
+                f"📦 **Size:** {format_size(result_data['file_size'])}\n"
+                f"📹 **Quality:** {result_data['quality']}\n"
+                f"{result_data['status_icon']} **Status:** {result_data['user_status']}\n\n"
+                f"⚠️ **Important Notes:**\n"
+                f"• File auto-deletes in {result_data['auto_delete_minutes']} minutes\n"
+                f"• Forward to saved messages for safety\n"
+                f"• Check spam folder if not received\n\n"
+                f"🎬 **Thank you for using SK4FiLM!**"
             )
             
             await message.reply_text(
                 success_text,
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
-                ])
+                reply_markup=InlineKeyboardMarkup(success_buttons),
+                disable_web_page_preview=True
             )
+            
+            # ✅ Record download for statistics
+            if bot_instance.premium_system:
+                await bot_instance.premium_system.record_download(
+                    user_id, 
+                    file_size, 
+                    quality
+                )
+                logger.info(f"📊 Download recorded for user {user_id}")
+            
         else:
-            await processing_msg.edit_text(
-                f"❌ **File sending failed**\n\n"
-                f"{result_msg}\n\n"
-                "Please try again in a few moments."
-            )
+            # Handle error with buttons if available
+            error_text = result_data['message']
+            error_buttons = result_data.get('buttons', [])
+            
+            if error_buttons:
+                await processing_msg.edit_text(
+                    error_text,
+                    reply_markup=InlineKeyboardMarkup(error_buttons),
+                    disable_web_page_preview=True
+                )
+            else:
+                await processing_msg.edit_text(error_text)
         
     except Exception as e:
         logger.error(f"File request handling error: {e}")
         await message.reply_text(
             "❌ **An error occurred**\n\n"
-            "Please try again or contact support."
+            "Please try again or contact support.\n"
+            f"Error: {str(e)[:100]}"
         )
 
 async def setup_bot_handlers(bot: Client, bot_instance):
@@ -422,6 +555,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def handle_start_command(client, message):
         """Handle /start command"""
         user_name = message.from_user.first_name or "User"
+        user_id = message.from_user.id
         
         # Check if there's additional text (file request)
         if len(message.command) > 1:
@@ -429,20 +563,52 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             await handle_file_request(client, message, file_text, bot_instance)
             return
         
+        # Check user status
+        user_status = "New User"
+        status_icon = "👋"
+        
+        if user_id in config.ADMIN_IDS:
+            user_status = "Admin 👑"
+            status_icon = "👑"
+        elif bot_instance.premium_system:
+            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+            if is_premium:
+                user_status = "Premium ⭐"
+                status_icon = "⭐"
+            elif bot_instance.verification_system:
+                is_verified, _ = await bot_instance.verification_system.check_user_verified(
+                    user_id, bot_instance.premium_system
+                )
+                if is_verified:
+                    user_status = "Verified ✅"
+                    status_icon = "✅"
+        
         welcome_text = (
-            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
+            f"🎬 **Welcome to SK4FiLM, {user_name}!** {status_icon}\n\n"
+            f"**Your Status:** {user_status}\n\n"
             "**How to download movies:**\n"
             f"1. **Visit:** {config.WEBSITE_URL}\n"
             "2. **Search for any movie**\n"
             "3. **Click download button**\n"
             "4. **File will appear here automatically**\n\n"
-            "⭐ **Premium users get instant access!**"
+            f"**Current Access:**\n"
+            f"{status_icon} **{user_status}** - {'Full access' if status_icon in ['👑', '⭐', '✅'] else 'Limited access'}\n\n"
+            f"⭐ **Premium users get instant access!**"
         )
         
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-        ])
+        buttons = []
+        if status_icon not in ['👑', '⭐', '✅']:
+            # Unverified users see verify button
+            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", callback_data="get_verified")])
+        
+        buttons.append([InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)])
+        
+        if status_icon != '👑':  # Non-admins see premium button
+            buttons.append([InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")])
+        
+        buttons.append([InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)])
+        
+        keyboard = InlineKeyboardMarkup(buttons)
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
@@ -453,10 +619,69 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         file_text = message.text.strip()
         await handle_file_request(client, message, file_text, bot_instance)
     
+    # ✅ GET VERIFIED CALLBACK
+    @bot.on_callback_query(filters.regex(r"^get_verified$"))
+    async def get_verified_callback(client, callback_query):
+        """Get verification link"""
+        user_id = callback_query.from_user.id
+        
+        if bot_instance.verification_system:
+            verification_data = await bot_instance.verification_system.create_verification_link(user_id)
+            
+            text = (
+                "🔗 **Verification Required**\n\n"
+                "To download files, you need to verify by joining our channel:\n\n"
+                f"🔗 **Verification Link:**\n{verification_data['short_url']}\n\n"
+                f"⏰ **Valid for:** {verification_data['valid_for_hours']} hours\n\n"
+                "**Steps:**\n"
+                "1. Click the link above\n"
+                "2. Join the channel\n"
+                "3. Click the verify button\n"
+                "4. Come back here and try downloading again"
+            )
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_data['short_url'])],
+                [InlineKeyboardButton("⭐ BUY PREMIUM (No Verification)", callback_data="buy_premium")],
+                [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+            ])
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard, disable_web_page_preview=True)
+        else:
+            await callback_query.message.edit_text(
+                "❌ Verification system not available. Please try again later.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+                ])
+            )
+    
     # ✅ PREMIUM CALLBACK
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
     async def buy_premium_callback(client, callback_query):
         """Show premium plans"""
+        user_id = callback_query.from_user.id
+        
+        # Check if already premium
+        if bot_instance.premium_system:
+            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+            if is_premium:
+                sub_details = await bot_instance.premium_system.get_subscription_details(user_id)
+                
+                text = (
+                    f"⭐ **You're Already Premium!** ⭐\n\n"
+                    f"**Plan:** {sub_details.get('tier_name', 'Premium')}\n"
+                    f"**Status:** {sub_details.get('status', 'Active')}\n"
+                    f"**Days Left:** {sub_details.get('days_remaining', 0)}\n\n"
+                    "Enjoy unlimited downloads! 🎬"
+                )
+                
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+                ])
+                
+                await callback_query.message.edit_text(text, reply_markup=keyboard)
+                return
+        
         text = (
             "⭐ **SK4FiLM PREMIUM PLANS** ⭐\n\n"
             "**Basic Plan - ₹99**\n"
@@ -483,16 +708,47 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_callback_query(filters.regex(r"^back_to_start$"))
     async def back_to_start_callback(client, callback_query):
         user_name = callback_query.from_user.first_name or "User"
+        user_id = callback_query.from_user.id
+        
+        # Check user status
+        user_status = "New User"
+        status_icon = "👋"
+        
+        if user_id in config.ADMIN_IDS:
+            user_status = "Admin 👑"
+            status_icon = "👑"
+        elif bot_instance.premium_system:
+            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+            if is_premium:
+                user_status = "Premium ⭐"
+                status_icon = "⭐"
+            elif bot_instance.verification_system:
+                is_verified, _ = await bot_instance.verification_system.check_user_verified(
+                    user_id, bot_instance.premium_system
+                )
+                if is_verified:
+                    user_status = "Verified ✅"
+                    status_icon = "✅"
+        
         welcome_text = (
-            f"🎬 **Welcome back, {user_name}!**\n\n"
+            f"🎬 **Welcome back, {user_name}!** {status_icon}\n\n"
+            f"**Your Status:** {user_status}\n\n"
             f"Visit {config.WEBSITE_URL} to download movies.\n"
             "Click any download button and the file will appear here automatically!"
         )
         
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-        ])
+        buttons = []
+        if status_icon not in ['👑', '⭐', '✅']:
+            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", callback_data="get_verified")])
+        
+        buttons.append([InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)])
+        
+        if status_icon != '👑':
+            buttons.append([InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")])
+        
+        buttons.append([InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)])
+        
+        keyboard = InlineKeyboardMarkup(buttons)
         
         await callback_query.message.edit_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
@@ -556,7 +812,11 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             await message.reply_text(
                 "✅ **Screenshot received!**\n\n"
                 "Our admin will verify your payment and activate your premium within 24 hours.\n"
-                "Thank you for choosing SK4FiLM! 🎬"
+                "Thank you for choosing SK4FiLM! 🎬\n\n"
+                "You will receive a confirmation message when activated.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
+                ])
             )
     
-    logger.info("✅ Bot handlers setup complete - Ready to send files!")
+    logger.info("✅ Bot handlers setup complete - Ready to send files with access control!")
