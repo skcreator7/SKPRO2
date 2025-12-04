@@ -1,13 +1,15 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FIXED: Handles /start -1001768249569_16066_480p format with access control
-FIXED: MESSAGE_NOT_MODIFIED errors in callback handlers
+FIXED: Single message approach - file with caption only, no extra success message
+FIXED: Added file deleted message after auto-delete
+FIXED: Added website visit reply when user messages after file deletion
+FIXED: No duplicate messages
 """
 import asyncio
 import logging
 import secrets
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
 # ✅ Complete Pyrogram imports
@@ -55,6 +57,12 @@ class SK4FiLMBot:
         self.user_client = None
         self.bot_started = False
         self.user_session_ready = False
+        
+        # Track auto-delete tasks
+        self.auto_delete_tasks = {}
+        
+        # Track users who received files (for website reply)
+        self.users_with_files = {}
         
         # Initialize all systems
         try:
@@ -130,6 +138,10 @@ class SK4FiLMBot:
     async def shutdown(self):
         """Shutdown bot"""
         try:
+            # Cancel all auto-delete tasks
+            for task_id, task in self.auto_delete_tasks.items():
+                task.cancel()
+            
             if self.bot and self.bot_started:
                 await self.bot.stop()
                 logger.info("✅ Bot stopped")
@@ -192,8 +204,60 @@ async def safe_edit_message(callback_query, text=None, reply_markup=None, disabl
         else:
             raise e
 
+async def schedule_file_deletion(bot_instance, user_id, file_message_id, file_name, auto_delete_minutes):
+    """Schedule file deletion and send notification"""
+    try:
+        # Wait for auto-delete time
+        await asyncio.sleep(auto_delete_minutes * 60)
+        
+        # Send file deleted notification
+        deleted_text = (
+            f"🗑️ **File Auto-Deleted**\n\n"
+            f"`{file_name}`\n\n"
+            f"⏰ **Deleted after:** {auto_delete_minutes} minutes\n"
+            f"✅ **Security measure completed**\n\n"
+            f"🔁 **Need the file again?**\n"
+            f"Visit website and download again\n"
+            f"🎬 @SK4FiLM"
+        )
+        
+        deleted_buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 VISIT WEBSITE", url=bot_instance.config.WEBSITE_URL)],
+            [InlineKeyboardButton("🔄 GET ANOTHER FILE", callback_data="back_to_start")]
+        ])
+        
+        # Try to send deletion notification
+        try:
+            await bot_instance.bot.send_message(
+                user_id,
+                deleted_text,
+                reply_markup=deleted_buttons
+            )
+            logger.info(f"✅ Auto-delete notification sent to user {user_id} for file {file_name}")
+            
+            # Mark user as having received a file (for website reply feature)
+            if user_id not in bot_instance.users_with_files:
+                bot_instance.users_with_files[user_id] = []
+            bot_instance.users_with_files[user_id].append({
+                'file_name': file_name,
+                'deleted_at': datetime.now()
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to send delete notification: {e}")
+            
+        # Clean up task from tracking
+        task_id = f"{user_id}_{file_message_id}"
+        if task_id in bot_instance.auto_delete_tasks:
+            del bot_instance.auto_delete_tasks[task_id]
+            
+    except asyncio.CancelledError:
+        logger.info(f"Auto-delete task cancelled for user {user_id}")
+    except Exception as e:
+        logger.error(f"Error in auto-delete task: {e}")
+
 async def send_file_to_user(client, user_id, file_message, quality="480p", config=None, bot_instance=None):
-    """Send file to user with verification check AND SUCCESS MESSAGE WITH BUTTONS"""
+    """Send file to user with verification check - SINGLE FILE ONLY, NO EXTRA MESSAGE"""
     try:
         # ✅ FIRST CHECK: Verify user is premium/verified/admin
         user_status = "Checking..."
@@ -276,7 +340,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 'buttons': []
             }, 0
         
-        # ✅ FILE CAPTION WITH STATUS
+        # ✅ SIMPLE CAPTION - NO SUCCESS MESSAGE HERE
         file_caption = (
             f"📁 **File:** `{file_name}`\n"
             f"📦 **Size:** {format_size(file_size)}\n"
@@ -311,7 +375,23 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
             
             logger.info(f"✅ File sent to {user_status} user {user_id}: {file_name}")
             
-            # ✅ SUCCESS RESPONSE WITH DATA FOR SUCCESS MESSAGE
+            # ✅ Schedule auto-delete notification
+            if bot_instance and config.AUTO_DELETE_TIME > 0:
+                auto_delete_minutes = config.AUTO_DELETE_TIME // 60
+                task_id = f"{user_id}_{sent.id}"
+                
+                # Cancel any existing task for this user
+                if task_id in bot_instance.auto_delete_tasks:
+                    bot_instance.auto_delete_tasks[task_id].cancel()
+                
+                # Create new auto-delete task
+                delete_task = asyncio.create_task(
+                    schedule_file_deletion(bot_instance, user_id, sent.id, file_name, auto_delete_minutes)
+                )
+                bot_instance.auto_delete_tasks[task_id] = delete_task
+                logger.info(f"⏰ Auto-delete scheduled for message {sent.id} in {auto_delete_minutes} minutes")
+            
+            # ✅ Return success - NO EXTRA SUCCESS MESSAGE NEEDED
             return True, {
                 'success': True,
                 'file_name': file_name,
@@ -319,7 +399,9 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 'quality': quality,
                 'user_status': user_status,
                 'status_icon': status_icon,
-                'auto_delete_minutes': config.AUTO_DELETE_TIME//60
+                'auto_delete_minutes': config.AUTO_DELETE_TIME//60,
+                'message_id': sent.id,
+                'single_message': True  # File sent, no extra message
             }, file_size
             
         except BadRequest as e:
@@ -367,6 +449,22 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                     
                     logger.info(f"✅ File sent with refreshed reference to {user_id}")
                     
+                    # ✅ Schedule auto-delete notification for refreshed file
+                    if bot_instance and config.AUTO_DELETE_TIME > 0:
+                        auto_delete_minutes = config.AUTO_DELETE_TIME // 60
+                        task_id = f"{user_id}_{sent.id}"
+                        
+                        # Cancel any existing task for this user
+                        if task_id in bot_instance.auto_delete_tasks:
+                            bot_instance.auto_delete_tasks[task_id].cancel()
+                        
+                        # Create new auto-delete task
+                        delete_task = asyncio.create_task(
+                            schedule_file_deletion(bot_instance, user_id, sent.id, file_name, auto_delete_minutes)
+                        )
+                        bot_instance.auto_delete_tasks[task_id] = delete_task
+                        logger.info(f"⏰ Auto-delete scheduled for refreshed message {sent.id}")
+                    
                     return True, {
                         'success': True,
                         'file_name': file_name,
@@ -375,7 +473,9 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                         'user_status': user_status,
                         'status_icon': status_icon,
                         'auto_delete_minutes': config.AUTO_DELETE_TIME//60,
-                        'refreshed': True
+                        'message_id': sent.id,
+                        'refreshed': True,
+                        'single_message': True
                     }, file_size
                     
                 except Exception as retry_error:
@@ -518,47 +618,14 @@ async def handle_file_request(client, message, file_text, bot_instance):
             )
             return
         
-        # ✅ Send file to user with bot_instance parameter
+        # ✅ Send file to user
         success, result_data, file_size = await send_file_to_user(
             client, message.chat.id, file_message, quality, config, bot_instance
         )
         
         if success:
-            # File was sent with caption and buttons
+            # File was sent with caption - NO EXTRA SUCCESS MESSAGE
             await processing_msg.delete()
-            
-            # ✅ SEND SUCCESS MESSAGE WITH MORE BUTTONS
-            success_buttons = []
-            
-            if result_data.get('user_status') == "Verified User ✅":
-                # Verified users see upgrade button
-                success_buttons.append([InlineKeyboardButton("⭐ UPGRADE TO PREMIUM", callback_data="buy_premium")])
-            
-            success_buttons.extend([
-                [InlineKeyboardButton("🔍 SEARCH MORE", url=config.WEBSITE_URL)],
-                [InlineKeyboardButton("📱 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
-                [InlineKeyboardButton("🔄 GET ANOTHER FILE", callback_data="back_to_start")]
-            ])
-            
-            success_text = (
-                f"🎉 **Download Complete!** 🎉\n\n"
-                f"✅ **File successfully sent!**\n"
-                f"📁 **Name:** `{result_data['file_name']}`\n"
-                f"📦 **Size:** {format_size(result_data['file_size'])}\n"
-                f"📹 **Quality:** {result_data['quality']}\n"
-                f"{result_data['status_icon']} **Status:** {result_data['user_status']}\n\n"
-                f"⚠️ **Important Notes:**\n"
-                f"• File auto-deletes in {result_data['auto_delete_minutes']} minutes\n"
-                f"• Forward to saved messages for safety\n"
-                f"• Check spam folder if not received\n\n"
-                f"🎬 **Thank you for using SK4FiLM!**"
-            )
-            
-            await message.reply_text(
-                success_text,
-                reply_markup=InlineKeyboardMarkup(success_buttons),
-                disable_web_page_preview=True
-            )
             
             # ✅ Record download for statistics
             if bot_instance.premium_system:
@@ -658,11 +725,57 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
     # ✅ Also handle direct messages with file format
-    @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+'))
+    @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
     async def handle_direct_file_request(client, message):
         """Handle direct file format messages like -1001768249569_16066_480p"""
         file_text = message.text.strip()
         await handle_file_request(client, message, file_text, bot_instance)
+    
+    # ✅ HANDLE REGULAR MESSAGES FOR WEBSITE REPLY
+    @bot.on_message(filters.private & filters.text & ~filters.command("start"))
+    async def handle_regular_message(client, message):
+        """Handle regular messages with website visit suggestion"""
+        user_id = message.from_user.id
+        user_message = message.text.strip()
+        
+        # Check if user has received files before
+        if user_id in bot_instance.users_with_files:
+            # Check if message is not a callback or command
+            if not user_message.startswith('/') and len(user_message) > 3:
+                # Check if it's not a file request pattern
+                if not re.match(r'^-?\d+_\d+(_\w+)?$', user_message):
+                    # Send website visit suggestion
+                    reply_text = (
+                        f"👋 **Hello!**\n\n"
+                        f"Looking for more movies to download?\n\n"
+                        f"🌐 **Visit our website:** {config.WEBSITE_URL}\n\n"
+                        f"**Features:**\n"
+                        f"• Search any movie\n"
+                        f"• Multiple quality options\n"
+                        f"• Fast downloads\n"
+                        f"• Regular updates\n\n"
+                        f"🎬 **Happy watching!**"
+                    )
+                    
+                    reply_buttons = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 VISIT WEBSITE NOW", url=config.WEBSITE_URL)],
+                        [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+                    ])
+                    
+                    await message.reply_text(
+                        reply_text,
+                        reply_markup=reply_buttons,
+                        disable_web_page_preview=True
+                    )
+                    return
+        
+        # If user hasn't received files or message is short, just acknowledge
+        if len(user_message) > 20:  # Only reply to longer messages
+            await message.reply_text(
+                f"👋 Hello! Type /start to begin or visit {config.WEBSITE_URL} to download movies.",
+                disable_web_page_preview=True
+            )
     
     # ✅ GET VERIFIED CALLBACK - FIXED MESSAGE_NOT_MODIFIED ERROR
     @bot.on_callback_query(filters.regex(r"^get_verified$"))
