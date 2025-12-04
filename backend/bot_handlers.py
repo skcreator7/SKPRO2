@@ -149,21 +149,29 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     config = bot_instance.config
     
     async def send_file_to_user(client, user_id, file_message, quality="480p"):
-        """Send file to user with proper error handling"""
+    """Send file to user with proper error handling"""
+    try:
+        # Prepare file info
+        if file_message.document:
+            file_name = file_message.document.file_name or "file"
+            file_size = file_message.document.file_size or 0
+            file_id = file_message.document.file_id
+            is_video = False
+        elif file_message.video:
+            file_name = file_message.video.file_name or "video.mp4"
+            file_size = file_message.video.file_size or 0
+            file_id = file_message.video.file_id
+            is_video = True
+        else:
+            return False, "No downloadable file found in this message", 0
+        
+        # ✅ FIX: Validate file ID
+        if not file_id:
+            logger.error(f"❌ Empty file ID for message {file_message.id}")
+            return False, "File ID is empty", 0
+        
+        # ✅ FIX: Try to send with different methods
         try:
-            # Prepare file info
-            if file_message.document:
-                file_name = file_message.document.file_name or "file"
-                file_size = file_message.document.file_size or 0
-                file_id = file_message.document.file_id
-                is_video = False
-            else:
-                file_name = file_message.video.file_name or "video.mp4"
-                file_size = file_message.video.file_size or 0
-                file_id = file_message.video.file_id
-                is_video = True
-            
-            # Send file
             if file_message.document:
                 sent = await client.send_document(
                     user_id,
@@ -194,210 +202,215 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.info(f"✅ File sent to user {user_id}: {file_name}")
             return True, file_name, file_size
             
-        except FloodWait as e:
-            logger.warning(f"⏳ Flood wait: {e.value}s")
-            return False, f"Please wait {e.value} seconds (Telegram limit)", 0
-        except Exception as e:
-            logger.error(f"File sending error: {e}")
-            return False, f"Error: {str(e)}", 0
+        except BadRequest as e:
+            if "MEDIA_EMPTY" in str(e) or "FILE_REFERENCE_EXPIRED" in str(e):
+                logger.error(f"❌ File reference expired or empty: {e}")
+                # Try to refresh file reference
+                try:
+                    # Get fresh message
+                    fresh_msg = await client.get_messages(
+                        file_message.chat.id,
+                        file_message.id
+                    )
+                    
+                    if fresh_msg.document:
+                        new_file_id = fresh_msg.document.file_id
+                    elif fresh_msg.video:
+                        new_file_id = fresh_msg.video.file_id
+                    else:
+                        return False, "File reference expired, please try download again", 0
+                    
+                    # Retry with new file ID
+                    if file_message.document:
+                        sent = await client.send_document(user_id, new_file_id)
+                    else:
+                        sent = await client.send_video(user_id, new_file_id)
+                    
+                    logger.info(f"✅ File sent with refreshed reference to {user_id}")
+                    return True, file_name, file_size
+                    
+                except Exception as retry_error:
+                    logger.error(f"❌ Retry failed: {retry_error}")
+                    return False, "File reference expired, please try download again", 0
+            else:
+                raise e  # Re-raise other BadRequest errors
+                
+    except FloodWait as e:
+        logger.warning(f"⏳ Flood wait: {e.value}s")
+        return False, f"Please wait {e.value} seconds (Telegram limit)", 0
+    except Exception as e:
+        logger.error(f"File sending error: {e}")
+        return False, f"Error: {str(e)}", 0
     
     async def handle_file_request(client, message, file_text):
-        """Handle file download request"""
-        try:
-            # Clean the text
-            clean_text = file_text.strip()
-            logger.info(f"📥 Processing file request: {clean_text}")
-            
-            # Remove /start if present
-            if clean_text.startswith('/start'):
-                clean_text = clean_text.replace('/start', '').strip()
-            
-            # Also handle /start with space
-            clean_text = re.sub(r'^/start\s+', '', clean_text)
-            
-            # Extract file ID parts
-            parts = clean_text.split('_')
-            logger.info(f"📥 Parts: {parts}")
-            
-            if len(parts) < 2:
-                await message.reply_text(
-                    "❌ **Invalid format**\n\n"
-                    "Correct format: `-1001768249569_16066_480p`\n"
-                    "Please click download button on website again."
-                )
-                return
-            
-            # Parse channel ID (could be negative)
-            channel_str = parts[0].strip()
-            try:
-                # Handle negative channel IDs
-                if channel_str.startswith('--'):
-                    # Double dash case
-                    channel_id = int(channel_str[1:])
-                else:
-                    channel_id = int(channel_str)
-            except ValueError:
-                await message.reply_text(
-                    "❌ **Invalid channel ID**\n\n"
-                    f"Channel ID '{channel_str}' is not valid.\n"
-                    "Please click download button on website again."
-                )
-                return
-            
-            # Parse message ID
-            try:
-                message_id = int(parts[1].strip())
-            except ValueError:
-                await message.reply_text(
-                    "❌ **Invalid message ID**\n\n"
-                    f"Message ID '{parts[1]}' is not valid."
-                )
-                return
-            
-            # Get quality
-            quality = parts[2].strip() if len(parts) > 2 else "480p"
-            
-            logger.info(f"📥 Parsed: channel={channel_id}, message={message_id}, quality={quality}")
-            
-            # Send processing message
-            processing_msg = await message.reply_text(
-                f"⏳ **Preparing your file...**\n\n"
-                f"📹 **Quality:** {quality}\n"
-                f"🔄 **Please wait...**"
+    """Handle file download request"""
+    try:
+        # Clean the text
+        clean_text = file_text.strip()
+        logger.info(f"📥 Processing file request: {clean_text}")
+        
+        # Remove /start if present
+        if clean_text.startswith('/start'):
+            clean_text = clean_text.replace('/start', '').strip()
+        
+        # Also handle /start with space
+        clean_text = re.sub(r'^/start\s+', '', clean_text)
+        
+        # Extract file ID parts
+        parts = clean_text.split('_')
+        logger.info(f"📥 Parts: {parts}")
+        
+        if len(parts) < 2:
+            await message.reply_text(
+                "❌ **Invalid format**\n\n"
+                "Correct format: `-1001768249569_16066_480p`\n"
+                "Please click download button on website again."
             )
-            
-            # Get file from channel
-            file_message = None
-            
-            # Try user client first
-            if bot_instance.user_client and bot_instance.user_session_ready:
-                try:
-                    file_message = await bot_instance.user_client.get_messages(
-                        channel_id, 
-                        message_id
-                    )
-                    logger.info("✅ Got file via user client")
-                except Exception as e:
-                    logger.warning(f"User client failed: {e}")
-            
-            # Try bot client
-            if not file_message:
+            return
+        
+        # Parse channel ID (could be negative)
+        channel_str = parts[0].strip()
+        try:
+            # Handle negative channel IDs
+            if channel_str.startswith('--'):
+                # Double dash case
+                channel_id = int(channel_str[1:])
+            else:
+                channel_id = int(channel_str)
+        except ValueError:
+            await message.reply_text(
+                "❌ **Invalid channel ID**\n\n"
+                f"Channel ID '{channel_str}' is not valid.\n"
+                "Please click download button on website again."
+            )
+            return
+        
+        # Parse message ID
+        try:
+            message_id = int(parts[1].strip())
+        except ValueError:
+            await message.reply_text(
+                "❌ **Invalid message ID**\n\n"
+                f"Message ID '{parts[1]}' is not valid."
+            )
+            return
+        
+        # Get quality
+        quality = parts[2].strip() if len(parts) > 2 else "480p"
+        
+        logger.info(f"📥 Parsed: channel={channel_id}, message={message_id}, quality={quality}")
+        
+        # Send processing message
+        processing_msg = await message.reply_text(
+            f"⏳ **Preparing your file...**\n\n"
+            f"📹 **Quality:** {quality}\n"
+            f"🔄 **Please wait...**"
+        )
+        
+        # Get file from channel
+        file_message = None
+        max_retries = 2
+        
+        for attempt in range(max_retries):
+            try:
+                # Try user client first
+                if bot_instance.user_client and bot_instance.user_session_ready:
+                    try:
+                        file_message = await bot_instance.user_client.get_messages(
+                            channel_id, 
+                            message_id
+                        )
+                        logger.info(f"✅ Attempt {attempt+1}: Got file via user client")
+                        break
+                    except Exception as e:
+                        logger.warning(f"Attempt {attempt+1}: User client failed: {e}")
+                
+                # Try bot client
                 try:
                     file_message = await client.get_messages(
                         channel_id, 
                         message_id
                     )
-                    logger.info("✅ Got file via bot client")
+                    logger.info(f"✅ Attempt {attempt+1}: Got file via bot client")
+                    break
                 except Exception as e:
-                    logger.error(f"Bot client failed: {e}")
-                    await processing_msg.edit_text(
-                        f"❌ **Error getting file**\n\n"
-                        f"Error: {str(e)}\n\n"
-                        "Please try again or contact support."
-                    )
-                    return
-            
-            if not file_message:
+                    logger.warning(f"Attempt {attempt+1}: Bot client failed: {e}")
+                    
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)  # Wait before retry
+                    
+            except Exception as e:
+                logger.error(f"Attempt {attempt+1} failed: {e}")
+        
+        if not file_message:
+            await processing_msg.edit_text(
+                "❌ **File not found**\n\n"
+                "The file may have been deleted or I don't have access."
+            )
+            return
+        
+        if not file_message.document and not file_message.video:
+            await processing_msg.edit_text(
+                "❌ **Not a downloadable file**\n\n"
+                "This message doesn't contain a video or document file."
+            )
+            return
+        
+        # ✅ FIX: Check if file exists and has valid file_id
+        if file_message.document:
+            if not file_message.document.file_id:
                 await processing_msg.edit_text(
-                    "❌ **File not found**\n\n"
-                    "The file may have been deleted or I don't have access."
+                    "❌ **File reference expired**\n\n"
+                    "Please try downloading again from the website."
                 )
                 return
-            
-            if not file_message.document and not file_message.video:
+        elif file_message.video:
+            if not file_message.video.file_id:
                 await processing_msg.edit_text(
-                    "❌ **Not a downloadable file**\n\n"
-                    "This message doesn't contain a video or document file."
+                    "❌ **Video reference expired**\n\n"
+                    "Please try downloading again from the website."
                 )
                 return
+        
+        # Send file to user
+        success, result_msg, file_size = await send_file_to_user(
+            client, message.chat.id, file_message, quality
+        )
+        
+        if success:
+            await processing_msg.delete()
             
-            # Send file to user
-            success, result_msg, file_size = await send_file_to_user(
-                client, message.chat.id, file_message, quality
+            # Send success message
+            success_text = (
+                f"✅ **File sent successfully!**\n\n"
+                f"📁 **File:** {result_msg}\n"
+                f"📦 **Size:** {format_size(file_size)}\n"
+                f"📹 **Quality:** {quality}\n\n"
+                f"♻ **Forward to saved messages**\n"
+                f"⏰ **Auto-deletes in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
+                f"⭐ **Upgrade to Premium for faster downloads!**"
             )
             
-            if success:
-                await processing_msg.delete()
-                
-                # Send success message
-                success_text = (
-                    f"✅ **File sent successfully!**\n\n"
-                    f"📁 **File:** {result_msg}\n"
-                    f"📦 **Size:** {format_size(file_size)}\n"
-                    f"📹 **Quality:** {quality}\n\n"
-                    f"♻ **Forward to saved messages**\n"
-                    f"⏰ **Auto-deletes in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
-                    f"⭐ **Upgrade to Premium for faster downloads!**"
-                )
-                
-                await message.reply_text(
-                    success_text,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
-                    ])
-                )
-            else:
-                await processing_msg.edit_text(
-                    f"❌ **File sending failed**\n\n"
-                    f"{result_msg}\n\n"
-                    "Please try again in a few moments."
-                )
-            
-        except Exception as e:
-            logger.error(f"File request handling error: {e}")
             await message.reply_text(
-                "❌ **An error occurred**\n\n"
-                "Please try again or contact support."
-            )
-    
-    # ✅ MAIN MESSAGE HANDLER
-    @bot.on_message(filters.text & filters.private)
-    async def handle_all_messages(client, message):
-        """Handle all private messages"""
-        try:
-            user_id = message.from_user.id
-            user_name = message.from_user.first_name or "User"
-            text = message.text.strip()
-            
-            logger.info(f"📱 Message from {user_id} ({user_name}): {text[:50]}...")
-            
-            # Handle /start command
-            if text.startswith('/start'):
-                if len(text.split()) > 1:
-                    # It's /start with file ID: /start -1001768249569_16066_480p
-                    file_part = text.split(' ', 1)[1]
-                    await handle_file_request(client, message, file_part)
-                else:
-                    # Regular /start command
-                    await handle_start_command(client, message)
-                return
-            
-            # Handle file requests (format: -1001768249569_16066_480p)
-            if '_' in text and (text.startswith('-100') or text.startswith('--100')):
-                await handle_file_request(client, message, text)
-                return
-            
-            # Default: show help
-            await message.reply_text(
-                "🎬 **SK4FiLM Download Bot**\n\n"
-                f"**How to download:**\n"
-                f"1. Visit {config.WEBSITE_URL}\n"
-                "2. Search for any movie\n"
-                "3. Click download button\n"
-                "4. File will appear here automatically\n\n"
-                "Or send a file ID in this format:\n"
-                "`-1001768249569_16066_480p`",
+                success_text,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-                ]),
-                disable_web_page_preview=True
+                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
+                ])
             )
-            
-        except Exception as e:
-            logger.error(f"Main handler error: {e}")
-            await message.reply_text("❌ **An error occurred**\n\nPlease try again.")
+        else:
+            await processing_msg.edit_text(
+                f"❌ **File sending failed**\n\n"
+                f"{result_msg}\n\n"
+                "Please try again in a few moments."
+            )
+        
+    except Exception as e:
+        logger.error(f"File request handling error: {e}")
+        await message.reply_text(
+            "❌ **An error occurred**\n\n"
+            "Please try again or contact support."
+        )
     
     # ✅ START COMMAND HANDLER
     async def handle_start_command(client, message):
