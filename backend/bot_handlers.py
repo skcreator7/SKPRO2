@@ -1,6 +1,7 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
 FIXED: Handles /start -1001768249569_16066_480p format with access control
+FIXED: MESSAGE_NOT_MODIFIED errors in callback handlers
 """
 import asyncio
 import logging
@@ -146,6 +147,50 @@ class SK4FiLMBot:
                 await self.cache_manager.stop()
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
+
+# ✅ FIXED: Utility function to prevent MESSAGE_NOT_MODIFIED errors
+async def safe_edit_message(callback_query, text=None, reply_markup=None, disable_web_page_preview=None):
+    """Safely edit message to avoid MESSAGE_NOT_MODIFIED errors"""
+    try:
+        current_text = callback_query.message.text or callback_query.message.caption
+        current_markup = callback_query.message.reply_markup
+        
+        # Check if text is different
+        text_changed = text is not None and text != current_text
+        
+        # Check if markup is different
+        markup_changed = False
+        if reply_markup is not None and current_markup is not None:
+            # Compare inline keyboard
+            if hasattr(reply_markup, 'inline_keyboard') and hasattr(current_markup, 'inline_keyboard'):
+                if str(reply_markup.inline_keyboard) != str(current_markup.inline_keyboard):
+                    markup_changed = True
+            else:
+                markup_changed = True
+        elif reply_markup is not None and current_markup is None:
+            markup_changed = True
+        elif reply_markup is None and current_markup is not None:
+            markup_changed = True
+        
+        # Only edit if something changed
+        if text_changed or markup_changed:
+            await callback_query.message.edit_text(
+                text=text if text is not None else current_text,
+                reply_markup=reply_markup,
+                disable_web_page_preview=disable_web_page_preview
+            )
+            return True
+        else:
+            # Nothing changed, just answer the callback
+            await callback_query.answer()
+            return False
+            
+    except Exception as e:
+        if "MESSAGE_NOT_MODIFIED" in str(e):
+            await callback_query.answer()
+            return False
+        else:
+            raise e
 
 async def send_file_to_user(client, user_id, file_message, quality="480p", config=None, bot_instance=None):
     """Send file to user with verification check AND SUCCESS MESSAGE WITH BUTTONS"""
@@ -619,10 +664,10 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         file_text = message.text.strip()
         await handle_file_request(client, message, file_text, bot_instance)
     
-    # ✅ GET VERIFIED CALLBACK
+    # ✅ GET VERIFIED CALLBACK - FIXED MESSAGE_NOT_MODIFIED ERROR
     @bot.on_callback_query(filters.regex(r"^get_verified$"))
     async def get_verified_callback(client, callback_query):
-        """Get verification link"""
+        """Get verification link - FIXED with safe_edit_message"""
         user_id = callback_query.from_user.id
         
         if bot_instance.verification_system:
@@ -646,19 +691,23 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
             ])
             
-            await callback_query.message.edit_text(text, reply_markup=keyboard, disable_web_page_preview=True)
-        else:
-            await callback_query.message.edit_text(
-                "❌ Verification system not available. Please try again later.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                ])
+            # ✅ FIXED: Use safe_edit_message to avoid MESSAGE_NOT_MODIFIED
+            edited = await safe_edit_message(
+                callback_query,
+                text=text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True
             )
+            
+            if not edited:
+                await callback_query.answer("Verification info already shown!")
+        else:
+            await callback_query.answer("Verification system not available!", show_alert=True)
     
-    # ✅ PREMIUM CALLBACK
+    # ✅ PREMIUM CALLBACK - FIXED MESSAGE_NOT_MODIFIED ERROR
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
     async def buy_premium_callback(client, callback_query):
-        """Show premium plans"""
+        """Show premium plans - FIXED with safe_edit_message"""
         user_id = callback_query.from_user.id
         
         # Check if already premium
@@ -679,7 +728,15 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
                 ])
                 
-                await callback_query.message.edit_text(text, reply_markup=keyboard)
+                # ✅ FIXED: Use safe_edit_message
+                edited = await safe_edit_message(
+                    callback_query,
+                    text=text,
+                    reply_markup=keyboard
+                )
+                
+                if not edited:
+                    await callback_query.answer("You're already premium!")
                 return
         
         text = (
@@ -702,9 +759,17 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
         ])
         
-        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        # ✅ FIXED: Use safe_edit_message
+        edited = await safe_edit_message(
+            callback_query,
+            text=text,
+            reply_markup=keyboard
+        )
+        
+        if not edited:
+            await callback_query.answer("Premium plans already shown!")
     
-    # ✅ BACK TO START
+    # ✅ BACK TO START - FIXED MESSAGE_NOT_MODIFIED ERROR
     @bot.on_callback_query(filters.regex(r"^back_to_start$"))
     async def back_to_start_callback(client, callback_query):
         user_name = callback_query.from_user.first_name or "User"
@@ -750,9 +815,18 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         keyboard = InlineKeyboardMarkup(buttons)
         
-        await callback_query.message.edit_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+        # ✅ FIXED: Use safe_edit_message
+        edited = await safe_edit_message(
+            callback_query,
+            text=welcome_text,
+            reply_markup=keyboard,
+            disable_web_page_preview=True
+        )
+        
+        if not edited:
+            await callback_query.answer("Already on home page!")
     
-    # ✅ PLAN SELECTION CALLBACKS
+    # ✅ PLAN SELECTION CALLBACKS - FIXED MESSAGE_NOT_MODIFIED ERROR
     @bot.on_callback_query(filters.regex(r"^plan_"))
     async def plan_selection_callback(client, callback_query):
         plan_type = callback_query.data.split('_')[1]
@@ -785,9 +859,17 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             [InlineKeyboardButton("🔙 BACK TO PLANS", callback_data="buy_premium")]
         ])
         
-        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        # ✅ FIXED: Use safe_edit_message
+        edited = await safe_edit_message(
+            callback_query,
+            text=text,
+            reply_markup=keyboard
+        )
+        
+        if not edited:
+            await callback_query.answer("Payment info already shown!")
     
-    # ✅ SCREENSHOT CALLBACK
+    # ✅ SCREENSHOT CALLBACK - FIXED MESSAGE_NOT_MODIFIED ERROR
     @bot.on_callback_query(filters.regex(r"^send_screenshot_"))
     async def send_screenshot_callback(client, callback_query):
         payment_id = callback_query.data.split('_')[2]
@@ -801,7 +883,17 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "⏰ Please send within 1 hour of payment"
         )
         
-        await callback_query.message.edit_text(text)
+        # ✅ FIXED: Instead of editing, send a new message and delete the old one
+        await callback_query.answer("Please send screenshot now!", show_alert=True)
+        
+        # Send new message
+        await callback_query.message.reply_text(text)
+        
+        # Try to delete the original callback message
+        try:
+            await callback_query.message.delete()
+        except:
+            pass
     
     # ✅ HANDLE SCREENSHOT MESSAGES
     @bot.on_message(filters.private & (filters.photo | filters.document))
