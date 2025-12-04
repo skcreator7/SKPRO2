@@ -1,8 +1,8 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
+FIXED: Added premium user add command for admins
 FIXED: Removed flood-causing handlers, rate limiting added
 FIXED: Single instance handling for file requests
-FIXED: Removed problematic website reply handler
 """
 import asyncio
 import logging
@@ -65,7 +65,6 @@ class SK4FiLMBot:
         # Rate limiting and deduplication
         self.user_request_times = defaultdict(list)
         self.processing_requests = {}  # Track currently processing requests
-        self.last_message_time = {}  # Track when we last messaged users
         
         # Initialize all systems
         try:
@@ -157,7 +156,7 @@ class SK4FiLMBot:
             if self.verification_system:
                 await self.verification_system.stop_cleanup_task()
             if self.premium_system:
-                await self.premium_system.stop_cleanup_task()
+                await bot_instance.premium_system.stop_cleanup_task()
             if self.cache_manager:
                 await self.cache_manager.stop()
         except Exception as e:
@@ -745,6 +744,215 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     """Setup bot commands and handlers - MINIMAL VERSION TO PREVENT FLOOD"""
     config = bot_instance.config
     
+    # ✅ ADMIN COMMANDS
+    @bot.on_message(filters.command("addpremium") & filters.user(config.ADMIN_IDS))
+    async def add_premium_command(client, message):
+        """Add premium user command for admins"""
+        try:
+            # Parse command: /addpremium <user_id> <days> <plan_type>
+            if len(message.command) < 4:
+                await message.reply_text(
+                    "❌ **Usage:** `/addpremium <user_id> <days> <plan_type>`\n\n"
+                    "**Examples:**\n"
+                    "• `/addpremium 123456789 30 basic`\n"
+                    "• `/addpremium 123456789 365 premium`\n\n"
+                    "**Plan types:** basic, premium"
+                )
+                return
+            
+            user_id = int(message.command[1])
+            days = int(message.command[2])
+            plan_type = message.command[3].lower()
+            
+            if plan_type not in ['basic', 'premium']:
+                await message.reply_text(
+                    "❌ **Invalid plan type**\n\n"
+                    "Use: `basic` or `premium`\n"
+                    "Example: `/addpremium 123456789 30 basic`"
+                )
+                return
+            
+            if days <= 0:
+                await message.reply_text("❌ Days must be greater than 0")
+                return
+            
+            # Get user info
+            try:
+                user = await client.get_users(user_id)
+                user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
+                username = f"@{user.username}" if user.username else "No username"
+            except:
+                user_name = f"User {user_id}"
+                username = "Unknown"
+            
+            # Add premium subscription
+            if bot_instance.premium_system:
+                success = await bot_instance.premium_system.add_premium_subscription(
+                    user_id=user_id,
+                    tier_name=plan_type.capitalize(),
+                    days_valid=days,
+                    payment_method="admin",
+                    payment_id=f"admin_{int(time.time())}"
+                )
+                
+                if success:
+                    await message.reply_text(
+                        f"✅ **Premium User Added Successfully!**\n\n"
+                        f"**User:** {user_name}\n"
+                        f"**ID:** `{user_id}`\n"
+                        f"**Username:** {username}\n"
+                        f"**Plan:** {plan_type.capitalize()}\n"
+                        f"**Duration:** {days} days\n\n"
+                        f"User can now download files without verification!"
+                    )
+                    
+                    # Notify user if possible
+                    try:
+                        await client.send_message(
+                            user_id,
+                            f"🎉 **Congratulations!** 🎉\n\n"
+                            f"You've been upgraded to **{plan_type.capitalize()} Premium** by admin!\n\n"
+                            f"✅ **Plan:** {plan_type.capitalize()}\n"
+                            f"📅 **Valid for:** {days} days\n"
+                            f"⭐ **Benefits:**\n"
+                            f"• Instant file access\n"
+                            f"• No verification required\n"
+                            f"• Priority support\n\n"
+                            f"🎬 **Enjoy unlimited downloads!**"
+                        )
+                    except:
+                        pass
+                else:
+                    await message.reply_text("❌ Failed to add premium subscription. Check logs.")
+            else:
+                await message.reply_text("❌ Premium system not available")
+                
+        except ValueError:
+            await message.reply_text(
+                "❌ **Invalid parameters**\n\n"
+                "Correct format: `/addpremium <user_id> <days> <plan_type>`\n"
+                "Example: `/addpremium 123456789 30 basic`"
+            )
+        except Exception as e:
+            logger.error(f"Add premium command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    @bot.on_message(filters.command("removepremium") & filters.user(config.ADMIN_IDS))
+    async def remove_premium_command(client, message):
+        """Remove premium user command for admins"""
+        try:
+            if len(message.command) < 2:
+                await message.reply_text(
+                    "❌ **Usage:** `/removepremium <user_id>`\n\n"
+                    "**Example:** `/removepremium 123456789`"
+                )
+                return
+            
+            user_id = int(message.command[1])
+            
+            if bot_instance.premium_system:
+                success = await bot_instance.premium_system.remove_premium_subscription(user_id)
+                
+                if success:
+                    await message.reply_text(
+                        f"✅ **Premium Removed Successfully!**\n\n"
+                        f"**User ID:** `{user_id}`\n"
+                        f"Premium access has been revoked."
+                    )
+                else:
+                    await message.reply_text("❌ User not found or not premium")
+            else:
+                await message.reply_text("❌ Premium system not available")
+                
+        except ValueError:
+            await message.reply_text("❌ Invalid user ID. Must be a number.")
+        except Exception as e:
+            logger.error(f"Remove premium command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    @bot.on_message(filters.command("checkpremium") & filters.user(config.ADMIN_IDS))
+    async def check_premium_command(client, message):
+        """Check premium status of user"""
+        try:
+            if len(message.command) < 2:
+                await message.reply_text(
+                    "❌ **Usage:** `/checkpremium <user_id>`\n\n"
+                    "**Example:** `/checkpremium 123456789`"
+                )
+                return
+            
+            user_id = int(message.command[1])
+            
+            if bot_instance.premium_system:
+                is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+                
+                if is_premium:
+                    details = await bot_instance.premium_system.get_subscription_details(user_id)
+                    
+                    # Get user info
+                    try:
+                        user = await client.get_users(user_id)
+                        user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
+                        username = f"@{user.username}" if user.username else "No username"
+                    except:
+                        user_name = f"User {user_id}"
+                        username = "Unknown"
+                    
+                    await message.reply_text(
+                        f"✅ **Premium User Found**\n\n"
+                        f"**User:** {user_name}\n"
+                        f"**ID:** `{user_id}`\n"
+                        f"**Username:** {username}\n"
+                        f"**Plan:** {details.get('tier_name', 'Unknown')}\n"
+                        f"**Status:** {details.get('status', 'Unknown')}\n"
+                        f"**Days Left:** {details.get('days_remaining', 0)}\n"
+                        f"**Expires:** {details.get('expires_at', 'Unknown')}"
+                    )
+                else:
+                    await message.reply_text(
+                        f"❌ **Not a Premium User**\n\n"
+                        f"User ID: `{user_id}`\n"
+                        f"This user does not have premium access."
+                    )
+            else:
+                await message.reply_text("❌ Premium system not available")
+                
+        except ValueError:
+            await message.reply_text("❌ Invalid user ID. Must be a number.")
+        except Exception as e:
+            logger.error(f"Check premium command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    @bot.on_message(filters.command("stats") & filters.user(config.ADMIN_IDS))
+    async def stats_command(client, message):
+        """Show bot statistics"""
+        try:
+            if bot_instance.premium_system:
+                stats = await bot_instance.premium_system.get_statistics()
+                
+                stats_text = (
+                    f"📊 **SK4FiLM Bot Statistics**\n\n"
+                    f"👥 **Total Users:** {stats.get('total_users', 0)}\n"
+                    f"⭐ **Premium Users:** {stats.get('premium_users', 0)}\n"
+                    f"✅ **Active Premium:** {stats.get('active_premium', 0)}\n"
+                    f"📥 **Total Downloads:** {stats.get('total_downloads', 0)}\n"
+                    f"💾 **Total Data Sent:** {stats.get('total_data_sent', '0 GB')}\n\n"
+                    f"🔄 **System Status:**\n"
+                    f"• Bot: {'✅ Online' if bot_instance.bot_started else '❌ Offline'}\n"
+                    f"• User Client: {'✅ Connected' if bot_instance.user_session_ready else '❌ Disconnected'}\n"
+                    f"• Verification: {'✅ Active' if bot_instance.verification_system else '❌ Inactive'}\n"
+                    f"• Premium: {'✅ Active' if bot_instance.premium_system else '❌ Inactive'}\n\n"
+                    f"⏰ **Uptime:** {stats.get('uptime', 'Unknown')}"
+                )
+                
+                await message.reply_text(stats_text, disable_web_page_preview=True)
+            else:
+                await message.reply_text("❌ Premium system not available for stats")
+                
+        except Exception as e:
+            logger.error(f"Stats command error: {e}")
+            await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
+    
     # ✅ START COMMAND HANDLER - SIMPLIFIED
     @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
@@ -846,6 +1054,31 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
     async def buy_premium_callback(client, callback_query):
         """Show premium plans - SIMPLIFIED"""
+        user_id = callback_query.from_user.id
+        
+        # Check if already premium
+        if bot_instance.premium_system:
+            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+            if is_premium:
+                details = await bot_instance.premium_system.get_subscription_details(user_id)
+                
+                text = (
+                    f"⭐ **You're Already Premium!** ⭐\n\n"
+                    f"**Plan:** {details.get('tier_name', 'Premium')}\n"
+                    f"**Days Left:** {details.get('days_remaining', 0)}\n\n"
+                    "Enjoy unlimited downloads! 🎬"
+                )
+                
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+                ])
+                
+                try:
+                    await callback_query.message.edit_text(text, reply_markup=keyboard)
+                except:
+                    await callback_query.answer("You're already premium!")
+                return
+        
         text = (
             "⭐ **SK4FiLM PREMIUM** ⭐\n\n"
             "**Basic - ₹99**\n"
@@ -883,6 +1116,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             plan_name = "Premium Plan"
             upi_id = config.UPI_ID_PREMIUM if hasattr(config, 'UPI_ID_PREMIUM') else "sk4filmbot@ybl"
         
+        payment_id = secrets.token_hex(8)
+        
         text = (
             f"💰 **Payment for {plan_name}**\n\n"
             f"**Amount:** ₹{amount}\n"
@@ -894,7 +1129,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         )
         
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📸 SEND SCREENSHOT", url=f"tg://openmessage?user_id={config.ADMIN_IDS[0] if config.ADMIN_IDS else 5928972764}")],
+            [InlineKeyboardButton("📸 SEND SCREENSHOT", callback_data=f"send_screenshot_{payment_id}")],
             [InlineKeyboardButton("🔙 BACK", callback_data="buy_premium")]
         ])
         
@@ -903,4 +1138,45 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         except:
             await callback_query.answer("Payment info!")
     
-    logger.info("✅ Bot handlers setup - FLOOD PROTECTED VERSION")
+    # ✅ SCREENSHOT CALLBACK - SIMPLIFIED
+    @bot.on_callback_query(filters.regex(r"^send_screenshot_"))
+    async def send_screenshot_callback(client, callback_query):
+        payment_id = callback_query.data.split('_')[2]
+        
+        text = (
+            "📸 **Please send the payment screenshot now**\n\n"
+            "1. Take a clear screenshot of the payment\n"
+            "2. Send it to this chat\n"
+            "3. Our admin will verify and activate your premium\n\n"
+            f"**Payment ID:** `{payment_id}`\n"
+            "⏰ Please send within 1 hour of payment"
+        )
+        
+        await callback_query.answer("Please send screenshot now!", show_alert=True)
+        
+        # Send new message
+        await callback_query.message.reply_text(text)
+        
+        # Try to delete the original callback message
+        try:
+            await callback_query.message.delete()
+        except:
+            pass
+    
+    # ✅ HANDLE SCREENSHOT MESSAGES
+    @bot.on_message(filters.private & (filters.photo | filters.document))
+    async def handle_screenshot(client, message):
+        """Handle payment screenshots"""
+        # Check if it's likely a screenshot
+        if message.photo or (message.document and message.document.mime_type and 'image' in message.document.mime_type):
+            await message.reply_text(
+                "✅ **Screenshot received!**\n\n"
+                "Our admin will verify your payment and activate your premium within 24 hours.\n"
+                "Thank you for choosing SK4FiLM! 🎬\n\n"
+                "You will receive a confirmation message when activated.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
+                ])
+            )
+    
+    logger.info("✅ Bot handlers setup complete with admin commands")
