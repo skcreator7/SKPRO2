@@ -1,6 +1,6 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FIXED: Complete Pyrogram imports
+FIXED: Handles /start -1001768249569_16066_480p format
 """
 import asyncio
 import logging
@@ -9,12 +9,32 @@ import re
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-# ✅ FIX: ADD THESE IMPORTS AT THE VERY TOP
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
-from pyrogram.errors import FloodWait, BadRequest
+# ✅ Complete Pyrogram imports
+try:
+    from pyrogram import Client, filters
+    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+    from pyrogram.errors import FloodWait, BadRequest
+    PYROGRAM_AVAILABLE = True
+except ImportError:
+    # Dummy classes for development
+    class Client: pass
+    class filters:
+        @staticmethod
+        def command(cmd): return lambda x: x
+        @staticmethod
+        def private(): return lambda x: x
+        @staticmethod
+        def regex(pattern): return lambda x: x
+        text = lambda x: x
+    class InlineKeyboardMarkup:
+        def __init__(self, buttons): pass
+    class InlineKeyboardButton:
+        def __init__(self, text, url=None, callback_data=None): pass
+    class Message: pass
+    class CallbackQuery: pass
+    PYROGRAM_AVAILABLE = False
 
-# Import from utils instead of app
+# Import utilities
 from utils import (
     normalize_title,
     extract_title_smart,
@@ -35,7 +55,7 @@ class SK4FiLMBot:
         self.bot_started = False
         self.user_session_ready = False
         
-        # Initialize systems
+        # Initialize all systems
         try:
             from verification import VerificationSystem
             from premium import PremiumSystem
@@ -47,7 +67,9 @@ class SK4FiLMBot:
             self.poster_fetcher = PosterFetcher(config)
             self.cache_manager = CacheManager(config)
             
+            # Initialize cache
             asyncio.create_task(self.cache_manager.init_redis())
+            
             logger.info("✅ All systems initialized")
         except Exception as e:
             logger.error(f"System initialization error: {e}")
@@ -70,7 +92,7 @@ class SK4FiLMBot:
                 workers=20
             )
             
-            # Initialize user client
+            # Initialize user client if session string is provided
             if self.config.USER_SESSION_STRING:
                 self.user_client = Client(
                     "user",
@@ -126,160 +148,246 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     """Setup bot commands and handlers"""
     config = bot_instance.config
     
-    # ✅ FILE SENDING HANDLER - MOST IMPORTANT
+    async def send_file_to_user(client, user_id, file_message, quality="480p"):
+        """Send file to user with proper error handling"""
+        try:
+            # Prepare file info
+            if file_message.document:
+                file_name = file_message.document.file_name or "file"
+                file_size = file_message.document.file_size or 0
+                file_id = file_message.document.file_id
+                is_video = False
+            else:
+                file_name = file_message.video.file_name or "video.mp4"
+                file_size = file_message.video.file_size or 0
+                file_id = file_message.video.file_id
+                is_video = True
+            
+            # Send file
+            if file_message.document:
+                sent = await client.send_document(
+                    user_id,
+                    file_id,
+                    caption=(
+                        f"📁 **File:** {file_name}\n"
+                        f"📦 **Size:** {format_size(file_size)}\n"
+                        f"📹 **Quality:** {quality}\n\n"
+                        f"♻ **Forward to saved messages for safety**\n"
+                        f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
+                        f"@SK4FiLM 🎬"
+                    )
+                )
+            else:
+                sent = await client.send_video(
+                    user_id,
+                    file_id,
+                    caption=(
+                        f"🎬 **Video:** {file_name}\n"
+                        f"📦 **Size:** {format_size(file_size)}\n"
+                        f"📹 **Quality:** {quality}\n\n"
+                        f"♻ **Forward to saved messages for safety**\n"
+                        f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
+                        f"@SK4FiLM 🎬"
+                    )
+                )
+            
+            logger.info(f"✅ File sent to user {user_id}: {file_name}")
+            return True, file_name, file_size
+            
+        except FloodWait as e:
+            logger.warning(f"⏳ Flood wait: {e.value}s")
+            return False, f"Please wait {e.value} seconds (Telegram limit)", 0
+        except Exception as e:
+            logger.error(f"File sending error: {e}")
+            return False, f"Error: {str(e)}", 0
+    
+    async def handle_file_request(client, message, file_text):
+        """Handle file download request"""
+        try:
+            # Clean the text
+            clean_text = file_text.strip()
+            logger.info(f"📥 Processing file request: {clean_text}")
+            
+            # Remove /start if present
+            if clean_text.startswith('/start'):
+                clean_text = clean_text.replace('/start', '').strip()
+            
+            # Also handle /start with space
+            clean_text = re.sub(r'^/start\s+', '', clean_text)
+            
+            # Extract file ID parts
+            parts = clean_text.split('_')
+            logger.info(f"📥 Parts: {parts}")
+            
+            if len(parts) < 2:
+                await message.reply_text(
+                    "❌ **Invalid format**\n\n"
+                    "Correct format: `-1001768249569_16066_480p`\n"
+                    "Please click download button on website again."
+                )
+                return
+            
+            # Parse channel ID (could be negative)
+            channel_str = parts[0].strip()
+            try:
+                # Handle negative channel IDs
+                if channel_str.startswith('--'):
+                    # Double dash case
+                    channel_id = int(channel_str[1:])
+                else:
+                    channel_id = int(channel_str)
+            except ValueError:
+                await message.reply_text(
+                    "❌ **Invalid channel ID**\n\n"
+                    f"Channel ID '{channel_str}' is not valid.\n"
+                    "Please click download button on website again."
+                )
+                return
+            
+            # Parse message ID
+            try:
+                message_id = int(parts[1].strip())
+            except ValueError:
+                await message.reply_text(
+                    "❌ **Invalid message ID**\n\n"
+                    f"Message ID '{parts[1]}' is not valid."
+                )
+                return
+            
+            # Get quality
+            quality = parts[2].strip() if len(parts) > 2 else "480p"
+            
+            logger.info(f"📥 Parsed: channel={channel_id}, message={message_id}, quality={quality}")
+            
+            # Send processing message
+            processing_msg = await message.reply_text(
+                f"⏳ **Preparing your file...**\n\n"
+                f"📹 **Quality:** {quality}\n"
+                f"🔄 **Please wait...**"
+            )
+            
+            # Get file from channel
+            file_message = None
+            
+            # Try user client first
+            if bot_instance.user_client and bot_instance.user_session_ready:
+                try:
+                    file_message = await bot_instance.user_client.get_messages(
+                        channel_id, 
+                        message_id
+                    )
+                    logger.info("✅ Got file via user client")
+                except Exception as e:
+                    logger.warning(f"User client failed: {e}")
+            
+            # Try bot client
+            if not file_message:
+                try:
+                    file_message = await client.get_messages(
+                        channel_id, 
+                        message_id
+                    )
+                    logger.info("✅ Got file via bot client")
+                except Exception as e:
+                    logger.error(f"Bot client failed: {e}")
+                    await processing_msg.edit_text(
+                        f"❌ **Error getting file**\n\n"
+                        f"Error: {str(e)}\n\n"
+                        "Please try again or contact support."
+                    )
+                    return
+            
+            if not file_message:
+                await processing_msg.edit_text(
+                    "❌ **File not found**\n\n"
+                    "The file may have been deleted or I don't have access."
+                )
+                return
+            
+            if not file_message.document and not file_message.video:
+                await processing_msg.edit_text(
+                    "❌ **Not a downloadable file**\n\n"
+                    "This message doesn't contain a video or document file."
+                )
+                return
+            
+            # Send file to user
+            success, result_msg, file_size = await send_file_to_user(
+                client, message.chat.id, file_message, quality
+            )
+            
+            if success:
+                await processing_msg.delete()
+                
+                # Send success message
+                success_text = (
+                    f"✅ **File sent successfully!**\n\n"
+                    f"📁 **File:** {result_msg}\n"
+                    f"📦 **Size:** {format_size(file_size)}\n"
+                    f"📹 **Quality:** {quality}\n\n"
+                    f"♻ **Forward to saved messages**\n"
+                    f"⏰ **Auto-deletes in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
+                    f"⭐ **Upgrade to Premium for faster downloads!**"
+                )
+                
+                await message.reply_text(
+                    success_text,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
+                    ])
+                )
+            else:
+                await processing_msg.edit_text(
+                    f"❌ **File sending failed**\n\n"
+                    f"{result_msg}\n\n"
+                    "Please try again in a few moments."
+                )
+            
+        except Exception as e:
+            logger.error(f"File request handling error: {e}")
+            await message.reply_text(
+                "❌ **An error occurred**\n\n"
+                "Please try again or contact support."
+            )
+    
+    # ✅ MAIN MESSAGE HANDLER
     @bot.on_message(filters.text & filters.private)
-    async def handle_file_request(client, message):
-        """Handle file download requests from website"""
+    async def handle_all_messages(client, message):
+        """Handle all private messages"""
         try:
             user_id = message.from_user.id
             user_name = message.from_user.first_name or "User"
-            
             text = message.text.strip()
-            logger.info(f"📥 File request from {user_id}: {text}")
             
-            # Check if it's a file link format: channel_message_quality
-            if '_' in text and text.count('_') >= 2:
-                try:
-                    parts = text.split('_')
-                    if len(parts) >= 3:
-                        channel_id = int(parts[0])
-                        message_id = int(parts[1])
-                        quality = parts[2] if len(parts) > 2 else "HD"
-                        
-                        # Send processing message
-                        processing_msg = await message.reply_text(
-                            f"⏳ **Preparing your file...**\n\n"
-                            f"📹 **Quality:** {quality}\n"
-                            f"🔄 **Please wait...**"
-                        )
-                        
-                        # Get file from channel using user client
-                        file_message = None
-                        if bot_instance.user_client and bot_instance.user_session_ready:
-                            try:
-                                file_message = await bot_instance.user_client.get_messages(
-                                    channel_id, 
-                                    message_id
-                                )
-                            except Exception as e:
-                                logger.error(f"User client error: {e}")
-                                file_message = None
-                        
-                        # Fallback to bot client
-                        if not file_message:
-                            try:
-                                file_message = await client.get_messages(
-                                    channel_id, 
-                                    message_id
-                                )
-                            except Exception as e:
-                                logger.error(f"Bot client error: {e}")
-                                await processing_msg.edit_text(
-                                    "❌ **File not found or access denied**\n"
-                                    "The file may have been deleted or I don't have access."
-                                )
-                                return
-                        
-                        if not file_message or (not file_message.document and not file_message.video):
-                            await processing_msg.edit_text("❌ **File not found**\n\nThe file may have been deleted.")
-                            return
-                        
-                        # Prepare file info
-                        if file_message.document:
-                            file_name = file_message.document.file_name or "file"
-                            file_size = file_message.document.file_size or 0
-                            file_id = file_message.document.file_id
-                            is_video = False
-                        else:
-                            file_name = file_message.video.file_name or "video.mp4"
-                            file_size = file_message.video.file_size or 0
-                            file_id = file_message.video.file_id
-                            is_video = True
-                        
-                        # Send file to user
-                        try:
-                            if file_message.document:
-                                sent = await client.send_document(
-                                    user_id,
-                                    file_id,
-                                    caption=(
-                                        f"📁 **File:** {file_name}\n"
-                                        f"📦 **Size:** {format_size(file_size)}\n"
-                                        f"📹 **Quality:** {quality}\n\n"
-                                        f"♻ **Forward to saved messages for safety**\n"
-                                        f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                        f"@SK4FiLM 🎬"
-                                    )
-                                )
-                            else:
-                                sent = await client.send_video(
-                                    user_id,
-                                    file_id,
-                                    caption=(
-                                        f"🎬 **Video:** {file_name}\n"
-                                        f"📦 **Size:** {format_size(file_size)}\n"
-                                        f"📹 **Quality:** {quality}\n\n"
-                                        f"♻ **Forward to saved messages for safety**\n"
-                                        f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                        f"@SK4FiLM 🎬"
-                                    )
-                                )
-                            
-                            await processing_msg.delete()
-                            logger.info(f"✅ File sent to user {user_id}: {file_name}")
-                            
-                            # Send success message
-                            success_text = (
-                                f"✅ **File sent successfully!**\n\n"
-                                f"📁 **File:** {file_name}\n"
-                                f"📦 **Size:** {format_size(file_size)}\n"
-                                f"📹 **Quality:** {quality}\n\n"
-                                f"♻ **Forward to saved messages**\n"
-                                f"⏰ **Auto-deletes in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
-                                f"⭐ **Upgrade to Premium for faster downloads!**"
-                            )
-                            
-                            await message.reply_text(
-                                success_text,
-                                reply_markup=InlineKeyboardMarkup([
-                                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
-                                ])
-                            )
-                            
-                            return
-                            
-                        except FloodWait as e:
-                            await processing_msg.edit_text(
-                                f"⏳ **Please wait {e.value} seconds**\n"
-                                "Telegram rate limit reached. Trying again..."
-                            )
-                            await asyncio.sleep(e.value)
-                            # Retry logic could be added here
-                            return
-                        except Exception as e:
-                            logger.error(f"File sending error: {e}")
-                            await processing_msg.edit_text("❌ **Error sending file**\n\nPlease try again later.")
-                            return
-                            
-                except Exception as e:
-                    logger.error(f"File download processing error: {e}")
-                    try:
-                        await processing_msg.edit_text("❌ **Error processing request**\n\nPlease try again.")
-                    except:
-                        pass
-                    return
+            logger.info(f"📱 Message from {user_id} ({user_name}): {text[:50]}...")
             
-            # If not a file link, show help
+            # Handle /start command
+            if text.startswith('/start'):
+                if len(text.split()) > 1:
+                    # It's /start with file ID: /start -1001768249569_16066_480p
+                    file_part = text.split(' ', 1)[1]
+                    await handle_file_request(client, message, file_part)
+                else:
+                    # Regular /start command
+                    await handle_start_command(client, message)
+                return
+            
+            # Handle file requests (format: -1001768249569_16066_480p)
+            if '_' in text and (text.startswith('-100') or text.startswith('--100')):
+                await handle_file_request(client, message, text)
+                return
+            
+            # Default: show help
             await message.reply_text(
-                "🎬 **SK4FiLM File Download**\n\n"
-                "**How to download:**\n"
-                f"1. **Visit website:** {config.WEBSITE_URL}\n"
-                "2. **Find any movie**\n"
-                "3. **Click download button**\n"
-                "4. **File link will appear here automatically**\n\n"
-                "The bot will automatically send you the file! 🍿\n\n"
-                "⭐ **Premium users get instant access!**",
+                "🎬 **SK4FiLM Download Bot**\n\n"
+                f"**How to download:**\n"
+                f"1. Visit {config.WEBSITE_URL}\n"
+                "2. Search for any movie\n"
+                "3. Click download button\n"
+                "4. File will appear here automatically\n\n"
+                "Or send a file ID in this format:\n"
+                "`-1001768249569_16066_480p`",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
                     [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
@@ -288,13 +396,12 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             )
             
         except Exception as e:
-            logger.error(f"Handler error: {e}")
+            logger.error(f"Main handler error: {e}")
             await message.reply_text("❌ **An error occurred**\n\nPlease try again.")
     
-    # ✅ START COMMAND
-    @bot.on_message(filters.command("start") & filters.private)
-    async def start_handler(client, message):
-        user_id = message.from_user.id
+    # ✅ START COMMAND HANDLER
+    async def handle_start_command(client, message):
+        """Handle /start command"""
         user_name = message.from_user.first_name or "User"
         
         welcome_text = (
@@ -304,6 +411,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "2. **Search for any movie**\n"
             "3. **Click download button**\n"
             "4. **File will appear here automatically**\n\n"
+            "⭐ **Premium users get instant access!**"
         )
         
         keyboard = InlineKeyboardMarkup([
@@ -317,10 +425,19 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
     async def buy_premium_callback(client, callback_query):
         """Show premium plans"""
-        text = "⭐ **SK4FiLM PREMIUM PLANS** ⭐\n\n"
-        text += "**Basic Plan - ₹99**\n• 1080p Quality\n• 10 Daily Downloads\n• Priority Support\n\n"
-        text += "**Premium Plan - ₹199**\n• 4K Quality\n• Unlimited Downloads\n• No Ads\n\n"
-        text += "Click below to purchase:"
+        text = (
+            "⭐ **SK4FiLM PREMIUM PLANS** ⭐\n\n"
+            "**Basic Plan - ₹99**\n"
+            "• 1080p Quality\n"
+            "• 10 Daily Downloads\n"
+            "• Priority Support\n\n"
+            "**Premium Plan - ₹199**\n"
+            "• 4K Quality\n"
+            "• Unlimited Downloads\n"
+            "• No Ads\n"
+            "• Highest Priority\n\n"
+            "Click below to purchase:"
+        )
         
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💰 BUY BASIC (₹99)", callback_data="plan_basic")],
@@ -334,7 +451,11 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_callback_query(filters.regex(r"^back_to_start$"))
     async def back_to_start_callback(client, callback_query):
         user_name = callback_query.from_user.first_name or "User"
-        welcome_text = f"🎬 **Welcome back, {user_name}!**\n\nVisit our website to download movies."
+        welcome_text = (
+            f"🎬 **Welcome back, {user_name}!**\n\n"
+            f"Visit {config.WEBSITE_URL} to download movies.\n"
+            "Click any download button and the file will appear here automatically!"
+        )
         
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
@@ -343,5 +464,40 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         await callback_query.message.edit_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    logger.info("✅ Bot handlers setup complete - File sending enabled!")
+    # ✅ PLAN SELECTION CALLBACKS
+    @bot.on_callback_query(filters.regex(r"^plan_"))
+    async def plan_selection_callback(client, callback_query):
+        plan_type = callback_query.data.split('_')[1]
+        
+        if plan_type == "basic":
+            amount = 99
+            plan_name = "Basic Plan"
+            upi_id = config.UPI_ID_BASIC if hasattr(config, 'UPI_ID_BASIC') else "sk4filmbot@ybl"
+        else:
+            amount = 199
+            plan_name = "Premium Plan"
+            upi_id = config.UPI_ID_PREMIUM if hasattr(config, 'UPI_ID_PREMIUM') else "sk4filmbot@ybl"
+        
+        payment_id = secrets.token_hex(8)
+        
+        text = (
+            f"💰 **Payment for {plan_name}**\n\n"
+            f"**Amount:** ₹{amount}\n"
+            f"**UPI ID:** `{upi_id}`\n\n"
+            "**Payment Instructions:**\n"
+            f"1. Send ₹{amount} to UPI ID: `{upi_id}`\n"
+            "2. Take screenshot of payment\n"
+            "3. Send screenshot to this bot\n\n"
+            "⏰ **Payment valid for 1 hour**\n"
+            "✅ **Admin will activate within 24 hours**"
+        )
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📸 SEND SCREENSHOT", callback_data=f"send_screenshot_{payment_id}")],
+            [InlineKeyboardButton("🔙 BACK TO PLANS", callback_data="buy_premium")]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+    
+    logger.info("✅ Bot handlers setup complete - Ready to send files!")
     return bot
