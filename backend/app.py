@@ -24,8 +24,8 @@ from hypercorn.config import Config as HyperConfig
 from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
-# ✅ ADD THESE PYROGRAM IMPORTS
-from pyrogram import Client
+# ADD THIS IMPORT:
+from pyrogram import Client as TelegramClient
 from pyrogram.errors import FloodWait
 
 # Import modular components
@@ -1150,46 +1150,69 @@ async def init_system():
         
         # Initialize Cache Manager
         cache_manager = CacheManager(Config)
-        await cache_manager.init_redis()
-        await cache_manager.start_cleanup_task()
-        logger.info("✅ Cache Manager initialized")
+        redis_ok = await cache_manager.init_redis()
+        if redis_ok:
+            logger.info("✅ Cache Manager initialized")
+            await cache_manager.start_cleanup_task()
+        else:
+            logger.warning("⚠️ Cache Manager - Redis not available")
         
-        # Initialize other systems...
+        # Initialize Verification System
         verification_system = VerificationSystem(Config, db)
         await verification_system.start_cleanup_task()
+        logger.info("✅ Verification System initialized")
         
+        # Initialize Premium System
         premium_system = PremiumSystem(Config, db)
         await premium_system.start_cleanup_task()
+        logger.info("✅ Premium System initialized")
         
+        # Initialize Poster Fetcher
         poster_fetcher = PosterFetcher(Config, cache_manager)
+        logger.info("✅ Poster Fetcher initialized")
         
-        # ✅ IMPORTANT: Initialize SK4FiLMBot FIRST
-        sk4film_bot = SK4FiLMBot(Config, db)
-        await sk4film_bot.initialize()
-        logger.info("✅ SK4FiLMBot initialized")
+        # ✅ FIX: Check if Pyrogram is available before initializing bot
+        try:
+            # Test if Pyrogram Client is available
+            from pyrogram import Client
+            pyrogram_available = True
+        except ImportError as e:
+            logger.error(f"❌ Pyrogram not available: {e}")
+            pyrogram_available = False
         
-        # ✅ Get the bot client from SK4FiLMBot
-        global bot
-        bot = sk4film_bot.bot
-        
-        # ✅ Setup bot handlers
-        if bot and sk4film_bot.bot_started:
-            await setup_bot_handlers(bot, sk4film_bot)
-            logger.info("✅ Bot handlers setup complete")
+        if pyrogram_available:
+            # Initialize SK4FiLMBot
+            sk4film_bot = SK4FiLMBot(Config, db)
+            await sk4film_bot.initialize()
+            logger.info("✅ SK4FiLMBot initialized")
+            
+            # Initialize Telegram clients
+            telegram_ok = await init_telegram_clients()
+            if not telegram_ok:
+                logger.warning("⚠️ Telegram clients not initialized")
+            
+            # Setup bot handlers
+            if sk4film_bot and sk4film_bot.bot_started and bot:
+                await setup_bot_handlers(bot, sk4film_bot)
+                logger.info("✅ Bot handlers setup complete")
         else:
-            logger.warning("⚠️ Bot not available for handlers setup")
+            logger.warning("⚠️ Pyrogram not available - Bot features disabled")
+            sk4film_bot = None
         
         # Start background tasks
         asyncio.create_task(cache_cleanup())
         
+        # Start indexing in background
+        if user_session_ready:
+            asyncio.create_task(index_files_background())
+        
         logger.info(f"⚡ SK4FiLM Started in {time.time() - start_time:.1f}s")
-        logger.info("✅ Bot file sending ENABLED")
         return True
         
     except Exception as e:
         logger.error(f"❌ System initialization failed: {e}")
         return False
-
+        
 # API ROUTES
 @app.route('/')
 async def root():
