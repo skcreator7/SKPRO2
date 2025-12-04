@@ -1,19 +1,20 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-UPDATED: Complete file sending functionality
+FIXED: Complete Pyrogram imports
 """
 import asyncio
 import logging
 import secrets
+import re
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-# ✅ Complete Pyrogram imports
+# ✅ FIX: ADD THESE IMPORTS AT THE VERY TOP
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from pyrogram.errors import FloodWait, BadRequest
 
-# Import utilities
+# Import from utils instead of app
 from utils import (
     normalize_title,
     extract_title_smart,
