@@ -1,16 +1,17 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FIXED: Single message approach - file with caption only, no extra success message
-FIXED: Added file deleted message after auto-delete
-FIXED: Added website visit reply when user messages after file deletion
-FIXED: No duplicate messages
+FIXED: Removed flood-causing handlers, rate limiting added
+FIXED: Single instance handling for file requests
+FIXED: Removed problematic website reply handler
 """
 import asyncio
 import logging
 import secrets
 import re
+import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
+from collections import defaultdict
 
 # ✅ Complete Pyrogram imports
 try:
@@ -61,8 +62,10 @@ class SK4FiLMBot:
         # Track auto-delete tasks
         self.auto_delete_tasks = {}
         
-        # Track users who received files (for website reply)
-        self.users_with_files = {}
+        # Rate limiting and deduplication
+        self.user_request_times = defaultdict(list)
+        self.processing_requests = {}  # Track currently processing requests
+        self.last_message_time = {}  # Track when we last messaged users
         
         # Initialize all systems
         try:
@@ -159,6 +162,44 @@ class SK4FiLMBot:
                 await self.cache_manager.stop()
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
+    
+    # ✅ RATE LIMITING METHODS
+    async def check_rate_limit(self, user_id, limit=3, window=60):
+        """Check if user is within rate limits"""
+        now = time.time()
+        
+        # Clean old requests
+        self.user_request_times[user_id] = [
+            t for t in self.user_request_times[user_id] 
+            if now - t < window
+        ]
+        
+        # Check if limit exceeded
+        if len(self.user_request_times[user_id]) >= limit:
+            logger.warning(f"⚠️ Rate limit exceeded for user {user_id}")
+            return False
+        
+        # Add current request
+        self.user_request_times[user_id].append(now)
+        return True
+    
+    async def is_request_duplicate(self, user_id, request_data):
+        """Check if this is a duplicate request"""
+        request_hash = f"{user_id}_{hash(request_data)}"
+        
+        if request_hash in self.processing_requests:
+            # Check if it's still processing (within last 30 seconds)
+            if time.time() - self.processing_requests[request_hash] < 30:
+                return True
+        
+        # Mark as processing
+        self.processing_requests[request_hash] = time.time()
+        return False
+    
+    async def clear_processing_request(self, user_id, request_data):
+        """Clear from processing requests"""
+        request_hash = f"{user_id}_{hash(request_data)}"
+        self.processing_requests.pop(request_hash, None)
 
 # ✅ FIXED: Utility function to prevent MESSAGE_NOT_MODIFIED errors
 async def safe_edit_message(callback_query, text=None, reply_markup=None, disable_web_page_preview=None):
@@ -234,14 +275,6 @@ async def schedule_file_deletion(bot_instance, user_id, file_message_id, file_na
                 reply_markup=deleted_buttons
             )
             logger.info(f"✅ Auto-delete notification sent to user {user_id} for file {file_name}")
-            
-            # Mark user as having received a file (for website reply feature)
-            if user_id not in bot_instance.users_with_files:
-                bot_instance.users_with_files[user_id] = []
-            bot_instance.users_with_files[user_id].append({
-                'file_name': file_name,
-                'deleted_at': datetime.now()
-            })
             
         except Exception as e:
             logger.error(f"Failed to send delete notification: {e}")
@@ -505,6 +538,24 @@ async def handle_file_request(client, message, file_text, bot_instance):
     try:
         config = bot_instance.config
         user_id = message.from_user.id
+        request_hash = f"{user_id}_{file_text}"
+        
+        # ✅ RATE LIMIT CHECK
+        if not await bot_instance.check_rate_limit(user_id):
+            await message.reply_text(
+                "⚠️ **Rate Limit Exceeded**\n\n"
+                "You're making too many requests. Please wait 60 seconds and try again."
+            )
+            return
+        
+        # ✅ DUPLICATE REQUEST CHECK
+        if await bot_instance.is_request_duplicate(user_id, file_text):
+            logger.warning(f"⚠️ Duplicate request ignored for user {user_id}: {file_text}")
+            await message.reply_text(
+                "⏳ **Already Processing**\n\n"
+                "Your previous request is still being processed. Please wait..."
+            )
+            return
         
         # Clean the text
         clean_text = file_text.strip()
@@ -528,6 +579,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 "Correct format: `-1001768249569_16066_480p`\n"
                 "Please click download button on website again."
             )
+            await bot_instance.clear_processing_request(user_id, file_text)
             return
         
         # Parse channel ID (could be negative)
@@ -545,6 +597,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 f"Channel ID '{channel_str}' is not valid.\n"
                 "Please click download button on website again."
             )
+            await bot_instance.clear_processing_request(user_id, file_text)
             return
         
         # Parse message ID
@@ -555,6 +608,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 "❌ **Invalid message ID**\n\n"
                 f"Message ID '{parts[1]}' is not valid."
             )
+            await bot_instance.clear_processing_request(user_id, file_text)
             return
         
         # Get quality
@@ -562,12 +616,21 @@ async def handle_file_request(client, message, file_text, bot_instance):
         
         logger.info(f"📥 Parsed: channel={channel_id}, message={message_id}, quality={quality}")
         
-        # Send processing message
-        processing_msg = await message.reply_text(
-            f"⏳ **Preparing your file...**\n\n"
-            f"📹 **Quality:** {quality}\n"
-            f"🔄 **Checking access...**"
-        )
+        try:
+            # Send processing message
+            processing_msg = await message.reply_text(
+                f"⏳ **Preparing your file...**\n\n"
+                f"📹 **Quality:** {quality}\n"
+                f"🔄 **Checking access...**"
+            )
+        except FloodWait as e:
+            logger.warning(f"⏳ Can't send processing message - Flood wait: {e.value}s")
+            await asyncio.sleep(e.value)
+            processing_msg = await message.reply_text(
+                f"⏳ **Preparing your file...**\n\n"
+                f"📹 **Quality:** {quality}\n"
+                f"🔄 **Checking access...**"
+            )
         
         # Get file from channel
         file_message = None
@@ -605,17 +668,25 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 logger.error(f"Attempt {attempt+1} failed: {e}")
         
         if not file_message:
-            await processing_msg.edit_text(
-                "❌ **File not found**\n\n"
-                "The file may have been deleted or I don't have access."
-            )
+            try:
+                await processing_msg.edit_text(
+                    "❌ **File not found**\n\n"
+                    "The file may have been deleted or I don't have access."
+                )
+            except:
+                pass
+            await bot_instance.clear_processing_request(user_id, file_text)
             return
         
         if not file_message.document and not file_message.video:
-            await processing_msg.edit_text(
-                "❌ **Not a downloadable file**\n\n"
-                "This message doesn't contain a video or document file."
-            )
+            try:
+                await processing_msg.edit_text(
+                    "❌ **Not a downloadable file**\n\n"
+                    "This message doesn't contain a video or document file."
+                )
+            except:
+                pass
+            await bot_instance.clear_processing_request(user_id, file_text)
             return
         
         # ✅ Send file to user
@@ -625,7 +696,10 @@ async def handle_file_request(client, message, file_text, bot_instance):
         
         if success:
             # File was sent with caption - NO EXTRA SUCCESS MESSAGE
-            await processing_msg.delete()
+            try:
+                await processing_msg.delete()
+            except:
+                pass
             
             # ✅ Record download for statistics
             if bot_instance.premium_system:
@@ -641,31 +715,40 @@ async def handle_file_request(client, message, file_text, bot_instance):
             error_text = result_data['message']
             error_buttons = result_data.get('buttons', [])
             
-            if error_buttons:
-                await processing_msg.edit_text(
-                    error_text,
-                    reply_markup=InlineKeyboardMarkup(error_buttons),
-                    disable_web_page_preview=True
-                )
-            else:
-                await processing_msg.edit_text(error_text)
+            try:
+                if error_buttons:
+                    await processing_msg.edit_text(
+                        error_text,
+                        reply_markup=InlineKeyboardMarkup(error_buttons),
+                        disable_web_page_preview=True
+                    )
+                else:
+                    await processing_msg.edit_text(error_text)
+            except:
+                pass
+        
+        # Clear processing request
+        await bot_instance.clear_processing_request(user_id, file_text)
         
     except Exception as e:
         logger.error(f"File request handling error: {e}")
-        await message.reply_text(
-            "❌ **An error occurred**\n\n"
-            "Please try again or contact support.\n"
-            f"Error: {str(e)[:100]}"
-        )
+        try:
+            await message.reply_text(
+                "❌ **An error occurred**\n\n"
+                "Please try again or contact support."
+            )
+        except:
+            pass
+        await bot_instance.clear_processing_request(user_id, file_text)
 
 async def setup_bot_handlers(bot: Client, bot_instance):
-    """Setup bot commands and handlers"""
+    """Setup bot commands and handlers - MINIMAL VERSION TO PREVENT FLOOD"""
     config = bot_instance.config
     
-    # ✅ START COMMAND HANDLER
+    # ✅ START COMMAND HANDLER - SIMPLIFIED
     @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
-        """Handle /start command"""
+        """Handle /start command - MINIMAL"""
         user_name = message.from_user.first_name or "User"
         user_id = message.from_user.id
         
@@ -675,112 +758,36 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             await handle_file_request(client, message, file_text, bot_instance)
             return
         
-        # Check user status
-        user_status = "New User"
-        status_icon = "👋"
-        
-        if user_id in config.ADMIN_IDS:
-            user_status = "Admin 👑"
-            status_icon = "👑"
-        elif bot_instance.premium_system:
-            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
-            if is_premium:
-                user_status = "Premium ⭐"
-                status_icon = "⭐"
-            elif bot_instance.verification_system:
-                is_verified, _ = await bot_instance.verification_system.check_user_verified(
-                    user_id, bot_instance.premium_system
-                )
-                if is_verified:
-                    user_status = "Verified ✅"
-                    status_icon = "✅"
-        
+        # SIMPLE WELCOME MESSAGE - No status checks to reduce API calls
         welcome_text = (
-            f"🎬 **Welcome to SK4FiLM, {user_name}!** {status_icon}\n\n"
-            f"**Your Status:** {user_status}\n\n"
-            "**How to download movies:**\n"
-            f"1. **Visit:** {config.WEBSITE_URL}\n"
-            "2. **Search for any movie**\n"
-            "3. **Click download button**\n"
-            "4. **File will appear here automatically**\n\n"
-            f"**Current Access:**\n"
-            f"{status_icon} **{user_status}** - {'Full access' if status_icon in ['👑', '⭐', '✅'] else 'Limited access'}\n\n"
-            f"⭐ **Premium users get instant access!**"
+            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
+            f"🌐 **Visit:** {config.WEBSITE_URL}\n\n"
+            "**How to download:**\n"
+            "1. Visit website above\n"
+            "2. Search for movies\n"
+            "3. Click download button\n"
+            "4. File will appear here automatically\n\n"
+            "🎬 **Happy watching!**"
         )
         
-        buttons = []
-        if status_icon not in ['👑', '⭐', '✅']:
-            # Unverified users see verify button
-            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", callback_data="get_verified")])
-        
-        buttons.append([InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)])
-        
-        if status_icon != '👑':  # Non-admins see premium button
-            buttons.append([InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")])
-        
-        buttons.append([InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)])
-        
-        keyboard = InlineKeyboardMarkup(buttons)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+            [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)]
+        ])
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    # ✅ Also handle direct messages with file format
+    # ✅ Handle direct file format messages - SIMPLIFIED
     @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
     async def handle_direct_file_request(client, message):
-        """Handle direct file format messages like -1001768249569_16066_480p"""
+        """Handle direct file format messages"""
         file_text = message.text.strip()
         await handle_file_request(client, message, file_text, bot_instance)
     
-    # ✅ HANDLE REGULAR MESSAGES FOR WEBSITE REPLY
-    @bot.on_message(filters.private & filters.text & ~filters.command("start"))
-    async def handle_regular_message(client, message):
-        """Handle regular messages with website visit suggestion"""
-        user_id = message.from_user.id
-        user_message = message.text.strip()
-        
-        # Check if user has received files before
-        if user_id in bot_instance.users_with_files:
-            # Check if message is not a callback or command
-            if not user_message.startswith('/') and len(user_message) > 3:
-                # Check if it's not a file request pattern
-                if not re.match(r'^-?\d+_\d+(_\w+)?$', user_message):
-                    # Send website visit suggestion
-                    reply_text = (
-                        f"👋 **Hello!**\n\n"
-                        f"Looking for more movies to download?\n\n"
-                        f"🌐 **Visit our website:** {config.WEBSITE_URL}\n\n"
-                        f"**Features:**\n"
-                        f"• Search any movie\n"
-                        f"• Multiple quality options\n"
-                        f"• Fast downloads\n"
-                        f"• Regular updates\n\n"
-                        f"🎬 **Happy watching!**"
-                    )
-                    
-                    reply_buttons = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 VISIT WEBSITE NOW", url=config.WEBSITE_URL)],
-                        [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
-                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-                    ])
-                    
-                    await message.reply_text(
-                        reply_text,
-                        reply_markup=reply_buttons,
-                        disable_web_page_preview=True
-                    )
-                    return
-        
-        # If user hasn't received files or message is short, just acknowledge
-        if len(user_message) > 20:  # Only reply to longer messages
-            await message.reply_text(
-                f"👋 Hello! Type /start to begin or visit {config.WEBSITE_URL} to download movies.",
-                disable_web_page_preview=True
-            )
-    
-    # ✅ GET VERIFIED CALLBACK - FIXED MESSAGE_NOT_MODIFIED ERROR
+    # ✅ GET VERIFIED CALLBACK - SIMPLIFIED
     @bot.on_callback_query(filters.regex(r"^get_verified$"))
     async def get_verified_callback(client, callback_query):
-        """Get verification link - FIXED with safe_edit_message"""
+        """Get verification link - SIMPLIFIED"""
         user_id = callback_query.from_user.id
         
         if bot_instance.verification_system:
@@ -788,81 +795,66 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             
             text = (
                 "🔗 **Verification Required**\n\n"
-                "To download files, you need to verify by joining our channel:\n\n"
-                f"🔗 **Verification Link:**\n{verification_data['short_url']}\n\n"
-                f"⏰ **Valid for:** {verification_data['valid_for_hours']} hours\n\n"
-                "**Steps:**\n"
-                "1. Click the link above\n"
-                "2. Join the channel\n"
-                "3. Click the verify button\n"
-                "4. Come back here and try downloading again"
+                "Join channel to verify:\n\n"
+                f"🔗 **Link:** {verification_data['short_url']}\n"
+                f"⏰ **Valid:** {verification_data['valid_for_hours']} hours\n\n"
+                "Click link, join channel, then try download again."
             )
             
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_data['short_url'])],
-                [InlineKeyboardButton("⭐ BUY PREMIUM (No Verification)", callback_data="buy_premium")],
                 [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
             ])
             
-            # ✅ FIXED: Use safe_edit_message to avoid MESSAGE_NOT_MODIFIED
-            edited = await safe_edit_message(
-                callback_query,
+            try:
+                await callback_query.message.edit_text(
+                    text=text,
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True
+                )
+            except:
+                await callback_query.answer("Click VERIFY NOW button!")
+        else:
+            await callback_query.answer("Verification not available!", show_alert=True)
+    
+    # ✅ BACK TO START - SIMPLIFIED
+    @bot.on_callback_query(filters.regex(r"^back_to_start$"))
+    async def back_to_start_callback(client, callback_query):
+        user_name = callback_query.from_user.first_name or "User"
+        
+        text = (
+            f"🎬 **Welcome back, {user_name}!**\n\n"
+            f"Visit {config.WEBSITE_URL} to download movies.\n"
+            "Click download button on website and file will appear here."
+        )
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+            [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(
                 text=text,
                 reply_markup=keyboard,
                 disable_web_page_preview=True
             )
-            
-            if not edited:
-                await callback_query.answer("Verification info already shown!")
-        else:
-            await callback_query.answer("Verification system not available!", show_alert=True)
+        except:
+            await callback_query.answer("Already on home page!")
     
-    # ✅ PREMIUM CALLBACK - FIXED MESSAGE_NOT_MODIFIED ERROR
+    # ✅ PREMIUM CALLBACK - SIMPLIFIED
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
     async def buy_premium_callback(client, callback_query):
-        """Show premium plans - FIXED with safe_edit_message"""
-        user_id = callback_query.from_user.id
-        
-        # Check if already premium
-        if bot_instance.premium_system:
-            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
-            if is_premium:
-                sub_details = await bot_instance.premium_system.get_subscription_details(user_id)
-                
-                text = (
-                    f"⭐ **You're Already Premium!** ⭐\n\n"
-                    f"**Plan:** {sub_details.get('tier_name', 'Premium')}\n"
-                    f"**Status:** {sub_details.get('status', 'Active')}\n"
-                    f"**Days Left:** {sub_details.get('days_remaining', 0)}\n\n"
-                    "Enjoy unlimited downloads! 🎬"
-                )
-                
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                ])
-                
-                # ✅ FIXED: Use safe_edit_message
-                edited = await safe_edit_message(
-                    callback_query,
-                    text=text,
-                    reply_markup=keyboard
-                )
-                
-                if not edited:
-                    await callback_query.answer("You're already premium!")
-                return
-        
+        """Show premium plans - SIMPLIFIED"""
         text = (
-            "⭐ **SK4FiLM PREMIUM PLANS** ⭐\n\n"
-            "**Basic Plan - ₹99**\n"
+            "⭐ **SK4FiLM PREMIUM** ⭐\n\n"
+            "**Basic - ₹99**\n"
             "• 1080p Quality\n"
-            "• 10 Daily Downloads\n"
-            "• Priority Support\n\n"
-            "**Premium Plan - ₹199**\n"
+            "• 10 Daily Downloads\n\n"
+            "**Premium - ₹199**\n"
             "• 4K Quality\n"
             "• Unlimited Downloads\n"
-            "• No Ads\n"
-            "• Highest Priority\n\n"
+            "• No Ads\n\n"
             "Click below to purchase:"
         )
         
@@ -872,74 +864,12 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
         ])
         
-        # ✅ FIXED: Use safe_edit_message
-        edited = await safe_edit_message(
-            callback_query,
-            text=text,
-            reply_markup=keyboard
-        )
-        
-        if not edited:
-            await callback_query.answer("Premium plans already shown!")
+        try:
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+        except:
+            await callback_query.answer("Premium plans!")
     
-    # ✅ BACK TO START - FIXED MESSAGE_NOT_MODIFIED ERROR
-    @bot.on_callback_query(filters.regex(r"^back_to_start$"))
-    async def back_to_start_callback(client, callback_query):
-        user_name = callback_query.from_user.first_name or "User"
-        user_id = callback_query.from_user.id
-        
-        # Check user status
-        user_status = "New User"
-        status_icon = "👋"
-        
-        if user_id in config.ADMIN_IDS:
-            user_status = "Admin 👑"
-            status_icon = "👑"
-        elif bot_instance.premium_system:
-            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
-            if is_premium:
-                user_status = "Premium ⭐"
-                status_icon = "⭐"
-            elif bot_instance.verification_system:
-                is_verified, _ = await bot_instance.verification_system.check_user_verified(
-                    user_id, bot_instance.premium_system
-                )
-                if is_verified:
-                    user_status = "Verified ✅"
-                    status_icon = "✅"
-        
-        welcome_text = (
-            f"🎬 **Welcome back, {user_name}!** {status_icon}\n\n"
-            f"**Your Status:** {user_status}\n\n"
-            f"Visit {config.WEBSITE_URL} to download movies.\n"
-            "Click any download button and the file will appear here automatically!"
-        )
-        
-        buttons = []
-        if status_icon not in ['👑', '⭐', '✅']:
-            buttons.append([InlineKeyboardButton("🔗 GET VERIFIED", callback_data="get_verified")])
-        
-        buttons.append([InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)])
-        
-        if status_icon != '👑':
-            buttons.append([InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")])
-        
-        buttons.append([InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)])
-        
-        keyboard = InlineKeyboardMarkup(buttons)
-        
-        # ✅ FIXED: Use safe_edit_message
-        edited = await safe_edit_message(
-            callback_query,
-            text=welcome_text,
-            reply_markup=keyboard,
-            disable_web_page_preview=True
-        )
-        
-        if not edited:
-            await callback_query.answer("Already on home page!")
-    
-    # ✅ PLAN SELECTION CALLBACKS - FIXED MESSAGE_NOT_MODIFIED ERROR
+    # ✅ PLAN SELECTION - SIMPLIFIED
     @bot.on_callback_query(filters.regex(r"^plan_"))
     async def plan_selection_callback(client, callback_query):
         plan_type = callback_query.data.split('_')[1]
@@ -953,75 +883,24 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             plan_name = "Premium Plan"
             upi_id = config.UPI_ID_PREMIUM if hasattr(config, 'UPI_ID_PREMIUM') else "sk4filmbot@ybl"
         
-        payment_id = secrets.token_hex(8)
-        
         text = (
             f"💰 **Payment for {plan_name}**\n\n"
             f"**Amount:** ₹{amount}\n"
             f"**UPI ID:** `{upi_id}`\n\n"
-            "**Payment Instructions:**\n"
-            f"1. Send ₹{amount} to UPI ID: `{upi_id}`\n"
-            "2. Take screenshot of payment\n"
-            "3. Send screenshot to this bot\n\n"
-            "⏰ **Payment valid for 1 hour**\n"
-            "✅ **Admin will activate within 24 hours**"
+            f"1. Send ₹{amount} to UPI ID\n"
+            "2. Take screenshot\n"
+            "3. Send screenshot here\n\n"
+            "Admin will activate within 24 hours"
         )
         
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📸 SEND SCREENSHOT", callback_data=f"send_screenshot_{payment_id}")],
-            [InlineKeyboardButton("🔙 BACK TO PLANS", callback_data="buy_premium")]
+            [InlineKeyboardButton("📸 SEND SCREENSHOT", url=f"tg://openmessage?user_id={config.ADMIN_IDS[0] if config.ADMIN_IDS else 5928972764}")],
+            [InlineKeyboardButton("🔙 BACK", callback_data="buy_premium")]
         ])
         
-        # ✅ FIXED: Use safe_edit_message
-        edited = await safe_edit_message(
-            callback_query,
-            text=text,
-            reply_markup=keyboard
-        )
-        
-        if not edited:
-            await callback_query.answer("Payment info already shown!")
-    
-    # ✅ SCREENSHOT CALLBACK - FIXED MESSAGE_NOT_MODIFIED ERROR
-    @bot.on_callback_query(filters.regex(r"^send_screenshot_"))
-    async def send_screenshot_callback(client, callback_query):
-        payment_id = callback_query.data.split('_')[2]
-        
-        text = (
-            "📸 **Please send the payment screenshot now**\n\n"
-            "1. Take a clear screenshot of the payment\n"
-            "2. Send it to this chat\n"
-            "3. Our admin will verify and activate your premium\n\n"
-            f"**Payment ID:** `{payment_id}`\n"
-            "⏰ Please send within 1 hour of payment"
-        )
-        
-        # ✅ FIXED: Instead of editing, send a new message and delete the old one
-        await callback_query.answer("Please send screenshot now!", show_alert=True)
-        
-        # Send new message
-        await callback_query.message.reply_text(text)
-        
-        # Try to delete the original callback message
         try:
-            await callback_query.message.delete()
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
         except:
-            pass
+            await callback_query.answer("Payment info!")
     
-    # ✅ HANDLE SCREENSHOT MESSAGES
-    @bot.on_message(filters.private & (filters.photo | filters.document))
-    async def handle_screenshot(client, message):
-        """Handle payment screenshots"""
-        # Check if it's likely a screenshot
-        if message.photo or (message.document and message.document.mime_type and 'image' in message.document.mime_type):
-            await message.reply_text(
-                "✅ **Screenshot received!**\n\n"
-                "Our admin will verify your payment and activate your premium within 24 hours.\n"
-                "Thank you for choosing SK4FiLM! 🎬\n\n"
-                "You will receive a confirmation message when activated.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
-                ])
-            )
-    
-    logger.info("✅ Bot handlers setup complete - Ready to send files with access control!")
+    logger.info("✅ Bot handlers setup - FLOOD PROTECTED VERSION")
