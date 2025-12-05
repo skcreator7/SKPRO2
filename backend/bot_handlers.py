@@ -5,6 +5,7 @@ FIXED:
 2. Auto-delete 5 मिनट कर दिया
 3. Duplicate request warning fix
 4. Rate limiting improved
+5. Fixed filters.command error with ~ operator
 """
 import asyncio
 import logging
@@ -32,7 +33,9 @@ except ImportError:
         def private(): return lambda x: x
         @staticmethod
         def regex(pattern): return lambda x: x
-        text = None  # Fixed: Changed from lambda x: x to None
+        text = None
+        photo = None
+        document = None
     class InlineKeyboardMarkup:
         def __init__(self, buttons): pass
     class InlineKeyboardButton:
@@ -1226,10 +1229,15 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    # ✅ HANDLE DIRECT TEXT MESSAGES (NON-COMMANDS)
-    @bot.on_message(filters.private & filters.text & ~filters.command)
-    async def handle_direct_text_messages(client, message):
-        """Handle all direct text messages that are not commands"""
+    # ✅ HANDLE DIRECT TEXT MESSAGES (NON-COMMANDS) - FIXED: Removed ~filters.command
+    @bot.on_message(filters.private & filters.text)
+    async def handle_all_text_messages(client, message):
+        """Handle all direct text messages"""
+        # First check if it's a command - if yes, ignore (commands are handled separately)
+        if message.text and message.text.startswith('/'):
+            return
+        
+        # Now handle as regular direct message
         await handle_direct_message(client, message, bot_instance)
     
     @bot.on_message(filters.command("mypremium") & filters.private)
