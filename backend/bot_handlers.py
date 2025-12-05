@@ -1,6 +1,6 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FIXED: Admin notifications, no double replies
+FIXED: Auto-delete working, all premium commands added
 """
 import asyncio
 import logging
@@ -50,15 +50,12 @@ class SK4FiLMBot:
         
         # Track auto-delete tasks
         self.auto_delete_tasks = {}
-        self.file_messages_to_delete = {}
+        self.file_messages_to_delete = {}  # Track files to delete
         
         # Rate limiting and deduplication
         self.user_request_times = defaultdict(list)
         self.processing_requests = {}
         self.verification_processing = {}
-        
-        # Track last messages to prevent double replies
-        self.last_user_messages = {}
         
         # Initialize all systems
         try:
@@ -249,104 +246,7 @@ class SK4FiLMBot:
             except Exception as e:
                 logger.error(f"Auto-delete monitor error: {e}")
     
-    # ✅ ADMIN NOTIFICATION SYSTEM
-    async def notify_admin_screenshot(self, user_id: int, message_id: int, payment_id: str):
-        """Notify admin about payment screenshot"""
-        try:
-            admin_ids = getattr(self.config, 'ADMIN_IDS', [])
-            if not admin_ids:
-                logger.warning("❌ No admin IDs configured")
-                return False
-            
-            # Get user info
-            try:
-                user = await self.bot.get_users(user_id)
-                user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
-                username = f"@{user.username}" if user.username else "No username"
-                user_link = f"[{user_name}](tg://user?id={user_id})"
-            except Exception as e:
-                logger.error(f"Error getting user info: {e}")
-                user_name = f"User {user_id}"
-                username = "Unknown"
-                user_link = f"`{user_id}`"
-            
-            # Get payment info
-            payment_info = None
-            if self.premium_system:
-                for pid, payment in self.premium_system.pending_payments.items():
-                    if pid == payment_id:
-                        payment_info = payment
-                        break
-            
-            # Prepare notification message
-            notification_text = (
-                f"📸 **NEW PAYMENT SCREENSHOT** 📸\n\n"
-                f"👤 **User:** {user_link}\n"
-                f"🆔 **User ID:** `{user_id}`\n"
-                f"📛 **Username:** {username}\n"
-                f"💰 **Payment ID:** `{payment_id}`\n\n"
-            )
-            
-            if payment_info:
-                notification_text += (
-                    f"📋 **Plan:** {payment_info.get('tier_name', 'Unknown')}\n"
-                    f"💵 **Amount:** ₹{payment_info.get('amount', 0)}\n"
-                    f"📅 **Duration:** {payment_info.get('duration_days', 0)} days\n\n"
-                )
-            
-            notification_text += (
-                f"🔗 **Screenshot Link:** [Click here](https://t.me/c/{str(777777 - user_id).replace('-', '')}/{message_id})\n"
-                f"⏰ **Time:** {datetime.now().strftime('%d %b %Y, %H:%M:%S')}\n\n"
-                f"**Commands:**\n"
-                f"✅ `/approve {payment_id}` - Approve payment\n"
-                f"❌ `/reject {payment_id} <reason>` - Reject payment\n"
-                f"👤 `/checkpremium {user_id}` - Check user status"
-            )
-            
-            # Send to all admins
-            success_count = 0
-            for admin_id in admin_ids:
-                try:
-                    # Send notification message
-                    await self.bot.send_message(
-                        admin_id,
-                        notification_text,
-                        disable_web_page_preview=False
-                    )
-                    
-                    # Forward the screenshot to admin
-                    try:
-                        await self.bot.forward_messages(
-                            admin_id,
-                            user_id,
-                            message_id
-                        )
-                    except Exception as e:
-                        logger.error(f"Could not forward screenshot to admin {admin_id}: {e}")
-                        # Try to send as copy
-                        try:
-                            if message.photo:
-                                await self.bot.send_photo(
-                                    admin_id,
-                                    message.photo.file_id,
-                                    caption=f"Screenshot from {user_name} (ID: {user_id})"
-                                )
-                        except:
-                            pass
-                    
-                    success_count += 1
-                    logger.info(f"✅ Admin notification sent to admin {admin_id}")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to send notification to admin {admin_id}: {e}")
-            
-            return success_count > 0
-            
-        except Exception as e:
-            logger.error(f"Admin notification error: {e}")
-            return False
-    
-    # ✅ RATE LIMITING & DUPLICATE PREVENTION
+    # ✅ RATE LIMITING METHODS
     async def check_rate_limit(self, user_id, limit=3, window=60, request_type="file"):
         """Check if user is within rate limits"""
         now = time.time()
@@ -391,29 +291,6 @@ class SK4FiLMBot:
             self.verification_processing.pop(request_hash, None)
         else:
             self.processing_requests.pop(request_hash, None)
-    
-    # ✅ PREVENT DOUBLE REPLIES
-    async def should_reply(self, user_id: int, message_id: int) -> bool:
-        """Check if we should reply to this message (prevent double replies)"""
-        key = f"{user_id}_{message_id}"
-        
-        # Check if we already replied to this message
-        if key in self.last_user_messages:
-            last_time = self.last_user_messages[key]
-            if time.time() - last_time < 2:  # 2 second cooldown
-                return False
-        
-        # Update last message time
-        self.last_user_messages[key] = time.time()
-        
-        # Clean old entries
-        current_time = time.time()
-        self.last_user_messages = {
-            k: v for k, v in self.last_user_messages.items() 
-            if current_time - v < 300  # Keep only last 5 minutes
-        }
-        
-        return True
 
 async def send_file_to_user(client, user_id, file_message, quality="480p", config=None, bot_instance=None):
     """Send file to user with verification check"""
@@ -678,12 +555,6 @@ async def handle_verification_token(client, message, token, bot_instance):
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "User"
         
-        # ✅ PREVENT DOUBLE PROCESSING
-        message_key = f"{user_id}_{message.id}"
-        if not await bot_instance.should_reply(user_id, message.id):
-            logger.warning(f"⚠️ Duplicate verification processing ignored for user {user_id}")
-            return
-        
         # ✅ VERIFICATION RATE LIMIT CHECK
         if not await bot_instance.check_rate_limit(user_id, limit=5, window=60, request_type="verification"):
             await message.reply_text(
@@ -802,12 +673,6 @@ async def handle_file_request(client, message, file_text, bot_instance):
     try:
         config = bot_instance.config
         user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE PROCESSING
-        message_key = f"{user_id}_{message.id}"
-        if not await bot_instance.should_reply(user_id, message.id):
-            logger.warning(f"⚠️ Duplicate file request processing ignored for user {user_id}")
-            return
         
         # ✅ FILE RATE LIMIT CHECK
         if not await bot_instance.check_rate_limit(user_id, limit=3, window=60, request_type="file"):
@@ -1007,7 +872,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
         await bot_instance.clear_processing_request(user_id, file_text, request_type="file")
 
 async def setup_bot_handlers(bot: Client, bot_instance):
-    """Setup bot commands and handlers - FIXED VERSION"""
+    """Setup bot commands and handlers - COMPLETE VERSION"""
     config = bot_instance.config
     
     # ✅ USER COMMANDS
@@ -1015,13 +880,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
         """Handle /start command with verification token detection"""
-        user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE REPLIES
-        if not await bot_instance.should_reply(user_id, message.id):
-            return
-        
         user_name = message.from_user.first_name or "User"
+        user_id = message.from_user.id
         
         # Check if there's additional text
         if len(message.command) > 1:
@@ -1066,11 +926,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def my_premium_command(client, message):
         """Check user's premium status"""
         user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE REPLIES
-        if not await bot_instance.should_reply(user_id, message.id):
-            return
-        
         user_name = message.from_user.first_name or "User"
         
         if not bot_instance.premium_system:
@@ -1095,12 +950,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_message(filters.command("plans") & filters.private)
     async def plans_command(client, message):
         """Show all premium plans"""
-        user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE REPLIES
-        if not await bot_instance.should_reply(user_id, message.id):
-            return
-        
         if not bot_instance.premium_system:
             await message.reply_text("❌ Premium system not available. Please try again later.")
             return
@@ -1126,11 +975,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def buy_command(client, message):
         """Initiate premium purchase"""
         user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE REPLIES
-        if not await bot_instance.should_reply(user_id, message.id):
-            return
-        
         user_name = message.from_user.first_name or "User"
         
         # Check if already premium
@@ -1182,12 +1026,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_message(filters.command("help") & filters.private)
     async def help_command(client, message):
         """Show help message"""
-        user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE REPLIES
-        if not await bot_instance.should_reply(user_id, message.id):
-            return
-        
         help_text = (
             "🆘 **SK4FiLM Bot Help** 🆘\n\n"
             "**Available Commands:**\n"
@@ -1230,10 +1068,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def add_premium_command(client, message):
         """Add premium user command for admins"""
         try:
-            # ✅ PREVENT DOUBLE REPLIES
-            if not await bot_instance.should_reply(message.from_user.id, message.id):
-                return
-            
             if len(message.command) < 4:
                 await message.reply_text(
                     "❌ **Usage:** `/addpremium <user_id> <days> <plan_type>`\n\n"
@@ -1335,10 +1169,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def remove_premium_command(client, message):
         """Remove premium user command for admins"""
         try:
-            # ✅ PREVENT DOUBLE REPLIES
-            if not await bot_instance.should_reply(message.from_user.id, message.id):
-                return
-            
             if len(message.command) < 2:
                 await message.reply_text(
                     "❌ **Usage:** `/removepremium <user_id>`\n\n"
@@ -1376,10 +1206,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def check_premium_command(client, message):
         """Check premium status of user"""
         try:
-            # ✅ PREVENT DOUBLE REPLIES
-            if not await bot_instance.should_reply(message.from_user.id, message.id):
-                return
-            
             if len(message.command) < 2:
                 await message.reply_text(
                     "❌ **Usage:** `/checkpremium <user_id>`\n\n"
@@ -1436,10 +1262,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def stats_command(client, message):
         """Show bot statistics"""
         try:
-            # ✅ PREVENT DOUBLE REPLIES
-            if not await bot_instance.should_reply(message.from_user.id, message.id):
-                return
-            
             if bot_instance.premium_system:
                 stats = await bot_instance.premium_system.get_statistics()
                 
@@ -1475,10 +1297,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def pending_payments_command(client, message):
         """Show pending payments"""
         try:
-            # ✅ PREVENT DOUBLE REPLIES
-            if not await bot_instance.should_reply(message.from_user.id, message.id):
-                return
-            
             if bot_instance.premium_system:
                 pending = await bot_instance.premium_system.get_pending_payments_admin()
                 
@@ -1515,10 +1333,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def approve_payment_command(client, message):
         """Approve pending payment"""
         try:
-            # ✅ PREVENT DOUBLE REPLIES
-            if not await bot_instance.should_reply(message.from_user.id, message.id):
-                return
-            
             if len(message.command) < 2:
                 await message.reply_text(
                     "❌ **Usage:** `/approve <payment_id>`\n\n"
@@ -1572,10 +1386,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def reject_payment_command(client, message):
         """Reject pending payment"""
         try:
-            # ✅ PREVENT DOUBLE REPLIES
-            if not await bot_instance.should_reply(message.from_user.id, message.id):
-                return
-            
             if len(message.command) < 3:
                 await message.reply_text(
                     "❌ **Usage:** `/reject <payment_id> <reason>`\n\n"
@@ -1608,12 +1418,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
     async def handle_direct_file_request(client, message):
         """Handle direct file format messages"""
-        user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE PROCESSING
-        if not await bot_instance.should_reply(user_id, message.id):
-            return
-        
         file_text = message.text.strip()
         await handle_file_request(client, message, file_text, bot_instance)
     
@@ -1653,7 +1457,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     reply_markup=keyboard,
                     disable_web_page_preview=True
                 )
-                await callback_query.answer()
             except:
                 await callback_query.answer("Click VERIFY NOW button!", show_alert=True)
         else:
@@ -1680,7 +1483,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 reply_markup=keyboard,
                 disable_web_page_preview=True
             )
-            await callback_query.answer()
         except:
             await callback_query.answer("Already on home page!")
     
@@ -1712,7 +1514,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 
                 try:
                     await callback_query.message.edit_text(text, reply_markup=keyboard)
-                    await callback_query.answer()
                 except:
                     await callback_query.answer("You're already premium!", show_alert=True)
                 return
@@ -1743,7 +1544,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         try:
             await callback_query.message.edit_text(text, reply_markup=keyboard)
-            await callback_query.answer()
         except:
             await callback_query.answer("Premium plans!", show_alert=True)
     
@@ -1789,7 +1589,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         try:
             await callback_query.message.edit_text(instructions, reply_markup=keyboard, disable_web_page_preview=True)
-            await callback_query.answer()
         except:
             await callback_query.answer("Payment instructions!", show_alert=True)
     
@@ -1817,114 +1616,42 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         except:
             pass
     
-    # ✅ HANDLE SCREENSHOT MESSAGES - FIXED ADMIN NOTIFICATION
+    # ✅ HANDLE SCREENSHOT MESSAGES
     @bot.on_message(filters.private & (filters.photo | filters.document))
     async def handle_screenshot(client, message):
         """Handle payment screenshots"""
-        user_id = message.from_user.id
-        
-        # ✅ PREVENT DOUBLE REPLIES
-        if not await bot_instance.should_reply(user_id, message.id):
-            return
-        
         # Check if it's likely a screenshot
-        is_screenshot = False
-        if message.photo:
-            is_screenshot = True
-        elif message.document and message.document.mime_type:
-            if 'image' in message.document.mime_type:
-                is_screenshot = True
-            elif message.document.file_name and any(ext in message.document.file_name.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
-                is_screenshot = True
-        
-        if not is_screenshot:
-            return  # Not a screenshot, ignore
-        
-        user_name = message.from_user.first_name or "User"
-        
-        if bot_instance.premium_system:
-            # Find pending payment for this user
-            payment_id = None
-            for pid, payment in bot_instance.premium_system.pending_payments.items():
-                if payment['user_id'] == user_id and payment['status'] == 'pending':
-                    payment_id = pid
-                    break
+        if message.photo or (message.document and message.document.mime_type and 'image' in message.document.mime_type):
+            user_id = message.from_user.id
             
-            if not payment_id:
-                # No pending payment found
-                await message.reply_text(
-                    "❌ **No pending payment found!**\n\n"
-                    "Please initiate a purchase first using /buy command.\n"
-                    "Or send a screenshot only after making payment.",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("💰 BUY PREMIUM", callback_data="buy_premium")],
-                        [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                    ])
-                )
-                return
-            
-            # Process screenshot in premium system
-            success = await bot_instance.premium_system.process_payment_screenshot(
-                user_id, 
-                message.id
-            )
-            
-            if success:
-                # ✅ NOTIFY ADMINS
-                admin_notified = await bot_instance.notify_admin_screenshot(user_id, message.id, payment_id)
-                
-                reply_text = (
-                    "✅ **Screenshot received successfully!**\n\n"
-                    f"**Payment ID:** `{payment_id}`\n"
-                    f"**User:** {user_name}\n\n"
+            if bot_instance.premium_system:
+                success = await bot_instance.premium_system.process_payment_screenshot(
+                    user_id, 
+                    message.id
                 )
                 
-                if admin_notified:
-                    reply_text += (
-                        "📨 **Admin notified!**\n"
-                        "Our admin will verify your payment and activate your premium within 24 hours.\n\n"
+                if success:
+                    await message.reply_text(
+                        "✅ **Screenshot received!**\n\n"
+                        "Our admin will verify your payment and activate your premium within 24 hours.\n"
+                        "Thank you for choosing SK4FiLM! 🎬\n\n"
+                        "You will receive a confirmation message when activated.",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
+                        ])
                     )
                 else:
-                    reply_text += (
-                        "⚠️ **Admin notification failed!**\n"
-                        "Please contact admin manually with your payment ID.\n\n"
+                    await message.reply_text(
+                        "❌ **No pending payment found!**\n\n"
+                        "Please initiate a purchase first using /buy command."
                     )
-                
-                reply_text += (
-                    "Thank you for choosing SK4FiLM! 🎬\n"
-                    "You will receive a confirmation message when activated."
-                )
-                
-                await message.reply_text(
-                    reply_text,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
-                    ])
-                )
-                
-                logger.info(f"✅ Screenshot processed for user {user_id}, payment {payment_id}")
-                
             else:
                 await message.reply_text(
-                    "❌ **Failed to process screenshot!**\n\n"
-                    "Please try again or contact admin.\n"
-                    f"Payment ID: `{payment_id}`",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🆘 CONTACT ADMIN", url="https://t.me/SK4FiLM")],
-                        [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                    ])
+                    "❌ **Premium system not available**\n\n"
+                    "Please try again later or contact admin."
                 )
-        else:
-            await message.reply_text(
-                "❌ **Premium system not available**\n\n"
-                "Please try again later or contact admin.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🆘 CONTACT ADMIN", url="https://t.me/SK4FiLM")],
-                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                ])
-            )
     
-    logger.info("✅ Bot handlers setup complete with FIXED admin notifications")
+    logger.info("✅ Bot handlers setup complete with ALL commands")
 
 # Utility function for file size formatting
 def format_size(size_in_bytes):
