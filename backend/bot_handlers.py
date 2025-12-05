@@ -1,6 +1,10 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FIXED: Admin notifications, no double replies
+FIXED: 
+1. Direct message से site visit message reply
+2. Auto-delete 5 मिनट कर दिया
+3. Duplicate request warning fix
+4. Rate limiting improved
 """
 import asyncio
 import logging
@@ -9,7 +13,7 @@ import re
 import time
 import traceback
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from collections import defaultdict
 
 # ✅ Complete Pyrogram imports
@@ -52,13 +56,16 @@ class SK4FiLMBot:
         self.auto_delete_tasks = {}
         self.file_messages_to_delete = {}
         
-        # Rate limiting and deduplication
+        # Rate limiting and deduplication - IMPROVED
         self.user_request_times = defaultdict(list)
         self.processing_requests = {}
         self.verification_processing = {}
         
         # Track last messages to prevent double replies
         self.last_user_messages = {}
+        
+        # Track message content to prevent duplicate processing
+        self.last_message_content = {}
         
         # Initialize all systems
         try:
@@ -130,6 +137,9 @@ class SK4FiLMBot:
             # Start auto-delete monitor
             asyncio.create_task(self._monitor_auto_delete())
             
+            # Start cleanup for tracking dictionaries
+            asyncio.create_task(self._cleanup_tracking_data())
+            
             return True
             
         except Exception as e:
@@ -161,11 +171,13 @@ class SK4FiLMBot:
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
     
-    # ✅ AUTO-DELETE SYSTEM
-    async def schedule_file_deletion(self, user_id: int, message_id: int, file_name: str, delete_after_minutes: int):
-        """Schedule file deletion after specified minutes"""
+    # ✅ AUTO-DELETE SYSTEM - 5 MINUTES
+    async def schedule_file_deletion(self, user_id: int, message_id: int, file_name: str, delete_after_minutes: int = 5):
+        """Schedule file deletion after specified minutes (5 minutes for all users)"""
         try:
             task_id = f"{user_id}_{message_id}"
+            
+            logger.info(f"⏰ Scheduling auto-delete for message {message_id} in {delete_after_minutes} minutes")
             
             # Wait for the specified time
             await asyncio.sleep(delete_after_minutes * 60)
@@ -198,7 +210,7 @@ class SK4FiLMBot:
         except Exception as e:
             logger.error(f"Error in auto-delete task: {e}")
     
-    async def send_deletion_notification(self, user_id: int, file_name: str, delete_after_minutes: int, deleted: bool = True):
+    async def send_deletion_notification(self, user_id: int, file_name: str, delete_after_minutes: int = 5, deleted: bool = True):
         """Send notification about file deletion"""
         try:
             website_url = getattr(self.config, 'WEBSITE_URL', 'https://sk4film.com')
@@ -249,6 +261,45 @@ class SK4FiLMBot:
             except Exception as e:
                 logger.error(f"Auto-delete monitor error: {e}")
     
+    async def _cleanup_tracking_data(self):
+        """Cleanup old tracking data periodically"""
+        while True:
+            try:
+                await asyncio.sleep(300)  # Clean every 5 minutes
+                
+                current_time = time.time()
+                
+                # Clean last_user_messages (older than 5 minutes)
+                self.last_user_messages = {
+                    k: v for k, v in self.last_user_messages.items() 
+                    if current_time - v < 300
+                }
+                
+                # Clean last_message_content (older than 2 minutes)
+                self.last_message_content = {
+                    k: v for k, v in self.last_message_content.items() 
+                    if current_time - v['time'] < 120
+                }
+                
+                # Clean processing_requests (older than 2 minutes)
+                self.processing_requests = {
+                    k: v for k, v in self.processing_requests.items() 
+                    if current_time - v < 120
+                }
+                
+                # Clean verification_processing (older than 2 minutes)
+                self.verification_processing = {
+                    k: v for k, v in self.verification_processing.items() 
+                    if current_time - v < 120
+                }
+                
+                logger.debug(f"🧹 Cleanup complete: {len(self.last_user_messages)} user messages, {len(self.last_message_content)} message contents")
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Cleanup tracking data error: {e}")
+    
     # ✅ ADMIN NOTIFICATION SYSTEM
     async def notify_admin_screenshot(self, user_id: int, message_id: int, payment_id: str):
         """Notify admin about payment screenshot"""
@@ -295,7 +346,7 @@ class SK4FiLMBot:
                 )
             
             notification_text += (
-                f"🔗 **Screenshot Link:** [Click here](https://t.me/c/{str(777777 - user_id).replace('-', '')}/{message_id})\n"
+                f"🔗 **Message Link:** [Click to view](tg://openmessage?user_id={user_id}&message_id={message_id})\n"
                 f"⏰ **Time:** {datetime.now().strftime('%d %b %Y, %H:%M:%S')}\n\n"
                 f"**Commands:**\n"
                 f"✅ `/approve {payment_id}` - Approve payment\n"
@@ -311,7 +362,7 @@ class SK4FiLMBot:
                     await self.bot.send_message(
                         admin_id,
                         notification_text,
-                        disable_web_page_preview=False
+                        disable_web_page_preview=True
                     )
                     
                     # Forward the screenshot to admin
@@ -325,12 +376,7 @@ class SK4FiLMBot:
                         logger.error(f"Could not forward screenshot to admin {admin_id}: {e}")
                         # Try to send as copy
                         try:
-                            if message.photo:
-                                await self.bot.send_photo(
-                                    admin_id,
-                                    message.photo.file_id,
-                                    caption=f"Screenshot from {user_name} (ID: {user_id})"
-                                )
+                            await message.copy(admin_id)
                         except:
                             pass
                     
@@ -346,7 +392,7 @@ class SK4FiLMBot:
             logger.error(f"Admin notification error: {e}")
             return False
     
-    # ✅ RATE LIMITING & DUPLICATE PREVENTION
+    # ✅ RATE LIMITING & DUPLICATE PREVENTION - IMPROVED
     async def check_rate_limit(self, user_id, limit=3, window=60, request_type="file"):
         """Check if user is within rate limits"""
         now = time.time()
@@ -368,52 +414,67 @@ class SK4FiLMBot:
         return True
     
     async def is_request_duplicate(self, user_id, request_data, request_type="file"):
-        """Check if this is a duplicate request"""
-        request_hash = f"{user_id}_{request_type}_{hash(request_data)}"
+        """Check if this is a duplicate request - IMPROVED"""
+        request_hash = f"{user_id}_{request_type}_{hash(str(request_data))}"
         
         if request_type == "verification":
             processing_dict = self.verification_processing
         else:
             processing_dict = self.processing_requests
         
+        # Check if same request is already processing
         if request_hash in processing_dict:
-            if time.time() - processing_dict[request_hash] < 30:
+            processing_time = processing_dict[request_hash]
+            if time.time() - processing_time < 30:  # 30 second cooldown for same request
+                logger.debug(f"Duplicate request detected: {request_hash[:50]}...")
                 return True
         
+        # Mark as processing
         processing_dict[request_hash] = time.time()
         return False
     
     async def clear_processing_request(self, user_id, request_data, request_type="file"):
         """Clear from processing requests"""
-        request_hash = f"{user_id}_{request_type}_{hash(request_data)}"
+        request_hash = f"{user_id}_{request_type}_{hash(str(request_data))}"
         
         if request_type == "verification":
             self.verification_processing.pop(request_hash, None)
         else:
             self.processing_requests.pop(request_hash, None)
     
-    # ✅ PREVENT DOUBLE REPLIES
+    # ✅ PREVENT DOUBLE REPLIES - IMPROVED
     async def should_reply(self, user_id: int, message_id: int) -> bool:
         """Check if we should reply to this message (prevent double replies)"""
         key = f"{user_id}_{message_id}"
         
-        # Check if we already replied to this message
+        # Check if we already replied to this exact message
         if key in self.last_user_messages:
             last_time = self.last_user_messages[key]
             if time.time() - last_time < 2:  # 2 second cooldown
+                logger.debug(f"Double reply prevented for message {message_id}")
                 return False
         
         # Update last message time
         self.last_user_messages[key] = time.time()
-        
-        # Clean old entries
-        current_time = time.time()
-        self.last_user_messages = {
-            k: v for k, v in self.last_user_messages.items() 
-            if current_time - v < 300  # Keep only last 5 minutes
-        }
-        
         return True
+    
+    async def is_message_content_duplicate(self, user_id: int, message_text: str) -> bool:
+        """Check if same message content was recently sent by user"""
+        content_hash = f"{user_id}_{hash(message_text.strip())}"
+        current_time = time.time()
+        
+        if content_hash in self.last_message_content:
+            last_time = self.last_message_content[content_hash]['time']
+            if current_time - last_time < 5:  # 5 second cooldown for same content
+                logger.debug(f"Duplicate message content from user {user_id}")
+                return True
+        
+        # Store new content
+        self.last_message_content[content_hash] = {
+            'time': current_time,
+            'text': message_text[:100]  # Store first 100 chars for debugging
+        }
+        return False
 
 async def send_file_to_user(client, user_id, file_message, quality="480p", config=None, bot_instance=None):
     """Send file to user with verification check"""
@@ -499,8 +560,8 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 'buttons': []
             }, 0
         
-        # ✅ Get auto-delete time from config (default 15 minutes)
-        auto_delete_minutes = getattr(config, 'AUTO_DELETE_TIME', 15)
+        # ✅ Get auto-delete time - HARDCODED 5 MINUTES
+        auto_delete_minutes = 5
         
         # ✅ SIMPLE CAPTION
         file_caption = (
@@ -537,7 +598,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
             
             logger.info(f"✅ File sent to {user_status} user {user_id}: {file_name}")
             
-            # ✅ Schedule auto-delete
+            # ✅ Schedule auto-delete - 5 MINUTES
             if bot_instance and auto_delete_minutes > 0:
                 task_id = f"{user_id}_{sent.id}"
                 
@@ -545,7 +606,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 if task_id in bot_instance.auto_delete_tasks:
                     bot_instance.auto_delete_tasks[task_id].cancel()
                 
-                # Create new auto-delete task
+                # Create new auto-delete task for 5 minutes
                 delete_task = asyncio.create_task(
                     bot_instance.schedule_file_deletion(user_id, sent.id, file_name, auto_delete_minutes)
                 )
@@ -616,7 +677,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                     
                     logger.info(f"✅ File sent with refreshed reference to {user_id}")
                     
-                    # ✅ Schedule auto-delete for refreshed file
+                    # ✅ Schedule auto-delete for refreshed file - 5 MINUTES
                     if bot_instance and auto_delete_minutes > 0:
                         task_id = f"{user_id}_{sent.id}"
                         
@@ -678,10 +739,15 @@ async def handle_verification_token(client, message, token, bot_instance):
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "User"
         
-        # ✅ PREVENT DOUBLE PROCESSING
+        # ✅ PREVENT DOUBLE PROCESSING - IMPROVED
         message_key = f"{user_id}_{message.id}"
         if not await bot_instance.should_reply(user_id, message.id):
             logger.warning(f"⚠️ Duplicate verification processing ignored for user {user_id}")
+            return
+        
+        # ✅ CHECK DUPLICATE MESSAGE CONTENT
+        if await bot_instance.is_message_content_duplicate(user_id, message.text):
+            logger.debug(f"Duplicate verification message from user {user_id}")
             return
         
         # ✅ VERIFICATION RATE LIMIT CHECK
@@ -694,7 +760,7 @@ async def handle_verification_token(client, message, token, bot_instance):
         
         # ✅ DUPLICATE VERIFICATION CHECK
         if await bot_instance.is_request_duplicate(user_id, token, request_type="verification"):
-            logger.warning(f"⚠️ Duplicate verification ignored for user {user_id}")
+            logger.debug(f"Duplicate verification request from user {user_id}")
             await message.reply_text(
                 "⏳ **Already Processing Verification**\n\n"
                 "Your verification is already being processed. Please wait..."
@@ -803,10 +869,15 @@ async def handle_file_request(client, message, file_text, bot_instance):
         config = bot_instance.config
         user_id = message.from_user.id
         
-        # ✅ PREVENT DOUBLE PROCESSING
+        # ✅ PREVENT DOUBLE PROCESSING - IMPROVED
         message_key = f"{user_id}_{message.id}"
         if not await bot_instance.should_reply(user_id, message.id):
-            logger.warning(f"⚠️ Duplicate file request processing ignored for user {user_id}")
+            logger.debug(f"⚠️ Duplicate file request processing ignored for user {user_id}")
+            return
+        
+        # ✅ CHECK DUPLICATE MESSAGE CONTENT
+        if await bot_instance.is_message_content_duplicate(user_id, message.text):
+            logger.debug(f"Duplicate file request message from user {user_id}")
             return
         
         # ✅ FILE RATE LIMIT CHECK
@@ -819,7 +890,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
         
         # ✅ DUPLICATE FILE REQUEST CHECK
         if await bot_instance.is_request_duplicate(user_id, file_text, request_type="file"):
-            logger.warning(f"⚠️ Duplicate file request ignored for user {user_id}: {file_text}")
+            logger.debug(f"Duplicate file request from user {user_id}: {file_text[:50]}...")
             await message.reply_text(
                 "⏳ **Already Processing Download**\n\n"
                 "Your previous download request is still being processed. Please wait..."
@@ -838,7 +909,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
         
         # Extract file ID parts
         parts = clean_text.split('_')
-        logger.info(f"📥 Parts: {parts}")
+        logger.debug(f"📥 Parts: {parts}")
         
         if len(parts) < 2:
             await message.reply_text(
@@ -1006,6 +1077,93 @@ async def handle_file_request(client, message, file_text, bot_instance):
             pass
         await bot_instance.clear_processing_request(user_id, file_text, request_type="file")
 
+async def handle_direct_message(client, message, bot_instance):
+    """Handle direct messages from users (not commands)"""
+    try:
+        user_id = message.from_user.id
+        user_name = message.from_user.first_name or "User"
+        
+        # ✅ PREVENT DOUBLE REPLIES
+        if not await bot_instance.should_reply(user_id, message.id):
+            return
+        
+        # ✅ CHECK DUPLICATE MESSAGE CONTENT
+        if await bot_instance.is_message_content_duplicate(user_id, message.text):
+            logger.debug(f"Duplicate direct message from user {user_id}")
+            return
+        
+        # Check if message contains file request pattern
+        if re.match(r'^-?\d+_\d+(_\w+)?$', message.text.strip()):
+            # It's a file request, handle it
+            await handle_file_request(client, message, message.text.strip(), bot_instance)
+            return
+        
+        # Check if it's a verification token
+        if message.text.strip().startswith('verify_'):
+            token = message.text.strip().replace('verify_', '', 1)
+            await handle_verification_token(client, message, token, bot_instance)
+            return
+        
+        # ✅ RATE LIMIT FOR DIRECT MESSAGES
+        if not await bot_instance.check_rate_limit(user_id, limit=5, window=60, request_type="message"):
+            await message.reply_text(
+                "⚠️ **Message Rate Limit**\n\n"
+                "Too many messages. Please wait 60 seconds."
+            )
+            return
+        
+        # It's a regular message, respond with website visit message
+        website_url = getattr(bot_instance.config, 'WEBSITE_URL', 'https://sk4film.com')
+        
+        response_text = (
+            f"👋 **Hello {user_name}!**\n\n"
+            f"🎬 **Welcome to SK4FiLM Bot**\n\n"
+            f"To download movies/TV shows:\n"
+            f"1. Visit our website: {website_url}\n"
+            f"2. Search for your movie\n"
+            f"3. Click download button\n"
+            f"4. File will appear here automatically\n\n"
+            f"**Important Notes:**\n"
+            f"⏰ **Files auto-delete after 5 minutes** (security)\n"
+            f"✅ **Free users need verification every 6 hours**\n"
+            f"⭐ **Premium users get instant access**\n\n"
+            f"**Commands:**\n"
+            f"• /start - Start bot\n"
+            f"• /buy - Buy premium\n"
+            f"• /help - Help\n\n"
+            f"🎬 **Happy watching!**"
+        )
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 VISIT WEBSITE", url=website_url)],
+            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+            [InlineKeyboardButton("📢 JOIN CHANNEL", url=getattr(bot_instance.config, 'MAIN_CHANNEL_LINK', 'https://t.me/SK4FiLM'))]
+        ])
+        
+        # Send response
+        sent_msg = await message.reply_text(response_text, reply_markup=keyboard, disable_web_page_preview=True)
+        
+        # ✅ Schedule auto-delete for this response message too (5 minutes)
+        if bot_instance:
+            task_id = f"{user_id}_{sent_msg.id}"
+            
+            # Cancel any existing task for this user
+            if task_id in bot_instance.auto_delete_tasks:
+                bot_instance.auto_delete_tasks[task_id].cancel()
+            
+            # Create new auto-delete task for 5 minutes
+            delete_task = asyncio.create_task(
+                bot_instance.schedule_file_deletion(user_id, sent_msg.id, "Website Visit Message", 5)
+            )
+            bot_instance.auto_delete_tasks[task_id] = delete_task
+            
+            logger.info(f"⏰ Auto-delete scheduled for response message {sent_msg.id}")
+        
+        logger.info(f"✅ Direct message handled for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"Direct message handling error: {e}")
+
 async def setup_bot_handlers(bot: Client, bot_instance):
     """Setup bot commands and handlers - FIXED VERSION"""
     config = bot_instance.config
@@ -1041,6 +1199,11 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         welcome_text = (
             f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
             f"🌐 **Website:** {config.WEBSITE_URL}\n\n"
+            "**Features:**\n"
+            "• Free verification every 6 hours\n"
+            "• Premium plans for uninterrupted access\n"
+            "• All quality formats (480p-4K)\n"
+            "• **Files auto-delete after 5 minutes** ⏰\n\n"
             "**Commands:**\n"
             "• /mypremium - Check your premium status\n"
             "• /plans - View premium plans\n"
@@ -1061,6 +1224,12 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         ])
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+    
+    # ✅ HANDLE DIRECT TEXT MESSAGES (NON-COMMANDS)
+    @bot.on_message(filters.private & filters.text & ~filters.command)
+    async def handle_direct_text_messages(client, message):
+        """Handle all direct text messages that are not commands"""
+        await handle_direct_message(client, message, bot_instance)
     
     @bot.on_message(filters.command("mypremium") & filters.private)
     async def my_premium_command(client, message):
@@ -1161,11 +1330,13 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "🥉 **Basic Plan** - ₹99/month\n"
             "• All quality (480p-4K)\n"
             "• Unlimited downloads\n"
-            "• No verification\n\n"
+            "• No verification\n"
+            "⏰ Files auto-delete after 5 minutes\n\n"
             "🥈 **Premium Plan** - ₹199/month\n"
             "• Everything in Basic +\n"
             "• Priority support\n"
-            "• Faster downloads\n\n"
+            "• Faster downloads\n"
+            "⏰ Files auto-delete after 5 minutes\n\n"
             "Click a button below to purchase:"
         )
         
@@ -1206,9 +1377,10 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "• Premium users don't need verification\n"
             "• Verification link valid for 1 hour\n\n"
             "**Auto-Delete Feature:**\n"
-            "• Files auto-delete after 15 minutes\n"
+            "• Files auto-delete after 5 minutes\n"
             "• For security and privacy\n"
-            "• Download again if needed\n\n"
+            "• Download again if needed\n"
+            "• Same for all users (free & premium)\n\n"
             "**Support:**\n"
             f"🌐 Website: {config.WEBSITE_URL}\n"
             "📢 Channel: @SK4FiLM\n"
@@ -1297,7 +1469,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                         f"**Username:** {username}\n"
                         f"**Plan:** {plan_type.capitalize()}\n"
                         f"**Duration:** {days} days\n\n"
-                        f"User can now download files without verification!"
+                        f"User can now download files without verification!\n"
+                        f"⏰ Files still auto-delete after 5 minutes"
                     )
                     
                     # Notify user
@@ -1311,7 +1484,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                             f"⭐ **Benefits:**\n"
                             f"• Instant file access\n"
                             f"• No verification required\n"
-                            f"• Priority support\n\n"
+                            f"• Priority support\n"
+                            f"⏰ **Files auto-delete after 5 minutes** (security)\n\n"
                             f"🎬 **Enjoy unlimited downloads!**"
                         )
                     except:
@@ -1408,7 +1582,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                         f"**ID:** `{user_id}`\n"
                         f"**Username:** {username}\n"
                         f"**Status:** Free User\n\n"
-                        f"This user does not have premium access."
+                        f"This user does not have premium access.\n"
+                        f"⏰ Files auto-delete after 5 minutes"
                     )
                 else:
                     await message.reply_text(
@@ -1421,7 +1596,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                         f"**Days Left:** {user_info.get('days_remaining', 0)}\n"
                         f"**Total Downloads:** {user_info.get('total_downloads', 0)}\n"
                         f"**Joined:** {user_info.get('purchased_at', 'Unknown')}\n"
-                        f"**Expires:** {user_info.get('expires_at', 'Unknown')}"
+                        f"**Expires:** {user_info.get('expires_at', 'Unknown')}\n"
+                        f"⏰ **Files auto-delete after 5 minutes**"
                     )
             else:
                 await message.reply_text("❌ Premium system not available")
@@ -1459,7 +1635,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     f"• User Client: {'✅ Connected' if bot_instance.user_session_ready else '❌ Disconnected'}\n"
                     f"• Verification: {'✅ Active' if bot_instance.verification_system else '❌ Inactive'}\n"
                     f"• Premium: {'✅ Active' if bot_instance.premium_system else '❌ Inactive'}\n\n"
-                    f"⏰ **Uptime:** {stats.get('uptime', 'Unknown')}\n"
+                    f"⏰ **Auto-delete time:** 5 minutes for all users\n"
                     f"🕐 **Server Time:** {stats.get('server_time', 'Unknown')}"
                 )
                 
@@ -1553,7 +1729,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                                     f"⭐ **Benefits:**\n"
                                     f"• No verification required\n"
                                     f"• Instant file access\n"
-                                    f"• Priority support\n\n"
+                                    f"• Priority support\n"
+                                    f"⏰ **Files auto-delete after 5 minutes** (security)\n\n"
                                     f"🎬 **Enjoy unlimited downloads!**"
                                 )
                                 break
@@ -1638,7 +1815,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 "2. Join our channel\n"
                 "3. Return here for downloads\n"
                 "4. Access lasts 6 hours\n\n"
-                "⭐ **Premium users don't need verification**"
+                "⭐ **Premium users don't need verification**\n"
+                "⏰ **Files auto-delete after 5 minutes**"
             )
             
             keyboard = InlineKeyboardMarkup([
@@ -1666,7 +1844,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         text = (
             f"🎬 **Welcome back, {user_name}!**\n\n"
             f"Visit {config.WEBSITE_URL} to download movies.\n"
-            "Click download button on website and file will appear here."
+            "Click download button on website and file will appear here.\n\n"
+            f"⏰ **Files auto-delete after 5 minutes** (security)"
         )
         
         keyboard = InlineKeyboardMarkup([
@@ -1702,7 +1881,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     f"**Plan:** {details.get('tier_name', 'Premium')}\n"
                     f"**Days Left:** {details.get('days_remaining', 0)}\n"
                     f"**Status:** ✅ Active\n\n"
-                    "Enjoy unlimited downloads without verification! 🎬"
+                    "Enjoy unlimited downloads without verification! 🎬\n"
+                    f"⏰ **Files auto-delete after 5 minutes** (security)"
                 )
                 
                 keyboard = InlineKeyboardMarkup([
@@ -1724,7 +1904,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "✅ All quality (480p-4K)\n"
             "✅ Unlimited downloads\n"
             "✅ No ads\n"
-            "✅ Priority support\n\n"
+            "✅ Priority support\n"
+            "⏰ **Files auto-delete after 5 minutes** (security measure)\n\n"
             "**Plans:**\n"
             "• **Basic** - ₹99/month\n"
             "• **Premium** - ₹199/month\n"
@@ -1734,7 +1915,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         )
         
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🥉 BUY BASIC (₹15)", callback_data="plan_basic")],
+            [InlineKeyboardButton("🥉 BUY BASIC (₹99)", callback_data="plan_basic")],
             [InlineKeyboardButton("🥈 BUY PREMIUM (₹199)", callback_data="plan_premium")],
             [InlineKeyboardButton("🥇 BUY GOLD (₹299)", callback_data="plan_gold")],
             [InlineKeyboardButton("💎 BUY DIAMOND (₹499)", callback_data="plan_diamond")],
@@ -1803,7 +1984,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "2. Send it to this chat\n"
             "3. Our admin will verify and activate your premium\n\n"
             f"**Payment ID:** `{payment_id}`\n"
-            "⏰ Please send within 24 hours of payment"
+            "⏰ Please send within 24 hours of payment\n"
+            f"⏰ **Files auto-delete after 5 minutes** (security)"
         )
         
         await callback_query.answer("Please send screenshot now!", show_alert=True)
@@ -1855,7 +2037,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 await message.reply_text(
                     "❌ **No pending payment found!**\n\n"
                     "Please initiate a purchase first using /buy command.\n"
-                    "Or send a screenshot only after making payment.",
+                    "Or send a screenshot only after making payment.\n\n"
+                    f"⏰ **Files auto-delete after 5 minutes** (security)",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("💰 BUY PREMIUM", callback_data="buy_premium")],
                         [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
@@ -1892,7 +2075,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 
                 reply_text += (
                     "Thank you for choosing SK4FiLM! 🎬\n"
-                    "You will receive a confirmation message when activated."
+                    "You will receive a confirmation message when activated.\n"
+                    f"⏰ **Files auto-delete after 5 minutes** (security)"
                 )
                 
                 await message.reply_text(
@@ -1908,7 +2092,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 await message.reply_text(
                     "❌ **Failed to process screenshot!**\n\n"
                     "Please try again or contact admin.\n"
-                    f"Payment ID: `{payment_id}`",
+                    f"Payment ID: `{payment_id}`\n\n"
+                    f"⏰ **Files auto-delete after 5 minutes** (security)",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🆘 CONTACT ADMIN", url="https://t.me/SKadminrobot")],
                         [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
@@ -1917,14 +2102,15 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         else:
             await message.reply_text(
                 "❌ **Premium system not available**\n\n"
-                "Please try again later or contact admin.",
+                "Please try again later or contact admin.\n\n"
+                f"⏰ **Files auto-delete after 5 minutes** (security)",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🆘 CONTACT ADMIN", url="https://t.me/SKadminrobot")],
                     [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
                 ])
             )
     
-    logger.info("✅ Bot handlers setup complete with FIXED admin notifications")
+    logger.info("✅ Bot handlers setup complete with FIXED features")
 
 # Utility function for file size formatting
 def format_size(size_in_bytes):
