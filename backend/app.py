@@ -239,6 +239,75 @@ def normalize_title_cached(title: str) -> str:
     """Cached title normalization"""
     return normalize_title(title)
 
+# FIXED: Missing channel_name function
+@lru_cache(maxsize=1000)
+def channel_name(channel_id):
+    """Get channel name from channel ID (compatibility function)"""
+    return channel_name_cached(channel_id)
+
+# FIXED: Missing get_telegram_video_thumbnail function
+async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
+    """Get video thumbnail from Telegram"""
+    try:
+        if not user_client or not user_session_ready:
+            return None
+            
+        msg = await safe_telegram_operation(
+            user_client.get_messages,
+            channel_id,
+            message_id
+        )
+        
+        if msg and (msg.video or msg.document):
+            return await extract_video_thumbnail(user_client, msg)
+        
+        return None
+    except Exception as e:
+        logger.error(f"Get thumbnail error: {e}")
+        return None
+
+# FIXED: Missing verify_user_api function
+async def verify_user_api(user_id, verification_url=None):
+    """Verify user API endpoint implementation"""
+    try:
+        if verification_system:
+            result = await verification_system.verify_user_api(user_id, verification_url)
+            return result
+        
+        # Fallback
+        return {
+            'verified': True,
+            'user_id': user_id,
+            'expires_at': (datetime.now() + timedelta(hours=6)).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Verify user API error: {e}")
+        return {
+            'verified': False,
+            'error': str(e)
+        }
+
+# FIXED: Missing get_index_status_api function
+async def get_index_status_api():
+    """Get indexing status API implementation"""
+    try:
+        total_files = await files_col.count_documents({}) if files_col else 0
+        video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+        
+        return {
+            'indexed_files': total_files,
+            'video_files': video_files,
+            'user_session_ready': user_session_ready,
+            'last_update': datetime.now().isoformat(),
+            'status': 'active' if user_session_ready else 'inactive'
+        }
+    except Exception as e:
+        logger.error(f"Index status API error: {e}")
+        return {
+            'status': 'error',
+            'error': str(e)
+        }
+
 # ASYNC CACHE DECORATOR
 def async_cache_with_ttl(maxsize=128, ttl=300):
     """Async cache decorator with TTL"""
@@ -992,10 +1061,11 @@ async def get_single_post_api(channel_id, message_id):
                         poster_source = poster_data['source']
                         poster_rating = poster_data.get('rating', '0.0')
                 
+                # FIXED: Using channel_name function instead of undefined channel_name variable
                 post_data = {
                     'title': title,
                     'content': format_post(msg.text),
-                    'channel': channel_name(channel_id),
+                    'channel': channel_name(channel_id),  # FIXED HERE
                     'channel_id': channel_id,
                     'message_id': message_id,
                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
@@ -1016,7 +1086,7 @@ async def get_single_post_api(channel_id, message_id):
         return {
             'title': 'Sample Movie (2024)',
             'content': '🎬 <b>Sample Movie (2024)</b>\n📅 Release: 2024\n🎭 Genre: Action, Drama\n⭐ Starring: Popular Actors\n\n📥 Download now from SK4FiLM!',
-            'channel': channel_name(channel_id),
+            'channel': channel_name(channel_id),  # FIXED HERE
             'channel_id': channel_id,
             'message_id': message_id,
             'date': datetime.now().isoformat(),
@@ -1171,7 +1241,7 @@ async def get_home_movies_live():
                 movie['has_poster'] = True
     
     return movies
-    
+
 # TELEGRAM BOT INITIALIZATION
 @performance_monitor.measure("telegram_init")
 async def init_telegram_clients():
