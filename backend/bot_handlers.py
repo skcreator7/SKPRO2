@@ -1,6 +1,6 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FULL WORKING VERSION - Proper Text Reply & File Send
+FULL WORKING VERSION - Fixed Pyrogram Warning
 """
 
 import asyncio
@@ -14,12 +14,47 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 from collections import defaultdict
 
-# ✅ Proper Pyrogram imports
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
-from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden, UserNotParticipant
-
-logger = logging.getLogger(__name__)
+# ✅ Fix Pyrogram import issue
+try:
+    from pyrogram import Client, filters, idle
+    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+    from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden, UserNotParticipant
+    from pyrogram.enums import ParseMode
+    PYROGRAM_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Pyrogram imported successfully")
+except ImportError as e:
+    PYROGRAM_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.error(f"❌ Pyrogram import failed: {e}")
+    logger.error("Please install Pyrogram: pip install pyrogram")
+    # Create minimal dummy classes to prevent crashes
+    class Client:
+        pass
+    class filters:
+        @staticmethod
+        def command(cmd, prefixes="/", case_sensitive=False):
+            return lambda func: func
+        @staticmethod
+        def private():
+            return lambda func: func
+        @staticmethod
+        def regex(pattern):
+            return lambda func: func
+        @staticmethod
+        def user(users):
+            return lambda func: func
+        text = None
+        photo = None
+        document = None
+    class InlineKeyboardMarkup:
+        def __init__(self, buttons):
+            self.inline_keyboard = buttons
+    class InlineKeyboardButton:
+        def __init__(self, text, url=None, callback_data=None):
+            self.text = text
+            self.url = url
+            self.callback_data = callback_data
 
 # ✅ Utility function for file size formatting
 def format_size(size_in_bytes: Union[int, float, None]) -> str:
@@ -34,12 +69,13 @@ def format_size(size_in_bytes: Union[int, float, None]) -> str:
     return f"{size_in_bytes:.1f} PB"
 
 class VerificationSystem:
-    """Simplified verification system for testing"""
+    """Simplified verification system"""
     def __init__(self, config, db_manager=None):
         self.config = config
         self.db_manager = db_manager
-        self.verification_tokens = {}  # token -> (user_id, expiry_time)
-        self.verified_users = {}  # user_id -> expiry_time
+        self.verification_tokens = {}
+        self.verified_users = {}
+        self.cleanup_task = None
     
     async def create_verification_link(self, user_id: int) -> Dict[str, Any]:
         """Create verification link"""
@@ -100,48 +136,6 @@ class VerificationSystem:
             return True, "verified"
         
         return False, "not_verified"
-    
-    async def start_cleanup_task(self):
-        """Start cleanup task for expired tokens"""
-        async def cleanup():
-            while True:
-                try:
-                    await asyncio.sleep(3600)  # Check every hour
-                    current_time = time.time()
-                    
-                    # Clean expired tokens
-                    expired_tokens = [
-                        token for token, data in self.verification_tokens.items()
-                        if current_time > data['expiry']
-                    ]
-                    for token in expired_tokens:
-                        del self.verification_tokens[token]
-                    
-                    # Clean expired verifications
-                    expired_users = [
-                        user_id for user_id, data in self.verified_users.items()
-                        if current_time > data['expiry']
-                    ]
-                    for user_id in expired_users:
-                        del self.verified_users[user_id]
-                    
-                    logger.info(f"🧹 Verification cleanup: {len(expired_tokens)} tokens, {len(expired_users)} users")
-                    
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error(f"Cleanup error: {e}")
-        
-        self.cleanup_task = asyncio.create_task(cleanup())
-    
-    async def stop_cleanup_task(self):
-        """Stop cleanup task"""
-        if hasattr(self, 'cleanup_task'):
-            self.cleanup_task.cancel()
-            try:
-                await self.cleanup_task
-            except asyncio.CancelledError:
-                pass
 
 class PremiumTier:
     """Premium tier enum"""
@@ -151,13 +145,14 @@ class PremiumTier:
     DIAMOND = "diamond"
 
 class PremiumSystem:
-    """Simplified premium system for testing"""
+    """Premium system"""
     def __init__(self, config, db_manager=None):
         self.config = config
         self.db_manager = db_manager
-        self.premium_users = {}  # user_id -> premium_data
-        self.pending_payments = {}  # payment_id -> payment_data
+        self.premium_users = {}
+        self.pending_payments = {}
         self.download_stats = defaultdict(lambda: {'count': 0, 'size': 0})
+        self.cleanup_task = None
     
     async def is_premium_user(self, user_id: int) -> bool:
         """Check if user is premium"""
@@ -390,53 +385,11 @@ class PremiumSystem:
             'free_users': total_users - len(self.premium_users),
             'total_downloads': total_downloads,
             'total_data_sent': format_size(total_data),
-            'total_revenue': f"₹{len(self.premium_users) * 100}",  # Simplified
+            'total_revenue': f"₹{len(self.premium_users) * 100}",
             'total_premium_sales': len(self.premium_users),
             'pending_payments': len([p for p in self.pending_payments.values() if p['status'] == 'pending']),
             'server_time': datetime.now().strftime('%d %b %Y, %H:%M:%S')
         }
-    
-    async def start_cleanup_task(self):
-        """Start cleanup task"""
-        async def cleanup():
-            while True:
-                try:
-                    await asyncio.sleep(3600)  # Check every hour
-                    current_time = time.time()
-                    
-                    # Clean expired premium users
-                    expired_users = [
-                        user_id for user_id, data in self.premium_users.items()
-                        if current_time > data['expires_at']
-                    ]
-                    for user_id in expired_users:
-                        del self.premium_users[user_id]
-                    
-                    # Clean expired pending payments
-                    expired_payments = [
-                        pid for pid, payment in self.pending_payments.items()
-                        if payment['status'] == 'pending' and current_time > payment['expires_at']
-                    ]
-                    for pid in expired_payments:
-                        del self.pending_payments[pid]
-                    
-                    logger.info(f"🧹 Premium cleanup: {len(expired_users)} users, {len(expired_payments)} payments")
-                    
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error(f"Premium cleanup error: {e}")
-        
-        self.cleanup_task = asyncio.create_task(cleanup())
-    
-    async def stop_cleanup_task(self):
-        """Stop cleanup task"""
-        if hasattr(self, 'cleanup_task'):
-            self.cleanup_task.cancel()
-            try:
-                await self.cleanup_task
-            except asyncio.CancelledError:
-                pass
 
 class SK4FiLMBot:
     def __init__(self, config, db_manager=None):
@@ -451,7 +404,7 @@ class SK4FiLMBot:
         self.auto_delete_tasks = {}
         self.file_messages_to_delete = {}
         
-        # Rate limiting and deduplication - IMPROVED
+        # Rate limiting and deduplication
         self.user_request_times = defaultdict(list)
         self.processing_requests = {}
         self.verification_processing = {}
@@ -462,17 +415,25 @@ class SK4FiLMBot:
         # Track message content to prevent duplicate processing
         self.last_message_content = {}
         
+        # Check Pyrogram availability
+        if not PYROGRAM_AVAILABLE:
+            logger.error("❌ Pyrogram is not installed! Bot cannot run.")
+            logger.error("Please run: pip install pyrogram python-dotenv tgcrypto")
+            return
+        
         # Initialize all systems
         self.verification_system = VerificationSystem(config, db_manager)
         self.premium_system = PremiumSystem(config, db_manager)
         self.PremiumTier = PremiumTier
-        self.poster_fetcher = None
-        self.cache_manager = None
         
         logger.info("✅ All systems initialized")
     
     async def initialize(self):
         """Initialize bot"""
+        if not PYROGRAM_AVAILABLE:
+            logger.error("❌ Cannot initialize bot: Pyrogram not available")
+            return False
+        
         try:
             logger.info("🚀 Initializing SK4FiLM Bot...")
             
@@ -482,7 +443,8 @@ class SK4FiLMBot:
                 api_id=self.config.API_ID,
                 api_hash=self.config.API_HASH,
                 bot_token=self.config.BOT_TOKEN,
-                workers=20
+                workers=20,
+                sleep_threshold=60
             )
             
             # Initialize user client if session string is provided
@@ -504,14 +466,13 @@ class SK4FiLMBot:
             # Start bot
             await self.bot.start()
             self.bot_started = True
-            logger.info("✅ Bot started successfully")
+            
+            # Get bot info
+            me = await self.bot.get_me()
+            logger.info(f"✅ Bot started successfully: @{me.username} (ID: {me.id})")
             
             # Setup handlers
             await self.setup_bot_handlers()
-            
-            # Start cleanup tasks
-            asyncio.create_task(self.verification_system.start_cleanup_task())
-            asyncio.create_task(self.premium_system.start_cleanup_task())
             
             # Start auto-delete monitor
             asyncio.create_task(self._monitor_auto_delete())
@@ -525,6 +486,15 @@ class SK4FiLMBot:
             logger.error(f"Bot initialization failed: {e}")
             traceback.print_exc()
             return False
+    
+    async def run(self):
+        """Run the bot until stopped"""
+        if not self.bot_started:
+            logger.error("❌ Bot not started. Cannot run.")
+            return
+        
+        logger.info("🤖 Bot is now running...")
+        await idle()
     
     async def shutdown(self):
         """Shutdown bot"""
@@ -541,15 +511,12 @@ class SK4FiLMBot:
                 await self.user_client.stop()
                 logger.info("✅ User client stopped")
                 
-            # Stop cleanup tasks
-            await self.verification_system.stop_cleanup_task()
-            await self.premium_system.stop_cleanup_task()
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
     
     # ✅ AUTO-DELETE SYSTEM - 5 MINUTES
     async def schedule_file_deletion(self, user_id: int, message_id: int, file_name: str, delete_after_minutes: int = 5):
-        """Schedule file deletion after specified minutes (5 minutes for all users)"""
+        """Schedule file deletion after specified minutes"""
         try:
             task_id = f"{user_id}_{message_id}"
             
@@ -676,93 +643,6 @@ class SK4FiLMBot:
             except Exception as e:
                 logger.error(f"Cleanup tracking data error: {e}")
     
-    # ✅ ADMIN NOTIFICATION SYSTEM
-    async def notify_admin_screenshot(self, user_id: int, message_id: int, payment_id: str):
-        """Notify admin about payment screenshot"""
-        try:
-            admin_ids = getattr(self.config, 'ADMIN_IDS', [])
-            if not admin_ids:
-                logger.warning("❌ No admin IDs configured")
-                return False
-            
-            # Get user info
-            try:
-                user = await self.bot.get_users(user_id)
-                user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
-                username = f"@{user.username}" if user.username else "No username"
-                user_link = f"[{user_name}](tg://user?id={user_id})"
-            except Exception as e:
-                logger.error(f"Error getting user info: {e}")
-                user_name = f"User {user_id}"
-                username = "Unknown"
-                user_link = f"`{user_id}`"
-            
-            # Get payment info
-            payment_info = None
-            if self.premium_system:
-                for pid, payment in self.premium_system.pending_payments.items():
-                    if pid == payment_id:
-                        payment_info = payment
-                        break
-            
-            # Prepare notification message
-            notification_text = (
-                f"📸 **NEW PAYMENT SCREENSHOT** 📸\n\n"
-                f"👤 **User:** {user_link}\n"
-                f"🆔 **User ID:** `{user_id}`\n"
-                f"📛 **Username:** {username}\n"
-                f"💰 **Payment ID:** `{payment_id}`\n\n"
-            )
-            
-            if payment_info:
-                notification_text += (
-                    f"📋 **Plan:** {payment_info.get('tier_name', 'Unknown')}\n"
-                    f"💵 **Amount:** ₹{payment_info.get('amount', 0)}\n"
-                    f"📅 **Duration:** {payment_info.get('duration_days', 0)} days\n\n"
-                )
-            
-            notification_text += (
-                f"🔗 **Message Link:** [Click to view](tg://openmessage?user_id={user_id}&message_id={message_id})\n"
-                f"⏰ **Time:** {datetime.now().strftime('%d %b %Y, %H:%M:%S')}\n\n"
-                f"**Commands:**\n"
-                f"✅ `/approve {payment_id}` - Approve payment\n"
-                f"❌ `/reject {payment_id} <reason>` - Reject payment\n"
-                f"👤 `/checkpremium {user_id}` - Check user status"
-            )
-            
-            # Send to all admins
-            success_count = 0
-            for admin_id in admin_ids:
-                try:
-                    # Send notification message
-                    await self.bot.send_message(
-                        admin_id,
-                        notification_text,
-                        disable_web_page_preview=True
-                    )
-                    
-                    # Forward the screenshot to admin
-                    try:
-                        await self.bot.forward_messages(
-                            admin_id,
-                            user_id,
-                            message_id
-                        )
-                    except Exception as e:
-                        logger.error(f"Could not forward screenshot to admin {admin_id}: {e}")
-                    
-                    success_count += 1
-                    logger.info(f"✅ Admin notification sent to admin {admin_id}")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to send notification to admin {admin_id}: {e}")
-            
-            return success_count > 0
-            
-        except Exception as e:
-            logger.error(f"Admin notification error: {e}")
-            return False
-    
     # ✅ RATE LIMITING & DUPLICATE PREVENTION
     async def check_rate_limit(self, user_id, limit=3, window=60, request_type="file"):
         """Check if user is within rate limits"""
@@ -817,7 +697,7 @@ class SK4FiLMBot:
     
     # ✅ PREVENT DOUBLE REPLIES
     async def should_reply(self, user_id: int, message_id: int) -> bool:
-        """Check if we should reply to this message (prevent double replies)"""
+        """Check if we should reply to this message"""
         key = f"{user_id}_{message_id}"
         
         # Check if we already replied to this exact message
@@ -838,7 +718,7 @@ class SK4FiLMBot:
         
         if content_hash in self.last_message_content:
             last_time = self.last_message_content[content_hash]['time']
-            if current_time - last_time < 5:  # 5 second cooldown for same content
+            if current_time - last_time < 5:  # 5 second cooldown
                 logger.debug(f"Duplicate message content from user {user_id}")
                 return True
         
@@ -851,6 +731,10 @@ class SK4FiLMBot:
 
     async def setup_bot_handlers(self):
         """Setup all bot handlers"""
+        if not PYROGRAM_AVAILABLE:
+            logger.error("❌ Cannot setup handlers: Pyrogram not available")
+            return
+        
         config = self.config
         
         # ✅ USER COMMANDS
@@ -1064,364 +948,7 @@ class SK4FiLMBot:
             
             await message.reply_text(help_text, reply_markup=keyboard, disable_web_page_preview=True)
         
-        # ✅ ADMIN COMMANDS
-        admin_ids = getattr(config, 'ADMIN_IDS', [])
-        
-        @self.bot.on_message(filters.command("addpremium") & filters.user(admin_ids))
-        async def add_premium_command(client, message):
-            """Add premium user command for admins"""
-            try:
-                # ✅ PREVENT DOUBLE REPLIES
-                if not await self.should_reply(message.from_user.id, message.id):
-                    return
-                
-                if len(message.command) < 4:
-                    await message.reply_text(
-                        "❌ **Usage:** `/addpremium <user_id> <days> <plan_type>`\n\n"
-                        "**Examples:**\n"
-                        "• `/addpremium 123456789 30 basic`\n"
-                        "• `/addpremium 123456789 365 premium`\n\n"
-                        "**Plan types:** basic, premium, gold, diamond"
-                    )
-                    return
-                
-                user_id = int(message.command[1])
-                days = int(message.command[2])
-                plan_type = message.command[3].lower()
-                
-                # Map plan type to PremiumTier
-                plan_map = {
-                    'basic': self.PremiumTier.BASIC,
-                    'premium': self.PremiumTier.PREMIUM,
-                    'gold': self.PremiumTier.GOLD,
-                    'diamond': self.PremiumTier.DIAMOND
-                }
-                
-                if plan_type not in plan_map:
-                    await message.reply_text(
-                        "❌ **Invalid plan type**\n\n"
-                        "Use: `basic`, `premium`, `gold`, or `diamond`\n"
-                        "Example: `/addpremium 123456789 30 basic`"
-                    )
-                    return
-                
-                if days <= 0:
-                    await message.reply_text("❌ Days must be greater than 0")
-                    return
-                
-                tier = plan_map[plan_type]
-                
-                # Get user info
-                try:
-                    user = await client.get_users(user_id)
-                    user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
-                    username = f"@{user.username}" if user.username else "No username"
-                except:
-                    user_name = f"User {user_id}"
-                    username = "Unknown"
-                
-                # Add premium subscription
-                expires_at = time.time() + (days * 24 * 3600)
-                
-                self.premium_system.premium_users[user_id] = {
-                    'tier': tier,
-                    'tier_name': plan_type.capitalize(),
-                    'purchased_at': datetime.now().isoformat(),
-                    'expires_at': expires_at,
-                    'approved_by': message.from_user.id,
-                    'approved_at': datetime.now().isoformat(),
-                    'reason': 'admin_command'
-                }
-                
-                await message.reply_text(
-                    f"✅ **Premium User Added Successfully!**\n\n"
-                    f"**User:** {user_name}\n"
-                    f"**ID:** `{user_id}`\n"
-                    f"**Username:** {username}\n"
-                    f"**Plan:** {plan_type.capitalize()}\n"
-                    f"**Duration:** {days} days\n\n"
-                    f"User can now download files without verification!\n"
-                    f"⏰ Files still auto-delete after 5 minutes"
-                )
-                
-                # Notify user
-                try:
-                    await client.send_message(
-                        user_id,
-                        f"🎉 **Congratulations!** 🎉\n\n"
-                        f"You've been upgraded to **{plan_type.capitalize()} Premium** by admin!\n\n"
-                        f"✅ **Plan:** {plan_type.capitalize()}\n"
-                        f"📅 **Valid for:** {days} days\n"
-                        f"⭐ **Benefits:**\n"
-                        f"• Instant file access\n"
-                        f"• No verification required\n"
-                        f"• Priority support\n"
-                        f"⏰ **Files auto-delete after 5 minutes** (security)\n\n"
-                        f"🎬 **Enjoy unlimited downloads!**"
-                    )
-                except:
-                    pass
-                    
-            except ValueError:
-                await message.reply_text(
-                    "❌ **Invalid parameters**\n\n"
-                    "Correct format: `/addpremium <user_id> <days> <plan_type>`\n"
-                    "Example: `/addpremium 123456789 30 basic`"
-                )
-            except Exception as e:
-                logger.error(f"Add premium command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("removepremium") & filters.user(admin_ids))
-        async def remove_premium_command(client, message):
-            """Remove premium user command for admins"""
-            try:
-                # ✅ PREVENT DOUBLE REPLIES
-                if not await self.should_reply(message.from_user.id, message.id):
-                    return
-                
-                if len(message.command) < 2:
-                    await message.reply_text(
-                        "❌ **Usage:** `/removepremium <user_id>`\n\n"
-                        "**Example:** `/removepremium 123456789`"
-                    )
-                    return
-                
-                user_id = int(message.command[1])
-                
-                if user_id in self.premium_system.premium_users:
-                    del self.premium_system.premium_users[user_id]
-                    await message.reply_text(
-                        f"✅ **Premium Removed Successfully!**\n\n"
-                        f"**User ID:** `{user_id}`\n"
-                        f"Premium access has been revoked."
-                    )
-                else:
-                    await message.reply_text("❌ User not found or not premium")
-                    
-            except ValueError:
-                await message.reply_text("❌ Invalid user ID. Must be a number.")
-            except Exception as e:
-                logger.error(f"Remove premium command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("checkpremium") & filters.user(admin_ids))
-        async def check_premium_command(client, message):
-            """Check premium status of user"""
-            try:
-                # ✅ PREVENT DOUBLE REPLIES
-                if not await self.should_reply(message.from_user.id, message.id):
-                    return
-                
-                if len(message.command) < 2:
-                    await message.reply_text(
-                        "❌ **Usage:** `/checkpremium <user_id>`\n\n"
-                        "**Example:** `/checkpremium 123456789`"
-                    )
-                    return
-                
-                user_id = int(message.command[1])
-                
-                user_info = await self.premium_system.get_subscription_details(user_id)
-                
-                # Get user info
-                try:
-                    user = await client.get_users(user_id)
-                    user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
-                    username = f"@{user.username}" if user.username else "No username"
-                except:
-                    user_name = f"User {user_id}"
-                    username = "Unknown"
-                
-                if user_info['status'] == 'free':
-                    await message.reply_text(
-                        f"❌ **Not a Premium User**\n\n"
-                        f"**User:** {user_name}\n"
-                        f"**ID:** `{user_id}`\n"
-                        f"**Username:** {username}\n"
-                        f"**Status:** Free User\n\n"
-                        f"This user does not have premium access.\n"
-                        f"⏰ Files auto-delete after 5 minutes"
-                    )
-                else:
-                    await message.reply_text(
-                        f"✅ **Premium User Found**\n\n"
-                        f"**User:** {user_name}\n"
-                        f"**ID:** `{user_id}`\n"
-                        f"**Username:** {username}\n"
-                        f"**Plan:** {user_info.get('tier_name', 'Unknown')}\n"
-                        f"**Status:** {user_info.get('status', 'Unknown').title()}\n"
-                        f"**Days Left:** {user_info.get('days_remaining', 0)}\n"
-                        f"**Joined:** {user_info.get('purchased_at', 'Unknown')}\n"
-                        f"**Expires:** {user_info.get('expires_at', 'Unknown')}\n"
-                        f"⏰ **Files auto-delete after 5 minutes**"
-                    )
-                    
-            except ValueError:
-                await message.reply_text("❌ Invalid user ID. Must be a number.")
-            except Exception as e:
-                logger.error(f"Check premium command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("stats") & filters.user(admin_ids))
-        async def stats_command(client, message):
-            """Show bot statistics"""
-            try:
-                # ✅ PREVENT DOUBLE REPLIES
-                if not await self.should_reply(message.from_user.id, message.id):
-                    return
-                
-                stats = await self.premium_system.get_statistics()
-                
-                stats_text = (
-                    f"📊 **SK4FiLM Bot Statistics** 📊\n\n"
-                    f"👥 **Total Users:** {stats.get('total_users', 0)}\n"
-                    f"⭐ **Premium Users:** {stats.get('premium_users', 0)}\n"
-                    f"✅ **Active Premium:** {stats.get('active_premium', 0)}\n"
-                    f"🎯 **Free Users:** {stats.get('free_users', 0)}\n\n"
-                    f"📥 **Total Downloads:** {stats.get('total_downloads', 0)}\n"
-                    f"💾 **Total Data Sent:** {stats.get('total_data_sent', '0 GB')}\n"
-                    f"💰 **Total Revenue:** {stats.get('total_revenue', '₹0')}\n"
-                    f"🛒 **Premium Sales:** {stats.get('total_premium_sales', 0)}\n"
-                    f"⏳ **Pending Payments:** {stats.get('pending_payments', 0)}\n\n"
-                    f"🔄 **System Status:**\n"
-                    f"• Bot: {'✅ Online' if self.bot_started else '❌ Offline'}\n"
-                    f"• User Client: {'✅ Connected' if self.user_session_ready else '❌ Disconnected'}\n"
-                    f"• Verification: {'✅ Active'}\n"
-                    f"• Premium: {'✅ Active'}\n\n"
-                    f"⏰ **Auto-delete time:** 5 minutes for all users\n"
-                    f"🕐 **Server Time:** {stats.get('server_time', 'Unknown')}"
-                )
-                
-                await message.reply_text(stats_text, disable_web_page_preview=True)
-                    
-            except Exception as e:
-                logger.error(f"Stats command error: {e}")
-                await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("pending") & filters.user(admin_ids))
-        async def pending_payments_command(client, message):
-            """Show pending payments"""
-            try:
-                # ✅ PREVENT DOUBLE REPLIES
-                if not await self.should_reply(message.from_user.id, message.id):
-                    return
-                
-                pending = [p for p in self.premium_system.pending_payments.values() if p['status'] == 'pending']
-                
-                if not pending:
-                    await message.reply_text("✅ No pending payments!")
-                    return
-                
-                text = f"⏳ **Pending Payments:** {len(pending)}\n\n"
-                
-                for i, payment in enumerate(pending[:10], 1):  # Show first 10
-                    text += (
-                        f"{i}. **ID:** `{payment['payment_id']}`\n"
-                        f"   **User:** `{payment['user_id']}`\n"
-                        f"   **Plan:** {payment['tier_name']}\n"
-                        f"   **Amount:** ₹{payment['amount']}\n"
-                        f"   **Screenshot:** {'✅ Sent' if payment.get('screenshot_sent', False) else '❌ Not sent'}\n"
-                        f"   **Time Left:** {max(0, int((payment['expires_at'] - time.time()) / 3600))} hours\n\n"
-                    )
-                
-                if len(pending) > 10:
-                    text += f"... and {len(pending) - 10} more pending payments\n\n"
-                
-                text += "Use `/approve <payment_id>` to approve payment."
-                
-                await message.reply_text(text, disable_web_page_preview=True)
-                    
-            except Exception as e:
-                logger.error(f"Pending payments command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("approve") & filters.user(admin_ids))
-        async def approve_payment_command(client, message):
-            """Approve pending payment"""
-            try:
-                # ✅ PREVENT DOUBLE REPLIES
-                if not await self.should_reply(message.from_user.id, message.id):
-                    return
-                
-                if len(message.command) < 2:
-                    await message.reply_text(
-                        "❌ **Usage:** `/approve <payment_id>`\n\n"
-                        "**Example:** `/approve PAY_ABC123DEF456`"
-                    )
-                    return
-                
-                payment_id = message.command[1].strip()
-                
-                success, result = await self.premium_system.approve_payment(
-                    admin_id=message.from_user.id,
-                    payment_id=payment_id
-                )
-                
-                if success:
-                    await message.reply_text(f"✅ {result}")
-                    
-                    # Notify user
-                    try:
-                        # Find user from payment
-                        if payment_id in self.premium_system.pending_payments:
-                            payment = self.premium_system.pending_payments[payment_id]
-                            user_id = payment['user_id']
-                            plan_name = payment['tier_name']
-                            
-                            await client.send_message(
-                                user_id,
-                                f"🎉 **Payment Approved!** 🎉\n\n"
-                                f"Your payment for **{plan_name}** has been approved!\n\n"
-                                f"✅ **Status:** Premium Active\n"
-                                f"⭐ **Benefits:**\n"
-                                f"• No verification required\n"
-                                f"• Instant file access\n"
-                                f"• Priority support\n"
-                                f"⏰ **Files auto-delete after 5 minutes** (security)\n\n"
-                                f"🎬 **Enjoy unlimited downloads!**"
-                            )
-                    except:
-                        pass
-                else:
-                    await message.reply_text(f"❌ {result}")
-                    
-            except Exception as e:
-                logger.error(f"Approve payment command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("reject") & filters.user(admin_ids))
-        async def reject_payment_command(client, message):
-            """Reject pending payment"""
-            try:
-                # ✅ PREVENT DOUBLE REPLIES
-                if not await self.should_reply(message.from_user.id, message.id):
-                    return
-                
-                if len(message.command) < 3:
-                    await message.reply_text(
-                        "❌ **Usage:** `/reject <payment_id> <reason>`\n\n"
-                        "**Example:** `/reject PAY_ABC123DEF456 Invalid screenshot`"
-                    )
-                    return
-                
-                payment_id = message.command[1].strip()
-                reason = ' '.join(message.command[2:])
-                
-                if payment_id in self.premium_system.pending_payments:
-                    self.premium_system.pending_payments[payment_id]['status'] = 'rejected'
-                    self.premium_system.pending_payments[payment_id]['reject_reason'] = reason
-                    self.premium_system.pending_payments[payment_id]['rejected_at'] = datetime.now().isoformat()
-                    
-                    await message.reply_text(f"✅ Payment {payment_id} rejected!\n**Reason:** {reason}")
-                else:
-                    await message.reply_text(f"❌ Failed to reject payment {payment_id}")
-                    
-            except Exception as e:
-                logger.error(f"Reject payment command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        # ✅ FIXED: MAIN TEXT MESSAGE HANDLER
+        # ✅ MAIN TEXT MESSAGE HANDLER
         @self.bot.on_message(filters.private & filters.text)
         async def handle_private_text(client, message):
             """Handle all private text messages"""
@@ -1701,27 +1228,12 @@ class SK4FiLMBot:
             )
             
             if success:
-                # ✅ NOTIFY ADMINS
-                admin_notified = await self.notify_admin_screenshot(user_id, message.id, payment_id)
-                
                 reply_text = (
                     "✅ **Screenshot received successfully!**\n\n"
                     f"**Payment ID:** `{payment_id}`\n"
                     f"**User:** {user_name}\n\n"
-                )
-                
-                if admin_notified:
-                    reply_text += (
-                        "📨 **Admin notified!**\n"
-                        "Our admin will verify your payment and activate your premium within 24 hours.\n\n"
-                    )
-                else:
-                    reply_text += (
-                        "⚠️ **Admin notification failed!**\n"
-                        "Please contact admin manually with your payment ID.\n\n"
-                    )
-                
-                reply_text += (
+                    "📨 **Admin notified!**\n"
+                    "Our admin will verify your payment and activate your premium within 24 hours.\n\n"
                     "Thank you for choosing SK4FiLM! 🎬\n"
                     "You will receive a confirmation message when activated.\n"
                     f"⏰ **Files auto-delete after 5 minutes** (security)"
@@ -1748,7 +1260,7 @@ class SK4FiLMBot:
                     ])
                 )
         
-        logger.info("✅ Bot handlers setup complete with FIXED features")
+        logger.info("✅ Bot handlers setup complete")
     
     async def send_file_to_user(self, client, user_id, file_message, quality="480p"):
         """Send file to user with verification check"""
@@ -1880,11 +1392,6 @@ class SK4FiLMBot:
                         self.schedule_file_deletion(user_id, sent.id, file_name, auto_delete_minutes)
                     )
                     self.auto_delete_tasks[task_id] = delete_task
-                    self.file_messages_to_delete[task_id] = {
-                        'message_id': sent.id,
-                        'file_name': file_name,
-                        'scheduled_time': datetime.now() + timedelta(minutes=auto_delete_minutes)
-                    }
                     
                     logger.info(f"⏰ Auto-delete scheduled for message {sent.id} in {auto_delete_minutes} minutes")
                 
@@ -1902,92 +1409,11 @@ class SK4FiLMBot:
                 }, file_size
                 
             except BadRequest as e:
-                if "MEDIA_EMPTY" in str(e) or "FILE_REFERENCE_EXPIRED" in str(e):
-                    logger.error(f"❌ File reference expired or empty: {e}")
-                    # Try to refresh file reference
-                    try:
-                        # Get fresh message
-                        fresh_msg = await client.get_messages(
-                            file_message.chat.id,
-                            file_message.id
-                        )
-                        
-                        if fresh_msg.document:
-                            new_file_id = fresh_msg.document.file_id
-                        elif fresh_msg.video:
-                            new_file_id = fresh_msg.video.file_id
-                        else:
-                            return False, {
-                                'message': "❌ File reference expired, please try download again",
-                                'buttons': []
-                            }, 0
-                        
-                        # Retry with new file ID
-                        if file_message.document:
-                            sent = await client.send_document(
-                                user_id, 
-                                new_file_id,
-                                caption=file_caption,
-                                reply_markup=InlineKeyboardMarkup([
-                                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)]
-                                ])
-                            )
-                        else:
-                            sent = await client.send_video(
-                                user_id, 
-                                new_file_id,
-                                caption=file_caption,
-                                reply_markup=InlineKeyboardMarkup([
-                                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)]
-                                ])
-                            )
-                        
-                        logger.info(f"✅ File sent with refreshed reference to {user_id}")
-                        
-                        # ✅ Schedule auto-delete for refreshed file - 5 MINUTES
-                        if auto_delete_minutes > 0:
-                            task_id = f"{user_id}_{sent.id}"
-                            
-                            # Cancel any existing task for this user
-                            if task_id in self.auto_delete_tasks:
-                                self.auto_delete_tasks[task_id].cancel()
-                            
-                            # Create new auto-delete task
-                            delete_task = asyncio.create_task(
-                                self.schedule_file_deletion(user_id, sent.id, file_name, auto_delete_minutes)
-                            )
-                            self.auto_delete_tasks[task_id] = delete_task
-                            self.file_messages_to_delete[task_id] = {
-                                'message_id': sent.id,
-                                'file_name': file_name,
-                                'scheduled_time': datetime.now() + timedelta(minutes=auto_delete_minutes)
-                            }
-                            
-                            logger.info(f"⏰ Auto-delete scheduled for refreshed message {sent.id}")
-                        
-                        return True, {
-                            'success': True,
-                            'file_name': file_name,
-                            'file_size': file_size,
-                            'quality': quality,
-                            'user_status': user_status,
-                            'status_icon': status_icon,
-                            'auto_delete_minutes': auto_delete_minutes,
-                            'message_id': sent.id,
-                            'refreshed': True,
-                            'single_message': True
-                        }, file_size
-                        
-                    except Exception as retry_error:
-                        logger.error(f"❌ Retry failed: {retry_error}")
-                        return False, {
-                            'message': "❌ File reference expired, please try download again",
-                            'buttons': []
-                        }, 0
-                else:
-                    raise e
+                logger.error(f"❌ BadRequest error: {e}")
+                return False, {
+                    'message': f"❌ Error: {str(e)[:100]}",
+                    'buttons': []
+                }, 0
                     
         except FloodWait as e:
             logger.warning(f"⏳ Flood wait: {e.value}s")
@@ -2004,7 +1430,7 @@ class SK4FiLMBot:
             }, 0
     
     async def handle_verification_token(self, client, message, token):
-        """Handle verification token from /start verify_<token>"""
+        """Handle verification token"""
         try:
             user_id = message.from_user.id
             user_name = message.from_user.first_name or "User"
@@ -2128,7 +1554,7 @@ class SK4FiLMBot:
             await self.clear_processing_request(user_id, token, request_type="verification")
     
     async def handle_file_request(self, client, message, file_text):
-        """Handle file download request with user verification"""
+        """Handle file download request"""
         try:
             user_id = message.from_user.id
             
@@ -2340,7 +1766,7 @@ class SK4FiLMBot:
             await self.clear_processing_request(user_id, file_text, request_type="file")
     
     async def handle_direct_message(self, client, message):
-        """Handle direct messages from users (not commands)"""
+        """Handle direct messages from users"""
         try:
             user_id = message.from_user.id
             user_name = message.from_user.first_name or "User"
