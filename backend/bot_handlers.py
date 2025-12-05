@@ -6,6 +6,7 @@ FIXED:
 3. Duplicate request warning fix
 4. Rate limiting improved
 5. Fixed filters.command error with ~ operator
+6. Fixed multiple replies issue
 """
 import asyncio
 import logging
@@ -1174,7 +1175,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     
     # ✅ USER COMMANDS
     
-    @bot.on_message(filters.command("start"))
+    @bot.on_message(filters.command("start") & filters.private)
     async def handle_start_command(client, message):
         """Handle /start command with verification token detection"""
         user_id = message.from_user.id
@@ -1228,17 +1229,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         ])
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
-    
-    # ✅ HANDLE DIRECT TEXT MESSAGES (NON-COMMANDS) - FIXED: Removed ~filters.command
-    @bot.on_message(filters.private & filters.text)
-    async def handle_all_text_messages(client, message):
-        """Handle all direct text messages"""
-        # First check if it's a command - if yes, ignore (commands are handled separately)
-        if message.text and message.text.startswith('/'):
-            return
-        
-        # Now handle as regular direct message
-        await handle_direct_message(client, message, bot_instance)
     
     @bot.on_message(filters.command("mypremium") & filters.private)
     async def my_premium_command(client, message):
@@ -1790,18 +1780,35 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Reject payment command error: {e}")
             await message.reply_text(f"❌ Error: {str(e)[:100]}")
     
-    # ✅ FILE REQUEST HANDLER
-    @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
-    async def handle_direct_file_request(client, message):
-        """Handle direct file format messages"""
+    # ✅ FIXED: MAIN TEXT MESSAGE HANDLER
+    @bot.on_message(filters.private & filters.text)
+    async def handle_private_text(client, message):
+        """Handle all private text messages"""
         user_id = message.from_user.id
         
-        # ✅ PREVENT DOUBLE PROCESSING
+        # ✅ PREVENT DOUBLE REPLIES
         if not await bot_instance.should_reply(user_id, message.id):
             return
         
-        file_text = message.text.strip()
-        await handle_file_request(client, message, file_text, bot_instance)
+        # Check if it's a command - commands are handled by separate handlers
+        if message.text.startswith('/'):
+            # Commands are handled by separate handlers, so just return
+            return
+        
+        # Check if it's a file request pattern
+        if re.match(r'^-?\d+_\d+(_\w+)?$', message.text.strip()):
+            # It's a file request
+            await handle_file_request(client, message, message.text.strip(), bot_instance)
+            return
+        
+        # Check if it's a verification token
+        if message.text.strip().startswith('verify_'):
+            token = message.text.strip().replace('verify_', '', 1)
+            await handle_verification_token(client, message, token, bot_instance)
+            return
+        
+        # It's a regular message
+        await handle_direct_message(client, message, bot_instance)
     
     # ✅ CALLBACK HANDLERS
     
