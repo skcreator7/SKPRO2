@@ -32,7 +32,7 @@ except ImportError:
         def private(): return lambda x: x
         @staticmethod
         def regex(pattern): return lambda x: x
-        text = lambda x: x
+        text = None  # Fixed: Changed from lambda x: x to None
     class InlineKeyboardMarkup:
         def __init__(self, buttons): pass
     class InlineKeyboardButton:
@@ -144,6 +144,7 @@ class SK4FiLMBot:
             
         except Exception as e:
             logger.error(f"Bot initialization failed: {e}")
+            traceback.print_exc()
             return False
     
     async def shutdown(self):
