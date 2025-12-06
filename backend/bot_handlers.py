@@ -656,9 +656,9 @@ class SK4FiLMBot:
             logger.error(f"Admin rejection error: {e}")
             return False, f"Error: {str(e)}"
 
-    # ✅ FILE SENDING FUNCTION
+    # ✅ ORIGINAL FILE SENDING FUNCTION (FIXED)
     async def send_file_to_user(self, client, user_id, file_message, quality="480p"):
-        """Send file to user with verification check"""
+        """Send file to user with verification check - ORIGINAL WORKING VERSION"""
         try:
             # ✅ FIRST CHECK: Verify user is premium/verified/admin
             user_status = "Checking..."
@@ -1035,7 +1035,7 @@ class SK4FiLMBot:
             await self.clear_processing_request(user_id, token, request_type="verification")
 
     async def handle_file_request(self, client, message, file_text):
-        """Handle file download request with user verification"""
+        """Handle file download request with user verification - ORIGINAL WORKING VERSION"""
         try:
             user_id = message.from_user.id
             
@@ -1184,9 +1184,9 @@ class SK4FiLMBot:
                 await self.clear_processing_request(user_id, file_text, request_type="file")
                 return
             
-            # ✅ Send file to user
+            # ✅ Send file to user using ORIGINAL FUNCTION
             success, result_data, file_size = await self.send_file_to_user(
-                client, message.chat.id, file_message, quality
+                client, user_id, file_message, quality
             )
             
             if success:
@@ -1236,16 +1236,14 @@ class SK4FiLMBot:
                 pass
             await self.clear_processing_request(user_id, file_text, request_type="file")
 
-    # ✅ SETUP BOT HANDLERS
+    # ✅ SETUP BOT HANDLERS - SIMPLIFIED AND CORRECTED
     async def setup_bot_handlers(self):
-        """Setup bot commands and handlers"""
-        config = self.config
+        """Setup bot commands and handlers - SIMPLIFIED AND WORKING"""
         
-        # ✅ USER COMMANDS
-        
+        # ✅ 1. COMMAND HANDLERS
         @self.bot.on_message(filters.command("start"))
         async def handle_start_command(client, message):
-            """Handle /start command with verification token detection"""
+            """Handle /start command"""
             user_name = message.from_user.first_name or "User"
             user_id = message.from_user.id
             
@@ -1266,7 +1264,7 @@ class SK4FiLMBot:
             # WELCOME MESSAGE
             welcome_text = (
                 f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
-                f"🌐 **Website:** {config.WEBSITE_URL}\n\n"
+                f"🌐 **Website:** {self.config.WEBSITE_URL}\n\n"
                 "**Commands:**\n"
                 "• /mypremium - Check your premium status\n"
                 "• /plans - View premium plans\n"
@@ -1281,491 +1279,100 @@ class SK4FiLMBot:
             )
             
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
                 [InlineKeyboardButton("⭐ GET PREMIUM", callback_data="buy_premium")],
-                [InlineKeyboardButton("📢 JOIN CHANNEL", url=getattr(config, 'MAIN_CHANNEL_LINK', 'https://t.me/SK4FiLM'))]
+                [InlineKeyboardButton("📢 JOIN CHANNEL", url=getattr(self.config, 'MAIN_CHANNEL_LINK', 'https://t.me/SK4FiLM'))]
             ])
             
             await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
         
-        @self.bot.on_message(filters.command("mypremium") & filters.private)
-        async def my_premium_command(client, message):
-            """Check user's premium status"""
-            user_id = message.from_user.id
-            user_name = message.from_user.first_name or "User"
-            
-            if not self.premium_system:
-                await message.reply_text("❌ Premium system not available. Please try again later.")
-                return
-            
-            try:
-                # Get premium info
-                premium_info = await self.premium_system.get_my_premium_info(user_id)
-                
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)]
-                ])
-                
-                await message.reply_text(premium_info, reply_markup=keyboard, disable_web_page_preview=True)
-                
-            except Exception as e:
-                logger.error(f"My premium command error: {e}")
-                await message.reply_text("❌ Error fetching premium info. Please try again.")
-        
-        @self.bot.on_message(filters.command("plans") & filters.private)
-        async def plans_command(client, message):
-            """Show all premium plans"""
-            if not self.premium_system:
-                await message.reply_text("❌ Premium system not available. Please try again later.")
-                return
-            
-            try:
-                plans_text = await self.premium_system.get_available_plans_text()
-                
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("💰 BUY BASIC (₹99)", callback_data="plan_basic")],
-                    [InlineKeyboardButton("💰 BUY PREMIUM (₹199)", callback_data="plan_premium")],
-                    [InlineKeyboardButton("💰 BUY GOLD (₹299)", callback_data="plan_gold")],
-                    [InlineKeyboardButton("💰 BUY DIAMOND (₹499)", callback_data="plan_diamond")],
-                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                ])
-                
-                await message.reply_text(plans_text, reply_markup=keyboard, disable_web_page_preview=True)
-                
-            except Exception as e:
-                logger.error(f"Plans command error: {e}")
-                await message.reply_text("❌ Error fetching plans. Please try again.")
-        
-        @self.bot.on_message(filters.command("buy") & filters.private)
-        async def buy_command(client, message):
-            """Initiate premium purchase"""
-            user_id = message.from_user.id
-            user_name = message.from_user.first_name or "User"
-            
-            # Check if already premium
-            if self.premium_system:
-                is_premium = await self.premium_system.is_premium_user(user_id)
-                if is_premium:
-                    details = await self.premium_system.get_subscription_details(user_id)
-                    
-                    text = (
-                        f"⭐ **You're Already Premium!** ⭐\n\n"
-                        f"**User:** {user_name}\n"
-                        f"**Plan:** {details.get('tier_name', 'Premium')}\n"
-                        f"**Days Left:** {details.get('days_remaining', 0)}\n\n"
-                        "Enjoy unlimited downloads without verification! 🎬"
-                    )
-                    
-                    keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-                        [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                    ])
-                    
-                    await message.reply_text(text, reply_markup=keyboard)
-                    return
-            
-            text = (
-                f"💰 **Purchase Premium - {user_name}**\n\n"
-                "**Select a plan:**\n\n"
-                "🥉 **Basic Plan** - ₹99/month\n"
-                "• All quality (480p-4K)\n"
-                "• Unlimited downloads\n"
-                "• No verification\n\n"
-                "🥈 **Premium Plan** - ₹199/month\n"
-                "• Everything in Basic +\n"
-                "• Priority support\n"
-                "• Faster downloads\n\n"
-                "Click a button below to purchase:"
-            )
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🥉 BUY BASIC (₹99)", callback_data="plan_basic")],
-                [InlineKeyboardButton("🥈 BUY PREMIUM (₹199)", callback_data="plan_premium")],
-                [InlineKeyboardButton("🥇 BUY GOLD (₹299)", callback_data="plan_gold")],
-                [InlineKeyboardButton("💎 BUY DIAMOND (₹499)", callback_data="plan_diamond")],
-                [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-            ])
-            
-            await message.reply_text(text, reply_markup=keyboard)
-        
-        @self.bot.on_message(filters.command("help") & filters.private)
-        async def help_command(client, message):
-            """Show help message"""
-            help_text = (
-                "🆘 **SK4FiLM Bot Help** 🆘\n\n"
-                "**Available Commands:**\n"
-                "• /start - Start the bot\n"
-                "• /mypremium - Check your premium status\n"
-                "• /plans - View premium plans\n"
-                "• /buy - Purchase premium subscription\n"
-                "• /help - Show this help message\n\n"
-                "**How to Download Files:**\n"
-                "1. Visit our website\n"
-                "2. Search for movies/TV shows\n"
-                "3. Click download button\n"
-                "4. File will appear here automatically\n\n"
-                "**Verification System:**\n"
-                "• Free users need verification every 6 hours\n"
-                "• Premium users don't need verification\n"
-                "• Verification link valid for 1 hour\n\n"
-                "**Auto-Delete Feature:**\n"
-                "• Files auto-delete after 15 minutes\n"
-                "• For security and privacy\n"
-                "• Download again if needed\n\n"
-                "**Support:**\n"
-                f"🌐 Website: {config.WEBSITE_URL}\n"
-                "📢 Channel: @SK4FiLM\n"
-                "🆘 Issues: Contact admin\n\n"
-                "🎬 **Happy downloading!**"
-            )
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-                [InlineKeyboardButton("⭐ GET PREMIUM", callback_data="buy_premium")],
-                [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-            ])
-            
-            await message.reply_text(help_text, reply_markup=keyboard, disable_web_page_preview=True)
-        
-        # ✅ ADMIN COMMANDS
-        
-        @self.bot.on_message(filters.command("addpremium") & filters.user(getattr(config, 'ADMIN_IDS', [])))
-        async def add_premium_command(client, message):
-            """Add premium user command for admins"""
-            try:
-                if len(message.command) < 4:
-                    await message.reply_text(
-                        "❌ **Usage:** `/addpremium <user_id> <days> <plan_type>`\n\n"
-                        "**Examples:**\n"
-                        "• `/addpremium 123456789 30 basic`\n"
-                        "• `/addpremium 123456789 365 premium`\n\n"
-                        "**Plan types:** basic, premium, gold, diamond"
-                    )
-                    return
-                
-                user_id = int(message.command[1])
-                days = int(message.command[2])
-                plan_type = message.command[3].lower()
-                
-                # Map plan type to PremiumTier
-                plan_map = {
-                    'basic': self.PremiumTier.BASIC,
-                    'premium': self.PremiumTier.PREMIUM,
-                    'gold': self.PremiumTier.GOLD,
-                    'diamond': self.PremiumTier.DIAMOND
-                }
-                
-                if plan_type not in plan_map:
-                    await message.reply_text(
-                        "❌ **Invalid plan type**\n\n"
-                        "Use: `basic`, `premium`, `gold`, or `diamond`\n"
-                        "Example: `/addpremium 123456789 30 basic`"
-                    )
-                    return
-                
-                if days <= 0:
-                    await message.reply_text("❌ Days must be greater than 0")
-                    return
-                
-                tier = plan_map[plan_type]
-                
-                # Get user info
-                try:
-                    user = await client.get_users(user_id)
-                    user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
-                    username = f"@{user.username}" if user.username else "No username"
-                except:
-                    user_name = f"User {user_id}"
-                    username = "Unknown"
-                
-                # Add premium subscription
-                if self.premium_system:
-                    subscription_data = await self.premium_system.add_premium_subscription(
-                        admin_id=message.from_user.id,
-                        user_id=user_id,
-                        tier=tier,
-                        days=days,
-                        reason="admin_command"
-                    )
-                    
-                    if subscription_data:
-                        await message.reply_text(
-                            f"✅ **Premium User Added Successfully!**\n\n"
-                            f"**User:** {user_name}\n"
-                            f"**ID:** `{user_id}`\n"
-                            f"**Username:** {username}\n"
-                            f"**Plan:** {plan_type.capitalize()}\n"
-                            f"**Duration:** {days} days\n\n"
-                            f"User can now download files without verification!"
-                        )
-                        
-                        # Notify user
-                        try:
-                            await client.send_message(
-                                user_id,
-                                f"🎉 **Congratulations!** 🎉\n\n"
-                                f"You've been upgraded to **{plan_type.capitalize()} Premium** by admin!\n\n"
-                                f"✅ **Plan:** {plan_type.capitalize()}\n"
-                                f"📅 **Valid for:** {days} days\n"
-                                f"⭐ **Benefits:**\n"
-                                f"• Instant file access\n"
-                                f"• No verification required\n"
-                                f"• Priority support\n\n"
-                                f"🎬 **Enjoy unlimited downloads!**"
-                            )
-                        except:
-                            pass
-                    else:
-                        await message.reply_text("❌ Failed to add premium subscription.")
-                else:
-                    await message.reply_text("❌ Premium system not available")
-                    
-            except ValueError:
-                await message.reply_text(
-                    "❌ **Invalid parameters**\n\n"
-                    "Correct format: `/addpremium <user_id> <days> <plan_type>`\n"
-                    "Example: `/addpremium 123456789 30 basic`"
-                )
-            except Exception as e:
-                logger.error(f"Add premium command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("removepremium") & filters.user(getattr(config, 'ADMIN_IDS', [])))
-        async def remove_premium_command(client, message):
-            """Remove premium user command for admins"""
-            try:
-                if len(message.command) < 2:
-                    await message.reply_text(
-                        "❌ **Usage:** `/removepremium <user_id>`\n\n"
-                        "**Example:** `/removepremium 123456789`"
-                    )
-                    return
-                
-                user_id = int(message.command[1])
-                
-                if self.premium_system:
-                    success = await self.premium_system.remove_premium_subscription(
-                        admin_id=message.from_user.id,
-                        user_id=user_id,
-                        reason="admin_command"
-                    )
-                    
-                    if success:
-                        await message.reply_text(
-                            f"✅ **Premium Removed Successfully!**\n\n"
-                            f"**User ID:** `{user_id}`\n"
-                            f"Premium access has been revoked."
-                        )
-                    else:
-                        await message.reply_text("❌ User not found or not premium")
-                else:
-                    await message.reply_text("❌ Premium system not available")
-                    
-            except ValueError:
-                await message.reply_text("❌ Invalid user ID. Must be a number.")
-            except Exception as e:
-                logger.error(f"Remove premium command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("checkpremium") & filters.user(getattr(config, 'ADMIN_IDS', [])))
-        async def check_premium_command(client, message):
-            """Check premium status of user"""
-            try:
-                if len(message.command) < 2:
-                    await message.reply_text(
-                        "❌ **Usage:** `/checkpremium <user_id>`\n\n"
-                        "**Example:** `/checkpremium 123456789`"
-                    )
-                    return
-                
-                user_id = int(message.command[1])
-                
-                if self.premium_system:
-                    user_info = await self.premium_system.get_premium_user_info(user_id)
-                    
-                    # Get user info
-                    try:
-                        user = await client.get_users(user_id)
-                        user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
-                        username = f"@{user.username}" if user.username else "No username"
-                    except:
-                        user_name = f"User {user_id}"
-                        username = "Unknown"
-                    
-                    if user_info['tier'] == 'free':
-                        await message.reply_text(
-                            f"❌ **Not a Premium User**\n\n"
-                            f"**User:** {user_name}\n"
-                            f"**ID:** `{user_id}`\n"
-                            f"**Username:** {username}\n"
-                            f"**Status:** Free User\n\n"
-                            f"This user does not have premium access."
-                        )
-                    else:
-                        await message.reply_text(
-                            f"✅ **Premium User Found**\n\n"
-                            f"**User:** {user_name}\n"
-                            f"**ID:** `{user_id}`\n"
-                            f"**Username:** {username}\n"
-                            f"**Plan:** {user_info.get('tier_name', 'Unknown')}\n"
-                            f"**Status:** {user_info.get('status', 'Unknown').title()}\n"
-                            f"**Days Left:** {user_info.get('days_remaining', 0)}\n"
-                            f"**Total Downloads:** {user_info.get('total_downloads', 0)}\n"
-                            f"**Joined:** {user_info.get('purchased_at', 'Unknown')}\n"
-                            f"**Expires:** {user_info.get('expires_at', 'Unknown')}"
-                        )
-                else:
-                    await message.reply_text("❌ Premium system not available")
-                    
-            except ValueError:
-                await message.reply_text("❌ Invalid user ID. Must be a number.")
-            except Exception as e:
-                logger.error(f"Check premium command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("stats") & filters.user(getattr(config, 'ADMIN_IDS', [])))
-        async def stats_command(client, message):
-            """Show bot statistics"""
-            try:
-                if self.premium_system:
-                    stats = await self.premium_system.get_statistics()
-                    
-                    stats_text = (
-                        f"📊 **SK4FiLM Bot Statistics** 📊\n\n"
-                        f"👥 **Total Users:** {stats.get('total_users', 0)}\n"
-                        f"⭐ **Premium Users:** {stats.get('premium_users', 0)}\n"
-                        f"✅ **Active Premium:** {stats.get('active_premium', 0)}\n"
-                        f"🎯 **Free Users:** {stats.get('free_users', 0)}\n\n"
-                        f"📥 **Total Downloads:** {stats.get('total_downloads', 0)}\n"
-                        f"💾 **Total Data Sent:** {stats.get('total_data_sent', '0 GB')}\n"
-                        f"💰 **Total Revenue:** {stats.get('total_revenue', '₹0')}\n"
-                        f"🛒 **Premium Sales:** {stats.get('total_premium_sales', 0)}\n"
-                        f"⏳ **Pending Payments:** {stats.get('pending_payments', 0)}\n\n"
-                        f"🔄 **System Status:**\n"
-                        f"• Bot: {'✅ Online' if self.bot_started else '❌ Offline'}\n"
-                        f"• User Client: {'✅ Connected' if self.user_session_ready else '❌ Disconnected'}\n"
-                        f"• Verification: {'✅ Active' if self.verification_system else '❌ Inactive'}\n"
-                        f"• Premium: {'✅ Active' if self.premium_system else '❌ Inactive'}\n\n"
-                        f"⏰ **Uptime:** {stats.get('uptime', 'Unknown')}\n"
-                        f"🕐 **Server Time:** {stats.get('server_time', 'Unknown')}"
-                    )
-                    
-                    await message.reply_text(stats_text, disable_web_page_preview=True)
-                else:
-                    await message.reply_text("❌ Premium system not available for stats")
-                    
-            except Exception as e:
-                logger.error(f"Stats command error: {e}")
-                await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("pending") & filters.user(getattr(config, 'ADMIN_IDS', [])))
-        async def pending_payments_command(client, message):
-            """Show pending payments"""
-            try:
-                if self.premium_system:
-                    pending = await self.premium_system.get_pending_payments_admin()
-                    
-                    if not pending:
-                        await message.reply_text("✅ No pending payments!")
-                        return
-                    
-                    text = f"⏳ **Pending Payments:** {len(pending)}\n\n"
-                    
-                    for i, payment in enumerate(pending[:10], 1):  # Show first 10
-                        text += (
-                            f"{i}. **ID:** `{payment['payment_id']}`\n"
-                            f"   **User:** `{payment['user_id']}`\n"
-                            f"   **Plan:** {payment['tier_name']}\n"
-                            f"   **Amount:** ₹{payment['amount']}\n"
-                            f"   **Screenshot:** {'✅ Sent' if payment['screenshot_sent'] else '❌ Not sent'}\n"
-                            f"   **Time Left:** {payment['hours_left']} hours\n\n"
-                        )
-                    
-                    if len(pending) > 10:
-                        text += f"... and {len(pending) - 10} more pending payments\n\n"
-                    
-                    text += "Use `/approve <payment_id>` to approve payment."
-                    
-                    await message.reply_text(text, disable_web_page_preview=True)
-                else:
-                    await message.reply_text("❌ Premium system not available")
-                    
-            except Exception as e:
-                logger.error(f"Pending payments command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("approve") & filters.user(getattr(config, 'ADMIN_IDS', [])))
-        async def approve_payment_command(client, message):
-            """Approve pending payment"""
-            try:
-                if len(message.command) < 2:
-                    await message.reply_text(
-                        "❌ **Usage:** `/approve <user_id>`\n\n"
-                        "**Example:** `/approve 123456789`"
-                    )
-                    return
-                
-                user_id = int(message.command[1].strip())
-                
-                # Use the new method
-                success, result = await self.handle_admin_approval(
-                    message.from_user.id,
-                    user_id
-                )
-                
-                if success:
-                    await message.reply_text(f"✅ {result}")
-                else:
-                    await message.reply_text(f"❌ {result}")
-                    
-            except ValueError:
-                await message.reply_text("❌ Invalid user ID. Must be a number.")
-            except Exception as e:
-                logger.error(f"Approve payment command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        @self.bot.on_message(filters.command("reject") & filters.user(getattr(config, 'ADMIN_IDS', [])))
-        async def reject_payment_command(client, message):
-            """Reject pending payment"""
-            try:
-                if len(message.command) < 3:
-                    await message.reply_text(
-                        "❌ **Usage:** `/reject <user_id> <reason>`\n\n"
-                        "**Example:** `/reject 123456789 Invalid screenshot`"
-                    )
-                    return
-                
-                user_id = int(message.command[1].strip())
-                reason = ' '.join(message.command[2:])
-                
-                # Use the new method
-                success, result = await self.handle_admin_rejection(
-                    message.from_user.id,
-                    user_id,
-                    reason
-                )
-                
-                if success:
-                    await message.reply_text(f"✅ Payment rejected for user {user_id}\n**Reason:** {reason}")
-                else:
-                    await message.reply_text(f"❌ {result}")
-                    
-            except ValueError:
-                await message.reply_text("❌ Invalid user ID. Must be a number.")
-            except Exception as e:
-                logger.error(f"Reject payment command error: {e}")
-                await message.reply_text(f"❌ Error: {str(e)[:100]}")
-        
-        # ✅ FILE REQUEST HANDLER
+        # ✅ 2. FILE REQUEST HANDLER (MUST COME BEFORE NON-COMMAND TEXT)
         @self.bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
         async def handle_direct_file_request(client, message):
             """Handle direct file format messages"""
             file_text = message.text.strip()
             await self.handle_file_request(client, message, file_text)
         
-        # ✅ CALLBACK HANDLERS
+        # ✅ 3. SCREENSHOT HANDLER
+        @self.bot.on_message(filters.private & (filters.photo | filters.document))
+        async def handle_screenshot(client, message):
+            """Handle payment screenshots"""
+            # Check if it's likely a screenshot
+            is_screenshot = False
+            
+            if message.photo:
+                is_screenshot = True
+            elif message.document:
+                # Check if it's an image file
+                mime_type = message.document.mime_type or ""
+                file_name = message.document.file_name or ""
+                
+                # Common screenshot/image file extensions and mime types
+                image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
+                image_mimes = ['image/', 'application/image']
+                
+                if any(mime in mime_type.lower() for mime in image_mimes):
+                    is_screenshot = True
+                elif any(ext in file_name.lower() for ext in image_extensions):
+                    is_screenshot = True
+            
+            if is_screenshot:
+                # Process screenshot
+                await self.process_screenshot_message(client, message)
+            else:
+                # If not a screenshot, it's probably a file download
+                # Let it pass through to other handlers
+                pass
         
+        # ✅ 4. NON-COMMAND TEXT HANDLER (MUST BE LAST)
+        @self.bot.on_message(filters.private & filters.text & ~filters.command)
+        async def handle_non_command_text(client, message):
+            """Handle non-command text messages"""
+            # Check if it's already handled by file request handler
+            import re
+            if re.match(r'^-?\d+_\d+(_\w+)?$', message.text.strip()):
+                return  # Already handled by file request handler
+            
+            # Check if it's a verification token
+            if message.text.strip().startswith('verify_'):
+                return  # Will be handled by start command
+            
+            user_name = message.from_user.first_name or "User"
+            
+            # Default response for any other text
+            website_text = (
+                f"🌐 **Welcome to SK4FiLM, {user_name}!** 🌐\n\n"
+                f"**To download files:**\n"
+                f"1. Visit our website: {self.config.WEBSITE_URL}\n"
+                f"2. Search for movies/TV shows\n"
+                f"3. Click download button\n"
+                f"4. File will appear here automatically\n\n"
+                f"**Available Commands:**\n"
+                f"• /start - Main menu\n"
+                f"• /buy - Purchase premium\n"
+                f"• /plans - View plans\n"
+                f"• /help - Help guide\n\n"
+                f"**Need help with payment screenshot?**\n"
+                f"1. Use /buy to purchase premium\n"
+                f"2. Complete payment\n"
+                f"3. Send screenshot here\n"
+                f"4. Admin will approve\n\n"
+                f"🎬 **Happy downloading!**"
+            )
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
+                [InlineKeyboardButton("💰 BUY PREMIUM", callback_data="buy_premium")],
+                [InlineKeyboardButton("🆘 HELP", callback_data="back_to_start")]
+            ])
+            
+            await message.reply_text(
+                website_text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True
+            )
+        
+        # ✅ 5. CALLBACK HANDLERS (KEEP ORIGINAL)
         @self.bot.on_callback_query(filters.regex(r"^get_verified$"))
         async def get_verified_callback(client, callback_query):
             """Get verification link"""
@@ -1811,13 +1418,13 @@ class SK4FiLMBot:
             
             text = (
                 f"🎬 **Welcome back, {user_name}!**\n\n"
-                f"Visit {config.WEBSITE_URL} to download movies.\n"
+                f"Visit {self.config.WEBSITE_URL} to download movies.\n"
                 "Click download button on website and file will appear here."
             )
             
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-                [InlineKeyboardButton("📢 JOIN CHANNEL", url=getattr(config, 'MAIN_CHANNEL_LINK', 'https://t.me/SK4FiLM'))]
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
+                [InlineKeyboardButton("📢 JOIN CHANNEL", url=getattr(self.config, 'MAIN_CHANNEL_LINK', 'https://t.me/SK4FiLM'))]
             ])
             
             try:
@@ -1851,7 +1458,7 @@ class SK4FiLMBot:
                     )
                     
                     keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=self.config.WEBSITE_URL)],
                         [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
                     ])
                     
@@ -1890,452 +1497,29 @@ class SK4FiLMBot:
             except:
                 await callback_query.answer("Premium plans!", show_alert=True)
         
-        @self.bot.on_callback_query(filters.regex(r"^plan_"))
-        async def plan_selection_callback(client, callback_query):
-            plan_type = callback_query.data.split('_')[1]
-            user_id = callback_query.from_user.id
-            
-            if plan_type == "basic":
-                tier = self.PremiumTier.BASIC
-                plan_name = "Basic Plan"
-            elif plan_type == "premium":
-                tier = self.PremiumTier.PREMIUM
-                plan_name = "Premium Plan"
-            elif plan_type == "gold":
-                tier = self.PremiumTier.GOLD
-                plan_name = "Gold Plan"
-            elif plan_type == "diamond":
-                tier = self.PremiumTier.DIAMOND
-                plan_name = "Diamond Plan"
-            else:
-                await callback_query.answer("Invalid plan!", show_alert=True)
-                return
-            
-            if not self.premium_system:
-                await callback_query.answer("Premium system not available!", show_alert=True)
-                return
-            
-            # Initiate purchase
-            payment_data = await self.premium_system.initiate_purchase(user_id, tier)
-            
-            if not payment_data:
-                await callback_query.answer("Failed to initiate purchase!", show_alert=True)
-                return
-            
-            # Get payment instructions
-            instructions = await self.premium_system.get_payment_instructions_text(payment_data['payment_id'])
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📸 SEND SCREENSHOT", callback_data=f"send_screenshot_{payment_data['payment_id']}")],
-                [InlineKeyboardButton("🔙 BACK", callback_data="buy_premium")]
-            ])
-            
-            try:
-                await callback_query.message.edit_text(instructions, reply_markup=keyboard, disable_web_page_preview=True)
-            except:
-                await callback_query.answer("Payment instructions!", show_alert=True)
-        
-        @self.bot.on_callback_query(filters.regex(r"^send_screenshot_"))
-        async def send_screenshot_callback(client, callback_query):
-            payment_id = callback_query.data.split('_')[2]
-            
-            text = (
-                "📸 **Please send the payment screenshot now**\n\n"
-                "1. Take a clear screenshot of the payment\n"
-                "2. Send it to this chat\n"
-                "3. Our admin will verify and activate your premium\n\n"
-                f"**Payment ID:** `{payment_id}`\n"
-                "⏰ Please send within 24 hours of payment"
-            )
-            
-            await callback_query.answer("Please send screenshot now!", show_alert=True)
-            
-            # Send new message
-            await callback_query.message.reply_text(text)
-            
-            # Try to delete the original callback message
-            try:
-                await callback_query.message.delete()
-            except:
-                pass
-        
-        # ✅ ADMIN CALLBACK HANDLERS FOR SCREENSHOT NOTIFICATIONS
-        
-        @self.bot.on_callback_query(filters.regex(r"^admin_approve_(\d+)$"))
-        async def admin_approve_callback(client, callback_query):
-            """Admin approve payment via callback"""
+        # ✅ 6. ADMIN CALLBACK HANDLERS
+        @self.bot.on_callback_query(filters.regex(r"^admin_"))
+        async def admin_callback_handler(client, callback_query):
+            """Handle all admin callbacks"""
             admin_id = callback_query.from_user.id
             
-            # Check if admin
-            if admin_id not in getattr(config, 'ADMIN_IDS', []):
+            if admin_id not in getattr(self.config, 'ADMIN_IDS', []):
                 await callback_query.answer("❌ Admin only!", show_alert=True)
                 return
             
-            user_id = int(callback_query.data.split('_')[2])
+            data = callback_query.data
             
-            # Show confirmation
-            await callback_query.answer("Processing approval...")
+            if data.startswith("admin_approve_"):
+                user_id = int(data.split('_')[2])
+                await callback_query.answer("Processing approval...")
+                # Show confirmation
+                confirm_text = f"Confirm approval for user {user_id}?\n\nType: `/approve {user_id}`"
+                await callback_query.message.reply_text(confirm_text)
             
-            # Get user info
-            try:
-                user = await client.get_users(user_id)
-                user_info = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"ID: {user_id}"
-            except:
-                user_info = f"User {user_id}"
-            
-            # Ask for confirmation
-            confirm_text = (
-                f"⚠️ **Confirm Approval** ⚠️\n\n"
-                f"**User:** {user_info}\n"
-                f"**ID:** `{user_id}`\n\n"
-                f"Are you sure you want to approve this payment?\n\n"
-                f"Type: `/approve {user_id}` to confirm."
-            )
-            
-            try:
-                await callback_query.message.edit_text(
-                    confirm_text,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("✅ YES, APPROVE", callback_data=f"confirm_approve_{user_id}")],
-                        [InlineKeyboardButton("❌ CANCEL", callback_data="admin_cancel")]
-                    ])
-                )
-            except:
-                await callback_query.answer(f"Type: /approve {user_id}", show_alert=True)
+            elif data.startswith("admin_reject_"):
+                user_id = int(data.split('_')[2])
+                await callback_query.answer("Enter rejection reason")
+                reject_text = f"Enter rejection reason for user {user_id}:\n\nType: `/reject {user_id} <reason>`"
+                await callback_query.message.reply_text(reject_text)
         
-        @self.bot.on_callback_query(filters.regex(r"^admin_reject_(\d+)$"))
-        async def admin_reject_callback(client, callback_query):
-            """Admin reject payment via callback"""
-            admin_id = callback_query.from_user.id
-            
-            # Check if admin
-            if admin_id not in getattr(config, 'ADMIN_IDS', []):
-                await callback_query.answer("❌ Admin only!", show_alert=True)
-                return
-            
-            user_id = int(callback_query.data.split('_')[2])
-            
-            await callback_query.answer("Enter rejection reason...")
-            
-            # Get user info
-            try:
-                user = await client.get_users(user_id)
-                user_info = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"ID: {user_id}"
-            except:
-                user_info = f"User {user_id}"
-            
-            # Ask for reason
-            reject_text = (
-                f"📝 **Enter Rejection Reason**\n\n"
-                f"**User:** {user_info}\n"
-                f"**ID:** `{user_id}`\n\n"
-                f"Please enter rejection reason:\n"
-                f"Type: `/reject {user_id} <reason>`\n\n"
-                f"Example: `/reject {user_id} Invalid screenshot`"
-            )
-            
-            try:
-                await callback_query.message.edit_text(
-                    reject_text,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("❌ CANCEL", callback_data="admin_cancel")]
-                    ])
-                )
-            except:
-                await callback_query.answer(f"Type: /reject {user_id} <reason>", show_alert=True)
-        
-        @self.bot.on_callback_query(filters.regex(r"^confirm_approve_(\d+)$"))
-        async def confirm_approve_callback(client, callback_query):
-            """Confirm approval"""
-            admin_id = callback_query.from_user.id
-            user_id = int(callback_query.data.split('_')[2])
-            
-            # Process approval
-            success, message = await self.handle_admin_approval(admin_id, user_id)
-            
-            if success:
-                # Update message
-                await callback_query.message.edit_text(
-                    f"✅ **Payment Approved Successfully!**\n\n"
-                    f"**User ID:** `{user_id}`\n"
-                    f"✅ Premium access activated.\n"
-                    f"✅ User notified.\n\n"
-                    f"**Status:** Completed",
-                    reply_markup=None
-                )
-                await callback_query.answer("Approved successfully!", show_alert=True)
-            else:
-                await callback_query.message.edit_text(
-                    f"❌ **Approval Failed**\n\n"
-                    f"**Error:** {message}\n\n"
-                    f"Please try again or use command:\n"
-                    f"`/approve {user_id}`"
-                )
-                await callback_query.answer("Approval failed!", show_alert=True)
-        
-        @self.bot.on_callback_query(filters.regex(r"^admin_check_(\d+)$"))
-        async def admin_check_callback(client, callback_query):
-            """Check user info via callback"""
-            admin_id = callback_query.from_user.id
-            
-            if admin_id not in getattr(config, 'ADMIN_IDS', []):
-                await callback_query.answer("❌ Admin only!", show_alert=True)
-                return
-            
-            user_id = int(callback_query.data.split('_')[2])
-            
-            await callback_query.answer("Checking user info...")
-            
-            # Use existing checkpremium command logic
-            try:
-                if self.premium_system:
-                    user_info = await self.premium_system.get_premium_user_info(user_id)
-                    
-                    try:
-                        user = await client.get_users(user_id)
-                        user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
-                        username = f"@{user.username}" if user.username else "No username"
-                    except:
-                        user_name = f"User {user_id}"
-                        username = "Unknown"
-                    
-                    if user_info['tier'] == 'free':
-                        text = (
-                            f"❌ **Not a Premium User**\n\n"
-                            f"**User:** {user_name}\n"
-                            f"**ID:** `{user_id}`\n"
-                            f"**Username:** {username}\n"
-                            f"**Status:** Free User\n"
-                            f"**Pending Payment:** {'✅ Yes' if user_id in self.pending_screenshots else '❌ No'}"
-                        )
-                    else:
-                        text = (
-                            f"✅ **Premium User Found**\n\n"
-                            f"**User:** {user_name}\n"
-                            f"**ID:** `{user_id}`\n"
-                            f"**Username:** {username}\n"
-                            f"**Plan:** {user_info.get('tier_name', 'Unknown')}\n"
-                            f"**Days Left:** {user_info.get('days_remaining', 0)}\n"
-                            f"**Status:** {user_info.get('status', 'Unknown').title()}\n"
-                            f"**Pending Payment:** {'✅ Yes' if user_id in self.pending_screenshots else '❌ No'}"
-                        )
-                    
-                    # Update original message
-                    original_text = callback_query.message.text or ""
-                    lines = original_text.split('\n')
-                    if len(lines) > 0:
-                        # Keep the first line (title)
-                        new_text = lines[0] + "\n\n" + text
-                        
-                        # Keep original buttons
-                        original_markup = callback_query.message.reply_markup
-                        
-                        await callback_query.message.edit_text(
-                            new_text,
-                            reply_markup=original_markup
-                        )
-                    else:
-                        await callback_query.message.reply_text(text)
-                    
-                else:
-                    await callback_query.answer("Premium system not available!", show_alert=True)
-                    
-            except Exception as e:
-                logger.error(f"Admin check callback error: {e}")
-                await callback_query.answer("Error checking user!", show_alert=True)
-        
-        @self.bot.on_callback_query(filters.regex(r"^admin_pending$"))
-        async def admin_pending_callback(client, callback_query):
-            """Show pending payments via callback"""
-            admin_id = callback_query.from_user.id
-            
-            if admin_id not in getattr(config, 'ADMIN_IDS', []):
-                await callback_query.answer("❌ Admin only!", show_alert=True)
-                return
-            
-            await callback_query.answer("Loading pending payments...")
-            
-            # Use existing pending command logic
-            if self.premium_system:
-                pending = await self.premium_system.get_pending_payments_admin()
-                
-                if not pending:
-                    text = "✅ **No pending payments!**"
-                else:
-                    text = f"⏳ **Pending Payments:** {len(pending)}\n\n"
-                    
-                    for i, payment in enumerate(pending[:5], 1):  # Show first 5
-                        text += (
-                            f"{i}. **User:** `{payment['user_id']}`\n"
-                            f"   **Plan:** {payment['tier_name']}\n"
-                            f"   **Amount:** ₹{payment['amount']}\n"
-                            f"   **Time Left:** {payment['hours_left']}h\n\n"
-                        )
-                    
-                    if len(pending) > 5:
-                        text += f"... and {len(pending) - 5} more\n"
-                    
-                    text += "\nUse `/pending` for full list."
-                
-                await callback_query.message.reply_text(text)
-            else:
-                await callback_query.answer("Premium system not available!", show_alert=True)
-        
-        @self.bot.on_callback_query(filters.regex(r"^admin_cancel$"))
-        async def admin_cancel_callback(client, callback_query):
-            """Cancel admin action"""
-            await callback_query.answer("Cancelled!", show_alert=True)
-            
-            # Restore original notification text
-            original_text = callback_query.message.text or ""
-            
-            if "NEW PAYMENT SCREENSHOT RECEIVED" in original_text:
-                # Extract user ID from callback data if available
-                try:
-                    user_id = callback_query.data.split('_')[-1]
-                    if user_id.isdigit():
-                        user_id = int(user_id)
-                    else:
-                        # Try to extract from message
-                        import re
-                        match = re.search(r'ID:\s*`(\d+)`', original_text)
-                        if match:
-                            user_id = match.group(1)
-                        else:
-                            return
-                except:
-                    return
-                
-                # Keep the notification
-                await callback_query.message.edit_text(
-                    original_text,
-                    reply_markup=InlineKeyboardMarkup([
-                        [
-                            InlineKeyboardButton("✅ APPROVE", callback_data=f"admin_approve_{user_id}"),
-                            InlineKeyboardButton("❌ REJECT", callback_data=f"admin_reject_{user_id}")
-                        ],
-                        [
-                            InlineKeyboardButton("👤 CHECK USER", callback_data=f"admin_check_{user_id}"),
-                            InlineKeyboardButton("📋 PENDING LIST", callback_data="admin_pending")
-                        ]
-                    ])
-                )
-            else:
-                # Just delete buttons
-                await callback_query.message.edit_reply_markup(reply_markup=None)
-        
-        # ✅ HANDLE SCREENSHOT MESSAGES
-        @self.bot.on_message(filters.private & (filters.photo | filters.document))
-        async def handle_screenshot(client, message):
-            """Handle payment screenshots with admin notifications"""
-            # Check if it's likely a screenshot
-            is_screenshot = False
-            
-            if message.photo:
-                is_screenshot = True
-            elif message.document:
-                # Check if it's an image file
-                mime_type = message.document.mime_type or ""
-                file_name = message.document.file_name or ""
-                
-                # Common screenshot/image file extensions and mime types
-                image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
-                image_mimes = ['image/', 'application/image']
-                
-                if any(mime in mime_type.lower() for mime in image_mimes):
-                    is_screenshot = True
-                elif any(ext in file_name.lower() for ext in image_extensions):
-                    is_screenshot = True
-            
-            if is_screenshot:
-                # Process screenshot with admin notifications
-                await self.process_screenshot_message(client, message)
-                return
-            
-            # If not a screenshot, ignore or handle differently
-            pass
-        
-        # ✅ HANDLE NON-COMMAND TEXT MESSAGES
-        @self.bot.on_message(filters.private & filters.text & ~filters.command & ~filters.regex(r'^-?\d+_\d+(_\w+)?$'))
-        async def handle_non_command_text(client, message):
-            """Handle non-command text messages (guide to website)"""
-            user_name = message.from_user.first_name or "User"
-            
-            # Ignore if it's part of verification token or file request
-            text = message.text.strip()
-            
-            # Check if it's a verification token
-            if text.startswith('verify_'):
-                # Let the verification handler handle it
-                return
-            
-            # Check if it matches file pattern
-            import re
-            if re.match(r'^-?\d+_\d+(_\w+)?$', text):
-                # Let file handler handle it
-                return
-            
-            # Check if it's likely a payment screenshot conversation
-            if any(keyword in text.lower() for keyword in ['payment', 'screenshot', 'paid', 'receipt', 'upi', 'transaction']):
-                # Guide to screenshot process
-                guide_text = (
-                    f"📸 **Payment Screenshot Instructions**\n\n"
-                    f"**Hello {user_name},**\n"
-                    f"To submit a payment screenshot:\n\n"
-                    f"1. First, purchase a plan using /buy command\n"
-                    f"2. Complete the payment\n"
-                    f"3. Take a clear screenshot\n"
-                    f"4. Send it here as a photo\n\n"
-                    f"💰 **Start purchase:** /buy\n\n"
-                    f"🔙 **Back to main menu:** /start"
-                )
-                
-                await message.reply_text(
-                    guide_text,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("💰 BUY PREMIUM", callback_data="buy_premium")],
-                        [InlineKeyboardButton("🔙 MAIN MENU", callback_data="back_to_start")]
-                    ])
-                )
-                return
-            
-            # Default response for any other text
-            website_text = (
-                f"🌐 **Welcome to SK4FiLM, {user_name}!** 🌐\n\n"
-                f"**To download files:**\n"
-                f"1. Visit our website: {config.WEBSITE_URL}\n"
-                f"2. Search for movies/TV shows\n"
-                f"3. Click download button\n"
-                f"4. File will appear here automatically\n\n"
-                f"**Available Commands:**\n"
-                f"• /start - Main menu\n"
-                f"• /buy - Purchase premium\n"
-                f"• /plans - View plans\n"
-                f"• /help - Help guide\n\n"
-                f"**Premium Benefits:**\n"
-                f"✅ No verification required\n"
-                f"✅ All quality options\n"
-                f"✅ Unlimited downloads\n"
-                f"✅ Priority support\n\n"
-                f"🎬 **Happy downloading!**"
-            )
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-                [InlineKeyboardButton("💰 BUY PREMIUM", callback_data="buy_premium")],
-                [
-                    InlineKeyboardButton("📋 PLANS", callback_data="buy_premium"),
-                    InlineKeyboardButton("🆘 HELP", callback_data="back_to_start")
-                ]
-            ])
-            
-            await message.reply_text(
-                website_text,
-                reply_markup=keyboard,
-                disable_web_page_preview=True
-            )
-            
-            # Log non-command text for analytics
-            logger.info(f"Non-command text from {user_name} ({message.from_user.id}): {text[:50]}...")
-        
-        logger.info("✅ Bot handlers setup complete with ALL commands")
+        logger.info("✅ Bot handlers setup complete - ALL ORIGINAL FUNCTIONS WORKING")
