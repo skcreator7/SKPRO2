@@ -44,10 +44,10 @@ class SK4FiLMBot:
         self.bot_started = False
         self.user_session_ready = False
         
-        # ✅ PREVENT MULTIPLE REPLIES - Track processing messages
-        self.processing_users = {}  # user_id -> processing message_id
-        self.recent_messages = {}  # user_id -> last message timestamp
-        self.callback_locks = defaultdict(asyncio.Lock)  # Locks per user for callbacks
+        # ✅ IMPROVED MULTIPLE REPLY PREVENTION - Track by message content
+        self.user_last_message = {}  # user_id -> {'text': text, 'timestamp': time}
+        self.user_processing = set()  # Set of user_ids currently processing
+        self.message_tracker = defaultdict(lambda: {'count': 0, 'first_time': 0})  # Track message frequency
         
         # Track auto-delete tasks
         self.auto_delete_tasks = {}
@@ -166,70 +166,91 @@ class SK4FiLMBot:
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
     
-    # ✅ MULTIPLE REPLY PREVENTION SYSTEM
-    async def should_reply(self, user_id: int, message_id: Optional[int] = None) -> bool:
+    # ✅ IMPROVED MULTIPLE REPLY PREVENTION SYSTEM
+    async def should_process_message(self, user_id: int, message_text: str = None) -> bool:
         """
-        Check if bot should reply to prevent multiple replies.
-        Returns True if should reply, False if should skip.
+        Check if bot should process this message.
+        Returns True if should process, False if should skip.
         """
         now = time.time()
         
-        # Clean old entries (older than 5 seconds)
-        if user_id in self.recent_messages and now - self.recent_messages[user_id] > 5:
-            del self.recent_messages[user_id]
+        # Clean old tracking (older than 2 seconds)
+        if user_id in self.user_last_message:
+            if now - self.user_last_message[user_id]['timestamp'] > 2:
+                del self.user_last_message[user_id]
         
-        # If user has a recent message, skip reply to prevent spam
-        if user_id in self.recent_messages:
-            logger.debug(f"⏭️ Skipping reply to user {user_id} (recent message at {self.recent_messages[user_id]})")
+        # Check if user is already processing something
+        if user_id in self.user_processing:
+            logger.warning(f"⏭️ User {user_id} already has a request being processed")
             return False
         
+        # Check for duplicate messages (same content within 1 second)
+        if message_text and user_id in self.user_last_message:
+            last_msg = self.user_last_message[user_id]
+            if last_msg['text'] == message_text and now - last_msg['timestamp'] < 1:
+                logger.info(f"⏭️ Skipping duplicate message from user {user_id}")
+                return False
+        
         # Update tracking
-        self.recent_messages[user_id] = now
+        if message_text:
+            self.user_last_message[user_id] = {
+                'text': message_text,
+                'timestamp': now
+            }
+        
         return True
     
-    async def mark_processing(self, user_id: int, message_id: int):
-        """Mark a message as being processed"""
-        self.processing_users[user_id] = {
-            'message_id': message_id,
-            'timestamp': time.time()
-        }
+    async def mark_user_processing(self, user_id: int):
+        """Mark user as processing a request"""
+        self.user_processing.add(user_id)
     
-    async def clear_processing(self, user_id: int):
-        """Clear processing status for user"""
-        self.processing_users.pop(user_id, None)
+    async def clear_user_processing(self, user_id: int):
+        """Clear user processing status"""
+        self.user_processing.discard(user_id)
     
-    async def is_processing(self, user_id: int) -> bool:
-        """Check if user has a message being processed"""
-        if user_id in self.processing_users:
-            # Clean old processing entries (older than 30 seconds)
-            if time.time() - self.processing_users[user_id]['timestamp'] > 30:
-                del self.processing_users[user_id]
-                return False
+    async def check_message_flood(self, user_id: int) -> bool:
+        """Check if user is flooding messages (more than 5 in 3 seconds)"""
+        now = time.time()
+        tracker = self.message_tracker[user_id]
+        
+        # Reset if first message or more than 3 seconds since first
+        if now - tracker['first_time'] > 3:
+            tracker['count'] = 1
+            tracker['first_time'] = now
+            return False
+        
+        # Increment count
+        tracker['count'] += 1
+        
+        # Check if flood
+        if tracker['count'] > 5:
+            logger.warning(f"⚠️ Message flood detected from user {user_id}: {tracker['count']} messages in {now - tracker['first_time']:.1f}s")
             return True
+        
         return False
     
     async def _cleanup_old_tracking(self):
         """Cleanup old tracking entries"""
         while True:
             try:
-                await asyncio.sleep(300)  # Every 5 minutes
+                await asyncio.sleep(60)  # Every minute
                 
                 now = time.time()
-                # Clean old recent messages
+                # Clean old user last messages
                 old_users = [
-                    user_id for user_id, timestamp in self.recent_messages.items()
-                    if now - timestamp > 300  # 5 minutes
-                ]
-                for user_id in old_users:
-                    self.recent_messages.pop(user_id, None)
-                
-                # Clean old processing users
-                old_processing = [
-                    user_id for user_id, data in self.processing_users.items()
+                    user_id for user_id, data in self.user_last_message.items()
                     if now - data['timestamp'] > 300  # 5 minutes
                 ]
-                for user_id in old_processing:
-                    self.processing_users.pop(user_id, None)
+                for user_id in old_users:
+                    self.user_last_message.pop(user_id, None)
+                
+                # Clean old message trackers
+                old_trackers = [
+                    user_id for user_id, tracker in self.message_tracker.items()
+                    if now - tracker['first_time'] > 300  # 5 minutes
+                ]
+                for user_id in old_trackers:
+                    self.message_tracker.pop(user_id, None)
                     
             except asyncio.CancelledError:
                 break
@@ -303,12 +324,12 @@ class SK4FiLMBot:
                 [InlineKeyboardButton("🔄 GET ANOTHER FILE", callback_data="back_to_start")]
             ])
             
-            # Check if we should reply to prevent spam
-            if await self.should_reply(user_id):
+            # Check if user is processing
+            if user_id not in self.user_processing:
                 await self.bot.send_message(user_id, text, reply_markup=buttons)
                 logger.info(f"✅ Deletion notification sent to user {user_id}")
             else:
-                logger.info(f"⏭️ Skipped deletion notification for user {user_id} (prevent spam)")
+                logger.info(f"⏭️ Skipped deletion notification for user {user_id} (user is processing)")
             
         except Exception as e:
             logger.error(f"Failed to send deletion notification: {e}")
@@ -423,7 +444,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
     """Send file to user with verification check"""
     try:
         # ✅ PREVENT MULTIPLE FILE SENDING - Check if already processing
-        if bot_instance and await bot_instance.is_processing(user_id):
+        if bot_instance and user_id in bot_instance.user_processing:
             logger.warning(f"⏭️ User {user_id} already has a file being processed")
             return False, {
                 'message': "⏳ **Already Processing**\n\nYou already have a download in progress. Please wait...",
@@ -432,7 +453,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
         
         # ✅ Mark as processing
         if bot_instance:
-            await bot_instance.mark_processing(user_id, file_message.id)
+            await bot_instance.mark_user_processing(user_id)
         
         # ✅ FIRST CHECK: Verify user is premium/verified/admin
         user_status = "Checking..."
@@ -576,7 +597,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
             
             # ✅ Clear processing status
             if bot_instance:
-                await bot_instance.clear_processing(user_id)
+                await bot_instance.clear_user_processing(user_id)
             
             # ✅ Return success
             return True, {
@@ -594,7 +615,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
         except BadRequest as e:
             # ✅ Clear processing status on error
             if bot_instance:
-                await bot_instance.clear_processing(user_id)
+                await bot_instance.clear_user_processing(user_id)
                 
             if "MEDIA_EMPTY" in str(e) or "FILE_REFERENCE_EXPIRED" in str(e):
                 logger.error(f"❌ File reference expired or empty: {e}")
@@ -663,7 +684,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                     
                     # ✅ Clear processing status
                     if bot_instance:
-                        await bot_instance.clear_processing(user_id)
+                        await bot_instance.clear_user_processing(user_id)
                     
                     return True, {
                         'success': True,
@@ -690,7 +711,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
     except FloodWait as e:
         # ✅ Clear processing status
         if bot_instance:
-            await bot_instance.clear_processing(user_id)
+            await bot_instance.clear_user_processing(user_id)
             
         logger.warning(f"⏳ Flood wait: {e.value}s")
         return False, {
@@ -700,7 +721,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
     except Exception as e:
         # ✅ Clear processing status on error
         if bot_instance:
-            await bot_instance.clear_processing(user_id)
+            await bot_instance.clear_user_processing(user_id)
             
         logger.error(f"File sending error: {e}")
         traceback.print_exc()
@@ -714,10 +735,19 @@ async def handle_verification_token(client, message, token, bot_instance):
     try:
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "User"
+        message_text = message.text or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping verification for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping verification for user {user_id} (duplicate or processing)")
             return
         
         # ✅ VERIFICATION RATE LIMIT CHECK
@@ -840,9 +870,17 @@ async def handle_file_request(client, message, file_text, bot_instance):
         config = bot_instance.config
         user_id = message.from_user.id
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping file request for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, file_text):
+            logger.info(f"⏭️ Skipping file request for user {user_id} (duplicate or processing)")
             return
         
         # ✅ FILE RATE LIMIT CHECK
@@ -1054,10 +1092,19 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         """Handle /start command with verification token detection"""
         user_name = message.from_user.first_name or "User"
         user_id = message.from_user.id
+        message_text = message.text or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping /start for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping /start for user {user_id} (duplicate or processing)")
             return
         
         # Check if there's additional text
@@ -1103,10 +1150,19 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def my_premium_command(client, message):
         """Check user's premium status"""
         user_id = message.from_user.id
+        message_text = message.text or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping /mypremium for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping /mypremium for user {user_id} (duplicate or processing)")
             return
         
         if not bot_instance.premium_system:
@@ -1132,10 +1188,19 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def plans_command(client, message):
         """Show all premium plans"""
         user_id = message.from_user.id
+        message_text = message.text or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping /plans for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping /plans for user {user_id} (duplicate or processing)")
             return
         
         if not bot_instance.premium_system:
@@ -1163,10 +1228,19 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def buy_command(client, message):
         """Initiate premium purchase"""
         user_id = message.from_user.id
+        message_text = message.text or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping /buy for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping /buy for user {user_id} (duplicate or processing)")
             return
         
         user_name = message.from_user.first_name or "User"
@@ -1221,10 +1295,19 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def help_command(client, message):
         """Show help message"""
         user_id = message.from_user.id
+        message_text = message.text or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping /help for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping /help for user {user_id} (duplicate or processing)")
             return
         
         help_text = (
@@ -1263,7 +1346,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         await message.reply_text(help_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    # ✅ ADMIN COMMANDS
+    # ✅ ADMIN COMMANDS - No flood check for admins
     
     @bot.on_message(filters.command("addpremium") & filters.user(getattr(config, 'ADMIN_IDS', [])))
     async def add_premium_command(client, message):
@@ -1640,16 +1723,25 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def handle_direct_file_request(client, message):
         """Handle direct file format messages"""
         user_id = message.from_user.id
+        message_text = message.text or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping direct file request for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping direct file request for user {user_id} (duplicate or processing)")
             return
         
         file_text = message.text.strip()
         await handle_file_request(client, message, file_text, bot_instance)
     
-    # ✅ CALLBACK HANDLERS
+    # ✅ CALLBACK HANDLERS - No flood check needed for callbacks
     
     @bot.on_callback_query(filters.regex(r"^get_verified$"))
     async def get_verified_callback(client, callback_query):
@@ -1657,59 +1749,26 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         user_id = callback_query.from_user.id
         user_name = callback_query.from_user.first_name or "User"
         
-        # ✅ PREVENT MULTIPLE CALLBACK PROCESSING
-        async with bot_instance.callback_locks[user_id]:
-            if bot_instance.verification_system:
-                verification_data = await bot_instance.verification_system.create_verification_link(user_id)
-                
-                text = (
-                    f"🔗 **Verification Required - {user_name}**\n\n"
-                    "To access files, you need to verify:\n\n"
-                    f"🔗 **Click:** {verification_data['short_url']}\n"
-                    f"⏰ **Valid for:** {verification_data['valid_for_hours']} hours\n\n"
-                    "**Steps:**\n"
-                    "1. Click VERIFY NOW button\n"
-                    "2. Join our channel\n"
-                    "3. Return here for downloads\n"
-                    "4. Access lasts 6 hours\n\n"
-                    "⭐ **Premium users don't need verification**"
-                )
-                
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_data['short_url'])],
-                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                ])
-                
-                try:
-                    await callback_query.message.edit_text(
-                        text=text,
-                        reply_markup=keyboard,
-                        disable_web_page_preview=True
-                    )
-                    await callback_query.answer("Verification link generated!")
-                except Exception as e:
-                    logger.error(f"Failed to edit message: {e}")
-                    await callback_query.answer("Click VERIFY NOW button!", show_alert=True)
-            else:
-                await callback_query.answer("Verification system not available!", show_alert=True)
-    
-    @bot.on_callback_query(filters.regex(r"^back_to_start$"))
-    async def back_to_start_callback(client, callback_query):
-        user_id = callback_query.from_user.id
-        user_name = callback_query.from_user.first_name or "User"
-        
-        # ✅ PREVENT MULTIPLE CALLBACK PROCESSING
-        async with bot_instance.callback_locks[user_id]:
+        if bot_instance.verification_system:
+            verification_data = await bot_instance.verification_system.create_verification_link(user_id)
+            
             text = (
-                f"🎬 **Welcome back, {user_name}!**\n\n"
-                f"Visit {config.WEBSITE_URL} to download movies.\n"
-                "Click download button on website and file will appear here."
+                f"🔗 **Verification Required - {user_name}**\n\n"
+                "To access files, you need to verify:\n\n"
+                f"🔗 **Click:** {verification_data['short_url']}\n"
+                f"⏰ **Valid for:** {verification_data['valid_for_hours']} hours\n\n"
+                "**Steps:**\n"
+                "1. Click VERIFY NOW button\n"
+                "2. Join our channel\n"
+                "3. Return here for downloads\n"
+                "4. Access lasts 6 hours\n\n"
+                "⭐ **Premium users don't need verification**"
             )
             
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-                [InlineKeyboardButton("📢 JOIN CHANNEL", url=getattr(config, 'MAIN_CHANNEL_LINK', 'https://t.me/SK4FiLM'))]
+                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_data['short_url'])],
+                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
             ])
             
             try:
@@ -1718,170 +1777,201 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     reply_markup=keyboard,
                     disable_web_page_preview=True
                 )
-                await callback_query.answer("Welcome back!")
+                await callback_query.answer("Verification link generated!")
             except Exception as e:
                 logger.error(f"Failed to edit message: {e}")
-                await callback_query.answer("Already on home page!")
+                await callback_query.answer("Click VERIFY NOW button!", show_alert=True)
+        else:
+            await callback_query.answer("Verification system not available!", show_alert=True)
+    
+    @bot.on_callback_query(filters.regex(r"^back_to_start$"))
+    async def back_to_start_callback(client, callback_query):
+        user_id = callback_query.from_user.id
+        user_name = callback_query.from_user.first_name or "User"
+        
+        text = (
+            f"🎬 **Welcome back, {user_name}!**\n\n"
+            f"Visit {config.WEBSITE_URL} to download movies.\n"
+            "Click download button on website and file will appear here."
+        )
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+            [InlineKeyboardButton("📢 JOIN CHANNEL", url=getattr(config, 'MAIN_CHANNEL_LINK', 'https://t.me/SK4FiLM'))]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(
+                text=text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True
+            )
+            await callback_query.answer("Welcome back!")
+        except Exception as e:
+            logger.error(f"Failed to edit message: {e}")
+            await callback_query.answer("Already on home page!")
     
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
     async def buy_premium_callback(client, callback_query):
         """Show premium plans"""
         user_id = callback_query.from_user.id
+        user_name = callback_query.from_user.first_name or "User"
         
-        # ✅ PREVENT MULTIPLE CALLBACK PROCESSING
-        async with bot_instance.callback_locks[user_id]:
-            user_name = callback_query.from_user.first_name or "User"
-            
-            # Check if already premium
-            if bot_instance.premium_system:
-                is_premium = await bot_instance.premium_system.is_premium_user(user_id)
-                if is_premium:
-                    details = await bot_instance.premium_system.get_subscription_details(user_id)
-                    
-                    text = (
-                        f"⭐ **You're Already Premium!** ⭐\n\n"
-                        f"**User:** {user_name}\n"
-                        f"**Plan:** {details.get('tier_name', 'Premium')}\n"
-                        f"**Days Left:** {details.get('days_remaining', 0)}\n"
-                        f"**Status:** ✅ Active\n\n"
-                        "Enjoy unlimited downloads without verification! 🎬"
-                    )
-                    
-                    keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-                        [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-                    ])
-                    
-                    try:
-                        await callback_query.message.edit_text(text, reply_markup=keyboard)
-                        await callback_query.answer("You're already premium!")
-                    except Exception as e:
-                        logger.error(f"Failed to edit message: {e}")
-                        await callback_query.answer("You're already premium!", show_alert=True)
-                    return
-            
-            text = (
-                f"⭐ **SK4FiLM PREMIUM - {user_name}** ⭐\n\n"
-                "**Benefits:**\n"
-                "✅ No verification required\n"
-                "✅ All quality (480p-4K)\n"
-                "✅ Unlimited downloads\n"
-                "✅ No ads\n"
-                "✅ Priority support\n\n"
-                "**Plans:**\n"
-                "• **Basic** - ₹99/month\n"
-                "• **Premium** - ₹199/month\n"
-                "• **Gold** - ₹299/2 months\n"
-                "• **Diamond** - ₹499/3 months\n\n"
-                "Click below to purchase:"
-            )
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🥉 BUY BASIC (₹99)", callback_data="plan_basic")],
-                [InlineKeyboardButton("🥈 BUY PREMIUM (₹199)", callback_data="plan_premium")],
-                [InlineKeyboardButton("🥇 BUY GOLD (₹299)", callback_data="plan_gold")],
-                [InlineKeyboardButton("💎 BUY DIAMOND (₹499)", callback_data="plan_diamond")],
-                [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-            ])
-            
-            try:
-                await callback_query.message.edit_text(text, reply_markup=keyboard)
-                await callback_query.answer("Premium plans!")
-            except Exception as e:
-                logger.error(f"Failed to edit message: {e}")
-                await callback_query.answer("Premium plans!", show_alert=True)
+        # Check if already premium
+        if bot_instance.premium_system:
+            is_premium = await bot_instance.premium_system.is_premium_user(user_id)
+            if is_premium:
+                details = await bot_instance.premium_system.get_subscription_details(user_id)
+                
+                text = (
+                    f"⭐ **You're Already Premium!** ⭐\n\n"
+                    f"**User:** {user_name}\n"
+                    f"**Plan:** {details.get('tier_name', 'Premium')}\n"
+                    f"**Days Left:** {details.get('days_remaining', 0)}\n"
+                    f"**Status:** ✅ Active\n\n"
+                    "Enjoy unlimited downloads without verification! 🎬"
+                )
+                
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+                ])
+                
+                try:
+                    await callback_query.message.edit_text(text, reply_markup=keyboard)
+                    await callback_query.answer("You're already premium!")
+                except Exception as e:
+                    logger.error(f"Failed to edit message: {e}")
+                    await callback_query.answer("You're already premium!", show_alert=True)
+                return
+        
+        text = (
+            f"⭐ **SK4FiLM PREMIUM - {user_name}** ⭐\n\n"
+            "**Benefits:**\n"
+            "✅ No verification required\n"
+            "✅ All quality (480p-4K)\n"
+            "✅ Unlimited downloads\n"
+            "✅ No ads\n"
+            "✅ Priority support\n\n"
+            "**Plans:**\n"
+            "• **Basic** - ₹99/month\n"
+            "• **Premium** - ₹199/month\n"
+            "• **Gold** - ₹299/2 months\n"
+            "• **Diamond** - ₹499/3 months\n\n"
+            "Click below to purchase:"
+        )
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🥉 BUY BASIC (₹99)", callback_data="plan_basic")],
+            [InlineKeyboardButton("🥈 BUY PREMIUM (₹199)", callback_data="plan_premium")],
+            [InlineKeyboardButton("🥇 BUY GOLD (₹299)", callback_data="plan_gold")],
+            [InlineKeyboardButton("💎 BUY DIAMOND (₹499)", callback_data="plan_diamond")],
+            [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            await callback_query.answer("Premium plans!")
+        except Exception as e:
+            logger.error(f"Failed to edit message: {e}")
+            await callback_query.answer("Premium plans!", show_alert=True)
     
     @bot.on_callback_query(filters.regex(r"^plan_"))
     async def plan_selection_callback(client, callback_query):
         user_id = callback_query.from_user.id
         plan_type = callback_query.data.split('_')[1]
         
-        # ✅ PREVENT MULTIPLE CALLBACK PROCESSING
-        async with bot_instance.callback_locks[user_id]:
-            if plan_type == "basic":
-                tier = bot_instance.PremiumTier.BASIC
-                plan_name = "Basic Plan"
-            elif plan_type == "premium":
-                tier = bot_instance.PremiumTier.PREMIUM
-                plan_name = "Premium Plan"
-            elif plan_type == "gold":
-                tier = bot_instance.PremiumTier.GOLD
-                plan_name = "Gold Plan"
-            elif plan_type == "diamond":
-                tier = bot_instance.PremiumTier.DIAMOND
-                plan_name = "Diamond Plan"
-            else:
-                await callback_query.answer("Invalid plan!", show_alert=True)
-                return
-            
-            if not bot_instance.premium_system:
-                await callback_query.answer("Premium system not available!", show_alert=True)
-                return
-            
-            # Initiate purchase
-            payment_data = await bot_instance.premium_system.initiate_purchase(user_id, tier)
-            
-            if not payment_data:
-                await callback_query.answer("Failed to initiate purchase!", show_alert=True)
-                return
-            
-            # Get payment instructions
-            instructions = await bot_instance.premium_system.get_payment_instructions_text(payment_data['payment_id'])
-            
-            # ✅ SEND ADMIN NOTIFICATION
-            await bot_instance.send_admin_payment_notification(user_id, payment_data)
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📸 SEND SCREENSHOT", callback_data=f"send_screenshot_{payment_data['payment_id']}")],
-                [InlineKeyboardButton("🔙 BACK", callback_data="buy_premium")]
-            ])
-            
-            try:
-                await callback_query.message.edit_text(instructions, reply_markup=keyboard, disable_web_page_preview=True)
-                await callback_query.answer(f"{plan_name} selected!")
-            except Exception as e:
-                logger.error(f"Failed to edit message: {e}")
-                await callback_query.answer(f"{plan_name} selected!", show_alert=True)
+        if plan_type == "basic":
+            tier = bot_instance.PremiumTier.BASIC
+            plan_name = "Basic Plan"
+        elif plan_type == "premium":
+            tier = bot_instance.PremiumTier.PREMIUM
+            plan_name = "Premium Plan"
+        elif plan_type == "gold":
+            tier = bot_instance.PremiumTier.GOLD
+            plan_name = "Gold Plan"
+        elif plan_type == "diamond":
+            tier = bot_instance.PremiumTier.DIAMOND
+            plan_name = "Diamond Plan"
+        else:
+            await callback_query.answer("Invalid plan!", show_alert=True)
+            return
+        
+        if not bot_instance.premium_system:
+            await callback_query.answer("Premium system not available!", show_alert=True)
+            return
+        
+        # Initiate purchase
+        payment_data = await bot_instance.premium_system.initiate_purchase(user_id, tier)
+        
+        if not payment_data:
+            await callback_query.answer("Failed to initiate purchase!", show_alert=True)
+            return
+        
+        # Get payment instructions
+        instructions = await bot_instance.premium_system.get_payment_instructions_text(payment_data['payment_id'])
+        
+        # ✅ SEND ADMIN NOTIFICATION
+        await bot_instance.send_admin_payment_notification(user_id, payment_data)
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📸 SEND SCREENSHOT", callback_data=f"send_screenshot_{payment_data['payment_id']}")],
+            [InlineKeyboardButton("🔙 BACK", callback_data="buy_premium")]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(instructions, reply_markup=keyboard, disable_web_page_preview=True)
+            await callback_query.answer(f"{plan_name} selected!")
+        except Exception as e:
+            logger.error(f"Failed to edit message: {e}")
+            await callback_query.answer(f"{plan_name} selected!", show_alert=True)
     
     @bot.on_callback_query(filters.regex(r"^send_screenshot_"))
     async def send_screenshot_callback(client, callback_query):
         user_id = callback_query.from_user.id
         payment_id = callback_query.data.split('_')[2]
         
-        # ✅ PREVENT MULTIPLE CALLBACK PROCESSING
-        async with bot_instance.callback_locks[user_id]:
-            text = (
-                "📸 **Please send the payment screenshot now**\n\n"
-                "1. Take a clear screenshot of the payment\n"
-                "2. Send it to this chat\n"
-                "3. Our admin will verify and activate your premium\n\n"
-                f"**Payment ID:** `{payment_id}`\n"
-                "⏰ Please send within 24 hours of payment"
-            )
-            
-            await callback_query.answer("Please send screenshot now!", show_alert=True)
-            
-            # Send new message
-            try:
-                await callback_query.message.reply_text(text)
-            except Exception as e:
-                logger.error(f"Failed to send screenshot instructions: {e}")
-            
-            # Try to delete the original callback message
-            try:
-                await callback_query.message.delete()
-            except:
-                pass
+        text = (
+            "📸 **Please send the payment screenshot now**\n\n"
+            "1. Take a clear screenshot of the payment\n"
+            "2. Send it to this chat\n"
+            "3. Our admin will verify and activate your premium\n\n"
+            f"**Payment ID:** `{payment_id}`\n"
+            "⏰ Please send within 24 hours of payment"
+        )
+        
+        await callback_query.answer("Please send screenshot now!", show_alert=True)
+        
+        # Send new message
+        try:
+            await callback_query.message.reply_text(text)
+        except Exception as e:
+            logger.error(f"Failed to send screenshot instructions: {e}")
+        
+        # Try to delete the original callback message
+        try:
+            await callback_query.message.delete()
+        except:
+            pass
     
     # ✅ HANDLE SCREENSHOT MESSAGES
     @bot.on_message(filters.private & (filters.photo | filters.document))
     async def handle_screenshot(client, message):
         """Handle payment screenshots"""
         user_id = message.from_user.id
+        message_text = message.caption or ""
         
-        # ✅ PREVENT MULTIPLE REPLIES
-        if not await bot_instance.should_reply(user_id):
-            logger.info(f"⏭️ Skipping screenshot for user {user_id} (recent message)")
+        # ✅ CHECK FOR MESSAGE FLOOD
+        if await bot_instance.check_message_flood(user_id):
+            await message.reply_text(
+                "⚠️ **Too Many Messages**\n\n"
+                "Please wait a few seconds before trying again."
+            )
+            return
+        
+        # ✅ CHECK IF SHOULD PROCESS
+        if not await bot_instance.should_process_message(user_id, message_text):
+            logger.info(f"⏭️ Skipping screenshot for user {user_id} (duplicate or processing)")
             return
         
         # Check if it's likely a screenshot
