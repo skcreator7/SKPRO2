@@ -1,6 +1,6 @@
 import logging
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from file_handlers import handle_verification_token, handle_file_request
 
 logger = logging.getLogger(__name__)
@@ -786,15 +786,3 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 )
     
     logger.info("✅ Bot handlers setup complete with ALL commands")
-
-# Utility function for file size formatting
-def format_size(size_in_bytes):
-    """Format file size in human-readable format"""
-    if size_in_bytes is None or size_in_bytes == 0:
-        return "Unknown"
-    
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size_in_bytes < 1024.0:
-            return f"{size_in_bytes:.1f} {unit}"
-        size_in_bytes /= 1024.0
-    return f"{size_in_bytes:.1f} PB"
