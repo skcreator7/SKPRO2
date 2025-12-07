@@ -1,18 +1,13 @@
 import asyncio
 import logging
-import secrets
-import re
 import time
-import traceback
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
 from collections import defaultdict
 
-# ✅ Complete Pyrogram imports
 try:
     from pyrogram import Client, filters
-    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
-    from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden
+    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from pyrogram.errors import MessageDeleteForbidden
     PYROGRAM_AVAILABLE = True
 except ImportError:
     # Dummy classes for development
@@ -29,8 +24,6 @@ except ImportError:
         def __init__(self, buttons): pass
     class InlineKeyboardButton:
         def __init__(self, text, url=None, callback_data=None): pass
-    class Message: pass
-    class CallbackQuery: pass
     PYROGRAM_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -109,7 +102,8 @@ class SK4FiLMBot:
             self.bot_started = True
             logger.info("✅ Bot started successfully")
             
-            # Setup handlers
+            # Setup handlers - import here to avoid circular imports
+            from command_handlers import setup_bot_handlers
             await setup_bot_handlers(self.bot, self)
             
             # Start cleanup tasks
