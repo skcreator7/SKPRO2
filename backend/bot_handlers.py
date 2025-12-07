@@ -33,6 +33,13 @@ except ImportError:
     class CallbackQuery: pass
     PYROGRAM_AVAILABLE = False
 
+# Import premium system
+try:
+    from premium import PremiumSystem, PremiumTier
+except ImportError:
+    PremiumSystem = None
+    PremiumTier = None
+
 logger = logging.getLogger(__name__)
 
 class SK4FiLMBot:
@@ -56,7 +63,6 @@ class SK4FiLMBot:
         # Initialize all systems
         try:
             from verification import VerificationSystem
-            from premium import PremiumSystem, PremiumTier
             from poster_fetching import PosterFetcher
             from cache import CacheManager
             
