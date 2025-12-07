@@ -1,11 +1,32 @@
 import asyncio
 import logging
 import re
-from typing import Dict, Any
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.errors import FloodWait, BadRequest
+import time
+from datetime import datetime, timedelta
+
+try:
+    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from pyrogram.errors import FloodWait, BadRequest
+    PYROGRAM_AVAILABLE = True
+except ImportError:
+    class InlineKeyboardMarkup:
+        def __init__(self, buttons): pass
+    class InlineKeyboardButton:
+        def __init__(self, text, url=None, callback_data=None): pass
+    PYROGRAM_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+def format_size(size_in_bytes):
+    """Format file size in human-readable format"""
+    if size_in_bytes is None or size_in_bytes == 0:
+        return "Unknown"
+    
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_in_bytes < 1024.0:
+            return f"{size_in_bytes:.1f} {unit}"
+        size_in_bytes /= 1024.0
+    return f"{size_in_bytes:.1f} PB"
 
 async def send_file_to_user(client, user_id, file_message, quality="480p", config=None, bot_instance=None):
     """Send file to user with verification check"""
