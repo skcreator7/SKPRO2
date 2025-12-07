@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from enum import Enum
 import json
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -19,22 +20,24 @@ class PremiumTier(Enum):
 class PremiumSystem:
     """Premium subscription management system"""
     
-    def __init__(self, config, db_manager=None):
+    def __init__(self, config, db_manager=None, bot_instance=None):
         self.config = config
         self.db_manager = db_manager
+        self.bot_instance = bot_instance  # Reference to main bot instance
         self.cleanup_task = None
         self.running = False
         
-        # In-memory storage (for development)
-        self.premium_users = {}  # user_id -> subscription_data
-        self.pending_payments = {}  # payment_id -> payment_data
-        self.download_history = defaultdict(list)  # user_id -> list of downloads
+        # In-memory storage
+        self.premium_users = {}
+        self.pending_payments = {}
+        self.processed_screenshots = {}  # Track processed screenshot message IDs
+        self.download_history = defaultdict(list)
         self.statistics = {
             'total_users': 0,
             'premium_users': 0,
             'free_users': 0,
             'total_downloads': 0,
-            'total_data_sent': 0,  # in bytes
+            'total_data_sent': 0,
             'total_revenue': 0,
             'total_premium_sales': 0,
             'pending_payments': 0,
@@ -106,21 +109,27 @@ class PremiumSystem:
     PAYMENT_METHODS = {
         'upi': {
             'name': 'UPI',
-            'id': getattr(self.config, 'UPI_ID', 'sk4film@upi'),
-            'qr_code': getattr(self.config, 'UPI_QR_CODE', 'https://example.com/qr.png'),
+            'id': 'sk4film@upi',
+            'qr_code': 'https://example.com/qr.png',
             'instructions': 'Send payment to UPI ID or scan QR code'
         },
         'paytm': {
             'name': 'PayTM',
-            'number': getattr(self.config, 'PAYTM_NUMBER', '9876543210'),
+            'number': '9876543210',
             'instructions': 'Send payment to PayTM number'
         },
         'google_pay': {
             'name': 'Google Pay',
-            'id': getattr(self.config, 'GOOGLE_PAY_ID', '9876543210'),
+            'id': '9876543210',
             'instructions': 'Send payment via Google Pay'
         }
     }
+    
+    def __getattr__(self, name):
+        """Handle missing attributes gracefully"""
+        if name in ['config']:
+            return type('Config', (), {})()
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
     
     async def is_premium_user(self, user_id: int) -> bool:
         """Check if user has active premium subscription"""
@@ -420,56 +429,367 @@ class PremiumSystem:
         
         return text
     
-    async def process_payment_screenshot(self, user_id: int, screenshot_message_id: int) -> bool:
+    async def process_payment_screenshot(self, user_id: int, message_id: int) -> Dict:
         """Process payment screenshot sent by user"""
         try:
+            # Check if this message was already processed
+            if message_id in self.processed_screenshots:
+                logger.info(f"📸 Screenshot {message_id} already processed, skipping")
+                return {'status': 'already_processed'}
+            
+            # Mark as processed immediately to prevent double processing
+            self.processed_screenshots[message_id] = {
+                'user_id': user_id,
+                'processed_at': datetime.now()
+            }
+            
             # Find pending payment for this user
             payment_id = None
+            payment_data = None
+            
             for pid, payment in self.pending_payments.items():
-                if payment['user_id'] == user_id and payment['status'] == 'pending':
+                if (payment['user_id'] == user_id and 
+                    payment['status'] == 'pending' and 
+                    not payment.get('screenshot_sent', False)):
                     payment_id = pid
+                    payment_data = payment
                     break
             
             if not payment_id:
                 logger.warning(f"No pending payment found for user {user_id}")
-                return False
+                return {
+                    'status': 'no_pending_payment',
+                    'message': 'No pending payment found! Please initiate purchase first.'
+                }
             
             # Update payment with screenshot info
-            self.pending_payments[payment_id]['screenshot_sent'] = True
-            self.pending_payments[payment_id]['screenshot_message_id'] = screenshot_message_id
-            self.pending_payments[payment_id]['screenshot_sent_at'] = datetime.now()
+            payment_data['screenshot_sent'] = True
+            payment_data['screenshot_message_id'] = message_id
+            payment_data['screenshot_sent_at'] = datetime.now()
             
-            logger.info(f"📸 Payment screenshot received for {payment_id} from user {user_id}")
+            logger.info(f"📸 Payment screenshot processed for {payment_id} from user {user_id}")
             
-            # Notify admins
-            await self.notify_admins_of_screenshot(payment_id)
-            
-            return True
+            # Return success data
+            return {
+                'status': 'success',
+                'payment_id': payment_id,
+                'payment_data': payment_data,
+                'message': 'Screenshot received! Admin will verify within 24 hours.'
+            }
             
         except Exception as e:
             logger.error(f"Error processing screenshot: {e}")
-            return False
+            return {'status': 'error', 'message': str(e)}
     
-    async def notify_admins_of_screenshot(self, payment_id: str):
-        """Notify admins about new screenshot"""
+    async def notify_admins_of_screenshot(self, payment_id: str, user_id: int, message_id: int) -> bool:
+        """Notify all admins about new payment screenshot"""
         try:
+            if not self.bot_instance or not self.bot_instance.bot:
+                logger.error("Bot instance not available for admin notifications")
+                return False
+            
             if payment_id not in self.pending_payments:
-                return
+                logger.error(f"Payment {payment_id} not found for admin notification")
+                return False
             
             payment = self.pending_payments[payment_id]
+            tier_config = self.TIER_CONFIG.get(PremiumTier(payment['tier']), {})
             
-            # This would be implemented with actual bot instance
-            # For now, just log
-            logger.info(
-                f"📢 ADMIN NOTIFICATION - New payment screenshot:\n"
-                f"Payment ID: {payment_id}\n"
-                f"User ID: {payment['user_id']}\n"
-                f"Plan: {payment['tier_name']}\n"
-                f"Amount: ₹{payment['amount']}"
+            # Get user info
+            user_info = await self.get_user_info_for_admin(user_id)
+            
+            # Create notification message
+            notification_text = self.create_admin_notification_text(
+                payment_id, payment, user_info, tier_config
             )
+            
+            # Create inline keyboard for quick actions
+            keyboard = self.create_admin_notification_keyboard(payment_id)
+            
+            # Send to all admins
+            admin_ids = getattr(self.config, 'ADMIN_IDS', [])
+            
+            if not admin_ids:
+                logger.warning("No admin IDs configured for notifications")
+                return False
+            
+            successful_notifications = 0
+            for admin_id in admin_ids:
+                try:
+                    # Send the notification message
+                    await self.bot_instance.bot.send_message(
+                        admin_id,
+                        notification_text,
+                        reply_markup=keyboard,
+                        disable_web_page_preview=True
+                    )
+                    successful_notifications += 1
+                    logger.info(f"📢 Notification sent to admin {admin_id} for payment {payment_id}")
+                except Exception as e:
+                    logger.error(f"Failed to notify admin {admin_id}: {e}")
+            
+            return successful_notifications > 0
             
         except Exception as e:
             logger.error(f"Error notifying admins: {e}")
+            return False
+    
+    def create_admin_notification_text(self, payment_id: str, payment: Dict, 
+                                     user_info: Dict, tier_config: Dict) -> str:
+        """Create formatted notification text for admins"""
+        
+        # Calculate hours left
+        expires_at = payment.get('expires_at', datetime.now() + timedelta(hours=24))
+        time_left = expires_at - datetime.now()
+        hours_left = max(0, int(time_left.total_seconds() / 3600))
+        
+        text = (
+            f"📸 **NEW PAYMENT SCREENSHOT** 📸\n\n"
+            f"🆔 **Payment ID:** `{payment_id}`\n"
+            f"👤 **User:** {user_info['name']}\n"
+            f"📱 **Username:** {user_info['username']}\n"
+            f"🆔 **User ID:** `{user_info['id']}`\n\n"
+            f"💰 **Payment Details:**\n"
+            f"• **Plan:** {payment['tier_name']}\n"
+            f"• **Amount:** ₹{payment['amount']}\n"
+            f"• **Duration:** {payment['duration_days']} days\n"
+            f"• **Features:** {len(tier_config.get('features', []))} features\n\n"
+            f"⏰ **Time Info:**\n"
+            f"• **Created:** {payment['created_at'].strftime('%d %b %Y %I:%M %p')}\n"
+            f"• **Expires:** {expires_at.strftime('%d %b %Y %I:%M %p')}\n"
+            f"• **Hours Left:** {hours_left} hours\n\n"
+            f"📊 **Quick Actions:**\n"
+            f"Use buttons below or commands:\n"
+            f"• `/approve {payment_id}` - Approve payment\n"
+            f"• `/reject {payment_id} <reason>` - Reject payment\n\n"
+            f"🔍 **To view screenshot:**\n"
+            f"Check user {user_info['id']}'s chat"
+        )
+        
+        return text
+    
+    def create_admin_notification_keyboard(self, payment_id: str):
+        """Create inline keyboard for admin notifications"""
+        try:
+            from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            
+            return InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("✅ APPROVE", callback_data=f"admin_approve_{payment_id}"),
+                    InlineKeyboardButton("❌ REJECT", callback_data=f"admin_reject_{payment_id}")
+                ],
+                [
+                    InlineKeyboardButton("👁️ VIEW USER", callback_data=f"admin_viewuser_{payment_id}"),
+                    InlineKeyboardButton("📊 DETAILS", callback_data=f"admin_details_{payment_id}")
+                ]
+            ])
+        except ImportError:
+            return None
+    
+    async def get_user_info_for_admin(self, user_id: int) -> Dict:
+        """Get user information for admin notifications"""
+        try:
+            if not self.bot_instance or not self.bot_instance.bot:
+                return self.get_fallback_user_info(user_id)
+            
+            # Try to get user from bot
+            user = await self.bot_instance.bot.get_users(user_id)
+            
+            return {
+                'id': user_id,
+                'name': f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}",
+                'username': f"@{user.username}" if user.username else "No username",
+                'language_code': user.language_code or "Unknown",
+                'is_premium': user.is_premium or False
+            }
+        except Exception as e:
+            logger.warning(f"Could not fetch user info for {user_id}: {e}")
+            return self.get_fallback_user_info(user_id)
+    
+    def get_fallback_user_info(self, user_id: int) -> Dict:
+        """Get fallback user info when bot is unavailable"""
+        return {
+            'id': user_id,
+            'name': f"User {user_id}",
+            'username': "Unknown",
+            'language_code': "Unknown",
+            'is_premium': False
+        }
+    
+    async def handle_admin_approve_callback(self, admin_id: int, payment_id: str) -> Dict:
+        """Handle admin approval via callback"""
+        try:
+            if payment_id not in self.pending_payments:
+                return {
+                    'success': False,
+                    'message': f"Payment ID `{payment_id}` not found!"
+                }
+            
+            payment = self.pending_payments[payment_id]
+            
+            if payment['status'] != 'pending':
+                return {
+                    'success': False,
+                    'message': f"Payment already {payment['status']}!"
+                }
+            
+            # Approve the payment
+            success, result = await self.approve_payment(admin_id, payment_id)
+            
+            if success:
+                # Notify user
+                await self.notify_user_of_approval(payment['user_id'], payment)
+                
+                return {
+                    'success': True,
+                    'message': result,
+                    'payment_id': payment_id,
+                    'user_id': payment['user_id']
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': result
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in admin approve callback: {e}")
+            return {
+                'success': False,
+                'message': f"Error: {str(e)}"
+            }
+    
+    async def handle_admin_reject_callback(self, admin_id: int, payment_id: str, reason: str = "Not specified") -> Dict:
+        """Handle admin rejection via callback"""
+        try:
+            if payment_id not in self.pending_payments:
+                return {
+                    'success': False,
+                    'message': f"Payment ID `{payment_id}` not found!"
+                }
+            
+            payment = self.pending_payments[payment_id]
+            
+            if payment['status'] != 'pending':
+                return {
+                    'success': False,
+                    'message': f"Payment already {payment['status']}!"
+                }
+            
+            # Reject the payment
+            success = await self.reject_payment(admin_id, payment_id, reason)
+            
+            if success:
+                # Notify user
+                await self.notify_user_of_rejection(payment['user_id'], payment, reason)
+                
+                return {
+                    'success': True,
+                    'message': f"Payment {payment_id} rejected! Reason: {reason}",
+                    'payment_id': payment_id,
+                    'user_id': payment['user_id']
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': "Failed to reject payment"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in admin reject callback: {e}")
+            return {
+                'success': False,
+                'message': f"Error: {str(e)}"
+            }
+    
+    async def notify_user_of_approval(self, user_id: int, payment_data: Dict):
+        """Notify user that their payment was approved"""
+        try:
+            if not self.bot_instance or not self.bot_instance.bot:
+                logger.error("Bot not available to notify user")
+                return
+            
+            tier_name = payment_data.get('tier_name', 'Premium')
+            duration = payment_data.get('duration_days', 30)
+            
+            text = (
+                f"🎉 **PAYMENT APPROVED!** 🎉\n\n"
+                f"Your payment for **{tier_name}** plan has been approved!\n\n"
+                f"✅ **Status:** Premium Active\n"
+                f"📅 **Duration:** {duration} days\n"
+                f"⭐ **Benefits:**\n"
+                f"• No verification required\n"
+                f"• All quality options (480p-4K)\n"
+                f"• Unlimited downloads\n"
+                f"• Priority support\n\n"
+                f"🎬 **You can now download files instantly!**\n\n"
+                f"Visit {getattr(self.config, 'WEBSITE_URL', 'https://sk4film.com')} to start downloading.\n"
+                f"Thank you for choosing SK4FiLM! ❤️"
+            )
+            
+            from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", 
+                                     url=getattr(self.config, 'WEBSITE_URL', 'https://sk4film.com'))],
+                [InlineKeyboardButton("📥 DOWNLOAD FILES", callback_data="back_to_start")]
+            ])
+            
+            await self.bot_instance.bot.send_message(
+                user_id,
+                text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True
+            )
+            
+            logger.info(f"✅ User {user_id} notified of payment approval")
+            
+        except Exception as e:
+            logger.error(f"Failed to notify user of approval: {e}")
+    
+    async def notify_user_of_rejection(self, user_id: int, payment_data: Dict, reason: str):
+        """Notify user that their payment was rejected"""
+        try:
+            if not self.bot_instance or not self.bot_instance.bot:
+                logger.error("Bot not available to notify user")
+                return
+            
+            tier_name = payment_data.get('tier_name', 'Premium')
+            amount = payment_data.get('amount', 0)
+            
+            text = (
+                f"❌ **PAYMENT REJECTED** ❌\n\n"
+                f"Your payment for **{tier_name}** plan (₹{amount}) was rejected.\n\n"
+                f"📝 **Reason:** {reason}\n\n"
+                f"⚠️ **What to do next:**\n"
+                f"1. Check payment screenshot is clear\n"
+                f"2. Make sure payment ID is visible\n"
+                f"3. Retry with correct screenshot\n"
+                f"4. Contact support if issue persists\n\n"
+                f"🔄 **To retry:**\n"
+                f"Use /buy command again\n\n"
+                f"📞 **Support:** @SK4FiLMSupport"
+            )
+            
+            from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 RETRY PURCHASE", callback_data="buy_premium")],
+                [InlineKeyboardButton("📞 CONTACT SUPPORT", 
+                                     url=getattr(self.config, 'SUPPORT_CHANNEL', 'https://t.me/SK4FiLMSupport'))]
+            ])
+            
+            await self.bot_instance.bot.send_message(
+                user_id,
+                text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True
+            )
+            
+            logger.info(f"⚠️ User {user_id} notified of payment rejection: {reason}")
+            
+        except Exception as e:
+            logger.error(f"Failed to notify user of rejection: {e}")
     
     async def approve_payment(self, admin_id: int, payment_id: str) -> (bool, str):
         """Approve pending payment"""
@@ -720,13 +1040,22 @@ class PremiumSystem:
                         del self.pending_payments[payment_id]
                         pending_expired += 1
                 
+                # Clean old processed screenshots (older than 7 days)
+                week_ago = now - timedelta(days=7)
+                old_screenshots = [
+                    msg_id for msg_id, data in self.processed_screenshots.items()
+                    if data.get('processed_at', now) < week_ago
+                ]
+                for msg_id in old_screenshots:
+                    del self.processed_screenshots[msg_id]
+                
                 # Update statistics
                 self.statistics['pending_payments'] = len([p for p in self.pending_payments.values() if p['status'] == 'pending'])
                 
-                if expired_count > 0 or pending_expired > 0:
+                if expired_count > 0 or pending_expired > 0 or old_screenshots:
                     logger.info(
                         f"🧹 Premium cleanup: {expired_count} expired subscriptions, "
-                        f"{pending_expired} expired payments removed"
+                        f"{pending_expired} expired payments, {len(old_screenshots)} old screenshots"
                     )
                 
             except asyncio.CancelledError:
