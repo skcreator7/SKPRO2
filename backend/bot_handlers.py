@@ -1,21 +1,19 @@
 import asyncio
 import logging
-import secrets
 import re
 import time
-import traceback
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from collections import defaultdict
 
-# ✅ Complete Pyrogram imports
+# ✅ Pyrogram imports
 try:
     from pyrogram import Client, filters
     from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
     from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden
     PYROGRAM_AVAILABLE = True
 except ImportError:
-    # Dummy classes for development
+    # Dummy classes
     class Client: pass
     class filters:
         @staticmethod
@@ -46,14 +44,14 @@ class SK4FiLMBot:
         
         # Track auto-delete tasks
         self.auto_delete_tasks = {}
-        self.file_messages_to_delete = {}  # Track files to delete
+        self.file_messages_to_delete = {}
         
-        # Rate limiting and deduplication
+        # Rate limiting
         self.user_request_times = defaultdict(list)
         self.processing_requests = {}
         self.verification_processing = {}
         
-        # Initialize all systems
+        # Initialize systems
         try:
             from verification import VerificationSystem
             from premium import PremiumSystem, PremiumTier
@@ -66,9 +64,7 @@ class SK4FiLMBot:
             self.poster_fetcher = PosterFetcher(config)
             self.cache_manager = CacheManager(config)
             
-            # Initialize cache
             asyncio.create_task(self.cache_manager.init_redis())
-            
             logger.info("✅ All systems initialized")
         except Exception as e:
             logger.error(f"System initialization error: {e}")
@@ -92,7 +88,7 @@ class SK4FiLMBot:
                 workers=20
             )
             
-            # Initialize user client if session string is provided
+            # Initialize user client if available
             if hasattr(self.config, 'USER_SESSION_STRING') and self.config.USER_SESSION_STRING:
                 self.user_client = Client(
                     "user",
@@ -102,15 +98,15 @@ class SK4FiLMBot:
                 )
                 await self.user_client.start()
                 self.user_session_ready = True
-                logger.info("✅ User session started successfully")
+                logger.info("✅ User session started")
             
             # Start bot
             await self.bot.start()
             self.bot_started = True
-            logger.info("✅ Bot started successfully")
+            logger.info("✅ Bot started")
             
-            # Setup handlers
-            await setup_bot_handlers(self.bot, self)
+            # Setup handlers (main fix)
+            await self.setup_handlers()
             
             # Start cleanup tasks
             if self.verification_system:
@@ -127,7 +123,13 @@ class SK4FiLMBot:
             
         except Exception as e:
             logger.error(f"Bot initialization failed: {e}")
+            traceback.print_exc()
             return False
+    
+    async def setup_handlers(self):
+        """Setup all handlers - MAIN FIX"""
+        from bot_commands import setup_bot_handlers
+        await setup_bot_handlers(self.bot, self)
     
     async def shutdown(self):
         """Shutdown bot"""
@@ -144,13 +146,6 @@ class SK4FiLMBot:
                 await self.user_client.stop()
                 logger.info("✅ User client stopped")
                 
-            # Stop cleanup tasks
-            if self.verification_system:
-                await self.verification_system.stop_cleanup_task()
-            if self.premium_system:
-                await self.premium_system.stop_cleanup_task()
-            if self.cache_manager:
-                await self.cache_manager.stop()
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
     
@@ -175,11 +170,9 @@ class SK4FiLMBot:
                 
             except MessageDeleteForbidden:
                 logger.warning(f"❌ Cannot delete message {message_id} - forbidden")
-                # Still send notification
                 await self.send_deletion_notification(user_id, file_name, delete_after_minutes, deleted=False)
             except Exception as e:
                 logger.error(f"Error deleting message {message_id}: {e}")
-                # Still send notification
                 await self.send_deletion_notification(user_id, file_name, delete_after_minutes, deleted=False)
             
             # Remove from tracking
@@ -228,12 +221,10 @@ class SK4FiLMBot:
             logger.error(f"Failed to send deletion notification: {e}")
     
     async def _monitor_auto_delete(self):
-        """Monitor and manage auto-delete tasks"""
+        """Monitor auto-delete tasks"""
         while True:
             try:
-                await asyncio.sleep(60)  # Check every minute
-                
-                # Log active tasks
+                await asyncio.sleep(60)
                 if self.auto_delete_tasks:
                     logger.info(f"📊 Auto-delete monitoring: {len(self.auto_delete_tasks)} active tasks")
                     
@@ -287,15 +278,3 @@ class SK4FiLMBot:
             self.verification_processing.pop(request_hash, None)
         else:
             self.processing_requests.pop(request_hash, None)
-
-# Utility function for file size formatting
-def format_size(size_in_bytes):
-    """Format file size in human-readable format"""
-    if size_in_bytes is None or size_in_bytes == 0:
-        return "Unknown"
-    
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size_in_bytes < 1024.0:
-            return f"{size_in_bytes:.1f} {unit}"
-        size_in_bytes /= 1024.0
-    return f"{size_in_bytes:.1f} PB"
