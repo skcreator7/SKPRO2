@@ -2,36 +2,75 @@ import asyncio
 import logging
 import re
 import time
+import traceback
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from collections import defaultdict
 
-# ✅ Pyrogram imports
+# ✅ FORCE PYROGRAM IMPORTS - FIXED VERSION
+import sys
+import os
+
+# Try to install Pyrogram if not available
 try:
     from pyrogram import Client, filters
     from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
     from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden
     PYROGRAM_AVAILABLE = True
-except ImportError:
-    # Dummy classes
-    class Client: pass
-    class filters:
-        @staticmethod
-        def command(cmd): return lambda x: x
-        @staticmethod
-        def private(): return lambda x: x
-        @staticmethod
-        def regex(pattern): return lambda x: x
-        text = lambda x: x
-    class InlineKeyboardMarkup:
-        def __init__(self, buttons): pass
-    class InlineKeyboardButton:
-        def __init__(self, text, url=None, callback_data=None): pass
-    class Message: pass
-    class CallbackQuery: pass
-    PYROGRAM_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Pyrogram imported successfully")
+except ImportError as e:
+    logger = logging.getLogger(__name__)
+    logger.error(f"❌ Pyrogram import failed: {e}")
+    
+    # Try to install Pyrogram automatically
+    try:
+        import subprocess
+        import sys
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyrogram", "tgcrypto"])
+        logger.info("✅ Installed Pyrogram, trying to import again...")
+        
+        from pyrogram import Client, filters
+        from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+        from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden
+        PYROGRAM_AVAILABLE = True
+        logger.info("✅ Pyrogram imported after installation")
+    except Exception as install_error:
+        logger.error(f"❌ Failed to install Pyrogram: {install_error}")
+        PYROGRAM_AVAILABLE = False
+        
+        # Create dummy classes
+        class Client: 
+            def __init__(self, *args, **kwargs): pass
+            async def start(self): pass
+            async def stop(self): pass
+            async def get_messages(self, *args, **kwargs): return None
+            async def send_message(self, *args, **kwargs): return None
+            async def send_document(self, *args, **kwargs): return None
+            async def send_video(self, *args, **kwargs): return None
+            async def delete_messages(self, *args, **kwargs): pass
+        
+        class filters:
+            @staticmethod
+            def command(cmd): return lambda x: x
+            @staticmethod
+            def private(): return lambda x: x
+            @staticmethod
+            def regex(pattern): return lambda x: x
+            @staticmethod
+            def user(users): return lambda x: x
+            text = lambda x: x
+            photo = lambda x: x
+            document = lambda x: x
+        
+        class InlineKeyboardMarkup:
+            def __init__(self, buttons): pass
+        
+        class InlineKeyboardButton:
+            def __init__(self, text, url=None, callback_data=None): pass
+        
+        class Message: pass
+        class CallbackQuery: pass
 
 class SK4FiLMBot:
     def __init__(self, config, db_manager=None):
@@ -51,33 +90,53 @@ class SK4FiLMBot:
         self.processing_requests = {}
         self.verification_processing = {}
         
-        # Initialize systems
+        logger.info("🔄 Initializing SK4FiLMBot systems...")
+        
+        # Initialize all systems with error handling
+        self.verification_system = None
+        self.premium_system = None
+        self.PremiumTier = None
+        self.poster_fetcher = None
+        self.cache_manager = None
+        
         try:
             from verification import VerificationSystem
-            from premium import PremiumSystem, PremiumTier
-            from poster_fetching import PosterFetcher
-            from cache import CacheManager
-            
             self.verification_system = VerificationSystem(config, db_manager)
+            logger.info("✅ Verification System initialized")
+        except Exception as e:
+            logger.error(f"❌ Verification System init error: {e}")
+        
+        try:
+            from premium import PremiumSystem, PremiumTier
             self.premium_system = PremiumSystem(config, db_manager)
             self.PremiumTier = PremiumTier
-            self.poster_fetcher = PosterFetcher(config)
-            self.cache_manager = CacheManager(config)
-            
-            asyncio.create_task(self.cache_manager.init_redis())
-            logger.info("✅ All systems initialized")
+            logger.info("✅ Premium System initialized")
         except Exception as e:
-            logger.error(f"System initialization error: {e}")
-            self.verification_system = None
-            self.premium_system = None
-            self.PremiumTier = None
-            self.poster_fetcher = None
-            self.cache_manager = None
+            logger.error(f"❌ Premium System init error: {e}")
+        
+        try:
+            from poster_fetching import PosterFetcher
+            self.poster_fetcher = PosterFetcher(config)
+            logger.info("✅ Poster Fetcher initialized")
+        except Exception as e:
+            logger.error(f"❌ Poster Fetcher init error: {e}")
+        
+        try:
+            from cache import CacheManager
+            self.cache_manager = CacheManager(config)
+            asyncio.create_task(self.cache_manager.init_redis())
+            logger.info("✅ Cache Manager initialized")
+        except Exception as e:
+            logger.error(f"❌ Cache Manager init error: {e}")
     
     async def initialize(self):
         """Initialize bot"""
         try:
             logger.info("🚀 Initializing SK4FiLM Bot...")
+            
+            if not PYROGRAM_AVAILABLE:
+                logger.error("❌ Pyrogram not available. Bot cannot start.")
+                return False
             
             # Initialize bot
             self.bot = Client(
@@ -85,58 +144,84 @@ class SK4FiLMBot:
                 api_id=self.config.API_ID,
                 api_hash=self.config.API_HASH,
                 bot_token=self.config.BOT_TOKEN,
-                workers=20
+                workers=20,
+                in_memory=True  # For better performance
             )
             
             # Initialize user client if available
             if hasattr(self.config, 'USER_SESSION_STRING') and self.config.USER_SESSION_STRING:
-                self.user_client = Client(
-                    "user",
-                    api_id=self.config.API_ID,
-                    api_hash=self.config.API_HASH,
-                    session_string=self.config.USER_SESSION_STRING
-                )
-                await self.user_client.start()
-                self.user_session_ready = True
-                logger.info("✅ User session started")
+                try:
+                    self.user_client = Client(
+                        "user",
+                        api_id=self.config.API_ID,
+                        api_hash=self.config.API_HASH,
+                        session_string=self.config.USER_SESSION_STRING,
+                        in_memory=True
+                    )
+                    await self.user_client.start()
+                    self.user_session_ready = True
+                    logger.info("✅ User session started")
+                except Exception as e:
+                    logger.error(f"❌ User session failed: {e}")
+                    self.user_session_ready = False
             
             # Start bot
             await self.bot.start()
             self.bot_started = True
-            logger.info("✅ Bot started")
             
-            # Setup handlers (main fix)
+            # Get bot info
+            me = await self.bot.get_me()
+            logger.info(f"✅ Bot started successfully: @{me.username}")
+            
+            # Setup handlers
             await self.setup_handlers()
             
             # Start cleanup tasks
             if self.verification_system:
-                asyncio.create_task(self.verification_system.start_cleanup_task())
+                try:
+                    asyncio.create_task(self.verification_system.start_cleanup_task())
+                    logger.info("✅ Verification cleanup started")
+                except:
+                    pass
+            
             if self.premium_system:
-                asyncio.create_task(self.premium_system.start_cleanup_task())
-            if self.cache_manager:
-                asyncio.create_task(self.cache_manager.start_cleanup_task())
+                try:
+                    asyncio.create_task(self.premium_system.start_cleanup_task())
+                    logger.info("✅ Premium cleanup started")
+                except:
+                    pass
             
             # Start auto-delete monitor
             asyncio.create_task(self._monitor_auto_delete())
             
+            logger.info("🎉 Bot initialization complete!")
             return True
             
         except Exception as e:
-            logger.error(f"Bot initialization failed: {e}")
+            logger.error(f"❌ Bot initialization failed: {e}")
             traceback.print_exc()
             return False
     
     async def setup_handlers(self):
-        """Setup all handlers - MAIN FIX"""
-        from bot_commands import setup_bot_handlers
-        await setup_bot_handlers(self.bot, self)
+        """Setup all handlers"""
+        try:
+            # Import and setup handlers
+            from bot_commands import setup_bot_handlers
+            await setup_bot_handlers(self.bot, self)
+            logger.info("✅ Bot handlers setup complete")
+        except Exception as e:
+            logger.error(f"❌ Handler setup failed: {e}")
+            traceback.print_exc()
     
     async def shutdown(self):
         """Shutdown bot"""
         try:
             # Cancel all auto-delete tasks
             for task_id, task in self.auto_delete_tasks.items():
-                task.cancel()
+                try:
+                    task.cancel()
+                except:
+                    pass
             
             if self.bot and self.bot_started:
                 await self.bot.stop()
