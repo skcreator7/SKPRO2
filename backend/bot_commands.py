@@ -3,14 +3,14 @@ import logging
 import re
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
 
 try:
     from pyrogram import Client, filters
     from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
     from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden
+    PYROGRAM_AVAILABLE = True
 except ImportError:
-    pass
+    PYROGRAM_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -393,40 +393,13 @@ async def handle_file_request(client, message, file_text, bot_instance):
         
         # Get file from channel
         file_message = None
-        max_retries = 2
         
-        for attempt in range(max_retries):
-            try:
-                # Try user client first
-                if bot_instance.user_client and bot_instance.user_session_ready:
-                    try:
-                        file_message = await bot_instance.user_client.get_messages(
-                            channel_id, 
-                            message_id
-                        )
-                        logger.info(f"✅ Got file via user client")
-                        break
-                    except Exception as e:
-                        logger.warning(f"User client failed: {e}")
-                
-                # Try bot client
-                try:
-                    file_message = await client.get_messages(
-                        channel_id, 
-                        message_id
-                    )
-                    logger.info(f"✅ Got file via bot client")
-                    break
-                except Exception as e:
-                    logger.warning(f"Bot client failed: {e}")
-                    
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(1)
-                    
-            except Exception as e:
-                logger.error(f"Attempt {attempt+1} failed: {e}")
-        
-        if not file_message:
+        try:
+            # Try bot client first
+            file_message = await client.get_messages(channel_id, message_id)
+            logger.info(f"✅ Got file via bot client")
+        except Exception as e:
+            logger.error(f"Failed to get file: {e}")
             try:
                 await processing_msg.edit_text(
                     "❌ **File not found**\n\n"
@@ -461,12 +434,11 @@ async def handle_file_request(client, message, file_text, bot_instance):
             
             # Record download
             if bot_instance.premium_system:
-                await bot_instance.premium_system.record_download(
-                    user_id, 
-                    file_size, 
-                    quality
-                )
-                logger.info(f"📊 Download recorded for user {user_id}")
+                try:
+                    await bot_instance.premium_system.record_download(user_id, file_size, quality)
+                    logger.info(f"📊 Download recorded for user {user_id}")
+                except:
+                    pass
             
         else:
             error_text = result_data['message']
@@ -496,6 +468,10 @@ async def handle_file_request(client, message, file_text, bot_instance):
 
 async def setup_bot_handlers(bot, bot_instance):
     """Setup all bot handlers"""
+    if not PYROGRAM_AVAILABLE:
+        logger.error("❌ Pyrogram not available. Cannot setup handlers.")
+        return
+    
     config = bot_instance.config
     
     logger.info("Setting up bot handlers...")
