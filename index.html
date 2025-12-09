@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="monetag" content="84e885eb3638b33068291c3903261787">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SK4FiLM - Latest Movies | Download HD Movies</title>
     <meta name="description" content="Search and download latest movies with multiple quality options">
     
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" as="style">
+    <link rel="preload" href="https://iili.io/KOlfc41.png" as="image">
+    <link rel="preconnect" href="https://sk4film.koyeb.app">
+    
     <!-- CSS Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     
+    <!-- Critical CSS Inline -->
     <style>
         :root {
             --primary: #ff0000;
@@ -28,40 +32,21 @@
         }
         
         body {
-            background: url('https://i.postimg.cc/T2mcBGtv/pxfuel-2.jpg') no-repeat center center fixed;
-            background-size: cover;
+            background: #0a0a0a;
             min-height: 100vh;
             font-family: 'Josefin Sans', sans-serif;
             color: var(--text);
             padding-top: 69px;
             overflow-x: hidden;
-            transition: padding-top 0.3s ease;
         }
         
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(10, 10, 10, 0.7);
-            z-index: -1;
-        }
-        
-        body.search-active {
-            padding-top: 154px;
-        }
-        
-        /* Navigation */
+        /* Navigation - Critical */
         .top-navbar {
             background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            width: 100%;
             z-index: 1000;
             padding: 12px 0;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
@@ -72,16 +57,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            position: relative;
             padding: 0 15px;
-            max-width: 100%;
-        }
-        
-        .logo-section {
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
-            max-width: 60%;
         }
         
         .logo-img {
@@ -89,13 +65,6 @@
             width: 40px;
             margin-right: 8px;
             border-radius: 8px;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
-            object-fit: contain;
-        }
-        
-        .brand-content {
-            min-width: 0;
-            flex: 1;
         }
         
         .brand-text {
@@ -104,25 +73,7 @@
             background: linear-gradient(90deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
             line-height: 1.2;
-            white-space: nowrap;
-        }
-        
-        .brand-subtitle {
-            font-size: 0.6rem;
-            color: var(--accent);
-            font-weight: 300;
-            letter-spacing: 0.5px;
-            font-style: italic;
-            white-space: nowrap;
-        }
-        
-        .action-buttons {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
         }
         
         .search-icon-btn {
@@ -136,248 +87,62 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
         }
         
-        .search-icon-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 25px rgba(255, 0, 0, 0.6);
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #2d3748 25%, #4a5568 50%, #2d3748 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
         }
         
-        .menu-button {
-            background: rgba(0, 204, 255, 0.15);
-            border: 2px solid var(--accent);
-            color: var(--accent);
-            padding: 9px 11px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
         
-        .menu-button:hover {
-            background: rgba(0, 204, 255, 0.25);
-            box-shadow: 0 0 20px rgba(0, 204, 255, 0.6);
-        }
-        
-        .menu-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-        
-        .menu-line {
-            width: 18px;
-            height: 2px;
-            background: var(--accent);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-        
-        .menu-button.active .menu-line:nth-child(1) {
-            transform: rotate(45deg) translate(5px, 5px);
-        }
-        
-        .menu-button.active .menu-line:nth-child(2) {
-            opacity: 0;
-        }
-        
-        .menu-button.active .menu-line:nth-child(3) {
-            transform: rotate(-45deg) translate(5px, -5px);
-        }
-        
-        .search-container {
-            position: fixed;
-            top: 69px;
-            left: 0;
-            right: 0;
-            z-index: 999;
-            background: rgba(15, 23, 42, 0.98);
-            border-bottom: 2px solid var(--accent);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            padding: 0 15px;
-            max-height: 0;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .search-container.active {
-            max-height: 85px;
-            padding: 15px;
-        }
-        
-        .search-wrapper {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .inline-search-input {
-            flex: 1;
-            background: rgba(60, 65, 90, 0.9);
-            border: 2px solid var(--accent);
-            color: white;
-            padding: 10px 15px;
-            font-size: 0.9rem;
-            border-radius: 25px;
-            outline: none;
-        }
-        
-        .inline-search-input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .inline-search-input:focus {
-            box-shadow: 0 0 15px rgba(0, 204, 255, 0.5);
-            border-color: #00e6ff;
-        }
-        
-        .inline-search-btn {
-            background: var(--accent);
-            color: #1a1a2e;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        .inline-search-btn:hover {
-            background: #00b8e6;
-        }
-        
-        .menu-section {
-            position: relative;
-        }
-        
-        .menu-dropdown {
-            position: fixed;
-            top: 69px;
-            right: 15px;
-            left: 15px;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
-            border: 2px solid var(--accent);
+        .movie-card-skeleton {
+            background: rgba(30, 41, 59, 0.9);
             border-radius: 15px;
-            padding: 20px;
-            max-height: 0;
             overflow: hidden;
-            opacity: 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            z-index: 998;
+            height: 320px;
         }
         
-        .menu-dropdown.active {
-            max-height: 350px;
-            opacity: 1;
-        }
-        
-        .menu-dropdown h4 {
-            color: var(--accent);
+        .poster-skeleton {
+            width: 100%;
+            height: 225px;
             margin-bottom: 15px;
-            font-size: 1.2rem;
-            text-align: center;
         }
         
-        .menu-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .title-skeleton {
+            width: 80%;
+            height: 20px;
+            margin: 0 auto 10px;
         }
         
-        .menu-link {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 15px;
-            background: rgba(0, 204, 255, 0.1);
-            border: 1px solid rgba(0, 204, 255, 0.3);
-            border-radius: 10px;
-            color: white;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            font-weight: 500;
+        .subtitle-skeleton {
+            width: 60%;
+            height: 15px;
+            margin: 0 auto;
         }
         
-        .menu-link:hover {
-            background: rgba(0, 204, 255, 0.2);
-            transform: translateX(5px);
+        /* Hide non-critical content initially */
+        .lazy-load {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
         }
         
-        .menu-link i {
-            font-size: 1.2rem;
-            width: 25px;
-            text-align: center;
+        .lazy-loaded {
+            opacity: 1;
+            transform: translateY(0);
         }
-        
-        @media (min-width: 992px) {
-            body {
-                padding-top: 90px;
-            }
-            
-            body.search-active {
-                padding-top: 90px;
-            }
-            
-            .navbar-content {
-                padding: 0;
-            }
-            
-            .logo-img {
-                height: 50px;
-                width: 50px;
-                margin-right: 12px;
-            }
-            
-            .brand-text {
-                font-size: 1.8rem;
-            }
-            
-            .brand-subtitle {
-                font-size: 0.7rem;
-            }
-            
-            .search-icon-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 1.3rem;
-            }
-            
-            .search-container {
-                position: static;
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                padding: 0;
-                max-height: none;
-                overflow: visible;
-                display: inline-flex;
-                margin-right: 15px;
-            }
-            
-            .search-wrapper {
-                width: 0;
-                opacity: 0;
-                overflow: hidden;
-                transition: all 0.4s ease;
-            }
-            
-            .search-container.active .search-wrapper {
-                width: 350px;
-                opacity: 1;
-            }
-            
-            .menu-dropdown {
-                position: absolute;
-                top: calc(100% + 15px);
-                right: 0;
-                left: auto;
-                width: 280px;
-            }
-        }
-        
+    </style>
+    
+    <!-- Deferred CSS -->
+    <style>
+        /* Remaining styles moved here for deferred loading */
         .section-box {
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(5px);
@@ -393,99 +158,23 @@
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 15px;
             overflow: hidden;
-            transition: all 0.4s ease;
+            transition: all 0.3s ease;
             height: 100%;
             cursor: pointer;
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         
         .movie-card:hover {
-            transform: translateY(-12px) scale(1.02);
-            box-shadow: 0 25px 50px rgba(0, 204, 255, 0.5);
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 204, 255, 0.3);
             border-color: var(--accent);
-        }
-        
-        .click-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0);
-            z-index: 10;
-            cursor: pointer;
-        }
-        
-        .movie-card:hover .click-overlay {
-            background: rgba(0, 204, 255, 0.1);
         }
         
         .hq-poster {
             width: 100%;
             height: 225px;
             object-fit: cover;
-            object-position: center;
             background: #1a1a2e;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.5s ease;
-        }
-        
-        @media (min-width: 1200px) {
-            .hq-poster { height: 313px; }
-        }
-        
-        @media (min-width: 768px) and (max-width: 1199px) {
-            .hq-poster { height: 250px; }
-        }
-        
-        .movie-card:hover .hq-poster {
-            transform: scale(1.05);
-            filter: brightness(1.1);
-        }
-
-        /* Poster loading states */
-        .poster-loading {
-            background: linear-gradient(90deg, 
-                rgba(40, 51, 69, 0.8) 25%, 
-                rgba(50, 61, 79, 0.9) 50%, 
-                rgba(40, 51, 69, 0.8) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-shimmer 2s infinite;
-        }
-
-        @keyframes skeleton-shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-
-        .poster-error {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            text-align: center;
-            position: relative;
-        }
-
-        .poster-error::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('https://iili.io/fAeIwv9.th.png') center/cover no-repeat;
-            opacity: 0.9;
-        }
-
-        .poster-error-content {
-            position: relative;
-            z-index: 2;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 10px;
         }
         
         .new-badge {
@@ -500,32 +189,11 @@
             font-weight: 700;
             box-shadow: 0 4px 15px rgba(40, 167, 69, 0.6);
             z-index: 5;
-            animation: newPulse 3s infinite;
-        }
-        
-        @keyframes newPulse {
-            0%, 100% { box-shadow: 0 4px 15px rgba(40, 167, 69, 0.6); }
-            50% { box-shadow: 0 6px 25px rgba(40, 167, 69, 0.9); }
-        }
-        
-        .rating-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.8);
-            color: #ffd700;
-            padding: 6px 12px;
-            border-radius: 18px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            z-index: 5;
         }
         
         .hq-info {
             padding: 15px;
             text-align: center;
-            background: rgba(15, 23, 42, 0.9);
         }
         
         .hq-title {
@@ -536,418 +204,55 @@
             line-height: 1.4;
         }
         
-        .visitor-container {
-            position: fixed;
-            bottom: 15px;
-            right: 15px;
-            z-index: 1000;
-        }
-        
-        .visitor-logo {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 6px;
-            border: 2px solid white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-        
-        .visitor-count {
-            background: rgba(0, 102, 255, 0.9);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            text-align: center;
-        }
-        
-        .loading-spinner {
-            width: 3.5rem;
-            height: 3.5rem;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-top: 5px solid #28a745;
-            border-right: 5px solid #ffc107;
-            border-radius: 50%;
-            animation: spin 1.2s linear infinite;
-            margin: 0 auto 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* ===== SKELETON LOADING STYLES ===== */
-        .skeleton-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        @media (min-width: 768px) {
-            .skeleton-container {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
-        @media (min-width: 992px) {
-            .skeleton-container {
-                grid-template-columns: repeat(4, 1fr);
-            }
-        }
-
-        @media (min-width: 1200px) {
-            .skeleton-container {
-                grid-template-columns: repeat(6, 1fr);
-            }
-        }
-
-        .skeleton-card {
-            background: rgba(30, 41, 59, 0.9);
-            border-radius: 15px;
-            overflow: hidden;
-            height: 100%;
-            animation: skeleton-pulse 1.5s infinite;
-        }
-
-        .skeleton-poster {
-            width: 100%;
-            height: 225px;
-            background: linear-gradient(90deg, 
-                rgba(40, 51, 69, 0.8) 25%, 
-                rgba(50, 61, 79, 0.9) 50%, 
-                rgba(40, 51, 69, 0.8) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-shimmer 2s infinite;
-        }
-
-        .skeleton-info {
-            padding: 15px;
-            background: rgba(15, 23, 42, 0.9);
-        }
-
-        .skeleton-title {
-            height: 20px;
-            background: linear-gradient(90deg, 
-                rgba(40, 51, 69, 0.8) 25%, 
-                rgba(50, 61, 79, 0.9) 50%, 
-                rgba(40, 51, 69, 0.8) 75%);
-            background-size: 200% 100%;
-            border-radius: 4px;
-            animation: skeleton-shimmer 2s infinite;
-            margin-bottom: 8px;
-        }
-
-        .skeleton-subtitle {
-            height: 12px;
-            width: 70%;
-            background: linear-gradient(90deg, 
-                rgba(40, 51, 69, 0.8) 25%, 
-                rgba(50, 61, 79, 0.9) 50%, 
-                rgba(40, 51, 69, 0.8) 75%);
-            background-size: 200% 100%;
-            border-radius: 4px;
-            animation: skeleton-shimmer 2s infinite;
-        }
-
-        @keyframes skeleton-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        /* ===== Ad Containers - Optimized ===== */
+        /* Ads */
         .ad-container {
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 10px auto;
-            overflow: hidden;
+            min-height: 50px;
         }
-
-        #adTopDesktop {
-            height: 90px;
-            width: 728px;
-        }
-
-        #adTopMobile {
-            height: 50px;
-            width: 320px;
-        }
-
-        #adInlineContent {
-            height: 300px;
-            width: 160px;
-        }
-
-        #adFooterDesktop {
-            height: 90px;
-            width: 728px;
-        }
-
-        @media (max-width: 991px) {
-            #adTopDesktop,
-            #adFooterDesktop {
-                display: none !important;
-            }
-        }
-
-        @media (min-width: 992px) {
-            #adTopMobile {
-                display: none !important;
-            }
-        }
-
-        /* Popup Styles - Bottom Slide Up (Ad Size) */
-        .popup-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: transparent;
-            z-index: 9999;
-            display: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        .popup-overlay.active {
-            display: block;
-            opacity: 1;
-            pointer-events: auto;
-        }
-
+        
+        /* Popup */
         .popup-container {
             position: fixed;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%) translateY(100%);
-            background: transparent;
-            border: none;
-            padding: 0;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             z-index: 10000;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            width: 300px;
-            height: 250px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .popup-container.active {
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .popup-close {
-            position: absolute;
-            top: -35px;
-            right: 0;
-            background: rgba(255, 0, 0, 0.9);
-            border: none;
-            color: white;
-            font-size: 1rem;
-            cursor: pointer;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            z-index: 10001;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            font-weight: bold;
-        }
-
-        .popup-close:hover {
-            background: rgba(255, 0, 0, 1);
-            transform: scale(1.1);
-        }
-
-        .popup-content {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .popup-ad-container {
-            width: 300px;
-            height: 250px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
-            border-radius: 0;
-        }
-
-        /* Second Popup Styles - NO CLOSE BUTTON */
-        .second-popup-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: transparent;
-            z-index: 9999;
             display: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        .second-popup-overlay.active {
-            display: block;
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .second-popup-container {
-            position: fixed;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%) translateY(100%);
-            background: transparent;
-            border: none;
-            padding: 0;
-            z-index: 10000;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            width: 300px;
-            height: 250px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .second-popup-container.active {
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .second-popup-content {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .second-popup-ad-container {
-            width: 300px;
-            height: 250px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
-            border-radius: 0;
-        }
-
-        /* Mobile-specific popup styles */
-        @media (max-width: 767px) {
-            .popup-container,
-            .second-popup-container {
-                width: 300px;
-                height: 250px;
-            }
-            
-            .popup-ad-container,
-            .second-popup-ad-container {
-                width: 300px;
-                height: 250px;
-            }
-        }
-
-        @media (max-width: 320px) {
-            .popup-container,
-            .second-popup-container {
-                width: 300px;
-                height: 250px;
-                transform: translateX(-50%) translateY(100%) scale(0.9);
-            }
-            
-            .popup-container.active,
-            .second-popup-container.active {
-                transform: translateX(-50%) translateY(0) scale(0.9);
-            }
-            
-            .popup-ad-container,
-            .second-popup-ad-container {
-                width: 300px;
-                height: 250px;
-            }
         }
     </style>
 </head>
 <body>
-    <!-- Audio -->
-    <audio autoplay id="bg-audio">
-        <source src="https://files.catbox.moe/5t18g8.mp3" type="audio/mpeg">
-    </audio>
-    
     <!-- Navigation -->
     <nav class="top-navbar">
         <div class="container-fluid">
             <div class="navbar-content">
                 <div class="logo-section">
                     <a href="#" style="display: flex; align-items: center; color: white; text-decoration: none;">
-                        <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+                        <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img" loading="lazy">
                         <div class="brand-content">
                             <div class="brand-text">SK4FiLM</div>
-                            <div class="brand-subtitle">House of Entertainment</div>
+                            <div class="brand-subtitle" style="font-size: 0.6rem; color: var(--accent);">House of Entertainment</div>
                         </div>
                     </a>
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="search-icon-btn" onclick="toggleSearch()" id="searchToggleBtn" title="Search">
+                    <button class="search-icon-btn" onclick="toggleSearch()" title="Search">
                         <i class="fas fa-search"></i>
                     </button>
-                    
-                    <div class="menu-section">
-                        <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn">
-                            <div class="menu-lines">
-                                <div class="menu-line"></div>
-                                <div class="menu-line"></div>
-                                <div class="menu-line"></div>
-                            </div>
-                        </button>
-                        
-                        <div class="menu-dropdown" id="menuDropdown">
-                            <h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
-                            <div class="menu-links">
-                                <a href="https://t.me/sk4film" target="_blank" class="menu-link">
-                                    <i class="fab fa-telegram" style="color: #0088cc;"></i>
-                                    <span>Telegram</span>
-                                </a>
-                                <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
-                                    <i class="fab fa-whatsapp" style="color: #25d366;"></i>
-                                    <span>WhatsApp</span>
-                                </a>
-                                <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
-                                    <i class="fab fa-youtube" style="color: #ff0000;"></i>
-                                    <span>YouTube</span>
-                                </a>
-                                <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
-                                    <i class="fas fa-robot" style="color: #7b68ee;"></i>
-                                    <span>Telegram Bot</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
     </nav>
     
     <!-- Search Container -->
-    <div class="search-container" id="searchContainer">
+    <div class="search-container" id="searchContainer" style="display: none;">
         <div class="search-wrapper">
             <input 
                 type="text" 
@@ -963,568 +268,93 @@
     </div>
     
     <div class="container">
-        <!-- Top Ads -->
-        <div class="ad-container">
-            <div id="adTopDesktop">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                        'format' : 'iframe',
-                        'height' : 90,
-                        'width' : 728,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-            </div>
-            <div id="adTopMobile">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
-                        'format' : 'iframe',
-                        'height' : 50,
-                        'width' : 320,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
-            </div>
-        </div>
-
-        <!-- Latest Movies -->
-        <div class="section-box animate__animated animate__fadeIn">
-            <div style="margin-bottom: 35px;">
-                <h2 style="color: var(--accent); margin-bottom: 25px; font-size: 2.3rem; font-weight: 700;">
-                    <i class="fas fa-film me-3" style="color: var(--primary);"></i>Latest Movies
-                </h2>
-            </div>
-            
-            <!-- Skeleton Loading -->
-            <div class="skeleton-container" id="skeletonContainer">
-                <!-- Skeleton cards generated by JavaScript -->
-            </div>
-            
-            <!-- Actual Movies Container -->
-            <div class="row g-4" id="homeMoviesContainer" style="display: none;">
-                <!-- Movies will be loaded here -->
-            </div>
-        </div>
-
-        <!-- Inline Content Ad -->
-        <div class="ad-container">
-            <div id="adInlineContent">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
-                        'format' : 'iframe',
-                        'height' : 300,
-                        'width' : 160,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
-            </div>
-        </div>
-
-        <!-- Tutorial Videos -->
-        <div class="section-box animate__animated animate__fadeIn">
-            <h2 style="color: var(--accent); text-align: center; margin-bottom: 30px;">
-                <i class="fas fa-play-circle me-2"></i>Tutorial Videos
+        <!-- Loading Skeleton -->
+        <div class="section-box">
+            <h2 style="color: var(--accent); margin-bottom: 25px; font-size: 2.3rem; font-weight: 700;">
+                <i class="fas fa-film me-3" style="color: var(--primary);"></i>Latest Movies
             </h2>
-            <div class="row gy-4">
-                <div class="col-12 col-md-4">
-                    <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
-                        <h5 style="color: var(--accent); margin-bottom: 15px;">How to Search Movies</h5>
-                        <div class="ratio ratio-16x9">
-                            <iframe allowfullscreen src="https://www.youtube.com/embed/PSQ9_KLzm8s" style="border-radius: 8px;"></iframe>
-                        </div>
+            
+            <div class="row g-4" id="homeMoviesContainer">
+                <!-- Skeleton loader -->
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="movie-card-skeleton">
+                        <div class="poster-skeleton skeleton"></div>
+                        <div class="title-skeleton skeleton"></div>
+                        <div class="subtitle-skeleton skeleton"></div>
                     </div>
                 </div>
-                
-                <div class="col-12 col-md-4">
-                    <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
-                        <h5 style="color: var(--accent); margin-bottom: 15px;">StreaamNet Link</h5>
-                        <div class="ratio ratio-16x9">
-                            <iframe allowfullscreen src="https://www.youtube.com/embed/fVL7DfhnwWM" style="border-radius: 8px;"></iframe>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-12 col-md-4">
-                    <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
-                        <h5 style="color: var(--accent); margin-bottom: 15px;">DiskWala Link</h5>
-                        <div class="ratio ratio-16x9">
-                            <iframe allowfullscreen src="https://www.youtube.com/embed/ZNKeL-pcIDw" style="border-radius: 8px;"></iframe>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Disclaimer -->
-        <div style="background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; padding: 15px; margin-top: 30px; text-align: center; color: #ff6b6b;">
-            <p style="margin: 0;"><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p>
-        </div>
-    </div>
-
-    <!-- Footer Desktop Ad -->
-    <footer class="mt-5 pb-4">
-        <div class="ad-container">
-            <div id="adFooterDesktop">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                        'format' : 'iframe',
-                        'height' : 90,
-                        'width' : 728,
-                        'params' : {}
-                    };
+                <!-- Repeat 11 more times -->
+                <script>
+                    for(let i = 0; i < 11; i++) {
+                        document.write(`
+                            <div class="col-6 col-md-4 col-lg-3 col-xl-2 d-none d-md-block">
+                                <div class="movie-card-skeleton">
+                                    <div class="poster-skeleton skeleton"></div>
+                                    <div class="title-skeleton skeleton"></div>
+                                    <div class="subtitle-skeleton skeleton"></div>
+                                </div>
+                            </div>
+                        `);
+                    }
                 </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
             </div>
         </div>
-    </footer>
-
-    <!-- Visitor Counter -->
-    <div class="visitor-container">
-        <div class="visitor-logo">
-            <i class="fas fa-users" style="color: white; font-size: 1.5rem;"></i>
-        </div>
-        <div class="visitor-count">
-            <span id="visitorCount">1247</span>
-        </div>
+        
+        <!-- Real content will load here -->
+        <div id="dynamicContent"></div>
     </div>
 
-    <!-- First Popup - Auto Show WITH CLOSE BUTTON -->
-    <div class="popup-overlay" id="popupOverlay"></div>
-    <div class="popup-container" id="popupContainer">
-        <button class="popup-close" id="popupClose">
-            <i class="fas fa-times"></i>
-        </button>
-        <div class="popup-content">
-            <div class="popup-ad-container" id="popupAdContainer">
-                <!-- First Popup Ad -->
-                <ins style="width: 300px;height:250px" data-width="300" data-height="250" class="t13b383e0a9" data-domain="//data527.click" data-affquery="/c6913712bda9ddeea753/13b383e0a9/?placementName=default"><script src="//data527.click/js/responsive.js" async></script></ins>
-        </div>
-    </div>
-
-    <!-- Second Popup - Show on User Click WITHOUT CLOSE BUTTON -->
-    <div class="second-popup-overlay" id="secondPopupOverlay"></div>
-    <div class="second-popup-container" id="secondPopupContainer">
-        <!-- NO CLOSE BUTTON HERE -->
-        <div class="second-popup-content">
-            <div class="second-popup-ad-container" id="secondPopupAdContainer">
-                <!-- Second Popup Ad -->
-                <script type='text/javascript' src='//marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js'></script>
-            </div>
-        </div>
-    </div>
-
+    <!-- Critical JavaScript Inline -->
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
-        const FALLBACK_POSTER = 'https://iili.io/fAeIwv9.th.png';
+        let moviesLoaded = false;
         
-        console.log('🎬 SK4FiLM v6.0 - MULTI-SOURCE DIRECT POSTER LOADING');
-
-        // ==== Skeleton Loading Functions ====
-        function generateSkeletonCards() {
-            const skeletonContainer = document.getElementById('skeletonContainer');
-            if (!skeletonContainer) return;
-            
-            let skeletonHTML = '';
-            for (let i = 0; i < 12; i++) {
-                skeletonHTML += `
-                    <div class="skeleton-card animate__animated animate__fadeIn" style="animation-delay: ${i * 0.05}s">
-                        <div class="skeleton-poster"></div>
-                        <div class="skeleton-info">
-                            <div class="skeleton-title"></div>
-                            <div class="skeleton-subtitle"></div>
-                        </div>
-                    </div>
-                `;
-            }
-            skeletonContainer.innerHTML = skeletonHTML;
-        }
-
-        function showSkeleton() {
-            const skeleton = document.getElementById('skeletonContainer');
-            const moviesContainer = document.getElementById('homeMoviesContainer');
-            
-            if (skeleton) {
-                skeleton.style.display = 'grid';
-            }
-            if (moviesContainer) {
-                moviesContainer.style.display = 'none';
-            }
-        }
-
-        function hideSkeleton() {
-            const skeleton = document.getElementById('skeletonContainer');
-            const moviesContainer = document.getElementById('homeMoviesContainer');
-            
-            if (skeleton) {
-                skeleton.style.display = 'none';
-            }
-            if (moviesContainer) {
-                moviesContainer.style.display = 'flex';
-            }
-        }
-
-        // ==== MULTI-SOURCE DIRECT POSTER LOADING ====
-        const posterCache = new Map();
-
-        // Function to clean movie title for URL
-        function cleanTitleForUrl(title) {
-            return title
-                .replace(/[^\w\s]/gi, '')
-                .replace(/\s+/g, '-')
-                .toLowerCase();
-        }
-
-        // Function to get year from title
-        function extractYearFromTitle(title) {
-            const yearMatch = title.match(/\b(19|20)\d{2}\b/);
-            return yearMatch ? yearMatch[0] : '';
-        }
-
-        // Function to get poster from LETTERBOXD
-        function getLetterboxdPoster(title, year) {
-            const cleanTitle = cleanTitleForUrl(title);
-            return `https://letterboxd.com/film/${cleanTitle}${year ? '-' + year : ''}/`;
-        }
-
-        // Function to get poster from JUSTWATCH
-        function getJustWatchPoster(title) {
-            const cleanTitle = cleanTitleForUrl(title);
-            return `https://www.justwatch.com/in/movie/${cleanTitle}`;
-        }
-
-        // Function to get poster from IMPAWARDS
-        function getIMPAPoster(title, year) {
-            if (!year) return null;
-            const cleanTitle = cleanTitleForUrl(title).replace(/-/g, '_');
-            return `https://www.impawards.com/${year}/posters/${cleanTitle}.jpg`;
-        }
-
-        // Function to get poster from IMDB
-        function getIMDbPoster(title) {
-            return `https://www.imdb.com/find?q=${encodeURIComponent(title)}`;
-        }
-
-        // Function to get poster from TMDB
-        function getTMDBPoster(title) {
-            return `https://image.tmdb.org/t/p/w780/${encodeURIComponent(title)}`;
-        }
-
-        // Get all poster URLs for a movie
-        function getAllPosterURLs(movieTitle) {
-            const year = extractYearFromTitle(movieTitle);
-            const urls = [];
-            
-            // LETTERBOXD
-            urls.push(getLetterboxdPoster(movieTitle, year));
-            if (year) {
-                urls.push(getLetterboxdPoster(movieTitle, ''));
-            }
-            
-            // JUSTWATCH
-            urls.push(getJustWatchPoster(movieTitle));
-            
-            // IMPAWARDS (only if year exists)
-            if (year) {
-                const impUrl = getIMPAPoster(movieTitle, year);
-                if (impUrl) urls.push(impUrl);
-            }
-            
-            // IMDB
-            urls.push(getIMDbPoster(movieTitle));
-            
-            // TMDB (requires API, but we'll try direct image)
-            urls.push(getTMDBPoster(movieTitle));
-            
-            // Backend fallback
-            urls.push(`${BACKEND_URL}/api/poster?title=${encodeURIComponent(movieTitle)}&year=${year}`);
-            
-            return urls.filter(url => url);
-        }
-
-        // Test if an image loads successfully
-        function testImageLoad(url) {
-            return new Promise((resolve) => {
-                if (!url || !url.startsWith('http')) {
-                    resolve(false);
-                    return;
-                }
-                
-                const img = new Image();
-                img.onload = () => resolve(true);
-                img.onerror = () => resolve(false);
-                img.src = url;
-                
-                // Timeout after 3 seconds
-                setTimeout(() => {
-                    img.onload = img.onerror = null;
-                    resolve(false);
-                }, 3000);
-            });
-        }
-
-        // Main function to load poster from multiple sources
-        async function loadDirectPosterFromSources(img, movieTitle) {
-            const cacheKey = movieTitle.toLowerCase();
-            
-            // Check cache first
-            if (posterCache.has(cacheKey)) {
-                const cachedUrl = posterCache.get(cacheKey);
-                img.src = cachedUrl;
-                img.classList.remove('poster-loading');
-                
-                if (cachedUrl === FALLBACK_POSTER) {
-                    img.classList.add('poster-error');
-                }
-                return;
-            }
-
-            const posterURLs = getAllPosterURLs(movieTitle);
-            console.log(`🔍 Trying ${posterURLs.length} sources for: ${movieTitle}`);
-            
-            // Try each URL until one works
-            for (let i = 0; i < posterURLs.length; i++) {
-                const url = posterURLs[i];
-                try {
-                    console.log(`  → Trying source ${i + 1}: ${url.substring(0, 60)}...`);
-                    const isLoaded = await testImageLoad(url);
-                    
-                    if (isLoaded) {
-                        console.log(`✅ Poster found from source ${i + 1}`);
-                        img.src = url;
-                        img.classList.remove('poster-loading');
-                        posterCache.set(cacheKey, url);
-                        return;
-                    }
-                } catch (error) {
-                    console.log(`❌ Failed source ${i + 1}`);
-                    continue;
-                }
-            }
-            
-            // All sources failed, use fallback
-            console.log(`⚠️ All sources failed for: ${movieTitle}, using fallback`);
-            img.src = FALLBACK_POSTER;
-            img.classList.remove('poster-loading');
-            img.classList.add('poster-error');
-            posterCache.set(cacheKey, FALLBACK_POSTER);
-        }
-
-        // Load all posters in parallel with concurrency limit
-        async function loadAllPosters() {
-            const posters = document.querySelectorAll('.hq-poster.poster-loading');
-            const CONCURRENCY_LIMIT = 5;
-            
-            for (let i = 0; i < posters.length; i += CONCURRENCY_LIMIT) {
-                const batch = Array.from(posters).slice(i, i + CONCURRENCY_LIMIT);
-                const promises = batch.map(img => {
-                    const movieData = JSON.parse(img.getAttribute('data-movie'));
-                    return loadDirectPosterFromSources(img, movieData.title);
-                });
-                
-                await Promise.all(promises);
-                await new Promise(resolve => setTimeout(resolve, 300)); // Small delay between batches
-            }
-        }
-
-        // ==== Popup Functions (ORIGINAL - UNCHANGED) ====
-        function showFirstPopup() {
-            const overlay = document.getElementById('popupOverlay');
-            const popup = document.getElementById('popupContainer');
-            
-            overlay.classList.add('active');
-            popup.classList.add('active');
-        }
-        
-        function hideFirstPopup() {
-            const overlay = document.getElementById('popupOverlay');
-            const popup = document.getElementById('popupContainer');
-            const closeBtn = document.getElementById('popupClose');
-            
-            overlay.classList.remove('active');
-            popup.classList.remove('active');
-            
-            setTimeout(() => {
-                closeBtn.style.display = 'none';
-            }, 300);
-        }
-
-        function showSecondPopup() {
-            const overlay = document.getElementById('secondPopupOverlay');
-            const popup = document.getElementById('secondPopupContainer');
-            
-            overlay.classList.add('active');
-            popup.classList.add('active');
-        }
-        
-        function hideSecondPopup() {
-            const overlay = document.getElementById('secondPopupOverlay');
-            const popup = document.getElementById('secondPopupContainer');
-            
-            overlay.classList.remove('active');
-            popup.classList.remove('active');
-        }
-
-        // ==== Navigation Functions (ORIGINAL - UNCHANGED) ====
-        function toggleSearch() {
-            const searchContainer = document.getElementById('searchContainer');
-            const menuDropdown = document.getElementById('menuDropdown');
-            const menuBtn = document.getElementById('menuToggleBtn');
-            const body = document.body;
-            
-            if (menuDropdown.classList.contains('active')) {
-                menuDropdown.classList.remove('active');
-                menuBtn.classList.remove('active');
-            }
-            
-            searchContainer.classList.toggle('active');
-            
-            if (searchContainer.classList.contains('active')) {
-                body.classList.add('search-active');
-                setTimeout(() => document.getElementById('inlineSearchInput').focus(), 100);
-            } else {
-                body.classList.remove('search-active');
-            }
-        }
-        
-        function toggleMenu() {
-            const menuDropdown = document.getElementById('menuDropdown');
-            const menuBtn = document.getElementById('menuToggleBtn');
-            const searchContainer = document.getElementById('searchContainer');
-            const body = document.body;
-            
-            if (searchContainer.classList.contains('active')) {
-                searchContainer.classList.remove('active');
-                body.classList.remove('search-active');
-            }
-            
-            menuDropdown.classList.toggle('active');
-            menuBtn.classList.toggle('active');
-        }
-        
-        document.addEventListener('click', function(event) {
-            const searchContainer = document.getElementById('searchContainer');
-            const menuDropdown = document.getElementById('menuDropdown');
-            const searchBtn = document.getElementById('searchToggleBtn');
-            const menuBtn = document.getElementById('menuToggleBtn');
-            const body = document.body;
-            
-            if (!searchContainer.contains(event.target) && !searchBtn.contains(event.target)) {
-                searchContainer.classList.remove('active');
-                body.classList.remove('search-active');
-            }
-            
-            if (!menuDropdown.contains(event.target) && !menuBtn.contains(event.target)) {
-                menuDropdown.classList.remove('active');
-                menuBtn.classList.remove('active');
-            }
-        });
-        
-        function doInlineSearch() {
-            const input = document.getElementById('inlineSearchInput');
-            const query = input.value.trim();
-            
-            if (query && query.length >= 2) {
-                window.location.href = `search.html?query=${encodeURIComponent(query)}`;
-            } else {
-                input.style.borderColor = '#ff0000';
-                input.focus();
-                setTimeout(() => input.style.borderColor = 'var(--accent)', 2000);
-            }
-        }
-        
-        function handleMovieClick(movieTitle) {
-            window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
-        }
-        
-        // ==== Movie Loading Functions (ORIGINAL - UNCHANGED) ====
+        // ==== ULTRA-FAST LOADING FUNCTIONS ====
         async function loadHomeMovies() {
-            // Show skeleton loading
-            showSkeleton();
-            generateSkeletonCards();
+            if (moviesLoaded) return;
             
             try {
-                console.log('🎬 Loading movies from backend...');
+                console.time('loadMovies');
                 const response = await fetch(`${BACKEND_URL}/api/movies`);
                 const data = await response.json();
                 
-                console.log('📊 Backend response:', data);
-                
                 if (data.status === 'success' && data.movies?.length > 0) {
-                    console.log(`✅ Loaded ${data.movies.length} movies`);
-                    setTimeout(() => {
-                        displayHomeMovies(data.movies);
-                        hideSkeleton();
-                        // Load posters after showing movies
-                        setTimeout(loadAllPosters, 100);
-                    }, 500); // Show skeleton for at least 500ms
-                } else {
-                    console.error('❌ No movies found in response');
-                    setTimeout(() => {
-                        showError();
-                        hideSkeleton();
-                    }, 500);
+                    displayMovies(data.movies);
+                    moviesLoaded = true;
+                    console.timeEnd('loadMovies');
+                    console.log(`✅ Loaded ${data.movies.length} movies in ms`);
+                    
+                    // Load deferred content
+                    loadDeferredContent();
                 }
             } catch (error) {
-                console.error('❌ Error loading movies:', error);
-                setTimeout(() => {
-                    showError();
-                    hideSkeleton();
-                }, 500);
+                console.error('Error:', error);
+                showFallbackMovies();
             }
         }
         
-        function displayHomeMovies(movies) {
+        function displayMovies(movies) {
             const container = document.getElementById('homeMoviesContainer');
             let html = '';
             
-            movies.forEach((movie, index) => {
-                const title = movie.title || 'Unknown';
-                const hasPoster = movie.has_poster !== false;
+            movies.slice(0, 12).forEach((movie, index) => {
+                const title = escapeHTML(movie.title || 'Unknown');
                 const isNew = movie.is_new;
-                const rating = movie.poster_rating || '0.0';
-                const uniqueId = `movie-${index}-${Date.now()}`;
+                const posterUrl = movie.poster_url || `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}`;
                 
                 html += `
-                    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.08}s">
-                            <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
-                            
-                            <div id="${uniqueId}">
-                                ${hasPoster ? `
-                                    <img 
-                                        class="hq-poster poster-loading" 
-                                        alt="${escapeHTML(title)}"
-                                        loading="lazy"
-                                        data-movie='${JSON.stringify({title: title})}'
-                                    >
-                                ` : `
-                                    <div class="hq-poster poster-error">
-                                        <div class="poster-error-content">
-                                            <i class="fas fa-film fa-4x mb-3"></i><br>
-                                            <strong>${escapeHTML(title)}</strong><br>
-                                            <small>No Poster Available</small>
-                                        </div>
-                                    </div>
-                                `}
-                            </div>
-                            
-                            ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
-                            
-                            ${rating !== '0.0' ? `
-                                <div class="rating-badge">
-                                    <i class="fas fa-star me-1"></i>${rating}
-                                </div>
-                            ` : ''}
-                            
+                    <div class="col-6 col-md-4 col-lg-3 col-xl-2 lazy-load">
+                        <div class="movie-card" onclick="handleMovieClick('${escapeJS(title)}')">
+                            <img 
+                                src="${posterUrl}" 
+                                class="hq-poster" 
+                                alt="${title}"
+                                loading="lazy"
+                                onerror="this.src='https://iili.io/fAeIwv9.th.png'"
+                            >
+                            ${isNew ? '<div class="new-badge">NEW</div>' : ''}
                             <div class="hq-info">
-                                <h6 class="hq-title">${escapeHTML(title)}</h6>
+                                <h6 class="hq-title">${title}</h6>
                             </div>
                         </div>
                     </div>
@@ -1532,75 +362,129 @@
             });
             
             container.innerHTML = html;
+            
+            // Trigger lazy load animation
+            setTimeout(() => {
+                document.querySelectorAll('.lazy-load').forEach(el => {
+                    el.classList.add('lazy-loaded');
+                });
+            }, 100);
         }
         
-        function showError() {
+        function showFallbackMovies() {
             const container = document.getElementById('homeMoviesContainer');
             container.innerHTML = `
-                <div class="col-12" style="text-align: center; padding: 60px;">
-                    <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
-                    <h3>Error loading movies</h3>
-                    <p class="text-muted mb-3">Please check if the backend server is running</p>
-                    <button onclick="loadHomeMovies()" style="background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; margin-top: 20px;">
-                        <i class="fas fa-redo me-2"></i>Retry
-                    </button>
+                <div class="col-12 text-center">
+                    <p>Content loading...</p>
                 </div>
             `;
-            container.style.display = 'block';
         }
         
+        function loadDeferredContent() {
+            // Load ads
+            loadAds();
+            
+            // Load tutorial videos
+            loadTutorials();
+            
+            // Start visitor counter
+            startVisitorCounter();
+        }
+        
+        function loadAds() {
+            // Load ads asynchronously
+            const adScript = document.createElement('script');
+            adScript.src = '//marksdespitelinear.com/c9379cbde4e37489cbe74d9884568b08.js';
+            adScript.async = true;
+            document.body.appendChild(adScript);
+        }
+        
+        // ==== NAVIGATION ====
+        function toggleSearch() {
+            const container = document.getElementById('searchContainer');
+            container.style.display = container.style.display === 'none' ? 'block' : 'none';
+            if (container.style.display === 'block') {
+                document.getElementById('inlineSearchInput').focus();
+            }
+        }
+        
+        function doInlineSearch() {
+            const query = document.getElementById('inlineSearchInput').value.trim();
+            if (query.length >= 2) {
+                window.location.href = `search.html?query=${encodeURIComponent(query)}`;
+            }
+        }
+        
+        function handleMovieClick(title) {
+            window.location.href = `search.html?query=${encodeURIComponent(title)}`;
+        }
+        
+        // ==== UTILITIES ====
         function escapeHTML(text) {
-            if (!text) return '';
             return text
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+                .replace(/"/g, '&quot;');
         }
         
         function escapeJS(text) {
-            if (!text) return '';
             return text
-                .replace(/\\/g, '\\\\')
                 .replace(/'/g, "\\'")
                 .replace(/"/g, '\\"');
         }
         
-        // ==== Initialize Everything (ORIGINAL - UNCHANGED) ====
+        function startVisitorCounter() {
+            let count = 1247;
+            setInterval(() => {
+                count += Math.floor(Math.random() * 2) + 1;
+                const counter = document.getElementById('visitorCount');
+                if (counter) counter.textContent = count;
+            }, 30000);
+        }
+        
+        // ==== INITIALIZE ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v6.0 FINAL - MULTI-SOURCE POSTER LOADING');
+            console.log('🚀 SK4FiLM - Ultra Fast Loading');
             
-            // Set up popup event listeners
-            document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
-            document.getElementById('popupOverlay').addEventListener('click', hideFirstPopup);
-            
-            // Second popup closes only on overlay click
-            document.getElementById('secondPopupOverlay').addEventListener('click', hideSecondPopup);
-            
-            // Show first popup automatically after 3 seconds
-            setTimeout(showFirstPopup, 3000);
-            
-            // Load movies
+            // Load movies immediately
             loadHomeMovies();
             
-            // Visitor counter
-            setInterval(() => {
-                const counter = document.getElementById('visitorCount');
-                if (counter) {
-                    counter.textContent = parseInt(counter.textContent) + Math.floor(Math.random() * 3) + 1;
-                }
-            }, 35000);
-            
-            // Audio
-            const audio = document.getElementById('bg-audio');
-            if (audio) {
-                audio.volume = 0.3;
-                audio.play().catch(() => {
-                    document.addEventListener('click', () => audio.play(), { once: true });
-                });
+            // Add visitor counter element if not exists
+            if (!document.getElementById('visitorCount')) {
+                const visitorDiv = document.createElement('div');
+                visitorDiv.className = 'visitor-container';
+                visitorDiv.style.cssText = 'position:fixed;bottom:15px;right:15px;z-index:1000;';
+                visitorDiv.innerHTML = `
+                    <div class="visitor-logo" style="width:50px;height:50px;background:linear-gradient(135deg, #ff0000, #0066ff);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:6px;">
+                        <i class="fas fa-users" style="color:white;"></i>
+                    </div>
+                    <div class="visitor-count" style="background:rgba(0,102,255,0.9);color:white;padding:6px 12px;border-radius:15px;text-align:center;">
+                        <span id="visitorCount">1247</span>
+                    </div>
+                `;
+                document.body.appendChild(visitorDiv);
             }
+            
+            // Show popup ad after delay
+            setTimeout(() => {
+                const popup = document.createElement('div');
+                popup.className = 'popup-container';
+                popup.id = 'adPopup';
+                popup.innerHTML = `
+                    <button onclick="this.parentElement.style.display='none'" style="position:absolute;top:-10px;right:-10px;background:red;color:white;border:none;border-radius:50%;width:25px;height:25px;cursor:pointer;">×</button>
+                    <div id="popupAd"></div>
+                `;
+                document.body.appendChild(popup);
+                popup.style.display = 'block';
+            }, 5000);
         });
+        
+        // Preload search page
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = 'search.html';
+        document.head.appendChild(link);
     </script>
 </body>
 </html>
