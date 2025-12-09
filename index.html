@@ -53,7 +53,7 @@
             padding-top: 154px;
         }
         
-        /* Navigation (keep existing) */
+        /* Navigation */
         .top-navbar {
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(15px);
@@ -444,98 +444,19 @@
             filter: brightness(1.1);
         }
 
-        /* ==== SKELETON LOADING STYLES ==== */
-        .skeleton-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        @media (min-width: 768px) {
-            .skeleton-container {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
-        @media (min-width: 992px) {
-            .skeleton-container {
-                grid-template-columns: repeat(4, 1fr);
-            }
-        }
-
-        @media (min-width: 1200px) {
-            .skeleton-container {
-                grid-template-columns: repeat(6, 1fr);
-            }
-        }
-
-        .skeleton-card {
-            background: rgba(30, 41, 59, 0.9);
-            border-radius: 15px;
-            overflow: hidden;
-            height: 100%;
-            animation: skeleton-pulse 1.5s infinite;
-        }
-
-        .skeleton-poster {
-            width: 100%;
-            height: 225px;
+        /* Poster loading states */
+        .poster-loading {
             background: linear-gradient(90deg, 
                 rgba(40, 51, 69, 0.8) 25%, 
                 rgba(50, 61, 79, 0.9) 50%, 
                 rgba(40, 51, 69, 0.8) 75%);
             background-size: 200% 100%;
             animation: skeleton-shimmer 2s infinite;
-        }
-
-        .skeleton-info {
-            padding: 15px;
-            background: rgba(15, 23, 42, 0.9);
-        }
-
-        .skeleton-title {
-            height: 20px;
-            background: linear-gradient(90deg, 
-                rgba(40, 51, 69, 0.8) 25%, 
-                rgba(50, 61, 79, 0.9) 50%, 
-                rgba(40, 51, 69, 0.8) 75%);
-            background-size: 200% 100%;
-            border-radius: 4px;
-            animation: skeleton-shimmer 2s infinite;
-            margin-bottom: 8px;
-        }
-
-        .skeleton-subtitle {
-            height: 12px;
-            width: 70%;
-            background: linear-gradient(90deg, 
-                rgba(40, 51, 69, 0.8) 25%, 
-                rgba(50, 61, 79, 0.9) 50%, 
-                rgba(40, 51, 69, 0.8) 75%);
-            background-size: 200% 100%;
-            border-radius: 4px;
-            animation: skeleton-shimmer 2s infinite;
-        }
-
-        @keyframes skeleton-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
         }
 
         @keyframes skeleton-shimmer {
             0% { background-position: -200% 0; }
             100% { background-position: 200% 0; }
-        }
-
-        /* Poster loading states */
-        .poster-loading {
-            background: linear-gradient(90deg, 
-                rgba(30, 41, 59, 0.8) 25%, 
-                rgba(40, 51, 69, 0.9) 50%, 
-                rgba(30, 41, 59, 0.8) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-shimmer 2s infinite;
         }
 
         .poster-error {
@@ -661,6 +582,85 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* ===== SKELETON LOADING STYLES ===== */
+        .skeleton-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .skeleton-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 992px) {
+            .skeleton-container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .skeleton-container {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        .skeleton-card {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 15px;
+            overflow: hidden;
+            height: 100%;
+            animation: skeleton-pulse 1.5s infinite;
+        }
+
+        .skeleton-poster {
+            width: 100%;
+            height: 225px;
+            background: linear-gradient(90deg, 
+                rgba(40, 51, 69, 0.8) 25%, 
+                rgba(50, 61, 79, 0.9) 50%, 
+                rgba(40, 51, 69, 0.8) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 2s infinite;
+        }
+
+        .skeleton-info {
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .skeleton-title {
+            height: 20px;
+            background: linear-gradient(90deg, 
+                rgba(40, 51, 69, 0.8) 25%, 
+                rgba(50, 61, 79, 0.9) 50%, 
+                rgba(40, 51, 69, 0.8) 75%);
+            background-size: 200% 100%;
+            border-radius: 4px;
+            animation: skeleton-shimmer 2s infinite;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-subtitle {
+            height: 12px;
+            width: 70%;
+            background: linear-gradient(90deg, 
+                rgba(40, 51, 69, 0.8) 25%, 
+                rgba(50, 61, 79, 0.9) 50%, 
+                rgba(40, 51, 69, 0.8) 75%);
+            background-size: 200% 100%;
+            border-radius: 4px;
+            animation: skeleton-shimmer 2s infinite;
+        }
+
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
         /* ===== Ad Containers - Optimized ===== */
         .ad-container {
             display: flex;
@@ -703,7 +703,7 @@
             }
         }
 
-        /* Popup Styles */
+        /* Popup Styles - Bottom Slide Up (Ad Size) */
         .popup-overlay {
             position: fixed;
             top: 0;
@@ -789,7 +789,7 @@
             border-radius: 0;
         }
 
-        /* Second Popup Styles */
+        /* Second Popup Styles - NO CLOSE BUTTON */
         .second-popup-overlay {
             position: fixed;
             top: 0;
@@ -849,6 +849,7 @@
             border-radius: 0;
         }
 
+        /* Mobile-specific popup styles */
         @media (max-width: 767px) {
             .popup-container,
             .second-popup-container {
@@ -998,9 +999,9 @@
                 </h2>
             </div>
             
-            <!-- Skeleton Loading Container -->
+            <!-- Skeleton Loading -->
             <div class="skeleton-container" id="skeletonContainer">
-                <!-- Skeleton cards will be generated here -->
+                <!-- Skeleton cards generated by JavaScript -->
             </div>
             
             <!-- Actual Movies Container -->
@@ -1121,17 +1122,17 @@
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
-        const FALLBACK_POSTER_IMAGE = 'https://iili.io/fAeIwv9.th.png';
+        const FALLBACK_POSTER = 'https://iili.io/fAeIwv9.th.png';
         
-        console.log('🎬 SK4FiLM v7.0 - ENHANCED WITH SKELETON LOADING & DIRECT POSTERS');
+        console.log('🎬 SK4FiLM v6.0 - MULTI-SOURCE DIRECT POSTER LOADING');
 
         // ==== Skeleton Loading Functions ====
-        function generateSkeletonCards(count = 12) {
-            const container = document.getElementById('skeletonContainer');
-            if (!container) return;
+        function generateSkeletonCards() {
+            const skeletonContainer = document.getElementById('skeletonContainer');
+            if (!skeletonContainer) return;
             
             let skeletonHTML = '';
-            for (let i = 0; i < count; i++) {
+            for (let i = 0; i < 12; i++) {
                 skeletonHTML += `
                     <div class="skeleton-card animate__animated animate__fadeIn" style="animation-delay: ${i * 0.05}s">
                         <div class="skeleton-poster"></div>
@@ -1142,19 +1143,7 @@
                     </div>
                 `;
             }
-            container.innerHTML = skeletonHTML;
-        }
-
-        function hideSkeleton() {
-            const skeleton = document.getElementById('skeletonContainer');
-            const moviesContainer = document.getElementById('homeMoviesContainer');
-            
-            if (skeleton) {
-                skeleton.style.display = 'none';
-            }
-            if (moviesContainer) {
-                moviesContainer.style.display = 'flex';
-            }
+            skeletonContainer.innerHTML = skeletonHTML;
         }
 
         function showSkeleton() {
@@ -1169,55 +1158,182 @@
             }
         }
 
-        // ==== Enhanced Direct Poster Loading ====
+        function hideSkeleton() {
+            const skeleton = document.getElementById('skeletonContainer');
+            const moviesContainer = document.getElementById('homeMoviesContainer');
+            
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
+            if (moviesContainer) {
+                moviesContainer.style.display = 'flex';
+            }
+        }
+
+        // ==== MULTI-SOURCE DIRECT POSTER LOADING ====
         const posterCache = new Map();
 
-        async function loadDirectPoster(img, movie) {
-            const cacheKey = `${movie.title}_${movie.year}`;
-            const FALLBACK_IMAGE = FALLBACK_POSTER_IMAGE;
+        // Function to clean movie title for URL
+        function cleanTitleForUrl(title) {
+            return title
+                .replace(/[^\w\s]/gi, '')
+                .replace(/\s+/g, '-')
+                .toLowerCase();
+        }
+
+        // Function to get year from title
+        function extractYearFromTitle(title) {
+            const yearMatch = title.match(/\b(19|20)\d{2}\b/);
+            return yearMatch ? yearMatch[0] : '';
+        }
+
+        // Function to get poster from LETTERBOXD
+        function getLetterboxdPoster(title, year) {
+            const cleanTitle = cleanTitleForUrl(title);
+            return `https://letterboxd.com/film/${cleanTitle}${year ? '-' + year : ''}/`;
+        }
+
+        // Function to get poster from JUSTWATCH
+        function getJustWatchPoster(title) {
+            const cleanTitle = cleanTitleForUrl(title);
+            return `https://www.justwatch.com/in/movie/${cleanTitle}`;
+        }
+
+        // Function to get poster from IMPAWARDS
+        function getIMPAPoster(title, year) {
+            if (!year) return null;
+            const cleanTitle = cleanTitleForUrl(title).replace(/-/g, '_');
+            return `https://www.impawards.com/${year}/posters/${cleanTitle}.jpg`;
+        }
+
+        // Function to get poster from IMDB
+        function getIMDbPoster(title) {
+            return `https://www.imdb.com/find?q=${encodeURIComponent(title)}`;
+        }
+
+        // Function to get poster from TMDB
+        function getTMDBPoster(title) {
+            return `https://image.tmdb.org/t/p/w780/${encodeURIComponent(title)}`;
+        }
+
+        // Get all poster URLs for a movie
+        function getAllPosterURLs(movieTitle) {
+            const year = extractYearFromTitle(movieTitle);
+            const urls = [];
+            
+            // LETTERBOXD
+            urls.push(getLetterboxdPoster(movieTitle, year));
+            if (year) {
+                urls.push(getLetterboxdPoster(movieTitle, ''));
+            }
+            
+            // JUSTWATCH
+            urls.push(getJustWatchPoster(movieTitle));
+            
+            // IMPAWARDS (only if year exists)
+            if (year) {
+                const impUrl = getIMPAPoster(movieTitle, year);
+                if (impUrl) urls.push(impUrl);
+            }
+            
+            // IMDB
+            urls.push(getIMDbPoster(movieTitle));
+            
+            // TMDB (requires API, but we'll try direct image)
+            urls.push(getTMDBPoster(movieTitle));
+            
+            // Backend fallback
+            urls.push(`${BACKEND_URL}/api/poster?title=${encodeURIComponent(movieTitle)}&year=${year}`);
+            
+            return urls.filter(url => url);
+        }
+
+        // Test if an image loads successfully
+        function testImageLoad(url) {
+            return new Promise((resolve) => {
+                if (!url || !url.startsWith('http')) {
+                    resolve(false);
+                    return;
+                }
+                
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = url;
+                
+                // Timeout after 3 seconds
+                setTimeout(() => {
+                    img.onload = img.onerror = null;
+                    resolve(false);
+                }, 3000);
+            });
+        }
+
+        // Main function to load poster from multiple sources
+        async function loadDirectPosterFromSources(img, movieTitle) {
+            const cacheKey = movieTitle.toLowerCase();
             
             // Check cache first
             if (posterCache.has(cacheKey)) {
-                img.src = posterCache.get(cacheKey);
+                const cachedUrl = posterCache.get(cacheKey);
+                img.src = cachedUrl;
                 img.classList.remove('poster-loading');
+                
+                if (cachedUrl === FALLBACK_POSTER) {
+                    img.classList.add('poster-error');
+                }
                 return;
             }
 
-            // First, try to get from backend
-            try {
-                const response = await fetch(`${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title)}&year=${movie.year || ''}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.poster_url && data.poster_url.startsWith('http')) {
-                        // Load the backend poster
-                        const tempImg = new Image();
-                        tempImg.onload = () => {
-                            img.src = data.poster_url;
-                            img.classList.remove('poster-loading');
-                            posterCache.set(cacheKey, data.poster_url);
-                        };
-                        tempImg.onerror = () => {
-                            // Backend poster failed, use fallback
-                            img.src = FALLBACK_IMAGE;
-                            img.classList.remove('poster-loading');
-                            img.classList.add('poster-error');
-                            posterCache.set(cacheKey, FALLBACK_IMAGE);
-                        };
-                        tempImg.src = data.poster_url;
+            const posterURLs = getAllPosterURLs(movieTitle);
+            console.log(`🔍 Trying ${posterURLs.length} sources for: ${movieTitle}`);
+            
+            // Try each URL until one works
+            for (let i = 0; i < posterURLs.length; i++) {
+                const url = posterURLs[i];
+                try {
+                    console.log(`  → Trying source ${i + 1}: ${url.substring(0, 60)}...`);
+                    const isLoaded = await testImageLoad(url);
+                    
+                    if (isLoaded) {
+                        console.log(`✅ Poster found from source ${i + 1}`);
+                        img.src = url;
+                        img.classList.remove('poster-loading');
+                        posterCache.set(cacheKey, url);
                         return;
                     }
+                } catch (error) {
+                    console.log(`❌ Failed source ${i + 1}`);
+                    continue;
                 }
-            } catch (error) {
-                console.log('Backend poster fetch failed, using fallback');
             }
-
-            // If backend fails, use fallback image
-            img.src = FALLBACK_IMAGE;
+            
+            // All sources failed, use fallback
+            console.log(`⚠️ All sources failed for: ${movieTitle}, using fallback`);
+            img.src = FALLBACK_POSTER;
             img.classList.remove('poster-loading');
-            posterCache.set(cacheKey, FALLBACK_IMAGE);
+            img.classList.add('poster-error');
+            posterCache.set(cacheKey, FALLBACK_POSTER);
         }
 
-        // ==== Popup Functions (Keep Original) ====
+        // Load all posters in parallel with concurrency limit
+        async function loadAllPosters() {
+            const posters = document.querySelectorAll('.hq-poster.poster-loading');
+            const CONCURRENCY_LIMIT = 5;
+            
+            for (let i = 0; i < posters.length; i += CONCURRENCY_LIMIT) {
+                const batch = Array.from(posters).slice(i, i + CONCURRENCY_LIMIT);
+                const promises = batch.map(img => {
+                    const movieData = JSON.parse(img.getAttribute('data-movie'));
+                    return loadDirectPosterFromSources(img, movieData.title);
+                });
+                
+                await Promise.all(promises);
+                await new Promise(resolve => setTimeout(resolve, 300)); // Small delay between batches
+            }
+        }
+
+        // ==== Popup Functions (ORIGINAL - UNCHANGED) ====
         function showFirstPopup() {
             const overlay = document.getElementById('popupOverlay');
             const popup = document.getElementById('popupContainer');
@@ -1255,7 +1371,7 @@
             popup.classList.remove('active');
         }
 
-        // ==== Navigation Functions (Keep Original) ====
+        // ==== Navigation Functions (ORIGINAL - UNCHANGED) ====
         function toggleSearch() {
             const searchContainer = document.getElementById('searchContainer');
             const menuDropdown = document.getElementById('menuDropdown');
@@ -1327,11 +1443,11 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
-        // ==== Enhanced Movie Loading with Skeleton ====
+        // ==== Movie Loading Functions (ORIGINAL - UNCHANGED) ====
         async function loadHomeMovies() {
-            // Show skeleton first
+            // Show skeleton loading
             showSkeleton();
-            generateSkeletonCards(12);
+            generateSkeletonCards();
             
             try {
                 console.log('🎬 Loading movies from backend...');
@@ -1345,10 +1461,15 @@
                     setTimeout(() => {
                         displayHomeMovies(data.movies);
                         hideSkeleton();
+                        // Load posters after showing movies
+                        setTimeout(loadAllPosters, 100);
                     }, 500); // Show skeleton for at least 500ms
                 } else {
                     console.error('❌ No movies found in response');
-                    showError();
+                    setTimeout(() => {
+                        showError();
+                        hideSkeleton();
+                    }, 500);
                 }
             } catch (error) {
                 console.error('❌ Error loading movies:', error);
@@ -1381,7 +1502,7 @@
                                         class="hq-poster poster-loading" 
                                         alt="${escapeHTML(title)}"
                                         loading="lazy"
-                                        data-movie='${JSON.stringify({title: title, year: movie.year || ''})}'
+                                        data-movie='${JSON.stringify({title: title})}'
                                     >
                                 ` : `
                                     <div class="hq-poster poster-error">
@@ -1411,17 +1532,11 @@
             });
             
             container.innerHTML = html;
-            
-            // Load posters directly
-            document.querySelectorAll('.hq-poster.poster-loading').forEach(img => {
-                const movieData = JSON.parse(img.getAttribute('data-movie'));
-                loadDirectPoster(img, movieData);
-            });
         }
         
         function showError() {
-            hideSkeleton();
-            document.getElementById('homeMoviesContainer').innerHTML = `
+            const container = document.getElementById('homeMoviesContainer');
+            container.innerHTML = `
                 <div class="col-12" style="text-align: center; padding: 60px;">
                     <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
                     <h3>Error loading movies</h3>
@@ -1431,7 +1546,7 @@
                     </button>
                 </div>
             `;
-            document.getElementById('homeMoviesContainer').style.display = 'block';
+            container.style.display = 'block';
         }
         
         function escapeHTML(text) {
@@ -1452,9 +1567,9 @@
                 .replace(/"/g, '\\"');
         }
         
-        // ==== Initialize Everything ====
+        // ==== Initialize Everything (ORIGINAL - UNCHANGED) ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v7.0 - SKELETON LOADING + DIRECT POSTERS');
+            console.log('🚀 SK4FiLM v6.0 FINAL - MULTI-SOURCE POSTER LOADING');
             
             // Set up popup event listeners
             document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
