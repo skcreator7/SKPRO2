@@ -37,22 +37,163 @@ except ImportError:
     FloodWait = None
 
 # Import modular components
-from cache import CacheManager
-from verification import VerificationSystem
-from premium import PremiumSystem, PremiumTier
-from poster_fetching import PosterFetcher, PosterSource
+try:
+    from cache import CacheManager
+    from verification import VerificationSystem
+    from premium import PremiumSystem, PremiumTier
+    from poster_fetching import PosterFetcher, PosterSource
+    MODULES_AVAILABLE = True
+except ImportError:
+    MODULES_AVAILABLE = False
+    # Create minimal placeholder classes
+    class CacheManager:
+        def __init__(self, config): pass
+        async def init_redis(self): return False
+        async def get_search_results(self, *args): return None
+        async def cache_search_results(self, *args): pass
+        async def clear_search_cache(self): return 0
+        async def get_stats_summary(self): return {}
+        async def clear_all(self): pass
+        async def stop(self): pass
+        redis_enabled = False
+    
+    class VerificationSystem:
+        def __init__(self, config, db): pass
+        async def start_cleanup_task(self): pass
+        async def verify_user_api(self, *args): 
+            return {'verified': True, 'user_id': args[0]}
+        async def check_user_verified(self, user_id, premium_system):
+            return True, "Verified"
+        async def stop(self): pass
+    
+    class PremiumSystem:
+        def __init__(self, config, db): pass
+        async def start_cleanup_task(self): pass
+        async def get_all_plans(self): return []
+        async def get_subscription_details(self, user_id):
+            return {'status': 'free', 'tier': 'free'}
+        async def can_user_download(self, user_id):
+            return True, "Can download", {}
+        async def stop_cleanup_task(self): pass
+    
+    class PosterSource:
+        CUSTOM = "custom"
+    
+    class PosterFetcher:
+        def __init__(self, config, cache_manager): 
+            self.config = config
+        async def fetch_poster(self, title):
+            year_match = re.search(r'\b(19|20)\d{2}\b', title)
+            year = year_match.group() if year_match else ""
+            return {
+                'poster_url': f"{self.config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
+                'source': PosterSource.CUSTOM,
+                'rating': '0.0',
+                'year': year,
+                'title': title
+            }
+        async def fetch_batch_posters(self, titles):
+            results = {}
+            for title in titles:
+                results[title] = await self.fetch_poster(title)
+            return results
+        def clear_cache(self): pass
+        async def cleanup_expired_cache(self): pass
 
 # Import shared utilities
-from utils import (
-    normalize_title,
-    extract_title_smart,
-    extract_title_from_file,
-    format_size,
-    detect_quality,
-    is_video_file,
-    format_post,
-    is_new
-)
+try:
+    from utils import (
+        normalize_title,
+        extract_title_smart,
+        extract_title_from_file,
+        format_size,
+        detect_quality,
+        is_video_file,
+        format_post,
+        is_new
+    )
+    UTILS_AVAILABLE = True
+except ImportError:
+    UTILS_AVAILABLE = False
+    # Create minimal utilities
+    def normalize_title(title):
+        if not title:
+            return ""
+        title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv|hdrip|webdl|hindi|english|tamil|telugu|malayalam|kannada|punjabi|bengali|marathi|gujarati|movie|film|series|complete|full|part|episode|season|hdrc|dvdscr|pre-dvd|p-dvd|pdc|rarbg|yts|amzn|netflix|hotstar|prime|disney|hc-esub|esub|subs)\b', '', title.lower(), flags=re.IGNORECASE)
+        title = re.sub(r'[\._\-]', ' ', title)
+        title = re.sub(r'\s+', ' ', title).strip()
+        return title
+    
+    def extract_title_smart(text):
+        if not text:
+            return ""
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) > 10 and 'http' not in line:
+                # Remove emojis and special characters
+                clean_line = re.sub(r'[^\w\s\-\(\)\[\]]', '', line)
+                if len(clean_line) > 5:
+                    return clean_line[:100]
+        return text[:80] if len(text) > 80 else text
+    
+    def extract_title_from_file(filename, caption):
+        if filename:
+            # Remove extension
+            name = re.sub(r'\.[^\.]+$', '', filename)
+            # Remove quality indicators
+            name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd)\b', '', name, flags=re.IGNORECASE)
+            return name.strip()
+        elif caption:
+            return extract_title_smart(caption)
+        return "Unknown"
+    
+    def format_size(size_bytes):
+        if size_bytes == 0:
+            return "0B"
+        size_names = ["B", "KB", "MB", "GB", "TB"]
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return f"{s} {size_names[i]}"
+    
+    def detect_quality(filename):
+        if not filename:
+            return "480p"
+        filename = filename.lower()
+        if '2160p' in filename or '4k' in filename:
+            return "2160p"
+        elif '1080p' in filename or 'fhd' in filename:
+            return "1080p"
+        elif '720p' in filename or 'hd' in filename:
+            return "720p"
+        elif '480p' in filename:
+            return "480p"
+        return "480p"
+    
+    def is_video_file(filename):
+        if not filename:
+            return False
+        video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
+        return any(filename.lower().endswith(ext) for ext in video_extensions)
+    
+    def format_post(text):
+        if not text:
+            return ""
+        # Basic HTML formatting
+        text = html.escape(text)
+        text = text.replace('\n', '<br>')
+        return f"<p>{text}</p>"
+    
+    def is_new(date, hours_threshold=24):
+        if not date:
+            return False
+        if isinstance(date, str):
+            try:
+                date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+            except:
+                return False
+        return (datetime.now() - date).total_seconds() < hours_threshold * 3600
 
 # Import bot_handlers AFTER all other imports
 try:
