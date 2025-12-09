@@ -999,67 +999,6 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
     
     return unique_posts[:20]
 
-# ================================
-# NEW: Fetch 30 Real Movies from Telegram
-# ================================
-@performance_monitor.measure("home_movies_telegram")
-async def get_home_movies_telegram(limit=30):
-    """Fetch 30 real movies directly from Telegram MAIN_CHANNEL_ID"""
-    try:
-        if not User or not user_session_ready:
-            logger.warning("User session not ready for Telegram fetch")
-            return []
-        
-        movies = []
-        seen_titles = set()
-        
-        logger.info(f"🎬 Fetching {limit} real movies from Telegram channel {Config.MAIN_CHANNEL_ID}...")
-        
-        async for msg in safe_telegram_generator(
-            User.get_chat_history, 
-            Config.MAIN_CHANNEL_ID, 
-            limit=limit * 2  # Fetch extra to account for non-movie posts
-        ):
-            if msg and msg.text and len(msg.text) > 20:  # Minimum text length
-                # Extract title from message
-                title = extract_title_smart(msg.text)
-                
-                if title and title not in seen_titles:
-                    seen_titles.add(title)
-                    
-                    # Parse year from title if available
-                    year_match = re.search(r'\b(19|20)\d{2}\b', title)
-                    year = year_match.group() if year_match else ""
-                    
-                    # Clean title for display
-                    clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
-                    clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
-                    
-                    movies.append({
-                        'title': clean_title,
-                        'original_title': title,
-                        'year': year,
-                        'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
-                        'is_new': is_new(msg.date) if msg.date else False,
-                        'channel': channel_name_cached(Config.MAIN_CHANNEL_ID),
-                        'channel_id': Config.MAIN_CHANNEL_ID,
-                        'message_id': msg.id,
-                        'has_poster': True,
-                        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
-                        'poster_source': 'telegram',
-                        'poster_rating': '0.0'
-                    })
-                    
-                    if len(movies) >= limit:
-                        break
-        
-        logger.info(f"✅ Fetched {len(movies)} real movies from Telegram")
-        return movies[:limit]  # Ensure exact limit
-        
-    except Exception as e:
-        logger.error(f"❌ Telegram movies fetch error: {e}")
-        return []  # Return empty array on error
-
 async def get_single_post_api(channel_id, message_id):
     """Get single movie/post details"""
     try:
@@ -1248,20 +1187,60 @@ async def search_movies_api(query, limit=12, page=1):
 # Update get_home_movies_live function:
 @performance_monitor.measure("home_movies")
 async def get_home_movies_live():
-    """Optimized home movies with timeout - Now uses Telegram"""
+    """Optimized home movies with timeout"""
     try:
-        posts_task = asyncio.create_task(get_home_movies_telegram(limit=30))
-        posts = await asyncio.wait_for(posts_task, timeout=5.0)
-        
-        return posts
+        posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=10))
+        posts = await asyncio.wait_for(posts_task, timeout=3.0)
         
     except asyncio.TimeoutError:
         logger.warning("⏰ Home movies timeout")
-        return []  # Return empty array on timeout
+        return []
     
-    except Exception as e:
-        logger.error(f"Home movies error: {e}")
-        return []  # Return empty array on error
+    movies = []
+    seen = set()
+    
+    for post in posts[:15]:  # Limit to 15
+        tk = post['title'].lower().strip()
+        if tk not in seen:
+            seen.add(tk)
+            movies.append({
+                'title': post['title'],
+                'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
+                'is_new': post.get('is_new', False),
+                'channel': post.get('channel_name', 'SK4FiLM'),
+                'channel_id': post.get('channel_id')
+            })
+    
+    # Fetch posters with timeout
+    if movies and poster_fetcher:
+        titles = [movie['title'] for movie in movies]
+        
+        try:
+            posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
+            posters = await asyncio.wait_for(posters_task, timeout=2.0)
+            
+            for movie in movies:
+                if movie['title'] in posters:
+                    poster_data = posters[movie['title']]
+                    movie['poster_url'] = poster_data.get('poster_url', '')
+                    movie['poster_source'] = poster_data.get('source', 'custom')
+                    movie['poster_rating'] = poster_data.get('rating', '0.0')
+                    movie['has_poster'] = True
+                else:
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'custom'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
+                    
+        except asyncio.TimeoutError:
+            logger.warning("⏰ Home posters timeout")
+            for movie in movies:
+                movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                movie['poster_source'] = 'custom'
+                movie['poster_rating'] = '0.0'
+                movie['has_poster'] = True
+    
+    return movies
 
 # TELEGRAM BOT INITIALIZATION
 @performance_monitor.measure("telegram_init")
@@ -1454,7 +1433,7 @@ async def health():
 @app.route('/api/movies', methods=['GET'])
 @performance_monitor.measure("movies_endpoint")
 async def api_movies():
-    """Optimized movies endpoint - Now fetches 30 real movies from Telegram"""
+    """Optimized movies endpoint"""
     try:
         movies = await get_home_movies_live()
         
@@ -1462,17 +1441,14 @@ async def api_movies():
             'status': 'success',
             'movies': movies,
             'total': len(movies),
-            'source': 'telegram_main_channel',
-            'channel_id': Config.MAIN_CHANNEL_ID,
             'timestamp': datetime.now().isoformat(),
-            'cache_hit': False
+            'cache_hit': True
         })
     except Exception as e:
         logger.error(f"Movies API error: {e}")
         return jsonify({
             'status': 'error',
-            'message': str(e),
-            'movies': []  # Empty array as requested
+            'message': str(e)
         }), 500
 
 @app.route('/api/search', methods=['GET'])
