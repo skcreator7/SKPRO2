@@ -53,7 +53,7 @@
             padding-top: 154px;
         }
         
-        /* Navigation */
+        /* Navigation (keep existing) */
         .top-navbar {
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(15px);
@@ -444,26 +444,98 @@
             filter: brightness(1.1);
         }
 
+        /* ==== SKELETON LOADING STYLES ==== */
+        .skeleton-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .skeleton-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 992px) {
+            .skeleton-container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .skeleton-container {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        .skeleton-card {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 15px;
+            overflow: hidden;
+            height: 100%;
+            animation: skeleton-pulse 1.5s infinite;
+        }
+
+        .skeleton-poster {
+            width: 100%;
+            height: 225px;
+            background: linear-gradient(90deg, 
+                rgba(40, 51, 69, 0.8) 25%, 
+                rgba(50, 61, 79, 0.9) 50%, 
+                rgba(40, 51, 69, 0.8) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 2s infinite;
+        }
+
+        .skeleton-info {
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .skeleton-title {
+            height: 20px;
+            background: linear-gradient(90deg, 
+                rgba(40, 51, 69, 0.8) 25%, 
+                rgba(50, 61, 79, 0.9) 50%, 
+                rgba(40, 51, 69, 0.8) 75%);
+            background-size: 200% 100%;
+            border-radius: 4px;
+            animation: skeleton-shimmer 2s infinite;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-subtitle {
+            height: 12px;
+            width: 70%;
+            background: linear-gradient(90deg, 
+                rgba(40, 51, 69, 0.8) 25%, 
+                rgba(50, 61, 79, 0.9) 50%, 
+                rgba(40, 51, 69, 0.8) 75%);
+            background-size: 200% 100%;
+            border-radius: 4px;
+            animation: skeleton-shimmer 2s infinite;
+        }
+
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes skeleton-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
         /* Poster loading states */
         .poster-loading {
-            position: relative;
-            background: linear-gradient(135deg, #1a1a2e, #2d3748);
-        }
-
-        .poster-loading::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            animation: shimmer 2s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
+            background: linear-gradient(90deg, 
+                rgba(30, 41, 59, 0.8) 25%, 
+                rgba(40, 51, 69, 0.9) 50%, 
+                rgba(30, 41, 59, 0.8) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 2s infinite;
         }
 
         .poster-error {
@@ -472,8 +544,27 @@
             justify-content: center;
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            padding: 20px;
             text-align: center;
+            position: relative;
+        }
+
+        .poster-error::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('https://iili.io/fAeIwv9.th.png') center/cover no-repeat;
+            opacity: 0.9;
+        }
+
+        .poster-error-content {
+            position: relative;
+            z-index: 2;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
         }
         
         .new-badge {
@@ -612,7 +703,7 @@
             }
         }
 
-        /* Popup Styles - Bottom Slide Up (Ad Size) */
+        /* Popup Styles */
         .popup-overlay {
             position: fixed;
             top: 0;
@@ -698,7 +789,7 @@
             border-radius: 0;
         }
 
-        /* Second Popup Styles - NO CLOSE BUTTON */
+        /* Second Popup Styles */
         .second-popup-overlay {
             position: fixed;
             top: 0;
@@ -758,7 +849,6 @@
             border-radius: 0;
         }
 
-        /* Mobile-specific popup styles */
         @media (max-width: 767px) {
             .popup-container,
             .second-popup-container {
@@ -908,15 +998,14 @@
                 </h2>
             </div>
             
-            <div class="row g-4" id="homeMoviesContainer">
-                <div class="col-12">
-                    <div style="text-align: center; padding: 60px 20px;">
-                        <div class="loading-spinner"></div>
-                        <h4 style="color: #28a745; margin-bottom: 20px; font-weight: 600;">
-                            <i class="fas fa-spinner fa-spin me-2"></i>Loading Movies
-                        </h4>
-                    </div>
-                </div>
+            <!-- Skeleton Loading Container -->
+            <div class="skeleton-container" id="skeletonContainer">
+                <!-- Skeleton cards will be generated here -->
+            </div>
+            
+            <!-- Actual Movies Container -->
+            <div class="row g-4" id="homeMoviesContainer" style="display: none;">
+                <!-- Movies will be loaded here -->
             </div>
         </div>
 
@@ -1032,28 +1121,60 @@
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
+        const FALLBACK_POSTER_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         
-        console.log('🎬 SK4FiLM v6.0 - ALL SOURCES POSTER SYSTEM');
+        console.log('🎬 SK4FiLM v7.0 - ENHANCED WITH SKELETON LOADING & DIRECT POSTERS');
 
-        // ==== Enhanced Poster Loading System ====
-        const posterCache = new Map();
-
-        // Multi-source poster URL builder with ALL sources
-        function buildPosterURL(movie) {
-            const title = movie.title || '';
-            const year = movie.year || '';
+        // ==== Skeleton Loading Functions ====
+        function generateSkeletonCards(count = 12) {
+            const container = document.getElementById('skeletonContainer');
+            if (!container) return;
             
-            // If backend provides poster URL, use it directly
-            if (movie.poster_url && movie.poster_url.startsWith('http')) {
-                return movie.poster_url;
+            let skeletonHTML = '';
+            for (let i = 0; i < count; i++) {
+                skeletonHTML += `
+                    <div class="skeleton-card animate__animated animate__fadeIn" style="animation-delay: ${i * 0.05}s">
+                        <div class="skeleton-poster"></div>
+                        <div class="skeleton-info">
+                            <div class="skeleton-title"></div>
+                            <div class="skeleton-subtitle"></div>
+                        </div>
+                    </div>
+                `;
             }
-            
-            // Fallback to our custom poster generator
-            return `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}&year=${year}`;
+            container.innerHTML = skeletonHTML;
         }
 
-        async function loadPosterWithFallback(img, movie, container) {
+        function hideSkeleton() {
+            const skeleton = document.getElementById('skeletonContainer');
+            const moviesContainer = document.getElementById('homeMoviesContainer');
+            
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
+            if (moviesContainer) {
+                moviesContainer.style.display = 'flex';
+            }
+        }
+
+        function showSkeleton() {
+            const skeleton = document.getElementById('skeletonContainer');
+            const moviesContainer = document.getElementById('homeMoviesContainer');
+            
+            if (skeleton) {
+                skeleton.style.display = 'grid';
+            }
+            if (moviesContainer) {
+                moviesContainer.style.display = 'none';
+            }
+        }
+
+        // ==== Enhanced Direct Poster Loading ====
+        const posterCache = new Map();
+
+        async function loadDirectPoster(img, movie) {
             const cacheKey = `${movie.title}_${movie.year}`;
+            const FALLBACK_IMAGE = FALLBACK_POSTER_IMAGE;
             
             // Check cache first
             if (posterCache.has(cacheKey)) {
@@ -1062,32 +1183,45 @@
                 return;
             }
 
-            const posterURL = buildPosterURL(movie);
-            
-            img.onerror = function() {
-                console.warn(`Poster failed for: ${movie.title}`);
-                // Fallback to custom poster
-                const fallbackURL = `${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title)}&year=${movie.year || ''}`;
-                img.src = fallbackURL;
-                img.classList.remove('poster-loading');
-                posterCache.set(cacheKey, fallbackURL);
-            };
+            // First, try to get from backend
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title)}&year=${movie.year || ''}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.poster_url && data.poster_url.startsWith('http')) {
+                        // Load the backend poster
+                        const tempImg = new Image();
+                        tempImg.onload = () => {
+                            img.src = data.poster_url;
+                            img.classList.remove('poster-loading');
+                            posterCache.set(cacheKey, data.poster_url);
+                        };
+                        tempImg.onerror = () => {
+                            // Backend poster failed, use fallback
+                            img.src = FALLBACK_IMAGE;
+                            img.classList.remove('poster-loading');
+                            img.classList.add('poster-error');
+                            posterCache.set(cacheKey, FALLBACK_IMAGE);
+                        };
+                        tempImg.src = data.poster_url;
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log('Backend poster fetch failed, using fallback');
+            }
 
-            img.onload = function() {
-                img.classList.remove('poster-loading');
-                posterCache.set(cacheKey, img.src);
-                console.log(`✅ Poster loaded: ${movie.title}`);
-            };
-
-            img.src = posterURL;
+            // If backend fails, use fallback image
+            img.src = FALLBACK_IMAGE;
+            img.classList.remove('poster-loading');
+            posterCache.set(cacheKey, FALLBACK_IMAGE);
         }
 
-        // ==== Popup Functions ====
+        // ==== Popup Functions (Keep Original) ====
         function showFirstPopup() {
             const overlay = document.getElementById('popupOverlay');
             const popup = document.getElementById('popupContainer');
             
-            // Show overlay and popup
             overlay.classList.add('active');
             popup.classList.add('active');
         }
@@ -1097,11 +1231,9 @@
             const popup = document.getElementById('popupContainer');
             const closeBtn = document.getElementById('popupClose');
             
-            // Hide overlay and popup
             overlay.classList.remove('active');
             popup.classList.remove('active');
             
-            // Completely hide close button after click
             setTimeout(() => {
                 closeBtn.style.display = 'none';
             }, 300);
@@ -1111,7 +1243,6 @@
             const overlay = document.getElementById('secondPopupOverlay');
             const popup = document.getElementById('secondPopupContainer');
             
-            // Show overlay and popup
             overlay.classList.add('active');
             popup.classList.add('active');
         }
@@ -1120,18 +1251,11 @@
             const overlay = document.getElementById('secondPopupOverlay');
             const popup = document.getElementById('secondPopupContainer');
             
-            // Hide overlay and popup
             overlay.classList.remove('active');
             popup.classList.remove('active');
         }
 
-        // Reset close button when first popup shows again
-        function resetCloseButton() {
-            const closeBtn = document.getElementById('popupClose');
-            closeBtn.style.display = 'flex';
-        }
-
-        // ==== Navigation Functions ====
+        // ==== Navigation Functions (Keep Original) ====
         function toggleSearch() {
             const searchContainer = document.getElementById('searchContainer');
             const menuDropdown = document.getElementById('menuDropdown');
@@ -1203,8 +1327,12 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
-        // ==== Movie Loading Functions ====
+        // ==== Enhanced Movie Loading with Skeleton ====
         async function loadHomeMovies() {
+            // Show skeleton first
+            showSkeleton();
+            generateSkeletonCards(12);
+            
             try {
                 console.log('🎬 Loading movies from backend...');
                 const response = await fetch(`${BACKEND_URL}/api/movies`);
@@ -1214,14 +1342,20 @@
                 
                 if (data.status === 'success' && data.movies?.length > 0) {
                     console.log(`✅ Loaded ${data.movies.length} movies`);
-                    displayHomeMovies(data.movies);
+                    setTimeout(() => {
+                        displayHomeMovies(data.movies);
+                        hideSkeleton();
+                    }, 500); // Show skeleton for at least 500ms
                 } else {
                     console.error('❌ No movies found in response');
                     showError();
                 }
             } catch (error) {
                 console.error('❌ Error loading movies:', error);
-                showError();
+                setTimeout(() => {
+                    showError();
+                    hideSkeleton();
+                }, 500);
             }
         }
         
@@ -1231,7 +1365,7 @@
             
             movies.forEach((movie, index) => {
                 const title = movie.title || 'Unknown';
-                const hasPoster = movie.has_poster !== false; // Assume poster exists unless explicitly false
+                const hasPoster = movie.has_poster !== false;
                 const isNew = movie.is_new;
                 const rating = movie.poster_rating || '0.0';
                 const uniqueId = `movie-${index}-${Date.now()}`;
@@ -1247,13 +1381,14 @@
                                         class="hq-poster poster-loading" 
                                         alt="${escapeHTML(title)}"
                                         loading="lazy"
-                                        data-movie='${JSON.stringify({title: title, year: movie.year || '', poster_url: movie.poster_url})}'
+                                        data-movie='${JSON.stringify({title: title, year: movie.year || ''})}'
                                     >
                                 ` : `
                                     <div class="hq-poster poster-error">
-                                        <div>
+                                        <div class="poster-error-content">
                                             <i class="fas fa-film fa-4x mb-3"></i><br>
-                                            <strong>${escapeHTML(title)}</strong>
+                                            <strong>${escapeHTML(title)}</strong><br>
+                                            <small>No Poster Available</small>
                                         </div>
                                     </div>
                                 `}
@@ -1277,15 +1412,15 @@
             
             container.innerHTML = html;
             
-            // Load posters with enhanced multi-source system
+            // Load posters directly
             document.querySelectorAll('.hq-poster.poster-loading').forEach(img => {
                 const movieData = JSON.parse(img.getAttribute('data-movie'));
-                const container = img.parentElement;
-                loadPosterWithFallback(img, movieData, container);
+                loadDirectPoster(img, movieData);
             });
         }
         
         function showError() {
+            hideSkeleton();
             document.getElementById('homeMoviesContainer').innerHTML = `
                 <div class="col-12" style="text-align: center; padding: 60px;">
                     <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
@@ -1296,6 +1431,7 @@
                     </button>
                 </div>
             `;
+            document.getElementById('homeMoviesContainer').style.display = 'block';
         }
         
         function escapeHTML(text) {
@@ -1316,22 +1452,24 @@
                 .replace(/"/g, '\\"');
         }
         
+        // ==== Initialize Everything ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v6.0 FINAL - ALL SOURCES POSTERS + RESPONSIVE ADS');
-            console.log('🎯 Poster Sources: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB');
+            console.log('🚀 SK4FiLM v7.0 - SKELETON LOADING + DIRECT POSTERS');
             
             // Set up popup event listeners
             document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
             document.getElementById('popupOverlay').addEventListener('click', hideFirstPopup);
             
-            // Second popup closes only on overlay click (no close button)
+            // Second popup closes only on overlay click
             document.getElementById('secondPopupOverlay').addEventListener('click', hideSecondPopup);
             
             // Show first popup automatically after 3 seconds
             setTimeout(showFirstPopup, 3000);
             
+            // Load movies
             loadHomeMovies();
             
+            // Visitor counter
             setInterval(() => {
                 const counter = document.getElementById('visitorCount');
                 if (counter) {
@@ -1339,6 +1477,7 @@
                 }
             }, 35000);
             
+            // Audio
             const audio = document.getElementById('bg-audio');
             if (audio) {
                 audio.volume = 0.3;
