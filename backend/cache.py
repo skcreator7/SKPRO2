@@ -20,15 +20,16 @@ class CacheManager:
         
         # Memory caches with expiry
         self.memory_cache = {}  # key -> (value, expiry_time)
-        self.search_cache = {}  # search_key -> (data, timestamp)
         self.stats = {
             'redis_hits': 0,
             'redis_misses': 0,
             'memory_hits': 0,
             'memory_misses': 0,
-            'memory_evictions': 0,
-            'batch_operations': 0
+            'memory_evictions': 0
         }
+        
+        # Default fallback poster
+        self.default_poster = "https://iili.io/fAeIwv9.th.png"
         
         # Cleanup task
         self.cleanup_task = None
@@ -72,10 +73,11 @@ class CacheManager:
                             password=password,
                             decode_responses=True,
                             encoding='utf-8',
-                            socket_connect_timeout=10,
-                            socket_timeout=10,
-                            max_connections=10,
-                            health_check_interval=30
+                            socket_connect_timeout=5,
+                            socket_timeout=5,
+                            max_connections=20,
+                            health_check_interval=15,
+                            retry_on_timeout=True
                         )
                     else:
                         # Fallback to from_url
@@ -84,8 +86,9 @@ class CacheManager:
                             redis_url,
                             decode_responses=True,
                             encoding='utf-8',
-                            socket_connect_timeout=10,
-                            socket_timeout=10
+                            socket_connect_timeout=5,
+                            socket_timeout=5,
+                            retry_on_timeout=True
                         )
                 except Exception as e:
                     logger.warning(f"Redis Labs parsing failed: {e}")
@@ -100,22 +103,29 @@ class CacheManager:
                 self.redis_client = redis.from_url(
                     redis_url,
                     decode_responses=True,
-                    encoding='utf-8'
+                    encoding='utf-8',
+                    socket_connect_timeout=5,
+                    socket_timeout=5
                 )
             
-            # Test connection
-            await self.redis_client.ping()
-            self.redis_enabled = True
-            
-            # Test basic operations
-            await self.redis_client.set('connection_test', 'success', ex=60)
-            test_result = await self.redis_client.get('connection_test')
-            
-            if test_result == 'success':
-                logger.info("✅ Redis connected successfully!")
-            else:
-                logger.warning("⚠️ Redis connected but operations test failed")
+            # Test connection with timeout
+            try:
+                await asyncio.wait_for(self.redis_client.ping(), timeout=3)
+                self.redis_enabled = True
+                
+                # Test basic operations
+                await self.redis_client.set('connection_test', 'success', ex=10)
+                test_result = await self.redis_client.get('connection_test')
+                
+                if test_result == 'success':
+                    logger.info("✅ Redis connected successfully!")
+                else:
+                    logger.warning("⚠️ Redis connected but operations test failed")
+                    self.redis_enabled = False
+            except asyncio.TimeoutError:
+                logger.warning("⚠️ Redis connection timeout")
                 self.redis_enabled = False
+                return False
             
             return self.redis_enabled
             
@@ -127,10 +137,13 @@ class CacheManager:
     def _serialize_value(self, value: Any) -> str:
         """Serialize value for storage"""
         try:
-            return json.dumps(value, default=str)
+            return json.dumps(value, default=str, ensure_ascii=False)
         except:
             # Fallback to pickle for complex objects
-            return pickle.dumps(value).decode('latin-1')
+            try:
+                return pickle.dumps(value).decode('latin-1')
+            except:
+                return str(value)
     
     def _deserialize_value(self, value: str, use_json: bool = True) -> Any:
         """Deserialize stored value"""
@@ -147,7 +160,7 @@ class CacheManager:
     
     async def get(self, key: str, use_redis: bool = True) -> Optional[Any]:
         """Get value from cache"""
-        # Try memory cache first
+        # Try memory cache first (fastest)
         if key in self.memory_cache:
             value, expiry = self.memory_cache[key]
             if expiry is None or datetime.now() < expiry:
@@ -163,92 +176,52 @@ class CacheManager:
         # Try Redis if enabled
         if use_redis and self.redis_enabled and self.redis_client:
             try:
-                value = await self.redis_client.get(key)
+                # First try with json prefix
+                value = await self.redis_client.get(f"json:{key}")
+                if value is None:
+                    # Try without prefix
+                    value = await self.redis_client.get(key)
+                
                 if value is not None:
                     self.stats['redis_hits'] += 1
                     
-                    # Deserialize based on key prefix
-                    if key.startswith('json:'):
-                        deserialized = self._deserialize_value(value, use_json=True)
-                    else:
-                        deserialized = self._deserialize_value(value, use_json=False)
+                    # Deserialize based on prefix
+                    deserialized = self._deserialize_value(value, use_json='json:' in str(key))
                     
-                    # Also store in memory cache for faster access
-                    self.memory_cache[key] = (deserialized, datetime.now() + timedelta(minutes=5))
+                    # Also store in memory cache for faster access (with shorter expiry)
+                    memory_expiry = datetime.now() + timedelta(minutes=2)
+                    self.memory_cache[key] = (deserialized, memory_expiry)
                     
                     return deserialized
                 else:
                     self.stats['redis_misses'] += 1
             except Exception as e:
-                logger.warning(f"Redis get error: {e}")
+                logger.debug(f"Redis get error for key {key}: {e}")
+                # Continue without Redis
         
         return None
     
-    async def batch_get(self, keys: List[str], use_redis: bool = True) -> Dict[str, Any]:
-        """Get multiple values from cache at once"""
-        result = {}
-        
-        # Check memory cache first
-        remaining_keys = []
-        for key in keys:
-            if key in self.memory_cache:
-                value, expiry = self.memory_cache[key]
-                if expiry is None or datetime.now() < expiry:
-                    result[key] = value
-                    self.stats['memory_hits'] += 1
-                else:
-                    # Expired
-                    del self.memory_cache[key]
-                    self.stats['memory_evictions'] += 1
-                    remaining_keys.append(key)
-            else:
-                remaining_keys.append(key)
-                self.stats['memory_misses'] += 1
-        
-        if not remaining_keys:
-            return result
-        
-        # Try Redis for remaining keys
-        if use_redis and self.redis_enabled and self.redis_client and remaining_keys:
-            try:
-                # Get values from Redis
-                values = await self.redis_client.mget(remaining_keys)
-                
-                for i, key in enumerate(remaining_keys):
-                    value = values[i]
-                    if value is not None:
-                        self.stats['redis_hits'] += 1
-                        
-                        # Deserialize based on key prefix
-                        if key.startswith('json:'):
-                            deserialized = self._deserialize_value(value, use_json=True)
-                        else:
-                            deserialized = self._deserialize_value(value, use_json=False)
-                        
-                        result[key] = deserialized
-                        
-                        # Store in memory cache
-                        self.memory_cache[key] = (deserialized, datetime.now() + timedelta(minutes=5))
-                    else:
-                        self.stats['redis_misses'] += 1
-                        result[key] = None
-                        
-            except Exception as e:
-                logger.warning(f"Redis batch get error: {e}")
-                # Mark remaining as None
-                for key in remaining_keys:
-                    result[key] = None
-        
-        return result
-    
     async def set(self, key: str, value: Any, expire_seconds: int = 3600, 
-                  use_redis: bool = True) -> bool:
-        """Set value in cache"""
-        # Store in memory
-        expiry = datetime.now() + timedelta(seconds=expire_seconds) if expire_seconds > 0 else None
-        self.memory_cache[key] = (value, expiry)
+                  use_redis: bool = True, priority: str = 'normal') -> bool:
+        """Set value in cache with priority-based expiry"""
         
-        # Store in Redis if enabled
+        # Priority-based expiry adjustments
+        if priority == 'high':
+            # High priority items have longer memory cache
+            memory_expire_seconds = min(expire_seconds, 300)  # Max 5 min in memory
+            redis_expire_seconds = expire_seconds
+        elif priority == 'low':
+            memory_expire_seconds = min(expire_seconds, 60)   # Max 1 min in memory
+            redis_expire_seconds = min(expire_seconds, 1800)  # Max 30 min in Redis
+        else:  # normal
+            memory_expire_seconds = min(expire_seconds, 180)  # Max 3 min in memory
+            redis_expire_seconds = expire_seconds
+        
+        # Store in memory (fast access)
+        memory_expiry = datetime.now() + timedelta(seconds=memory_expire_seconds) if memory_expire_seconds > 0 else None
+        self.memory_cache[key] = (value, memory_expiry)
+        
+        # Store in Redis if enabled (persistent storage)
         if use_redis and self.redis_enabled and self.redis_client:
             try:
                 # Serialize based on value type
@@ -259,64 +232,24 @@ class CacheManager:
                     serialized = self._serialize_value(value)
                     prefixed_key = key
                 
-                # Store with prefix for deserialization
+                # Store with expiry
                 await self.redis_client.setex(
                     prefixed_key, 
-                    expire_seconds, 
+                    redis_expire_seconds, 
                     serialized
                 )
                 return True
             except Exception as e:
-                logger.warning(f"Redis set error: {e}")
-                return False
+                logger.debug(f"Redis set error for key {key}: {e}")
+                # Don't fail if Redis is down, memory cache still works
+                return True  # Still success because memory cache worked
         
         return True
     
-    async def batch_set(self, items: Dict[str, Any], ttl: int = None) -> bool:
-        """
-        Set multiple cache items at once
-        items: Dictionary of key-value pairs
-        ttl: Time to live in seconds (default: 3600)
-        """
-        try:
-            if ttl is None:
-                ttl = 3600
-            
-            expiry = datetime.now() + timedelta(seconds=ttl) if ttl > 0 else None
-            
-            # Store in memory cache
-            for key, value in items.items():
-                self.memory_cache[key] = (value, expiry)
-            
-            # Store in Redis if enabled
-            if self.redis_enabled and self.redis_client:
-                pipeline = self.redis_client.pipeline()
-                
-                for key, value in items.items():
-                    # Serialize based on value type
-                    if isinstance(value, (dict, list, tuple, int, float, bool, str)) and not key.startswith('binary:'):
-                        serialized = self._serialize_value(value)
-                        prefixed_key = f"json:{key}"
-                    else:
-                        serialized = self._serialize_value(value)
-                        prefixed_key = key
-                    
-                    # Add to pipeline
-                    pipeline.setex(prefixed_key, ttl, serialized)
-                
-                # Execute all commands in pipeline
-                await pipeline.execute()
-            
-            self.stats['batch_operations'] += 1
-            logger.debug(f"✅ Batch set completed for {len(items)} items")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Batch set error: {e}")
-            return False
-    
     async def delete(self, key: str) -> bool:
         """Delete key from cache"""
+        success = True
+        
         # Delete from memory
         if key in self.memory_cache:
             del self.memory_cache[key]
@@ -326,12 +259,11 @@ class CacheManager:
             try:
                 # Try both prefixed and non-prefixed versions
                 await self.redis_client.delete(f"json:{key}", key)
-                return True
             except Exception as e:
-                logger.warning(f"Redis delete error: {e}")
-                return False
+                logger.debug(f"Redis delete error: {e}")
+                success = False
         
-        return True
+        return success
     
     async def clear_pattern(self, pattern: str) -> int:
         """Clear all keys matching pattern"""
@@ -352,9 +284,10 @@ class CacheManager:
                     await self.redis_client.delete(*keys)
                     cleared_count += len(keys)
             except Exception as e:
-                logger.warning(f"Redis pattern delete error: {e}")
+                logger.debug(f"Redis pattern delete error: {e}")
         
-        logger.info(f"🧹 Cleared {cleared_count} keys matching pattern: {pattern}")
+        if cleared_count > 0:
+            logger.debug(f"🧹 Cleared {cleared_count} keys matching pattern: {pattern}")
         return cleared_count
     
     async def clear_search_cache(self) -> int:
@@ -377,8 +310,7 @@ class CacheManager:
                 'redis_misses': 0,
                 'memory_hits': 0,
                 'memory_misses': 0,
-                'memory_evictions': 0,
-                'batch_operations': 0
+                'memory_evictions': 0
             }
             
             logger.info("✅ All cache cleared successfully")
@@ -389,85 +321,86 @@ class CacheManager:
             return False
     
     async def cache_search_results(self, query: str, page: int, limit: int, results: Dict[str, Any]) -> bool:
-        """Cache search results"""
+        """Cache search results with high priority"""
         cache_key = f"search:{query}:{page}:{limit}"
-        return await self.set(cache_key, results, expire_seconds=1800)
+        return await self.set(cache_key, results, expire_seconds=900, priority='high')
     
     async def get_search_results(self, query: str, page: int, limit: int) -> Optional[Dict[str, Any]]:
         """Get cached search results"""
         cache_key = f"search:{query}:{page}:{limit}"
-        return await self.get(cache_key)
+        return await self.get(cache_key, use_redis=True)
     
-    async def batch_cache_posters(self, poster_data_dict: Dict[str, Dict[str, Any]]) -> bool:
-        """Cache multiple posters at once"""
-        try:
-            # Prepare items for batch set
-            items = {}
-            for title, poster_data in poster_data_dict.items():
-                cache_key = f"poster:{title.lower()}"
-                items[cache_key] = poster_data
-            
-            # Use batch_set for better performance
-            return await self.batch_set(items, ttl=7200)
-            
-        except Exception as e:
-            logger.error(f"Batch cache posters error: {e}")
-            return False
+    async def cache_poster(self, title: str, poster_data: Dict[str, Any], source: str = 'default') -> bool:
+        """Cache poster data with very high priority"""
+        cache_key = f"poster:{title.lower()}:{source}"
+        # Posters are high priority - cache longer
+        return await self.set(cache_key, poster_data, expire_seconds=86400, priority='high')
     
-    async def cache_poster(self, title: str, poster_data: Dict[str, Any]) -> bool:
-        """Cache poster data"""
-        cache_key = f"poster:{title.lower()}"
-        return await self.set(cache_key, poster_data, expire_seconds=7200)
-    
-    async def get_poster(self, title: str) -> Optional[Dict[str, Any]]:
-        """Get cached poster data"""
-        cache_key = f"poster:{title.lower()}"
-        return await self.get(cache_key)
-    
-    async def batch_get_posters(self, titles: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
-        """Get multiple posters at once"""
-        result = {}
+    async def get_poster(self, title: str, source: str = 'default') -> Optional[Dict[str, Any]]:
+        """Get cached poster data - check memory first for speed"""
+        cache_key = f"poster:{title.lower()}:{source}"
         
-        # Prepare cache keys
-        cache_keys = [f"poster:{title.lower()}" for title in titles]
+        # First try memory cache (fastest)
+        result = await self.get(cache_key, use_redis=False)
+        if result:
+            return result
         
-        # Batch get from cache
-        cached_data = await self.batch_get(cache_keys)
-        
-        # Map back to titles
-        for i, title in enumerate(titles):
-            cache_key = cache_keys[i]
-            result[title] = cached_data.get(cache_key)
-        
-        return result
+        # Then try Redis
+        return await self.get(cache_key, use_redis=True)
     
     async def cache_user_data(self, user_id: int, data: Dict[str, Any]) -> bool:
         """Cache user-specific data"""
         cache_key = f"user:{user_id}:data"
-        return await self.set(cache_key, data, expire_seconds=300)
+        return await self.set(cache_key, data, expire_seconds=600)
     
     async def get_user_data(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get cached user data"""
         cache_key = f"user:{user_id}:data"
         return await self.get(cache_key)
     
+    async def get_default_poster(self) -> str:
+        """Get default fallback poster URL"""
+        return self.default_poster
+    
+    async def cache_multi_posters(self, posters_data: Dict[str, Dict[str, Any]]) -> bool:
+        """Cache multiple posters at once"""
+        success = True
+        for title, data in posters_data.items():
+            if not await self.cache_poster(title, data):
+                success = False
+        return success
+    
+    async def get_multi_posters(self, titles: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Get multiple posters at once"""
+        results = {}
+        for title in titles:
+            # Try all sources in order
+            for source in ['letterboxd', 'omdb', 'imdb', 'impawards', 'justwatch', 'youtube', 'default']:
+                poster = await self.get_poster(title, source)
+                if poster:
+                    results[title] = poster
+                    break
+            if title not in results:
+                results[title] = None
+        return results
+    
     async def increment_counter(self, key: str, amount: int = 1) -> int:
         """Increment counter in cache"""
-        # Memory cache
-        current = await self.get(key) or 0
-        new_value = current + amount
-        
-        await self.set(key, new_value, expire_seconds=86400)
-        return new_value
-    
-    async def batch_increment_counters(self, counters: Dict[str, int]) -> Dict[str, int]:
-        """Increment multiple counters at once"""
-        result = {}
-        
-        for key, amount in counters.items():
-            result[key] = await self.increment_counter(key, amount)
-        
-        return result
+        try:
+            if self.redis_enabled and self.redis_client:
+                # Use Redis atomic increment
+                new_value = await self.redis_client.incrby(key, amount)
+                # Set expiry if first time
+                await self.redis_client.expire(key, 86400)
+            else:
+                # Fallback to memory
+                current = await self.get(key) or 0
+                new_value = current + amount
+                await self.set(key, new_value, expire_seconds=86400, use_redis=False)
+            
+            return new_value
+        except:
+            return 0
     
     async def get_stats_summary(self) -> Dict[str, Any]:
         """Get cache statistics summary"""
@@ -486,11 +419,8 @@ class CacheManager:
                 pass
         
         # Calculate hit rates
-        total_redis_ops = self.stats['redis_hits'] + self.stats['redis_misses']
-        total_memory_ops = self.stats['memory_hits'] + self.stats['memory_misses']
-        
-        redis_hit_rate = self.stats['redis_hits'] / total_redis_ops if total_redis_ops > 0 else 0
-        memory_hit_rate = self.stats['memory_hits'] / total_memory_ops if total_memory_ops > 0 else 0
+        redis_total = self.stats['redis_hits'] + self.stats['redis_misses']
+        memory_total = self.stats['memory_hits'] + self.stats['memory_misses']
         
         return {
             'redis_enabled': self.redis_enabled,
@@ -498,14 +428,11 @@ class CacheManager:
             'memory_cache_size': len(self.memory_cache),
             'stats': self.stats.copy(),
             'hit_rates': {
-                'redis': round(redis_hit_rate, 3),
-                'memory': round(memory_hit_rate, 3)
+                'redis': self.stats['redis_hits'] / max(redis_total, 1),
+                'memory': self.stats['memory_hits'] / max(memory_total, 1),
+                'overall': (self.stats['redis_hits'] + self.stats['memory_hits']) / max(redis_total + memory_total, 1)
             },
-            'operations_summary': {
-                'total_redis_ops': total_redis_ops,
-                'total_memory_ops': total_memory_ops,
-                'batch_operations': self.stats['batch_operations']
-            }
+            'default_poster': self.default_poster
         }
     
     async def start_cleanup_task(self):
@@ -519,7 +446,7 @@ class CacheManager:
         """Background cleanup loop for expired memory cache entries"""
         while True:
             try:
-                await asyncio.sleep(300)  # Run every 5 minutes
+                await asyncio.sleep(60)  # Run every 1 minute for faster cleanup
                 
                 # Cleanup expired memory cache entries
                 now = datetime.now()
@@ -536,8 +463,11 @@ class CacheManager:
                 if expired_keys:
                     logger.debug(f"🧹 Cleaned {len(expired_keys)} expired memory cache entries")
                     
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.error(f"Cleanup loop error: {e}")
+                await asyncio.sleep(30)  # Wait before retry
     
     async def stop(self):
         """Stop cache manager"""
@@ -550,47 +480,3 @@ class CacheManager:
         
         if self.redis_client:
             await self.redis_client.close()
-    
-    async def health_check(self) -> Dict[str, Any]:
-        """Perform health check on cache system"""
-        health = {
-            'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'components': {}
-        }
-        
-        # Check memory cache
-        health['components']['memory_cache'] = {
-            'status': 'healthy',
-            'size': len(self.memory_cache),
-            'details': f"{len(self.memory_cache)} items in memory"
-        }
-        
-        # Check Redis
-        if self.redis_enabled and self.redis_client:
-            try:
-                await self.redis_client.ping()
-                info = await self.redis_client.info('memory')
-                
-                health['components']['redis'] = {
-                    'status': 'healthy',
-                    'connected': True,
-                    'memory_used': info.get('used_memory_human', 'unknown')
-                }
-            except Exception as e:
-                health['components']['redis'] = {
-                    'status': 'unhealthy',
-                    'connected': False,
-                    'error': str(e)
-                }
-                health['status'] = 'degraded'
-        else:
-            health['components']['redis'] = {
-                'status': 'disabled',
-                'connected': False
-            }
-        
-        # Check stats
-        health['stats'] = self.get_stats_summary()
-        
-        return health
