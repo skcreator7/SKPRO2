@@ -1018,198 +1018,293 @@
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         
-        console.log('🎬 SK4FiLM v8.0 - 30 REAL MOVIES + MULTI-SOURCE POSTER SYSTEM');
+        console.log('🎬 SK4FiLM v9.0 - WORKING POSTER SYSTEM');
 
-        // ==== Multi-Source Poster Configuration ====
+        // ==== WORKING API KEYS ====
+        const OMDB_KEYS = ["8265bd1c", "b9bd48a6", "3e7e1e9d"];
+        const TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff", "8265bd1f"];
+        
+        let omdbKeyIndex = 0;
+        let tmdbKeyIndex = 0;
+
+        // ==== SIMPLE & WORKING POSTER SOURCES ====
         const POSTER_SOURCES = [
             {
                 name: 'TMDB',
-                url: (title, year) => `https://api.themoviedb.org/3/search/movie?api_key=e547e17d4e91f3e62a571655cd1ccaff&query=${encodeURIComponent(title)}&year=${year}&page=1`,
-                extract: (data) => data.results?.[0]?.poster_path,
-                format: (path) => `https://image.tmdb.org/t/p/w500${path}`,
+                url: (title, year) => {
+                    const apiKey = TMDB_KEYS[tmdbKeyIndex];
+                    const query = encodeURIComponent(title);
+                    const yearParam = year ? `&year=${year}` : '';
+                    return `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${query}${yearParam}&page=1`;
+                },
+                extract: (data) => {
+                    if (data.results && data.results.length > 0) {
+                        // Find exact match first
+                        const exactMatch = data.results.find(movie => 
+                            movie.title.toLowerCase() === title.toLowerCase()
+                        );
+                        const bestMatch = exactMatch || data.results[0];
+                        return bestMatch.poster_path;
+                    }
+                    return null;
+                },
+                format: (path) => path ? `https://image.tmdb.org/t/p/w500${path}` : null,
                 timeout: 3000,
                 priority: 1
             },
             {
                 name: 'OMDB',
-                url: (title, year) => `https://www.omdbapi.com/?apikey=8265bd1c&t=${encodeURIComponent(title)}&y=${year}`,
-                extract: (data) => data.Poster,
+                url: (title, year) => {
+                    const apiKey = OMDB_KEYS[omdbKeyIndex];
+                    const query = encodeURIComponent(title);
+                    const yearParam = year ? `&y=${year}` : '';
+                    return `https://www.omdbapi.com/?apikey=${apiKey}&t=${query}${yearParam}`;
+                },
+                extract: (data) => {
+                    if (data.Response === "True") {
+                        return data.Poster;
+                    }
+                    return null;
+                },
                 format: (url) => url,
                 timeout: 3000,
                 priority: 2
             },
             {
-                name: 'Letterboxd',
-                url: (title) => `https://letterboxd.com/film/${encodeURIComponent(title.toLowerCase().replace(/[^a-z0-9]/g, '-'))}/`,
-                extract: (html) => {
-                    const match = html.match(/<meta property="og:image" content="([^"]+)"/);
-                    return match ? match[1] : null;
+                name: 'IMDb Images',
+                url: (title) => {
+                    // Simple IMDb search through unofficial API
+                    const query = encodeURIComponent(`${title} movie poster`);
+                    return `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEYS[0]}&query=${query}&page=1`;
                 },
-                format: (url) => url,
-                timeout: 4000,
+                extract: (data) => {
+                    if (data.results && data.results.length > 0) {
+                        return data.results[0].poster_path;
+                    }
+                    return null;
+                },
+                format: (path) => path ? `https://image.tmdb.org/t/p/w500${path}` : null,
+                timeout: 3000,
                 priority: 3
-            },
-            {
-                name: 'IMDb',
-                url: (title, year) => `https://v2.sg.media-imdb.com/suggestion/${encodeURIComponent(title.charAt(0).toLowerCase())}/${encodeURIComponent(title.toLowerCase().replace(/[^a-z0-9]/g, '_'))}.json`,
-                extract: (data) => data.d?.[0]?.i?.imageUrl,
-                format: (url) => url ? url.replace('._V1_.', '._V1_QL75_UX500_CR0,0,500,750_.') : null,
-                timeout: 4000,
-                priority: 4
-            },
-            {
-                name: 'JustWatch',
-                url: (title) => `https://www.justwatch.com/in/movie/${encodeURIComponent(title.toLowerCase().replace(/[^a-z0-9]/g, '-'))}`,
-                extract: (html) => {
-                    const match = html.match(/<meta property="og:image" content="([^"]+)"/);
-                    return match ? match[1] : null;
-                },
-                format: (url) => url,
-                timeout: 4000,
-                priority: 5
-            },
-            {
-                name: 'IMPAwards',
-                url: (title, year) => `http://www.impawards.com/${year}/${encodeURIComponent(title.toLowerCase().replace(/[^a-z0-9]/g, '_'))}_ver2.html`,
-                extract: (html) => {
-                    const match = html.match(/<img src="([^"]+)"[^>]*alt="[^"]*poster"/i);
-                    return match ? `http://www.impawards.com/${year}/${match[1]}` : null;
-                },
-                format: (url) => url,
-                timeout: 4000,
-                priority: 6
             }
         ];
 
-        // ==== Poster Cache System ====
-        const posterCache = new Map();
-        const BATCH_SIZE = 6;
-        const MAX_RETRIES = 2;
-        const DEFAULT_POSTER = 'https://iili.io/fAeIwv9.th.png';
-
-        // ==== Fetch with timeout and abort ====
-        async function fetchWithTimeout(url, sourceName, timeout = 4000) {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
+        // ==== SMART TITLE CLEANER ====
+        function cleanMovieTitle(title) {
+            if (!title) return '';
             
+            // Remove common patterns
+            let clean = title
+                .replace(/\([^)]*\)/g, '')      // Remove (2023)
+                .replace(/\[.*?\]/g, '')        // Remove [HD]
+                .replace(/\s*-\s*.*$/, '')      // Remove everything after dash
+                .replace(/\s*\.\s*\d{3,4}p.*$/i, '') // Remove 720p, 1080p, etc
+                .replace(/\s*x\s*\d{3,4}.*$/i, '')  // Remove x264, x265
+                .replace(/[\uD800-\uDFFF]./g, '')   // Remove emojis
+                .replace(/[^\w\s\-&':.,!?]/g, '')  // Remove special chars
+                .replace(/\s{2,}/g, ' ')        // Remove extra spaces
+                .trim();
+            
+            // Extract year if present
+            const yearMatch = title.match(/(19|20)\d{2}/);
+            const year = yearMatch ? yearMatch[0] : '';
+            
+            // Remove year from title if at end
+            if (year && clean.endsWith(year)) {
+                clean = clean.replace(new RegExp(`\\s*${year}$`), '').trim();
+            }
+            
+            return { title: clean, year };
+        }
+
+        // ==== WORKING CACHE SYSTEM ====
+        const posterCache = new Map();
+        const DEFAULT_POSTER = 'https://iili.io/fAeIwv9.th.png';
+        
+        // Load cache from localStorage
+        function loadCache() {
             try {
-                const response = await fetch(url, {
-                    signal: controller.signal,
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                const cached = localStorage.getItem('movie_posters');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    for (const [key, value] of Object.entries(parsed)) {
+                        posterCache.set(key, value);
                     }
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    throw new Error(`${sourceName}: HTTP ${response.status}`);
+                    console.log(`Loaded ${posterCache.size} cached posters`);
                 }
-                
-                if (sourceName === 'TMDB' || sourceName === 'OMDB') {
-                    return await response.json();
-                } else {
-                    return await response.text();
+            } catch (e) {
+                console.log('No cache found');
+            }
+        }
+        
+        // Save to cache
+        function saveToCache(key, url) {
+            posterCache.set(key, url);
+            try {
+                const cacheObj = {};
+                for (const [k, v] of posterCache.entries()) {
+                    cacheObj[k] = v;
                 }
-            } catch (error) {
-                clearTimeout(timeoutId);
-                throw error;
+                localStorage.setItem('movie_posters', JSON.stringify(cacheObj));
+            } catch (e) {
+                // Ignore storage errors
             }
         }
 
-        // ==== Multi-source poster fetch ====
-        async function fetchPosterFromSources(title, year = '') {
-            const cacheKey = `${title}_${year}`;
-            
-            // Check cache first
-            if (posterCache.has(cacheKey)) {
-                console.log(`✅ Cache hit: ${title}`);
-                return posterCache.get(cacheKey);
-            }
-            
-            // Sort sources by priority
-            const sortedSources = [...POSTER_SOURCES].sort((a, b) => a.priority - b.priority);
-            
-            for (const source of sortedSources) {
+        // ==== SIMPLE FETCH WITH RETRY ====
+        async function fetchWithRetry(url, retries = 2) {
+            for (let i = 0; i < retries; i++) {
                 try {
-                    console.log(`🔄 Trying ${source.name} for: ${title}`);
-                    
-                    const url = source.url(title, year);
-                    const data = await fetchWithTimeout(url, source.name, source.timeout);
-                    const extracted = source.extract(data);
-                    
-                    if (extracted && extracted !== 'N/A') {
-                        const posterUrl = source.format(extracted);
-                        
-                        if (posterUrl && posterUrl.startsWith('http')) {
-                            // Verify image actually loads
-                            const img = new Image();
-                            await new Promise((resolve, reject) => {
-                                img.onload = () => resolve(true);
-                                img.onerror = () => reject(new Error('Image failed to load'));
-                                img.src = posterUrl;
-                            });
-                            
-                            console.log(`✅ ${source.name} success: ${title}`);
-                            posterCache.set(cacheKey, posterUrl);
-                            return posterUrl;
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType.includes('application/json')) {
+                            return await response.json();
+                        } else {
+                            return await response.text();
                         }
                     }
                 } catch (error) {
-                    console.log(`❌ ${source.name} failed: ${error.message}`);
-                    continue;
+                    if (i === retries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
+            throw new Error('All retries failed');
+        }
+
+        // ==== WORKING POSTER FETCHER ====
+        async function getMoviePoster(originalTitle) {
+            const { title, year } = cleanMovieTitle(originalTitle);
+            const cacheKey = `${title.toLowerCase()}_${year}`;
             
-            // All sources failed, use default
+            // 1. Check cache
+            if (posterCache.has(cacheKey)) {
+                return posterCache.get(cacheKey);
+            }
+            
+            console.log(`🔍 Searching poster for: "${title}"${year ? ` (${year})` : ''}`);
+            
+            // 2. Try TMDB first (most reliable)
+            try {
+                const apiKey = TMDB_KEYS[tmdbKeyIndex];
+                const tmdbUrl = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}${year ? `&year=${year}` : ''}&page=1`;
+                const tmdbData = await fetchWithRetry(tmdbUrl);
+                
+                if (tmdbData.results && tmdbData.results.length > 0) {
+                    const movie = tmdbData.results[0];
+                    if (movie.poster_path) {
+                        const posterUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+                        saveToCache(cacheKey, posterUrl);
+                        console.log(`✅ TMDB success: ${title}`);
+                        return posterUrl;
+                    }
+                }
+            } catch (error) {
+                console.log(`❌ TMDB failed: ${error.message}`);
+                tmdbKeyIndex = (tmdbKeyIndex + 1) % TMDB_KEYS.length;
+            }
+            
+            // 3. Try OMDB
+            try {
+                const apiKey = OMDB_KEYS[omdbKeyIndex];
+                const omdbUrl = `https://www.omdbapi.com/?apikey=${apiKey}&t=${encodeURIComponent(title)}${year ? `&y=${year}` : ''}`;
+                const omdbData = await fetchWithRetry(omdbUrl);
+                
+                if (omdbData.Response === "True" && omdbData.Poster && omdbData.Poster !== "N/A") {
+                    saveToCache(cacheKey, omdbData.Poster);
+                    console.log(`✅ OMDB success: ${title}`);
+                    return omdbData.Poster;
+                }
+            } catch (error) {
+                console.log(`❌ OMDB failed: ${error.message}`);
+                omdbKeyIndex = (omdbKeyIndex + 1) % OMDB_KEYS.length;
+            }
+            
+            // 4. Try Google Images as fallback
+            try {
+                // Using Wikimedia Commons as free image source
+                const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=500`;
+                const wikiData = await fetchWithRetry(wikiUrl);
+                const pages = wikiData.query?.pages;
+                
+                if (pages) {
+                    for (const pageId in pages) {
+                        const page = pages[pageId];
+                        if (page.thumbnail) {
+                            const posterUrl = page.thumbnail.source;
+                            saveToCache(cacheKey, posterUrl);
+                            console.log(`✅ Wikipedia success: ${title}`);
+                            return posterUrl;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log(`❌ Wikipedia failed: ${error.message}`);
+            }
+            
+            // 5. Try OpenLibrary
+            try {
+                const openLibUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(title + ' film')}&limit=1`;
+                const openLibData = await fetchWithRetry(openLibUrl);
+                
+                if (openLibData.docs && openLibData.docs.length > 0 && openLibData.docs[0].cover_i) {
+                    const coverId = openLibData.docs[0].cover_i;
+                    const posterUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+                    saveToCache(cacheKey, posterUrl);
+                    console.log(`✅ OpenLibrary success: ${title}`);
+                    return posterUrl;
+                }
+            } catch (error) {
+                console.log(`❌ OpenLibrary failed: ${error.message}`);
+            }
+            
+            // 6. Use default poster
             console.log(`⚠️ All sources failed for: ${title}, using default`);
-            posterCache.set(cacheKey, DEFAULT_POSTER);
+            saveToCache(cacheKey, DEFAULT_POSTER);
             return DEFAULT_POSTER;
         }
 
-        // ==== Batch Poster Loading ====
-        async function loadPostersBatch(movieElements) {
-            const promises = [];
+        // ==== FAST BATCH LOADING ====
+        async function loadAllPosters() {
+            const movieCards = document.querySelectorAll('.movie-card');
+            console.log(`🎬 Loading ${movieCards.length} posters...`);
             
-            for (const element of movieElements) {
-                const img = element.querySelector('.hq-poster');
-                const movieData = JSON.parse(img.getAttribute('data-movie'));
-                const { title, year } = movieData;
-                
-                promises.push(
-                    fetchPosterFromSources(title, year)
-                        .then(posterUrl => {
-                            img.src = posterUrl;
-                            img.classList.remove('poster-loading');
-                            return true;
-                        })
-                        .catch(error => {
-                            console.error(`Failed to load poster for ${title}:`, error);
-                            img.src = DEFAULT_POSTER;
-                            img.classList.remove('poster-loading');
-                            return false;
-                        })
-                );
-                
-                // Small delay between requests to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 50));
-            }
+            // Load cache first
+            loadCache();
             
-            return Promise.allSettled(promises);
-        }
-
-        // ==== Staggered Loading Function ====
-        async function loadPostersStaggered(movieCards) {
-            console.log(`🔄 Loading posters for ${movieCards.length} movies in batches...`);
-            
-            for (let i = 0; i < movieCards.length; i += BATCH_SIZE) {
-                const batch = movieCards.slice(i, i + BATCH_SIZE);
-                console.log(`📦 Loading batch ${Math.floor(i/BATCH_SIZE) + 1} (${batch.length} posters)`);
+            // Process in batches of 5 for better performance
+            const batchSize = 5;
+            for (let i = 0; i < movieCards.length; i += batchSize) {
+                const batch = Array.from(movieCards).slice(i, i + batchSize);
+                const promises = batch.map(async (card, index) => {
+                    const img = card.querySelector('.hq-poster');
+                    if (!img || img.src !== DEFAULT_POSTER) return;
+                    
+                    const movieData = JSON.parse(img.getAttribute('data-movie'));
+                    const { title } = movieData;
+                    
+                    try {
+                        const posterUrl = await getMoviePoster(title);
+                        img.src = posterUrl;
+                        img.classList.remove('poster-loading');
+                        
+                        // Verify image loads
+                        await new Promise((resolve, reject) => {
+                            const testImg = new Image();
+                            testImg.onload = resolve;
+                            testImg.onerror = () => reject(new Error('Image failed to load'));
+                            testImg.src = posterUrl;
+                        });
+                    } catch (error) {
+                        img.src = DEFAULT_POSTER;
+                        img.classList.remove('poster-loading');
+                    }
+                });
                 
-                await loadPostersBatch(batch);
+                await Promise.allSettled(promises);
                 
-                // Delay between batches
-                if (i + BATCH_SIZE < movieCards.length) {
+                // Small delay between batches
+                if (i + batchSize < movieCards.length) {
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
             }
@@ -1217,7 +1312,7 @@
             console.log('✅ All posters loaded');
         }
 
-        // ==== Popup Functions (Keep Original) ====
+        // ==== Popup Functions ====
         function showFirstPopup() {
             const overlay = document.getElementById('popupOverlay');
             const popup = document.getElementById('popupContainer');
@@ -1253,11 +1348,6 @@
             
             overlay.classList.remove('active');
             popup.classList.remove('active');
-        }
-
-        function resetCloseButton() {
-            const closeBtn = document.getElementById('popupClose');
-            closeBtn.style.display = 'flex';
         }
 
         // ==== Navigation Functions ====
@@ -1337,9 +1427,9 @@
             const container = document.getElementById('homeMoviesContainer');
             
             try {
-                console.log('🎬 Loading 30 real movies from Telegram...');
+                console.log('🎬 Loading movies from backend...');
                 
-                // Show skeleton loading animation
+                // Show skeleton loading
                 showSkeletonLoading();
                 
                 const response = await fetch(`${BACKEND_URL}/api/movies`);
@@ -1348,21 +1438,18 @@
                 console.log('📊 Backend response:', data);
                 
                 if (data.status === 'success' && data.movies?.length > 0) {
-                    console.log(`✅ Loaded ${data.movies.length} real movies from Telegram`);
+                    console.log(`✅ Loaded ${data.movies.length} movies`);
                     displayHomeMovies(data.movies);
                     
-                    // Start staggered poster loading
-                    const movieCards = document.querySelectorAll('.movie-card');
-                    if (movieCards.length > 0) {
-                        loadPostersStaggered(Array.from(movieCards));
-                    }
+                    // Start loading posters
+                    setTimeout(loadAllPosters, 1000);
                 } else {
-                    console.log('ℹ️ No movies found or empty response');
-                    showEmptyState();
+                    console.log('ℹ️ No movies found');
+                    showNoMoviesState(data.message || 'No movies available');
                 }
             } catch (error) {
                 console.error('❌ Error loading movies:', error);
-                showErrorState();
+                showConnectionError();
             }
         }
         
@@ -1370,7 +1457,6 @@
             const container = document.getElementById('homeMoviesContainer');
             let html = '';
             
-            // Create 30 skeleton cards
             for (let i = 0; i < 30; i++) {
                 html += `
                     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
@@ -1391,7 +1477,7 @@
             const container = document.getElementById('homeMoviesContainer');
             
             if (movies.length === 0) {
-                showEmptyState();
+                showNoMoviesState('No movies available');
                 return;
             }
             
@@ -1402,18 +1488,20 @@
                 const year = movie.year || '';
                 const isNew = movie.is_new;
                 const rating = movie.poster_rating || '0.0';
-                const uniqueId = `movie-${index}-${Date.now()}`;
                 
+                // Pre-set with default poster, will be updated by poster loader
                 html += `
                     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.05}s">
+                        <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.03}s">
                             <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
                             
                             <img 
                                 class="hq-poster poster-loading" 
                                 alt="${escapeHTML(title)}"
+                                src="${DEFAULT_POSTER}"
                                 loading="lazy"
                                 data-movie='${JSON.stringify({title: title, year: year})}'
+                                onerror="this.src='${DEFAULT_POSTER}'; this.classList.remove('poster-loading')"
                             >
                             
                             ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
@@ -1436,27 +1524,34 @@
             container.innerHTML = html;
         }
         
-        function showEmptyState() {
+        function showNoMoviesState(message = 'No movies available') {
             document.getElementById('homeMoviesContainer').innerHTML = `
                 <div class="col-12" style="text-align: center; padding: 60px 20px;">
-                    <i class="fas fa-film fa-5x text-muted mb-4"></i>
-                    <h3 style="color: var(--accent); margin-bottom: 15px;">No Movies Available</h3>
-                    <p class="text-muted mb-4">No movies found in Telegram channel.</p>
-                    <button onclick="loadHomeMovies()" style="background: var(--accent); color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; margin-top: 10px;">
-                        <i class="fas fa-redo me-2"></i>Try Again
-                    </button>
+                    <i class="fas fa-satellite-dish fa-5x text-warning mb-4"></i>
+                    <h3 style="color: var(--accent); margin-bottom: 15px;">${message}</h3>
+                    <p class="text-muted mb-3">Movies load directly from Telegram channel</p>
+                    <p class="text-muted small mb-4">Telegram session required for movie fetching</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <button onclick="loadHomeMovies()" style="background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 15px; cursor: pointer;">
+                            <i class="fas fa-redo me-2"></i>Retry
+                        </button>
+                        <a href="https://t.me/sk4film" target="_blank" style="background: #0088cc; color: white; border: none; padding: 10px 20px; border-radius: 15px; cursor: pointer; text-decoration: none;">
+                            <i class="fab fa-telegram me-2"></i>Visit Channel
+                        </a>
+                    </div>
                 </div>
             `;
         }
         
-        function showErrorState() {
+        function showConnectionError() {
             document.getElementById('homeMoviesContainer').innerHTML = `
                 <div class="col-12" style="text-align: center; padding: 60px 20px;">
-                    <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
+                    <i class="fas fa-exclamation-triangle fa-5x text-danger mb-4"></i>
                     <h3 style="color: #ff6b6b; margin-bottom: 15px;">Connection Error</h3>
-                    <p class="text-muted mb-4">Unable to fetch movies from Telegram.</p>
-                    <button onclick="loadHomeMovies()" style="background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; margin-top: 10px;">
-                        <i class="fas fa-redo me-2"></i>Retry
+                    <p class="text-muted mb-3">Unable to connect to backend server</p>
+                    <p class="text-muted small mb-4">Please check if the server is running</p>
+                    <button onclick="loadHomeMovies()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 15px; cursor: pointer;">
+                        <i class="fas fa-redo me-2"></i>Retry Connection
                     </button>
                 </div>
             `;
@@ -1482,9 +1577,10 @@
         
         // ==== Initialize Application ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v8.0 - 30 REAL MOVIES + MULTI-SOURCE POSTER SYSTEM');
-            console.log('🎯 Poster Sources: TMDB → OMDB → Letterboxd → IMDb → JustWatch → IMPAwards → Custom');
-            console.log('📡 Telegram Channel: -1001891090100 (SK4FiLM Main)');
+            console.log('🚀 SK4FiLM v9.0 - WORKING POSTER SYSTEM');
+            console.log('🔑 Multiple API Keys Active');
+            console.log('🎯 Smart Title Cleaning');
+            console.log('💾 LocalStorage Caching');
             
             // Set up popup event listeners
             document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
@@ -1510,10 +1606,14 @@
             // Background audio
             const audio = document.getElementById('bg-audio');
             if (audio) {
-                audio.volume = 0.3;
-                audio.play().catch(() => {
-                    document.addEventListener('click', () => audio.play(), { once: true });
-                });
+                audio.volume = 0.2;
+                audio.muted = true;
+                
+                document.addEventListener('click', function initAudio() {
+                    audio.muted = false;
+                    audio.play().catch(e => console.log('Audio play failed:', e));
+                    document.removeEventListener('click', initAudio);
+                }, { once: true });
             }
         });
     </script>
