@@ -1,5 +1,5 @@
 """
-poster_fetcher.py - Multi-source poster fetching with intelligent fallback
+poster_fetching.py - Multi-source poster fetching with intelligent fallback
 """
 import aiohttp
 import asyncio
@@ -66,6 +66,7 @@ class PosterFetcher:
             'url': poster_url,
             'source': source_name,
             'quality': 'high'|'medium'|'low',
+            'rating': '0.0-10.0',
             'cached': True|False,
             'response_time': ms
         }
@@ -112,6 +113,7 @@ class PosterFetcher:
             'url': self.default_poster,
             'source': 'default',
             'quality': 'low',
+            'rating': '0.0',
             'cached': False,
             'response_time': int((asyncio.get_event_loop().time() - start_time) * 1000)
         }
@@ -138,6 +140,37 @@ class PosterFetcher:
         
         return None
     
+    async def fetch_from_source(self, source: str, title: str, year: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Fetch poster from specific source only"""
+        try:
+            if source == 'letterboxd':
+                return await self._fetch_letterboxd(title, year)
+            elif source == 'omdb':
+                return await self._fetch_omdb(title, year)
+            elif source == 'imdb':
+                return await self._fetch_imdb(title, year)
+            elif source == 'impawards':
+                return await self._fetch_impawards(title, year)
+            elif source == 'justwatch':
+                return await self._fetch_justwatch(title)
+            elif source == 'youtube':
+                return await self._fetch_youtube(title, year)
+            elif source == 'custom':
+                # Custom poster generation
+                year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                year_found = year_match.group() if year_match else year or ""
+                
+                return {
+                    'url': f"{self.config.BACKEND_URL}/api/poster/custom?title={quote(title)}&year={year_found}",
+                    'source': 'custom',
+                    'quality': 'low',
+                    'rating': '0.0'
+                }
+        except Exception as e:
+            logger.debug(f"Source {source} fetch failed: {e}")
+        
+        return None
+    
     async def _fetch_letterboxd(self, title: str, year: Optional[str]) -> Optional[Dict[str, Any]]:
         """Fetch from Letterboxd (Primary Source)"""
         try:
@@ -147,33 +180,60 @@ class PosterFetcher:
             clean_title = re.sub(r'[^\w\s-]', '', title.lower())
             clean_title = clean_title.replace(' ', '-')
             
-            url = f"https://letterboxd.com/film/{clean_title}/"
-            if year:
-                url = f"https://letterboxd.com/film/{clean_title}-{year}/"
+            # Try multiple URL formats
+            urls_to_try = []
             
-            async with self.session.get(url, timeout=3) as response:
-                if response.status == 200:
-                    html = await response.text()
-                    
-                    # Extract poster from meta tags
-                    og_image_match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
-                    if og_image_match:
-                        image_url = og_image_match.group(1)
-                        # Convert to higher quality if possible
-                        if '_w_' in image_url:
-                            image_url = image_url.replace('_w_', '_c_')
-                        
-                        return {
-                            'url': image_url,
-                            'source': 'letterboxd',
-                            'quality': 'high',
-                            'width': 500,
-                            'height': 750
-                        }
-        except:
-            pass
-        
-        return None
+            if year:
+                urls_to_try.append(f"https://letterboxd.com/film/{clean_title}-{year}/")
+            
+            urls_to_try.append(f"https://letterboxd.com/film/{clean_title}/")
+            
+            # Also try with common suffixes
+            if year:
+                urls_to_try.append(f"https://letterboxd.com/film/{clean_title}-{year}-1/")
+                urls_to_try.append(f"https://letterboxd.com/film/{clean_title}-the-{year}/")
+            
+            for url in urls_to_try:
+                try:
+                    async with self.session.get(url, timeout=2) as response:
+                        if response.status == 200:
+                            html = await response.text()
+                            
+                            # Try multiple meta tag patterns
+                            patterns = [
+                                r'<meta property="og:image" content="([^"]+)"',
+                                r'<meta name="twitter:image" content="([^"]+)"',
+                                r'<img[^>]*data-src="([^"]+)"[^>]*class="image"',
+                                r'<img[^>]*src="([^"]+)"[^>]*loading="lazy"[^>]*class="poster"'
+                            ]
+                            
+                            for pattern in patterns:
+                                match = re.search(pattern, html, re.IGNORECASE)
+                                if match:
+                                    image_url = match.group(1)
+                                    
+                                    # Convert to higher quality if possible
+                                    if '_w_' in image_url:
+                                        image_url = image_url.replace('_w_', '_c_')
+                                    elif '-0-' in image_url:
+                                        image_url = image_url.replace('-0-', '-500-')
+                                    
+                                    return {
+                                        'url': image_url,
+                                        'source': 'letterboxd',
+                                        'quality': 'high',
+                                        'rating': '8.5',
+                                        'width': 500,
+                                        'height': 750
+                                    }
+                except:
+                    continue
+            
+            return None
+            
+        except Exception as e:
+            logger.debug(f"Letterboxd fetch error: {e}")
+            return None
     
     async def _fetch_omdb(self, title: str, year: Optional[str]) -> Optional[Dict[str, Any]]:
         """Fetch from OMDB API (Secondary Source)"""
@@ -183,26 +243,37 @@ class PosterFetcher:
             if not hasattr(self.config, 'OMDB_API_KEY') or not self.config.OMDB_API_KEY:
                 return None
             
-            params = {
-                'apikey': self.config.OMDB_API_KEY,
-                't': title,
-                'type': 'movie'
-            }
-            if year:
-                params['y'] = year
-            
-            url = "http://www.omdbapi.com/"
-            async with self.session.get(url, params=params, timeout=2) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get('Poster') and data['Poster'] != 'N/A':
-                        return {
-                            'url': data['Poster'],
-                            'source': 'omdb',
-                            'quality': 'medium',
-                            'imdb_id': data.get('imdbID'),
-                            'title': data.get('Title')
-                        }
+            # Try multiple API keys
+            for api_key in self.config.OMDB_KEYS:
+                try:
+                    params = {
+                        'apikey': api_key,
+                        't': title,
+                        'type': 'movie'
+                    }
+                    if year:
+                        params['y'] = year
+                    
+                    url = "http://www.omdbapi.com/"
+                    async with self.session.get(url, params=params, timeout=2) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            if data.get('Poster') and data['Poster'] != 'N/A':
+                                rating = data.get('imdbRating', '0.0')
+                                if rating == 'N/A':
+                                    rating = '0.0'
+                                    
+                                return {
+                                    'url': data['Poster'],
+                                    'source': 'omdb',
+                                    'quality': 'medium',
+                                    'rating': rating,
+                                    'imdb_id': data.get('imdbID'),
+                                    'title': data.get('Title')
+                                }
+                except:
+                    continue
+        
         except:
             pass
         
@@ -235,8 +306,18 @@ class PosterFetcher:
                                     'url': poster_url,
                                     'source': 'imdb',
                                     'quality': 'high',
+                                    'rating': '7.0',
                                     'imdb_id': imdb_id
                                 }
+                        
+                        # Fallback to standard IMDB image
+                        return {
+                            'url': f"https://img.omdbapi.com/?i={imdb_id}&apikey={self.config.OMDB_KEYS[0] if self.config.OMDB_KEYS else ''}",
+                            'source': 'imdb',
+                            'quality': 'medium',
+                            'rating': '7.0',
+                            'imdb_id': imdb_id
+                        }
         except:
             pass
         
@@ -274,6 +355,7 @@ class PosterFetcher:
                             'url': poster_url,
                             'source': 'impawards',
                             'quality': 'high',
+                            'rating': '8.0',
                             'width': 1000,
                             'height': 1500
                         }
@@ -305,6 +387,7 @@ class PosterFetcher:
                                 'url': poster_url,
                                 'source': 'justwatch',
                                 'quality': 'medium',
+                                'rating': '7.5',
                                 'title': item.get('title')
                             }
         except:
@@ -318,71 +401,48 @@ class PosterFetcher:
             await self.init_session()
             
             search_term = quote(f"{title} {year} official trailer" if year else f"{title} official trailer")
-            url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={search_term}&maxResults=1&type=video&key={getattr(self.config, 'YOUTUBE_API_KEY', '')}"
             
-            async with self.session.get(url, timeout=3) as response:
+            # Try to get from YouTube directly
+            url = f"https://www.youtube.com/results?search_query={search_term}"
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            async with self.session.get(url, headers=headers, timeout=3) as response:
                 if response.status == 200:
-                    data = await response.json()
-                    if data.get('items'):
-                        item = data['items'][0]
-                        thumbnail = item['snippet']['thumbnails'].get('high', 
-                                    item['snippet']['thumbnails'].get('medium',
-                                    item['snippet']['thumbnails'].get('default')))
-                        
-                        if thumbnail:
-                            return {
-                                'url': thumbnail['url'],
-                                'source': 'youtube',
-                                'quality': 'low',
-                                'width': thumbnail.get('width', 480),
-                                'height': thumbnail.get('height', 360)
-                            }
+                    html = await response.text()
+                    
+                    # Extract first video ID
+                    video_id_match = re.search(r'"videoId":"([^"]+)"', html)
+                    if video_id_match:
+                        video_id = video_id_match.group(1)
+                        return {
+                            'url': f'https://img.youtube.com/vi/{video_id}/hqdefault.jpg',
+                            'source': 'youtube',
+                            'quality': 'low',
+                            'rating': '6.0'
+                        }
         except:
-            # Fallback to simple YouTube thumbnail
-            try:
-                # Try to get from YouTube directly
-                search_term = quote(title)
-                url = f"https://www.youtube.com/results?search_query={search_term}"
-                
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-                
-                async with self.session.get(url, headers=headers, timeout=3) as response:
-                    if response.status == 200:
-                        html = await response.text()
-                        
-                        # Extract first video ID
-                        video_id_match = re.search(r'"videoId":"([^"]+)"', html)
-                        if video_id_match:
-                            video_id = video_id_match.group(1)
-                            return {
-                                'url': f'https://img.youtube.com/vi/{video_id}/hqdefault.jpg',
-                                'source': 'youtube',
-                                'quality': 'low'
-                            }
-            except:
-                pass
+            pass
         
         return None
     
-    async def fetch_multiple_posters(self, titles: List[str]) -> Dict[str, Dict[str, Any]]:
+    async def fetch_batch_posters(self, titles: List[str]) -> Dict[str, Dict[str, Any]]:
         """Fetch posters for multiple titles efficiently"""
         results = {}
         
         # First check cache for all titles
-        cached_results = await self.cache.get_multi_posters(titles)
-        
-        # Separate cached and uncached titles
-        uncached_titles = []
         for title in titles:
-            if title in cached_results and cached_results[title]:
-                results[title] = cached_results[title]
-                results[title]['cached'] = True
-            else:
-                uncached_titles.append(title)
+            for source_name in self.sources.keys():
+                cached = await self.cache.get_poster(title, source_name)
+                if cached:
+                    results[title] = cached
+                    break
         
-        # Fetch uncached titles in parallel
+        # Fetch uncached titles
+        uncached_titles = [title for title in titles if title not in results]
+        
         if uncached_titles:
             tasks = []
             for title in uncached_titles:
@@ -403,10 +463,21 @@ class PosterFetcher:
                     'url': self.default_poster,
                     'source': 'default',
                     'quality': 'low',
+                    'rating': '0.0',
                     'cached': False
                 }
         
         return results
+    
+    def clear_cache(self):
+        """Clear local cache"""
+        if hasattr(self.cache, 'clear_pattern'):
+            asyncio.create_task(self.cache.clear_pattern("poster:"))
+    
+    async def cleanup_expired_cache(self):
+        """Cleanup expired cache entries"""
+        if hasattr(self.cache, 'cleanup_expired'):
+            await self.cache.cleanup_expired()
     
     async def close(self):
         """Close HTTP session"""
