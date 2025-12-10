@@ -26,7 +26,8 @@ class CacheManager:
             'redis_misses': 0,
             'memory_hits': 0,
             'memory_misses': 0,
-            'memory_evictions': 0
+            'memory_evictions': 0,
+            'batch_operations': 0
         }
         
         # Cleanup task
@@ -183,6 +184,63 @@ class CacheManager:
         
         return None
     
+    async def batch_get(self, keys: List[str], use_redis: bool = True) -> Dict[str, Any]:
+        """Get multiple values from cache at once"""
+        result = {}
+        
+        # Check memory cache first
+        remaining_keys = []
+        for key in keys:
+            if key in self.memory_cache:
+                value, expiry = self.memory_cache[key]
+                if expiry is None or datetime.now() < expiry:
+                    result[key] = value
+                    self.stats['memory_hits'] += 1
+                else:
+                    # Expired
+                    del self.memory_cache[key]
+                    self.stats['memory_evictions'] += 1
+                    remaining_keys.append(key)
+            else:
+                remaining_keys.append(key)
+                self.stats['memory_misses'] += 1
+        
+        if not remaining_keys:
+            return result
+        
+        # Try Redis for remaining keys
+        if use_redis and self.redis_enabled and self.redis_client and remaining_keys:
+            try:
+                # Get values from Redis
+                values = await self.redis_client.mget(remaining_keys)
+                
+                for i, key in enumerate(remaining_keys):
+                    value = values[i]
+                    if value is not None:
+                        self.stats['redis_hits'] += 1
+                        
+                        # Deserialize based on key prefix
+                        if key.startswith('json:'):
+                            deserialized = self._deserialize_value(value, use_json=True)
+                        else:
+                            deserialized = self._deserialize_value(value, use_json=False)
+                        
+                        result[key] = deserialized
+                        
+                        # Store in memory cache
+                        self.memory_cache[key] = (deserialized, datetime.now() + timedelta(minutes=5))
+                    else:
+                        self.stats['redis_misses'] += 1
+                        result[key] = None
+                        
+            except Exception as e:
+                logger.warning(f"Redis batch get error: {e}")
+                # Mark remaining as None
+                for key in remaining_keys:
+                    result[key] = None
+        
+        return result
+    
     async def set(self, key: str, value: Any, expire_seconds: int = 3600, 
                   use_redis: bool = True) -> bool:
         """Set value in cache"""
@@ -196,14 +254,14 @@ class CacheManager:
                 # Serialize based on value type
                 if isinstance(value, (dict, list, tuple, int, float, bool, str)) and not key.startswith('binary:'):
                     serialized = self._serialize_value(value)
-                    prefix = 'json:'
+                    prefixed_key = f"json:{key}"
                 else:
                     serialized = self._serialize_value(value)
-                    prefix = ''
+                    prefixed_key = key
                 
                 # Store with prefix for deserialization
                 await self.redis_client.setex(
-                    f"{prefix}{key}", 
+                    prefixed_key, 
                     expire_seconds, 
                     serialized
                 )
@@ -213,6 +271,49 @@ class CacheManager:
                 return False
         
         return True
+    
+    async def batch_set(self, items: Dict[str, Any], ttl: int = None) -> bool:
+        """
+        Set multiple cache items at once
+        items: Dictionary of key-value pairs
+        ttl: Time to live in seconds (default: 3600)
+        """
+        try:
+            if ttl is None:
+                ttl = 3600
+            
+            expiry = datetime.now() + timedelta(seconds=ttl) if ttl > 0 else None
+            
+            # Store in memory cache
+            for key, value in items.items():
+                self.memory_cache[key] = (value, expiry)
+            
+            # Store in Redis if enabled
+            if self.redis_enabled and self.redis_client:
+                pipeline = self.redis_client.pipeline()
+                
+                for key, value in items.items():
+                    # Serialize based on value type
+                    if isinstance(value, (dict, list, tuple, int, float, bool, str)) and not key.startswith('binary:'):
+                        serialized = self._serialize_value(value)
+                        prefixed_key = f"json:{key}"
+                    else:
+                        serialized = self._serialize_value(value)
+                        prefixed_key = key
+                    
+                    # Add to pipeline
+                    pipeline.setex(prefixed_key, ttl, serialized)
+                
+                # Execute all commands in pipeline
+                await pipeline.execute()
+            
+            self.stats['batch_operations'] += 1
+            logger.debug(f"✅ Batch set completed for {len(items)} items")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Batch set error: {e}")
+            return False
     
     async def delete(self, key: str) -> bool:
         """Delete key from cache"""
@@ -276,7 +377,8 @@ class CacheManager:
                 'redis_misses': 0,
                 'memory_hits': 0,
                 'memory_misses': 0,
-                'memory_evictions': 0
+                'memory_evictions': 0,
+                'batch_operations': 0
             }
             
             logger.info("✅ All cache cleared successfully")
@@ -296,6 +398,22 @@ class CacheManager:
         cache_key = f"search:{query}:{page}:{limit}"
         return await self.get(cache_key)
     
+    async def batch_cache_posters(self, poster_data_dict: Dict[str, Dict[str, Any]]) -> bool:
+        """Cache multiple posters at once"""
+        try:
+            # Prepare items for batch set
+            items = {}
+            for title, poster_data in poster_data_dict.items():
+                cache_key = f"poster:{title.lower()}"
+                items[cache_key] = poster_data
+            
+            # Use batch_set for better performance
+            return await self.batch_set(items, ttl=7200)
+            
+        except Exception as e:
+            logger.error(f"Batch cache posters error: {e}")
+            return False
+    
     async def cache_poster(self, title: str, poster_data: Dict[str, Any]) -> bool:
         """Cache poster data"""
         cache_key = f"poster:{title.lower()}"
@@ -305,6 +423,23 @@ class CacheManager:
         """Get cached poster data"""
         cache_key = f"poster:{title.lower()}"
         return await self.get(cache_key)
+    
+    async def batch_get_posters(self, titles: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Get multiple posters at once"""
+        result = {}
+        
+        # Prepare cache keys
+        cache_keys = [f"poster:{title.lower()}" for title in titles]
+        
+        # Batch get from cache
+        cached_data = await self.batch_get(cache_keys)
+        
+        # Map back to titles
+        for i, title in enumerate(titles):
+            cache_key = cache_keys[i]
+            result[title] = cached_data.get(cache_key)
+        
+        return result
     
     async def cache_user_data(self, user_id: int, data: Dict[str, Any]) -> bool:
         """Cache user-specific data"""
@@ -325,6 +460,15 @@ class CacheManager:
         await self.set(key, new_value, expire_seconds=86400)
         return new_value
     
+    async def batch_increment_counters(self, counters: Dict[str, int]) -> Dict[str, int]:
+        """Increment multiple counters at once"""
+        result = {}
+        
+        for key, amount in counters.items():
+            result[key] = await self.increment_counter(key, amount)
+        
+        return result
+    
     async def get_stats_summary(self) -> Dict[str, Any]:
         """Get cache statistics summary"""
         redis_info = {}
@@ -334,10 +478,19 @@ class CacheManager:
                 redis_info = {
                     'connected_clients': info.get('connected_clients', 0),
                     'used_memory': info.get('used_memory_human', '0'),
-                    'total_commands_processed': info.get('total_commands_processed', 0)
+                    'total_commands_processed': info.get('total_commands_processed', 0),
+                    'keyspace_hits': info.get('keyspace_hits', 0),
+                    'keyspace_misses': info.get('keyspace_misses', 0)
                 }
             except:
                 pass
+        
+        # Calculate hit rates
+        total_redis_ops = self.stats['redis_hits'] + self.stats['redis_misses']
+        total_memory_ops = self.stats['memory_hits'] + self.stats['memory_misses']
+        
+        redis_hit_rate = self.stats['redis_hits'] / total_redis_ops if total_redis_ops > 0 else 0
+        memory_hit_rate = self.stats['memory_hits'] / total_memory_ops if total_memory_ops > 0 else 0
         
         return {
             'redis_enabled': self.redis_enabled,
@@ -345,8 +498,13 @@ class CacheManager:
             'memory_cache_size': len(self.memory_cache),
             'stats': self.stats.copy(),
             'hit_rates': {
-                'redis': self.stats['redis_hits'] / max(self.stats['redis_hits'] + self.stats['redis_misses'], 1),
-                'memory': self.stats['memory_hits'] / max(self.stats['memory_hits'] + self.stats['memory_misses'], 1)
+                'redis': round(redis_hit_rate, 3),
+                'memory': round(memory_hit_rate, 3)
+            },
+            'operations_summary': {
+                'total_redis_ops': total_redis_ops,
+                'total_memory_ops': total_memory_ops,
+                'batch_operations': self.stats['batch_operations']
             }
         }
     
@@ -392,3 +550,47 @@ class CacheManager:
         
         if self.redis_client:
             await self.redis_client.close()
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform health check on cache system"""
+        health = {
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'components': {}
+        }
+        
+        # Check memory cache
+        health['components']['memory_cache'] = {
+            'status': 'healthy',
+            'size': len(self.memory_cache),
+            'details': f"{len(self.memory_cache)} items in memory"
+        }
+        
+        # Check Redis
+        if self.redis_enabled and self.redis_client:
+            try:
+                await self.redis_client.ping()
+                info = await self.redis_client.info('memory')
+                
+                health['components']['redis'] = {
+                    'status': 'healthy',
+                    'connected': True,
+                    'memory_used': info.get('used_memory_human', 'unknown')
+                }
+            except Exception as e:
+                health['components']['redis'] = {
+                    'status': 'unhealthy',
+                    'connected': False,
+                    'error': str(e)
+                }
+                health['status'] = 'degraded'
+        else:
+            health['components']['redis'] = {
+                'status': 'disabled',
+                'connected': False
+            }
+        
+        # Check stats
+        health['stats'] = self.get_stats_summary()
+        
+        return health
