@@ -4,7 +4,7 @@ import json
 import base64
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
-from enum import Enum  # ← ADD THIS IMPORT
+from enum import Enum
 from io import BytesIO
 import aiohttp
 import urllib.parse
@@ -37,8 +37,9 @@ class PosterFetcher:
             'omdb': 0, 'tmdb': 0, 'custom': 0, 'cache_hits': 0
         }
         
-        # Cache
-        self.poster_cache = {}  # title -> (data, timestamp)
+        # Cache with TTL (1 hour)
+        self.poster_cache = {}
+        self.cache_ttl = timedelta(hours=1)
         
     def clean_title(self, title: str) -> str:
         """Clean movie title for searching"""
@@ -319,54 +320,16 @@ class PosterFetcher:
             return None
     
     async def create_custom_poster(self, title: str, year: str = '') -> Dict[str, Any]:
-        """Create custom SVG poster"""
+        """Create fallback poster using provided image"""
         try:
-            d = title[:20] + "..." if len(title) > 20 else title
-            
-            color_schemes = [
-                {'bg1': '#667eea', 'bg2': '#764ba2', 'text': '#ffffff'},
-                {'bg1': '#f093fb', 'bg2': '#f5576c', 'text': '#ffffff'},
-                {'bg1': '#4facfe', 'bg2': '#00f2fe', 'text': '#ffffff'},
-                {'bg1': '#43e97b', 'bg2': '#38f9d7', 'text': '#ffffff'},
-                {'bg1': '#fa709a', 'bg2': '#fee140', 'text': '#ffffff'},
-            ]
-            
-            scheme = color_schemes[hash(title) % len(color_schemes)]
-            text_color = scheme['text']
-            bg1_color = scheme['bg1']
-            bg2_color = scheme['bg2']
-            
-            year_text = f'<text x="150" y="305" text-anchor="middle" fill="{text_color}" font-size="14" font-family="Arial">{year}</text>' if year else ''
-            
-            svg = f'''<svg width="300" height="450" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:{bg1_color};stop-opacity:1"/>
-                        <stop offset="100%" style="stop-color:{bg2_color};stop-opacity:1"/>
-                    </linearGradient>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#bg)"/>
-                <rect x="10" y="10" width="280" height="430" fill="none" stroke="{text_color}" stroke-width="2" stroke-opacity="0.3" rx="10"/>
-                <circle cx="150" cy="180" r="60" fill="rgba(255,255,255,0.1)"/>
-                <text x="150" y="185" text-anchor="middle" fill="{text_color}" font-size="60" font-family="Arial">🎬</text>
-                <text x="150" y="280" text-anchor="middle" fill="{text_color}" font-size="16" font-weight="bold" font-family="Arial">{d}</text>
-                {year_text}
-                <rect x="50" y="380" width="200" height="40" rx="20" fill="rgba(0,0,0,0.3)"/>
-                <text x="150" y="405" text-anchor="middle" fill="{text_color}" font-size="16" font-weight="bold" font-family="Arial">SK4FiLM</text>
-            </svg>'''
-            
-            # Convert to base64 data URL
-            svg_bytes = svg.encode('utf-8')
-            base64_svg = base64.b64encode(svg_bytes).decode('utf-8')
-            data_url = f"data:image/svg+xml;base64,{base64_svg}"
-            
+            # Use the provided image URL as fallback
             result = {
-                'poster_url': data_url,
+                'poster_url': "https://iili.io/fAeIwv9.th.png",  # Your fallback image
                 'source': PosterSource.CUSTOM.value,
                 'rating': '0.0',
                 'year': year,
                 'title': title,
-                'is_svg': True
+                'is_svg': False  # This is not an SVG anymore
             }
             
             self.stats['custom'] += 1
@@ -374,7 +337,7 @@ class PosterFetcher:
             
         except Exception as e:
             logger.error(f"Custom poster creation error: {e}")
-            # Fallback
+            # Ultimate fallback in case of error
             return {
                 'poster_url': f"{self.config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
                 'source': PosterSource.CUSTOM.value,
@@ -390,9 +353,12 @@ class PosterFetcher:
         # Check cache first
         if use_cache and cache_key in self.poster_cache:
             data, timestamp = self.poster_cache[cache_key]
-            if (datetime.now() - timestamp).seconds < 3600:
+            if (datetime.now() - timestamp) < self.cache_ttl:
                 self.stats['cache_hits'] += 1
                 return data
+            else:
+                # Remove expired cache
+                del self.poster_cache[cache_key]
         
         async with aiohttp.ClientSession() as session:
             # Try all sources concurrently
@@ -408,14 +374,14 @@ class PosterFetcher:
             
             # Find first successful result
             for result in results:
-                if isinstance(result, dict) and result:
+                if isinstance(result, dict) and result.get('poster_url'):
                     # Cache the result
                     self.poster_cache[cache_key] = (result, datetime.now())
                     return result
         
         # Fallback to custom poster
         year_match = re.search(r'\b(19|20)\d{2}\b', title)
-        year = year_match.group() if year_match else ""
+        year = year_match.group() if year_match else ''
         
         custom_poster = await self.create_custom_poster(title, year)
         self.poster_cache[cache_key] = (custom_poster, datetime.now())
@@ -423,62 +389,144 @@ class PosterFetcher:
         return custom_poster
     
     async def fetch_batch_posters(self, titles: List[str]) -> Dict[str, Dict[str, Any]]:
-        """Fetch posters for multiple titles efficiently"""
-        results = {}
-        
-        # First, check cache for all titles
-        pending_titles = []
-        
-        for title in titles:
-            cache_key = title.lower().strip()
-            if cache_key in self.poster_cache:
-                data, timestamp = self.poster_cache[cache_key]
-                if (datetime.now() - timestamp).seconds < 3600:
-                    self.stats['cache_hits'] += 1
-                    results[title] = data
-                else:
-                    pending_titles.append(title)
-            else:
-                pending_titles.append(title)
-        
-        if not pending_titles:
-            return results
-        
-        # Fetch remaining posters
-        async with aiohttp.ClientSession() as session:
-            tasks = [self.fetch_poster(title, use_cache=False) for title in pending_titles]
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        """
+        Fetch posters for multiple titles in batch (optimized)
+        Returns: Dictionary mapping title -> poster data
+        """
+        try:
+            result = {}
             
-            for title, result in zip(pending_titles, batch_results):
-                if isinstance(result, dict) and result:
-                    results[title] = result
+            # First check cache for all titles
+            for title in titles:
+                cache_key = title.lower().strip()
+                if cache_key in self.poster_cache:
+                    data, timestamp = self.poster_cache[cache_key]
+                    if (datetime.now() - timestamp) < self.cache_ttl:
+                        result[title] = data
+                        self.stats['cache_hits'] += 1
+            
+            # Find titles not in cache
+            titles_to_fetch = [title for title in titles if title not in result]
+            
+            if not titles_to_fetch:
+                return result
+            
+            # Fetch remaining titles in parallel
+            async with aiohttp.ClientSession() as session:
+                tasks = []
+                for title in titles_to_fetch:
+                    task = self._fetch_poster_with_session(title, session)
+                    tasks.append(task)
+                
+                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                for i, title in enumerate(titles_to_fetch):
+                    poster_data = batch_results[i]
+                    if isinstance(poster_data, dict) and poster_data:
+                        result[title] = poster_data
+                        # Cache the result
+                        cache_key = title.lower().strip()
+                        self.poster_cache[cache_key] = (poster_data, datetime.now())
+                    else:
+                        # Fallback for this title
+                        year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                        year = year_match.group() if year_match else ''
+                        fallback = await self.create_custom_poster(title, year)
+                        result[title] = fallback
+                        cache_key = title.lower().strip()
+                        self.poster_cache[cache_key] = (fallback, datetime.now())
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Batch poster fetch error: {e}")
+            # Return whatever we have
+            return result
+    
+    async def _fetch_poster_with_session(self, title: str, session: aiohttp.ClientSession) -> Optional[Dict[str, Any]]:
+        """Internal method to fetch poster with existing session"""
+        try:
+            # Try all sources concurrently
+            sources = [
+                self.fetch_from_letterboxd(title, session),
+                self.fetch_from_imdb(title, session),
+                self.fetch_from_justwatch(title, session),
+                self.fetch_from_impawards(title, session),
+                self.fetch_from_omdb_tmdb(title, session),
+            ]
+            
+            results = await asyncio.gather(*sources, return_exceptions=True)
+            
+            # Find first successful result
+            for result in results:
+                if isinstance(result, dict) and result.get('poster_url'):
+                    return result
+            
+            # No poster found from any source
+            return None
+            
+        except Exception as e:
+            logger.error(f"Poster fetch error for {title}: {e}")
+            return None
+    
+    async def fetch_poster_data(self, title: str) -> Optional[bytes]:
+        """
+        Fetch poster image data as bytes
+        Returns: Image bytes or None if failed
+        """
+        try:
+            poster_info = await self.fetch_poster(title)
+            poster_url = poster_info.get('poster_url')
+            
+            if not poster_url:
+                return None
+            
+            # Skip downloading if it's the fallback image or data URL
+            if poster_url == "https://iili.io/fAeIwv9.th.png" or poster_info.get('is_svg') or poster_url.startswith('data:'):
+                return None
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(poster_url, timeout=10) as response:
+                    if response.status == 200:
+                        return await response.read()
+            
+        except Exception as e:
+            logger.error(f"Error fetching poster data for {title}: {e}")
         
-        return results
+        return None
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get current statistics"""
+        return self.stats.copy()
     
     def clear_cache(self):
-        """Clear poster cache"""
+        """Clear the poster cache"""
         self.poster_cache.clear()
-        logger.info("🧹 Poster cache cleared")
     
-    def get_stats(self) -> Dict[str, Any]:
-        """Get fetcher statistics"""
-        return {
-            'sources': self.stats.copy(),
-            'cache_size': len(self.poster_cache),
-            'cache_hits': self.stats['cache_hits']
-        }
+    def get_cache_size(self) -> int:
+        """Get current cache size"""
+        return len(self.poster_cache)
+
+
+# Example usage
+async def main():
+    class Config:
+        OMDB_KEYS = ["8265bd1c", "b9bd48a6", "3e7e1e9d"]
+        TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff"]
+        BACKEND_URL = "http://localhost:8000"
     
-    async def cleanup_expired_cache(self):
-        """Cleanup expired cache entries"""
-        expired_keys = []
-        now = datetime.now()
-        
-        for key, (data, timestamp) in self.poster_cache.items():
-            if (now - timestamp).seconds > 3600:  # 1 hour expiry
-                expired_keys.append(key)
-        
-        for key in expired_keys:
-            del self.poster_cache[key]
-        
-        if expired_keys:
-            logger.info(f"🧹 Cleaned {len(expired_keys)} expired poster cache entries")
+    config = Config()
+    fetcher = PosterFetcher(config)
+    
+    # Example: Fetch batch posters
+    movies = ["Inception 2010", "The Dark Knight 2008", "Interstellar 2014", "Unknown Movie 2025"]
+    
+    batch_result = await fetcher.fetch_batch_posters(movies)
+    for movie, poster in batch_result.items():
+        print(f"{movie}: {poster.get('source')} - {poster.get('poster_url')[:50]}...")
+    
+    # Print stats
+    print("\nStats:", fetcher.get_stats())
+
+if __name__ == "__main__":
+    asyncio.run(main())
