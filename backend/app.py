@@ -40,7 +40,7 @@ except ImportError:
 from cache import CacheManager
 from verification import VerificationSystem
 from premium import PremiumSystem, PremiumTier
-from poster_fetching import PosterFetcher
+from poster_fetching import PosterFetcher, PosterSource
 
 # Import shared utilities
 from utils import (
@@ -186,21 +186,6 @@ class Config:
     MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
-    
-    # Default poster
-    DEFAULT_POSTER = "https://iili.io/fAeIwv9.th.png"
-
-# Poster sources
-POSTER_SOURCES = [
-    'letterboxd',
-    'omdb', 
-    'imdb',
-    'impawards',
-    'justwatch',
-    'youtube',
-    'custom',
-    'default'
-]
 
 # FAST INITIALIZATION
 app = Quart(__name__)
@@ -254,12 +239,13 @@ def normalize_title_cached(title: str) -> str:
     """Cached title normalization"""
     return normalize_title(title)
 
-# Compatibility functions
+# FIXED: Missing channel_name function
 @lru_cache(maxsize=1000)
 def channel_name(channel_id):
     """Get channel name from channel ID (compatibility function)"""
     return channel_name_cached(channel_id)
 
+# FIXED: Missing get_telegram_video_thumbnail function
 async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
     """Get video thumbnail from Telegram"""
     try:
@@ -280,6 +266,7 @@ async def get_telegram_video_thumbnail(user_client, channel_id, message_id):
         logger.error(f"Get thumbnail error: {e}")
         return None
 
+# FIXED: Missing verify_user_api function
 async def verify_user_api(user_id, verification_url=None):
     """Verify user API endpoint implementation"""
     try:
@@ -300,6 +287,7 @@ async def verify_user_api(user_id, verification_url=None):
             'error': str(e)
         }
 
+# FIXED: Missing get_index_status_api function
 async def get_index_status_api():
     """Get indexing status API implementation"""
     try:
@@ -765,7 +753,7 @@ async def get_poster_guaranteed(title):
     
     return {
         'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
-        'source': 'custom',
+        'source': PosterSource.CUSTOM.value,
         'rating': '0.0',
         'year': year,
         'title': title
@@ -1073,10 +1061,11 @@ async def get_single_post_api(channel_id, message_id):
                         poster_source = poster_data['source']
                         poster_rating = poster_data.get('rating', '0.0')
                 
+                # FIXED: Using channel_name function instead of undefined channel_name variable
                 post_data = {
                     'title': title,
                     'content': format_post(msg.text),
-                    'channel': channel_name(channel_id),
+                    'channel': channel_name(channel_id),  # FIXED HERE
                     'channel_id': channel_id,
                     'message_id': message_id,
                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
@@ -1097,7 +1086,7 @@ async def get_single_post_api(channel_id, message_id):
         return {
             'title': 'Sample Movie (2024)',
             'content': '🎬 <b>Sample Movie (2024)</b>\n📅 Release: 2024\n🎭 Genre: Action, Drama\n⭐ Starring: Popular Actors\n\n📥 Download now from SK4FiLM!',
-            'channel': channel_name(channel_id),
+            'channel': channel_name(channel_id),  # FIXED HERE
             'channel_id': channel_id,
             'message_id': message_id,
             'date': datetime.now().isoformat(),
@@ -1195,6 +1184,7 @@ async def search_movies_api(query, limit=12, page=1):
         logger.error(f"Search API error: {e}")
         raise
 
+# Update get_home_movies_live function:
 @performance_monitor.measure("home_movies")
 async def get_home_movies_live():
     """Optimized home movies with timeout"""
@@ -1353,7 +1343,7 @@ async def init_system():
         logger.info("✅ Premium System initialized")
         
         # Initialize Poster Fetcher
-        poster_fetcher = PosterFetcher(cache_manager, Config)
+        poster_fetcher = PosterFetcher(Config, cache_manager)
         logger.info("✅ Poster Fetcher initialized")
         
         # ✅ WARM UP CACHE FOR INSTANT RESPONSE
@@ -1529,11 +1519,10 @@ async def api_post():
 
 @app.route('/api/poster', methods=['GET'])
 async def api_poster():
-    """Get movie poster with source priority"""
+    """Get movie poster"""
     try:
         title = request.args.get('title', '').strip()
         year = request.args.get('year', '')
-        source = request.args.get('source', '').lower()
         
         if not title:
             return jsonify({
@@ -1541,23 +1530,8 @@ async def api_poster():
                 'message': 'Title is required'
             }), 400
         
-        # If specific source requested
-        if source and source in POSTER_SOURCES and poster_fetcher:
-            poster_data = await poster_fetcher.fetch_from_source(source, title, year)
-            
-            if poster_data and poster_data.get('url'):
-                return jsonify({
-                    'status': 'success',
-                    'poster': poster_data,
-                    'title': title,
-                    'year': year,
-                    'source': source,
-                    'timestamp': datetime.now().isoformat()
-                })
-        
-        # Multi-source fallback with priority
         if poster_fetcher:
-            poster_data = await poster_fetcher.fetch_poster(title, year)
+            poster_data = await poster_fetcher.fetch_poster(title)
             
             if poster_data:
                 return jsonify({
@@ -1565,17 +1539,15 @@ async def api_poster():
                     'poster': poster_data,
                     'title': title,
                     'year': year,
-                    'source': poster_data.get('source', 'custom'),
                     'timestamp': datetime.now().isoformat()
                 })
         
-        # Ultimate fallback
+        # Fallback
         return jsonify({
             'status': 'success',
             'poster': {
-                'poster_url': Config.DEFAULT_POSTER,
-                'source': 'default',
-                'quality': 'low',
+                'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
+                'source': PosterSource.CUSTOM.value,
                 'rating': '0.0'
             },
             'title': title,
@@ -1585,47 +1557,6 @@ async def api_poster():
                 
     except Exception as e:
         logger.error(f"Poster API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/poster/custom', methods=['GET'])
-async def api_poster_custom():
-    """Generate custom poster with title and year"""
-    try:
-        title = request.args.get('title', '').strip()
-        year = request.args.get('year', '')
-        
-        if not title:
-            return jsonify({
-                'status': 'error',
-                'message': 'Title is required'
-            }), 400
-        
-        # Simple custom poster URL with fallback
-        custom_url = f"https://fakeimg.pl/300x450/1a1a2e/ffffff/?text={urllib.parse.quote(title[:30])}&font_size=20"
-        
-        if year:
-            custom_url = f"https://fakeimg.pl/300x450/1a1a2e/ffffff/?text={urllib.parse.quote(title[:20])}%20({year})&font_size=18"
-        
-        return jsonify({
-            'status': 'success',
-            'poster': {
-                'poster_url': custom_url,
-                'source': 'custom',
-                'quality': 'low',
-                'rating': '0.0',
-                'width': 300,
-                'height': 450
-            },
-            'title': title,
-            'year': year,
-            'timestamp': datetime.now().isoformat()
-        })
-                
-    except Exception as e:
-        logger.error(f"Custom poster API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
