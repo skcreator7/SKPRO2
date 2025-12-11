@@ -183,7 +183,7 @@ class Config:
     TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff", "8265bd1f"]
     
     # Performance Settings
-    MAX_CONCURRENT_REQUESTS = int(os.encio.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
+    MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
 
@@ -291,8 +291,8 @@ async def verify_user_api(user_id, verification_url=None):
 async def get_index_status_api():
     """Get indexing status API implementation"""
     try:
-        total_files = await files_col.count_documents({}) if files_col else 0
-        video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+        total_files = await files_col.count_documents({}) if files_col is not None else 0
+        video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
         
         return {
             'indexed_files': total_files,
@@ -607,7 +607,7 @@ async def init_mongodb():
 async def index_single_file(message):
     """Optimized single file indexing"""
     try:
-        if not files_col:
+        if files_col is None:
             return False
         
         # Quick existence check
@@ -764,6 +764,27 @@ async def get_poster_guaranteed(title):
 @async_cache_with_ttl(maxsize=500, ttl=300)
 async def search_movies_multi_channel(query, limit=12, page=1):
     """Turbo-charged multi-channel search"""
+    # ✅ Telegram session ready नहीं होने पर empty results return करेंगे
+    if not user_session_ready:
+        logger.warning("⚠️ Telegram session not ready, returning empty search results")
+        return {
+            'results': [],
+            'pagination': {
+                'current_page': page,
+                'total_pages': 1,
+                'total_results': 0,
+                'per_page': limit,
+                'has_next': False,
+                'has_previous': False
+            },
+            'search_metadata': {
+                'channels_searched': 0,
+                'channels_found': 0,
+                'query': query,
+                'cache_hit': False
+            }
+        }
+    
     offset = (page - 1) * limit
     
     # Try cache first
@@ -946,13 +967,13 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     
     return result_data
 
-# ✅ UPDATED LIVE POSTS FUNCTION - MAIN_CHANNEL_ID से 30 movies fetch करेगा
+# ✅ UPDATED LIVE POSTS FUNCTION - Telegram session ready नहीं होने पर empty return करेगा
 @async_cache_with_ttl(maxsize=100, ttl=60)
-async def get_live_posts_multi_channel(limit_per_channel=30):  # ✅ 30 movies fetch करेंगे
-    """Cached live posts with better error handling - MAIN_CHANNEL_ID से 30 movies"""
+async def get_live_posts_multi_channel(limit_per_channel=30):
+    """Cached live posts - Telegram session नहीं होने पर empty return करेगा"""
     if not User or not user_session_ready:
         logger.warning("❌ Telegram client not available for live posts")
-        return []
+        return []  # ✅ Empty array return करेगा
     
     all_posts = []
     
@@ -1012,211 +1033,226 @@ async def get_live_posts_multi_channel(limit_per_channel=30):  # ✅ 30 movies f
                 unique_posts.append(post)
         
         logger.info(f"📊 Live movies collected: {len(unique_posts)} unique movies from SK4FiLM")
-        return unique_posts[:30]  # ✅ 30 movies return करेंगे
+        return unique_posts[:30]
         
     except Exception as e:
         logger.error(f"Live posts multi-channel error: {e}")
-        return []
+        return []  # ✅ Empty array return करेगा
 
-# ✅ UPDATED get_single_post_api FUNCTION - दोनों channels के posts दिखाएगा
+# ✅ UPDATED get_single_post_api FUNCTION - Telegram session नहीं होने पर None return करेगा
 async def get_single_post_api(channel_id, message_id):
-    """Get single movie/post details - दोनों channels से search करेगा"""
+    """Get single movie/post details - Telegram session नहीं होने पर None return करेगा"""
     try:
-        # First try to get the specific message
-        if User and user_session_ready:
-            msg = await safe_telegram_operation(
-                User.get_messages,
-                channel_id, 
-                message_id
-            )
-            
-            if msg and msg.text:
-                title = extract_title_smart(msg.text)
-                if not title:
-                    title = msg.text.split('\n')[0][:60] if msg.text else "Movie Post"
-                
-                normalized_title = normalize_title(title)
-                quality_options = {}
-                has_file = False
-                thumbnail_url = None
-                thumbnail_source = None
-                
-                # Search for files with same title
-                if files_col is not None:
-                    cursor = files_col.find({'normalized_title': normalized_title})
-                    async for doc in cursor:
-                        quality = doc.get('quality', '480p')
-                        if quality not in quality_options:
-                            file_name = doc.get('file_name', '').lower()
-                            file_is_video = is_video_file(file_name)
-                            
-                            if file_is_video and not thumbnail_url:
-                                thumbnail_url = doc.get('thumbnail')
-                                thumbnail_source = doc.get('thumbnail_source', 'unknown')
-                                
-                                if not thumbnail_url and user_session_ready:
-                                    thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
-                                    if thumbnail_url:
-                                        thumbnail_source = 'video_direct'
-                            
-                            quality_options[quality] = {
-                                'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
-                                'file_size': doc.get('file_size', 0),
-                                'file_name': doc.get('file_name', 'video.mp4'),
-                                'is_video': file_is_video,
-                                'channel_id': doc.get('channel_id'),
-                                'message_id': doc.get('message_id')
-                            }
-                            has_file = True
-                
-                # Get poster
-                poster_url = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}"
-                poster_source = 'custom'
-                poster_rating = '0.0'
-                
-                if poster_fetcher:
-                    poster_data = await poster_fetcher.fetch_poster(title)
-                    if poster_data:
-                        poster_url = poster_data['poster_url']
-                        poster_source = poster_data['source']
-                        poster_rating = poster_data.get('rating', '0.0')
-                
-                # ✅ Get related posts from BOTH channels
-                related_posts = []
-                if user_session_ready:
-                    for search_channel_id in Config.TEXT_CHANNEL_IDS:
-                        try:
-                            # Search for same title in this channel
-                            async for search_msg in safe_telegram_generator(
-                                User.search_messages,
-                                search_channel_id,
-                                query=title,
-                                limit=5
-                            ):
-                                if search_msg and search_msg.text and search_msg.id != message_id:
-                                    search_title = extract_title_smart(search_msg.text)
-                                    if search_title and normalized_title in normalize_title(search_title):
-                                        related_posts.append({
-                                            'title': search_title,
-                                            'content': format_post(search_msg.text),
-                                            'channel': channel_name_cached(search_channel_id),
-                                            'channel_id': search_channel_id,
-                                            'message_id': search_msg.id,
-                                            'date': search_msg.date.isoformat() if isinstance(search_msg.date, datetime) else str(search_msg.date),
-                                            'is_new': is_new(search_msg.date) if search_msg.date else False
-                                        })
-                        except Exception as e:
-                            logger.error(f"Error searching in channel {search_channel_id}: {e}")
-                
-                post_data = {
-                    'title': title,
-                    'content': format_post(msg.text),
-                    'channel': channel_name(channel_id),
-                    'channel_id': channel_id,
-                    'message_id': message_id,
-                    'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
-                    'is_new': is_new(msg.date) if msg.date else False,
-                    'has_file': has_file,
-                    'quality_options': quality_options,
-                    'views': getattr(msg, 'views', 0),
-                    'thumbnail': thumbnail_url,
-                    'thumbnail_source': thumbnail_source,
-                    'poster_url': poster_url,
-                    'poster_source': poster_source,
-                    'poster_rating': poster_rating,
-                    'related_posts': related_posts[:10]  # Limit to 10 related posts
-                }
-                
-                return post_data
+        # Telegram session ready नहीं होने पर None return करेंगे
+        if not User or not user_session_ready:
+            logger.warning("❌ Telegram session not ready, cannot get post details")
+            return None
         
-        # Fallback: return sample data
-        return {
-            'title': 'Sample Movie (2024)',
-            'content': '🎬 <b>Sample Movie (2024)</b>\n📅 Release: 2024\n🎭 Genre: Action, Drama\n⭐ Starring: Popular Actors\n\n📥 Download now from SK4FiLM!',
-            'channel': channel_name(channel_id),
-            'channel_id': channel_id,
-            'message_id': message_id,
-            'date': datetime.now().isoformat(),
-            'is_new': True,
-            'has_file': True,
-            'quality_options': {
-                '1080p': {
-                    'file_id': f'{channel_id}_{message_id}_1080p',
-                    'file_size': 1500000000,
-                    'file_name': 'Sample.Movie.2024.1080p.mkv',
-                    'is_video': True
-                }
-            },
-            'views': 1000,
-            'thumbnail': None,
-            'thumbnail_source': 'default',
-            'poster_url': f"{Config.BACKEND_URL}/api/poster?title=Sample+Movie&year=2024",
-            'poster_source': 'custom',
-            'poster_rating': '7.5',
-            'related_posts': []
-        }
+        # Try to get the specific message
+        msg = await safe_telegram_operation(
+            User.get_messages,
+            channel_id, 
+            message_id
+        )
+        
+        if msg and msg.text:
+            title = extract_title_smart(msg.text)
+            if not title:
+                title = msg.text.split('\n')[0][:60] if msg.text else "Movie Post"
+            
+            normalized_title = normalize_title(title)
+            quality_options = {}
+            has_file = False
+            thumbnail_url = None
+            thumbnail_source = None
+            
+            # Search for files with same title
+            if files_col is not None:
+                cursor = files_col.find({'normalized_title': normalized_title})
+                async for doc in cursor:
+                    quality = doc.get('quality', '480p')
+                    if quality not in quality_options:
+                        file_name = doc.get('file_name', '').lower()
+                        file_is_video = is_video_file(file_name)
+                        
+                        if file_is_video and not thumbnail_url:
+                            thumbnail_url = doc.get('thumbnail')
+                            thumbnail_source = doc.get('thumbnail_source', 'unknown')
+                            
+                            if not thumbnail_url and user_session_ready:
+                                thumbnail_url = await get_telegram_video_thumbnail(User, doc['channel_id'], doc['message_id'])
+                                if thumbnail_url:
+                                    thumbnail_source = 'video_direct'
+                        
+                        quality_options[quality] = {
+                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                            'file_size': doc.get('file_size', 0),
+                            'file_name': doc.get('file_name', 'video.mp4'),
+                            'is_video': file_is_video,
+                            'channel_id': doc.get('channel_id'),
+                            'message_id': doc.get('message_id')
+                        }
+                        has_file = True
+            
+            # Get poster
+            poster_url = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}"
+            poster_source = 'custom'
+            poster_rating = '0.0'
+            
+            if poster_fetcher:
+                poster_data = await poster_fetcher.fetch_poster(title)
+                if poster_data:
+                    poster_url = poster_data['poster_url']
+                    poster_source = poster_data['source']
+                    poster_rating = poster_data.get('rating', '0.0')
+            
+            # ✅ Get related posts from BOTH channels
+            related_posts = []
+            if user_session_ready:
+                for search_channel_id in Config.TEXT_CHANNEL_IDS:
+                    try:
+                        # Search for same title in this channel
+                        async for search_msg in safe_telegram_generator(
+                            User.search_messages,
+                            search_channel_id,
+                            query=title,
+                            limit=5
+                        ):
+                            if search_msg and search_msg.text and search_msg.id != message_id:
+                                search_title = extract_title_smart(search_msg.text)
+                                if search_title and normalized_title in normalize_title(search_title):
+                                    related_posts.append({
+                                        'title': search_title,
+                                        'content': format_post(search_msg.text),
+                                        'channel': channel_name_cached(search_channel_id),
+                                        'channel_id': search_channel_id,
+                                        'message_id': search_msg.id,
+                                        'date': search_msg.date.isoformat() if isinstance(search_msg.date, datetime) else str(search_msg.date),
+                                        'is_new': is_new(search_msg.date) if search_msg.date else False
+                                    })
+                    except Exception as e:
+                        logger.error(f"Error searching in channel {search_channel_id}: {e}")
+            
+            post_data = {
+                'title': title,
+                'content': format_post(msg.text),
+                'channel': channel_name(channel_id),
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+                'is_new': is_new(msg.date) if msg.date else False,
+                'has_file': has_file,
+                'quality_options': quality_options,
+                'views': getattr(msg, 'views', 0),
+                'thumbnail': thumbnail_url,
+                'thumbnail_source': thumbnail_source,
+                'poster_url': poster_url,
+                'poster_source': poster_source,
+                'poster_rating': poster_rating,
+                'related_posts': related_posts[:10]
+            }
+            
+            return post_data
+        
+        return None
         
     except Exception as e:
         logger.error(f"Single post API error: {e}")
         return None
 
-# FALLBACK HOME MOVIES FUNCTION
-async def get_fallback_home_movies():
-    """Fallback home movies when Telegram is not available"""
+# ✅ UPDATED get_home_movies_live FUNCTION - Telegram session ready नहीं होने पर empty array return करेगा
+@performance_monitor.measure("home_movies")
+async def get_home_movies_live():
+    """Optimized home movies - Telegram session नहीं होने पर empty array return करेगा"""
     try:
-        # Try to get from MongoDB cache
-        if files_col:
-            # Get recent files from MongoDB
-            cursor = files_col.find(
-                {'is_video_file': True},
-                {'title': 1, 'date': 1, 'quality': 1}
-            ).sort('date', -1).limit(30)
-            
-            movies = []
-            async for doc in cursor:
+        # ✅ Telegram session ready नहीं होने पर empty array return करेंगे
+        if not user_session_ready or not User:
+            logger.warning("⚠️ Telegram user session not ready, returning empty movies list")
+            return []  # ✅ Empty array return करेगा
+        
+        # Try to get posts with timeout
+        try:
+            posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=30))
+            posts = await asyncio.wait_for(posts_task, timeout=8.0)
+        except asyncio.TimeoutError:
+            logger.warning("⏰ Home movies timeout")
+            return []  # ✅ Empty array return करेगा
+        except Exception as e:
+            logger.error(f"Error getting live posts: {e}")
+            return []  # ✅ Empty array return करेगा
+        
+        # If no posts, return empty
+        if not posts:
+            logger.warning("No posts found")
+            return []  # ✅ Empty array return करेगा
+        
+        movies = []
+        seen = set()
+        
+        for post in posts[:30]:
+            if not post or 'title' not in post:
+                continue
+                
+            tk = post['title'].lower().strip()
+            if tk not in seen and tk:
+                seen.add(tk)
                 movies.append({
-                    'title': doc.get('title', 'Unknown'),
-                    'date': doc.get('date', datetime.now()).isoformat(),
-                    'is_new': is_new(doc.get('date', datetime.now())),
-                    'channel': 'SK4FiLM Files',
-                    'channel_id': Config.FILE_CHANNEL_ID,
-                    'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(doc.get('title', ''))}",
-                    'poster_source': 'custom',
-                    'poster_rating': '0.0',
-                    'has_poster': True
+                    'title': post['title'],
+                    'date': post.get('date', datetime.now().isoformat()),
+                    'is_new': post.get('is_new', False),
+                    'channel': post.get('channel_name', 'SK4FiLM'),
+                    'channel_id': post.get('channel_id'),
+                    'message_id': post.get('message_id', 0)
                 })
+        
+        if not movies:
+            logger.warning("No valid movies found")
+            return []  # ✅ Empty array return करेगा
+        
+        # Fetch posters with timeout
+        if movies and poster_fetcher:
+            titles = [movie['title'] for movie in movies if movie.get('title')]
             
-            if movies:
-                logger.info(f"✅ Fallback: {len(movies)} movies from MongoDB")
-                return movies
+            if titles:
+                try:
+                    posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
+                    posters = await asyncio.wait_for(posters_task, timeout=3.0)
+                    
+                    for movie in movies:
+                        if movie['title'] in posters:
+                            poster_data = posters[movie['title']]
+                            movie['poster_url'] = poster_data.get('poster_url', '')
+                            movie['poster_source'] = poster_data.get('source', 'custom')
+                            movie['poster_rating'] = poster_data.get('rating', '0.0')
+                            movie['has_poster'] = True
+                        else:
+                            # Fast fallback
+                            movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                            movie['poster_source'] = 'custom'
+                            movie['poster_rating'] = '0.0'
+                            movie['has_poster'] = True
+                            
+                except asyncio.TimeoutError:
+                    logger.warning("⏰ Home posters timeout")
+                    for movie in movies:
+                        movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                        movie['poster_source'] = 'custom'
+                        movie['poster_rating'] = '0.0'
+                        movie['has_poster'] = True
+                except Exception as e:
+                    logger.error(f"Poster fetch error: {e}")
+                    for movie in movies:
+                        movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                        movie['poster_source'] = 'custom'
+                        movie['poster_rating'] = '0.0'
+                        movie['has_poster'] = True
+        
+        logger.info(f"✅ Home movies loaded: {len(movies)} movies from SK4FiLM")
+        return movies
+        
     except Exception as e:
-        logger.error(f"Fallback home movies error: {e}")
-    
-    # Ultimate fallback
-    return [
-        {
-            'title': 'Avatar: The Way of Water (2022)',
-            'date': datetime.now().isoformat(),
-            'is_new': True,
-            'channel': 'SK4FiLM',
-            'channel_id': Config.MAIN_CHANNEL_ID,
-            'poster_url': f"{Config.BACKEND_URL}/api/poster?title=Avatar+The+Way+of+Water&year=2022",
-            'poster_source': 'custom',
-            'poster_rating': '7.6',
-            'has_poster': True
-        },
-        {
-            'title': 'Top Gun: Maverick (2022)',
-            'date': (datetime.now() - timedelta(days=1)).isoformat(),
-            'is_new': False,
-            'channel': 'SK4FiLM',
-            'channel_id': Config.MAIN_CHANNEL_ID,
-            'poster_url': f"{Config.BACKEND_URL}/api/poster?title=Top+Gun+Maverick&year=2022",
-            'poster_source': 'custom',
-            'poster_rating': '8.2',
-            'has_poster': True
-        }
-    ]
+        logger.error(f"Home movies error: {e}")
+        return []  # ✅ Empty array return करेगा
 
 # OPTIMIZED API FUNCTIONS
 @performance_monitor.measure("search_api")
@@ -1288,18 +1324,6 @@ async def search_movies_api(query, limit=12, page=1):
         
     except Exception as e:
         logger.error(f"Search API error: {e}")
-        # Check if error is related to Config.get_poster
-        if "'Config' has no attribute 'get_poster'" in str(e):
-            logger.error("❌ FIXED: Config.get_poster() method does not exist")
-            # Return results without posters
-            if 'result_data' in locals():
-                for result in result_data.get('results', []):
-                    result['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result.get('title', ''))}"
-                    result['poster_source'] = 'custom'
-                    result['poster_rating'] = '0.0'
-                    result['has_poster'] = False
-                return result_data
-        
         # Return empty results on error
         return {
             'results': [],
@@ -1316,100 +1340,6 @@ async def search_movies_api(query, limit=12, page=1):
                 'query': query
             }
         }
-
-# ✅ UPDATED get_home_movies_live FUNCTION - 30 movies fetch करेगा
-@performance_monitor.measure("home_movies")
-async def get_home_movies_live():
-    """Optimized home movies with timeout and fallback - 30 movies fetch करेगा"""
-    try:
-        # Check if Telegram is available
-        if not user_session_ready or not User:
-            logger.warning("⚠️ Telegram user session not ready, using fallback home movies")
-            return await get_fallback_home_movies()
-        
-        # Try to get posts with timeout
-        try:
-            posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=30))  # ✅ 30 movies
-            posts = await asyncio.wait_for(posts_task, timeout=8.0)  # Increased timeout
-        except asyncio.TimeoutError:
-            logger.warning("⏰ Home movies timeout, using fallback")
-            return await get_fallback_home_movies()
-        except Exception as e:
-            logger.error(f"Error getting live posts: {e}, using fallback")
-            return await get_fallback_home_movies()
-        
-        # If no posts, use fallback
-        if not posts:
-            logger.warning("No posts found, using fallback")
-            return await get_fallback_home_movies()
-        
-        movies = []
-        seen = set()
-        
-        for post in posts[:30]:  # ✅ 30 movies limit
-            if not post or 'title' not in post:
-                continue
-                
-            tk = post['title'].lower().strip()
-            if tk not in seen and tk:
-                seen.add(tk)
-                movies.append({
-                    'title': post['title'],
-                    'date': post.get('date', datetime.now().isoformat()),
-                    'is_new': post.get('is_new', False),
-                    'channel': post.get('channel_name', 'SK4FiLM'),
-                    'channel_id': post.get('channel_id'),
-                    'message_id': post.get('message_id', 0)
-                })
-        
-        if not movies:
-            logger.warning("No valid movies found, using fallback")
-            return await get_fallback_home_movies()
-        
-        # Fetch posters with timeout
-        if movies and poster_fetcher:
-            titles = [movie['title'] for movie in movies if movie.get('title')]
-            
-            if titles:
-                try:
-                    posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
-                    posters = await asyncio.wait_for(posters_task, timeout=3.0)
-                    
-                    for movie in movies:
-                        if movie['title'] in posters:
-                            poster_data = posters[movie['title']]
-                            movie['poster_url'] = poster_data.get('poster_url', '')
-                            movie['poster_source'] = poster_data.get('source', 'custom')
-                            movie['poster_rating'] = poster_data.get('rating', '0.0')
-                            movie['has_poster'] = True
-                        else:
-                            # Fast fallback
-                            movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                            movie['poster_source'] = 'custom'
-                            movie['poster_rating'] = '0.0'
-                            movie['has_poster'] = True
-                            
-                except asyncio.TimeoutError:
-                    logger.warning("⏰ Home posters timeout")
-                    for movie in movies:
-                        movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                        movie['poster_source'] = 'custom'
-                        movie['poster_rating'] = '0.0'
-                        movie['has_poster'] = True
-                except Exception as e:
-                    logger.error(f"Poster fetch error: {e}")
-                    for movie in movies:
-                        movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                        movie['poster_source'] = 'custom'
-                        movie['poster_rating'] = '0.0'
-                        movie['has_poster'] = True
-        
-        logger.info(f"✅ Home movies loaded: {len(movies)} movies from SK4FiLM")
-        return movies
-        
-    except Exception as e:
-        logger.error(f"Home movies error: {e}, using fallback")
-        return await get_fallback_home_movies()
 
 # TELEGRAM BOT INITIALIZATION
 @performance_monitor.measure("telegram_init")
@@ -1487,8 +1417,8 @@ async def init_system():
         mongo_ok = await init_mongodb()
         if not mongo_ok:
             logger.error("❌ MongoDB initialization failed")
-            return False
-        
+            # Don't return False yet, we can continue with fallback
+            
         # Initialize modular components
         global cache_manager, verification_system, premium_system, poster_fetcher, sk4film_bot
         
@@ -1501,15 +1431,21 @@ async def init_system():
         else:
             logger.warning("⚠️ Cache Manager - Redis not available")
         
-        # Initialize Verification System
-        verification_system = VerificationSystem(Config, db)
-        await verification_system.start_cleanup_task()
-        logger.info("✅ Verification System initialized")
+        # Initialize Verification System only if MongoDB is available
+        if db is not None:
+            verification_system = VerificationSystem(Config, db)
+            await verification_system.start_cleanup_task()
+            logger.info("✅ Verification System initialized")
+        else:
+            logger.warning("⚠️ Verification System - MongoDB not available")
         
-        # Initialize Premium System
-        premium_system = PremiumSystem(Config, db)
-        await premium_system.start_cleanup_task()
-        logger.info("✅ Premium System initialized")
+        # Initialize Premium System only if MongoDB is available
+        if db is not None:
+            premium_system = PremiumSystem(Config, db)
+            await premium_system.start_cleanup_task()
+            logger.info("✅ Premium System initialized")
+        else:
+            logger.warning("⚠️ Premium System - MongoDB not available")
         
         # Initialize Poster Fetcher
         poster_fetcher = PosterFetcher(Config, cache_manager)
@@ -1520,10 +1456,13 @@ async def init_system():
         
         # ✅ Initialize Telegram if available
         if PYROGRAM_AVAILABLE and BOT_HANDLERS_AVAILABLE:
-            # Initialize SK4FiLMBot
-            sk4film_bot = SK4FiLMBot(Config, db)
-            await sk4film_bot.initialize()
-            logger.info("✅ SK4FiLMBot initialized")
+            # Initialize SK4FiLMBot only if MongoDB is available
+            if db is not None:
+                sk4film_bot = SK4FiLMBot(Config, db)
+                await sk4film_bot.initialize()
+                logger.info("✅ SK4FiLMBot initialized")
+            else:
+                logger.warning("⚠️ SK4FiLMBot - MongoDB not available")
             
             # Initialize Telegram clients
             telegram_ok = await init_telegram_clients()
@@ -1541,8 +1480,8 @@ async def init_system():
         # Start background tasks
         asyncio.create_task(cache_cleanup())
         
-        # Start indexing in background
-        if user_session_ready:
+        # Start indexing in background if everything is ready
+        if user_session_ready and files_col is not None:
             asyncio.create_task(index_files_background())
         
         init_time = time.time() - start_time
@@ -1551,11 +1490,13 @@ async def init_system():
         # Log initial performance
         logger.info(f"📊 Initial performance: {performance_monitor.get_stats()}")
         
+        # Always return True even if some components failed
         return True
         
     except Exception as e:
         logger.error(f"❌ System initialization failed: {e}")
-        return False
+        # Still return True to allow the app to run
+        return True
 
 # API ROUTES WITH OPTIMIZATIONS
 @app.route('/')
@@ -1602,7 +1543,7 @@ async def health():
 @app.route('/api/movies', methods=['GET'])
 @performance_monitor.measure("movies_endpoint")
 async def api_movies():
-    """Optimized movies endpoint with debugging - 30 movies return करेगा"""
+    """Optimized movies endpoint - Telegram session नहीं होने पर empty array return करेगा"""
     try:
         logger.debug("📽️ Getting home movies from SK4FiLM Main Channel...")
         
@@ -1627,7 +1568,7 @@ async def api_movies():
             'total': len(movies),
             'system_status': status,
             'timestamp': datetime.now().isoformat(),
-            'cache_hit': False  # Always false for live endpoint
+            'cache_hit': False
         })
     except Exception as e:
         logger.error(f"Movies API error: {e}")
@@ -1642,7 +1583,7 @@ async def api_movies():
 @app.route('/api/search', methods=['GET'])
 @performance_monitor.measure("search_endpoint")
 async def api_search():
-    """Optimized search endpoint - दोनों channels से search करेगा"""
+    """Optimized search endpoint - Telegram session नहीं होने पर empty results return करेगा"""
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
@@ -1674,7 +1615,7 @@ async def api_search():
 
 @app.route('/api/post', methods=['GET'])
 async def api_post():
-    """Get single post details - दोनों channels के related posts दिखाएगा"""
+    """Get single post details - Telegram session नहीं होने पर error return करेगा"""
     try:
         channel_id = int(request.args.get('channel', Config.MAIN_CHANNEL_ID))
         message_id = int(request.args.get('message', 0))
@@ -1684,6 +1625,14 @@ async def api_post():
                 'status': 'error',
                 'message': 'Invalid message ID'
             }), 400
+        
+        # ✅ Telegram session ready नहीं होने पर error return करेंगे
+        if not user_session_ready:
+            return jsonify({
+                'status': 'error',
+                'message': 'Telegram session not ready. Please try again later.',
+                'telegram_ready': False
+            }), 503
         
         post_data = await get_single_post_api(channel_id, message_id)
         
@@ -1933,7 +1882,7 @@ async def api_stats():
         stats = {}
         
         # Database stats
-        if files_col:
+        if files_col is not None:
             stats['database'] = {
                 'total_files': await files_col.count_documents({}),
                 'video_files': await files_col.count_documents({'is_video_file': True}),
