@@ -135,8 +135,9 @@ class CacheManager:
             return False
     
     def _serialize_value(self, value: Any) -> str:
-        """Serialize value for storage"""
+        """Serialize value for storage, preferring JSON when possible"""
         try:
+            # Try JSON first (faster and more standard)
             return json.dumps(value, default=str, ensure_ascii=False)
         except:
             # Fallback to pickle for complex objects
@@ -146,17 +147,29 @@ class CacheManager:
                 return str(value)
     
     def _deserialize_value(self, value: str, use_json: bool = True) -> Any:
-        """Deserialize stored value"""
+        """Deserialize stored value, preferring JSON when possible"""
         if value is None:
             return None
         
-        try:
-            if use_json:
+        if use_json:
+            try:
                 return json.loads(value)
-            else:
+            except:
+                # Try pickle as fallback
+                try:
+                    return pickle.loads(value.encode('latin-1'))
+                except:
+                    return value
+        else:
+            # Try pickle first
+            try:
                 return pickle.loads(value.encode('latin-1'))
-        except:
-            return value
+            except:
+                # Try JSON as fallback
+                try:
+                    return json.loads(value)
+                except:
+                    return value
     
     async def get(self, key: str, use_redis: bool = True) -> Optional[Any]:
         """Get value from cache"""
@@ -165,7 +178,14 @@ class CacheManager:
             value, expiry = self.memory_cache[key]
             if expiry is None or datetime.now() < expiry:
                 self.stats['memory_hits'] += 1
-                return value
+                
+                # JSON decode if needed
+                try:
+                    if isinstance(value, str):
+                        return json.loads(value)
+                    return value
+                except:
+                    return value
             else:
                 # Expired, remove from memory
                 del self.memory_cache[key]
@@ -185,8 +205,15 @@ class CacheManager:
                 if value is not None:
                     self.stats['redis_hits'] += 1
                     
-                    # Deserialize based on prefix
-                    deserialized = self._deserialize_value(value, use_json='json:' in str(key))
+                    # Try JSON decode
+                    try:
+                        deserialized = json.loads(value)
+                    except:
+                        # Fallback to other deserialization methods
+                        if 'json:' in str(key):
+                            deserialized = self._deserialize_value(value, use_json=True)
+                        else:
+                            deserialized = self._deserialize_value(value, use_json=False)
                     
                     # Also store in memory cache for faster access (with shorter expiry)
                     memory_expiry = datetime.now() + timedelta(minutes=2)
@@ -224,11 +251,16 @@ class CacheManager:
         # Store in Redis if enabled (persistent storage)
         if use_redis and self.redis_enabled and self.redis_client:
             try:
-                # Serialize based on value type
-                if isinstance(value, (dict, list, tuple, int, float, bool, str)) and not key.startswith('binary:'):
-                    serialized = self._serialize_value(value)
-                    prefixed_key = f"json:{key}"
-                else:
+                # Try JSON serialization first for common data types
+                serialized = None
+                try:
+                    if isinstance(value, (dict, list, tuple, int, float, bool, str)):
+                        serialized = json.dumps(value, default=str, ensure_ascii=False)
+                        prefixed_key = f"json:{key}"
+                    else:
+                        raise ValueError("Not JSON serializable")
+                except:
+                    # Fallback to other serialization methods
                     serialized = self._serialize_value(value)
                     prefixed_key = key
                 
@@ -439,11 +471,15 @@ class CacheManager:
                     pipe = self.redis_client.pipeline()
                     
                     for key, value in data.items():
-                        # Serialize based on value type (same as in set method)
-                        if isinstance(value, (dict, list, tuple, int, float, bool, str)) and not key.startswith('binary:'):
-                            serialized = self._serialize_value(value)
-                            prefixed_key = f"json:{key}"
-                        else:
+                        # Try JSON serialization first
+                        try:
+                            if isinstance(value, (dict, list, tuple, int, float, bool, str)) and not key.startswith('binary:'):
+                                serialized = json.dumps(value, default=str, ensure_ascii=False)
+                                prefixed_key = f"json:{key}"
+                            else:
+                                raise ValueError("Not JSON serializable")
+                        except:
+                            # Fallback to other serialization
                             serialized = self._serialize_value(value)
                             prefixed_key = key
                         
@@ -485,7 +521,15 @@ class CacheManager:
                 value, expiry = self.memory_cache[key]
                 if expiry is None or datetime.now() < expiry:
                     self.stats['memory_hits'] += 1
-                    results[key] = value
+                    
+                    # Try JSON decode
+                    try:
+                        if isinstance(value, str):
+                            results[key] = json.loads(value)
+                        else:
+                            results[key] = value
+                    except:
+                        results[key] = value
                 else:
                     # Expired
                     del self.memory_cache[key]
@@ -511,7 +555,14 @@ class CacheManager:
                         value = redis_values[i]
                         if value is not None:
                             self.stats['redis_hits'] += 1
-                            deserialized = self._deserialize_value(value, use_json=True)
+                            
+                            # Try JSON decode
+                            try:
+                                deserialized = json.loads(value)
+                            except:
+                                # Fallback to other deserialization
+                                deserialized = self._deserialize_value(value, use_json='json:' in str(key))
+                            
                             results[key] = deserialized
                             
                             # Cache in memory for faster access
