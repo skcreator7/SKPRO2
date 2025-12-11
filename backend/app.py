@@ -147,8 +147,8 @@ class Config:
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
     
     # Channel Configuration - OPTIMIZED
-    MAIN_CHANNEL_ID = -1001891090100
-    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Only active channels
+    MAIN_CHANNEL_ID = -1001891090100  # ✅ यहाँ से 30 movies fetch करेंगे
+    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # ✅ दोनों channels के posts दिखाएंगे
     FILE_CHANNEL_ID = -1001768249569
     
     # Links
@@ -183,7 +183,7 @@ class Config:
     TMDB_KEYS = ["e547e17d4e91f3e62a571655cd1ccaff", "8265bd1f"]
     
     # Performance Settings
-    MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
+    MAX_CONCURRENT_REQUESTS = int(os.encio.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
 
@@ -946,10 +946,10 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     
     return result_data
 
-# LIVE POSTS WITH CACHE - IMPROVED VERSION
+# ✅ UPDATED LIVE POSTS FUNCTION - MAIN_CHANNEL_ID से 30 movies fetch करेगा
 @async_cache_with_ttl(maxsize=100, ttl=60)
-async def get_live_posts_multi_channel(limit_per_channel=10):
-    """Cached live posts with better error handling"""
+async def get_live_posts_multi_channel(limit_per_channel=30):  # ✅ 30 movies fetch करेंगे
+    """Cached live posts with better error handling - MAIN_CHANNEL_ID से 30 movies"""
     if not User or not user_session_ready:
         logger.warning("❌ Telegram client not available for live posts")
         return []
@@ -962,6 +962,7 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
             cname = channel_name_cached(channel_id)
             logger.debug(f"Fetching posts from {cname} ({channel_id})")
             
+            count = 0
             async for msg in safe_telegram_generator(
                 User.get_chat_history, 
                 channel_id, 
@@ -980,23 +981,26 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
                             'date': msg.date,
                             'is_new': is_new(msg.date) if msg.date else False
                         })
+                        count += 1
+                        
+                        # Stop at 30 movies
+                        if count >= 30:
+                            break
         except Exception as e:
             logger.error(f"Error getting posts from channel {channel_id}: {e}")
         return posts
     
     try:
-        # Fetch concurrently
-        tasks = [fetch_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # ✅ सिर्फ MAIN_CHANNEL_ID से movies fetch करेंगे
+        main_channel_id = Config.MAIN_CHANNEL_ID
+        result = await fetch_channel_posts(main_channel_id)
         
-        for i, result in enumerate(results):
-            channel_id = Config.TEXT_CHANNEL_IDS[i]
-            if isinstance(result, list):
-                if result:
-                    logger.debug(f"✅ Got {len(result)} posts from {channel_name_cached(channel_id)}")
-                all_posts.extend(result)
-            else:
-                logger.error(f"❌ Error from channel {channel_id}: {result}")
+        if isinstance(result, list):
+            if result:
+                logger.info(f"✅ Got {len(result)} movies from SK4FiLM Main Channel")
+            all_posts.extend(result)
+        else:
+            logger.error(f"❌ Error from main channel: {result}")
         
         # Deduplicate and sort
         seen_titles = set()
@@ -1007,17 +1011,18 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
                 seen_titles.add(post['normalized_title'])
                 unique_posts.append(post)
         
-        logger.info(f"📊 Live posts collected: {len(unique_posts)} unique posts")
-        return unique_posts[:20]
+        logger.info(f"📊 Live movies collected: {len(unique_posts)} unique movies from SK4FiLM")
+        return unique_posts[:30]  # ✅ 30 movies return करेंगे
         
     except Exception as e:
         logger.error(f"Live posts multi-channel error: {e}")
         return []
 
+# ✅ UPDATED get_single_post_api FUNCTION - दोनों channels के posts दिखाएगा
 async def get_single_post_api(channel_id, message_id):
-    """Get single movie/post details"""
+    """Get single movie/post details - दोनों channels से search करेगा"""
     try:
-        # Try to get the message
+        # First try to get the specific message
         if User and user_session_ready:
             msg = await safe_telegram_operation(
                 User.get_messages,
@@ -1076,11 +1081,37 @@ async def get_single_post_api(channel_id, message_id):
                         poster_source = poster_data['source']
                         poster_rating = poster_data.get('rating', '0.0')
                 
-                # FIXED: Using channel_name function instead of undefined channel_name variable
+                # ✅ Get related posts from BOTH channels
+                related_posts = []
+                if user_session_ready:
+                    for search_channel_id in Config.TEXT_CHANNEL_IDS:
+                        try:
+                            # Search for same title in this channel
+                            async for search_msg in safe_telegram_generator(
+                                User.search_messages,
+                                search_channel_id,
+                                query=title,
+                                limit=5
+                            ):
+                                if search_msg and search_msg.text and search_msg.id != message_id:
+                                    search_title = extract_title_smart(search_msg.text)
+                                    if search_title and normalized_title in normalize_title(search_title):
+                                        related_posts.append({
+                                            'title': search_title,
+                                            'content': format_post(search_msg.text),
+                                            'channel': channel_name_cached(search_channel_id),
+                                            'channel_id': search_channel_id,
+                                            'message_id': search_msg.id,
+                                            'date': search_msg.date.isoformat() if isinstance(search_msg.date, datetime) else str(search_msg.date),
+                                            'is_new': is_new(search_msg.date) if search_msg.date else False
+                                        })
+                        except Exception as e:
+                            logger.error(f"Error searching in channel {search_channel_id}: {e}")
+                
                 post_data = {
                     'title': title,
                     'content': format_post(msg.text),
-                    'channel': channel_name(channel_id),  # FIXED HERE
+                    'channel': channel_name(channel_id),
                     'channel_id': channel_id,
                     'message_id': message_id,
                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
@@ -1092,7 +1123,8 @@ async def get_single_post_api(channel_id, message_id):
                     'thumbnail_source': thumbnail_source,
                     'poster_url': poster_url,
                     'poster_source': poster_source,
-                    'poster_rating': poster_rating
+                    'poster_rating': poster_rating,
+                    'related_posts': related_posts[:10]  # Limit to 10 related posts
                 }
                 
                 return post_data
@@ -1101,7 +1133,7 @@ async def get_single_post_api(channel_id, message_id):
         return {
             'title': 'Sample Movie (2024)',
             'content': '🎬 <b>Sample Movie (2024)</b>\n📅 Release: 2024\n🎭 Genre: Action, Drama\n⭐ Starring: Popular Actors\n\n📥 Download now from SK4FiLM!',
-            'channel': channel_name(channel_id),  # FIXED HERE
+            'channel': channel_name(channel_id),
             'channel_id': channel_id,
             'message_id': message_id,
             'date': datetime.now().isoformat(),
@@ -1120,7 +1152,8 @@ async def get_single_post_api(channel_id, message_id):
             'thumbnail_source': 'default',
             'poster_url': f"{Config.BACKEND_URL}/api/poster?title=Sample+Movie&year=2024",
             'poster_source': 'custom',
-            'poster_rating': '7.5'
+            'poster_rating': '7.5',
+            'related_posts': []
         }
         
     except Exception as e:
@@ -1137,7 +1170,7 @@ async def get_fallback_home_movies():
             cursor = files_col.find(
                 {'is_video_file': True},
                 {'title': 1, 'date': 1, 'quality': 1}
-            ).sort('date', -1).limit(20)
+            ).sort('date', -1).limit(30)
             
             movies = []
             async for doc in cursor:
@@ -1284,10 +1317,10 @@ async def search_movies_api(query, limit=12, page=1):
             }
         }
 
-# UPDATED get_home_movies_live FUNCTION
+# ✅ UPDATED get_home_movies_live FUNCTION - 30 movies fetch करेगा
 @performance_monitor.measure("home_movies")
 async def get_home_movies_live():
-    """Optimized home movies with timeout and fallback"""
+    """Optimized home movies with timeout and fallback - 30 movies fetch करेगा"""
     try:
         # Check if Telegram is available
         if not user_session_ready or not User:
@@ -1296,8 +1329,8 @@ async def get_home_movies_live():
         
         # Try to get posts with timeout
         try:
-            posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=10))
-            posts = await asyncio.wait_for(posts_task, timeout=5.0)
+            posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=30))  # ✅ 30 movies
+            posts = await asyncio.wait_for(posts_task, timeout=8.0)  # Increased timeout
         except asyncio.TimeoutError:
             logger.warning("⏰ Home movies timeout, using fallback")
             return await get_fallback_home_movies()
@@ -1313,7 +1346,7 @@ async def get_home_movies_live():
         movies = []
         seen = set()
         
-        for post in posts[:15]:  # Limit to 15
+        for post in posts[:30]:  # ✅ 30 movies limit
             if not post or 'title' not in post:
                 continue
                 
@@ -1371,7 +1404,7 @@ async def get_home_movies_live():
                         movie['poster_rating'] = '0.0'
                         movie['has_poster'] = True
         
-        logger.info(f"✅ Home movies loaded: {len(movies)} movies")
+        logger.info(f"✅ Home movies loaded: {len(movies)} movies from SK4FiLM")
         return movies
         
     except Exception as e:
@@ -1569,9 +1602,9 @@ async def health():
 @app.route('/api/movies', methods=['GET'])
 @performance_monitor.measure("movies_endpoint")
 async def api_movies():
-    """Optimized movies endpoint with debugging"""
+    """Optimized movies endpoint with debugging - 30 movies return करेगा"""
     try:
-        logger.debug("📽️ Getting home movies...")
+        logger.debug("📽️ Getting home movies from SK4FiLM Main Channel...")
         
         # Check system status
         status = {
@@ -1579,13 +1612,14 @@ async def api_movies():
             'User_available': User is not None,
             'telegram_channels': len(Config.TEXT_CHANNEL_IDS),
             'cache_manager': cache_manager is not None,
-            'poster_fetcher': poster_fetcher is not None
+            'poster_fetcher': poster_fetcher is not None,
+            'main_channel_id': Config.MAIN_CHANNEL_ID
         }
         logger.debug(f"System status: {status}")
         
         movies = await get_home_movies_live()
         
-        logger.info(f"✅ Home movies API: {len(movies)} movies returned")
+        logger.info(f"✅ Home movies API: {len(movies)} movies returned from SK4FiLM")
         
         return jsonify({
             'status': 'success',
@@ -1608,7 +1642,7 @@ async def api_movies():
 @app.route('/api/search', methods=['GET'])
 @performance_monitor.measure("search_endpoint")
 async def api_search():
-    """Optimized search endpoint"""
+    """Optimized search endpoint - दोनों channels से search करेगा"""
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
@@ -1628,7 +1662,8 @@ async def api_search():
             'results': result_data['results'],
             'pagination': result_data['pagination'],
             'timestamp': datetime.now().isoformat(),
-            'cache_hit': result_data.get('search_metadata', {}).get('cache_hit', False)
+            'cache_hit': result_data.get('search_metadata', {}).get('cache_hit', False),
+            'channels_searched': Config.TEXT_CHANNEL_IDS
         })
     except Exception as e:
         logger.error(f"Search API error: {e}")
@@ -1639,7 +1674,7 @@ async def api_search():
 
 @app.route('/api/post', methods=['GET'])
 async def api_post():
-    """Get single post details"""
+    """Get single post details - दोनों channels के related posts दिखाएगा"""
     try:
         channel_id = int(request.args.get('channel', Config.MAIN_CHANNEL_ID))
         message_id = int(request.args.get('message', 0))
@@ -1656,6 +1691,7 @@ async def api_post():
             return jsonify({
                 'status': 'success',
                 'post': post_data,
+                'channels_searched': Config.TEXT_CHANNEL_IDS,
                 'timestamp': datetime.now().isoformat()
             })
         else:
@@ -1917,7 +1953,9 @@ async def api_stats():
             'bot_status': bot_started,
             'user_session': user_session_ready,
             'uptime': time.time() - app_start_time if 'app_start_time' in globals() else 0,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'main_channel_id': Config.MAIN_CHANNEL_ID,
+            'text_channels': Config.TEXT_CHANNEL_IDS
         }
         
         return jsonify({
