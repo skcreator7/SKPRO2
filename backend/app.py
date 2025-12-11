@@ -946,11 +946,12 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     
     return result_data
 
-# LIVE POSTS WITH CACHE
+# LIVE POSTS WITH CACHE - IMPROVED VERSION
 @async_cache_with_ttl(maxsize=100, ttl=60)
 async def get_live_posts_multi_channel(limit_per_channel=10):
-    """Cached live posts"""
+    """Cached live posts with better error handling"""
     if not User or not user_session_ready:
+        logger.warning("❌ Telegram client not available for live posts")
         return []
     
     all_posts = []
@@ -958,6 +959,9 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
     async def fetch_channel_posts(channel_id):
         posts = []
         try:
+            cname = channel_name_cached(channel_id)
+            logger.debug(f"Fetching posts from {cname} ({channel_id})")
+            
             async for msg in safe_telegram_generator(
                 User.get_chat_history, 
                 channel_id, 
@@ -970,7 +974,7 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
                             'title': title,
                             'normalized_title': normalize_title_cached(title),
                             'content': msg.text,
-                            'channel_name': channel_name_cached(channel_id),
+                            'channel_name': cname,
                             'channel_id': channel_id,
                             'message_id': msg.id,
                             'date': msg.date,
@@ -980,24 +984,35 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
             logger.error(f"Error getting posts from channel {channel_id}: {e}")
         return posts
     
-    # Fetch concurrently
-    tasks = [fetch_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    for result in results:
-        if isinstance(result, list):
-            all_posts.extend(result)
-    
-    # Deduplicate and sort
-    seen_titles = set()
-    unique_posts = []
-    
-    for post in sorted(all_posts, key=lambda x: x.get('date', datetime.min), reverse=True):
-        if post['normalized_title'] not in seen_titles:
-            seen_titles.add(post['normalized_title'])
-            unique_posts.append(post)
-    
-    return unique_posts[:20]
+    try:
+        # Fetch concurrently
+        tasks = [fetch_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for i, result in enumerate(results):
+            channel_id = Config.TEXT_CHANNEL_IDS[i]
+            if isinstance(result, list):
+                if result:
+                    logger.debug(f"✅ Got {len(result)} posts from {channel_name_cached(channel_id)}")
+                all_posts.extend(result)
+            else:
+                logger.error(f"❌ Error from channel {channel_id}: {result}")
+        
+        # Deduplicate and sort
+        seen_titles = set()
+        unique_posts = []
+        
+        for post in sorted(all_posts, key=lambda x: x.get('date', datetime.min), reverse=True):
+            if post['normalized_title'] not in seen_titles:
+                seen_titles.add(post['normalized_title'])
+                unique_posts.append(post)
+        
+        logger.info(f"📊 Live posts collected: {len(unique_posts)} unique posts")
+        return unique_posts[:20]
+        
+    except Exception as e:
+        logger.error(f"Live posts multi-channel error: {e}")
+        return []
 
 async def get_single_post_api(channel_id, message_id):
     """Get single movie/post details"""
@@ -1112,6 +1127,64 @@ async def get_single_post_api(channel_id, message_id):
         logger.error(f"Single post API error: {e}")
         return None
 
+# FALLBACK HOME MOVIES FUNCTION
+async def get_fallback_home_movies():
+    """Fallback home movies when Telegram is not available"""
+    try:
+        # Try to get from MongoDB cache
+        if files_col:
+            # Get recent files from MongoDB
+            cursor = files_col.find(
+                {'is_video_file': True},
+                {'title': 1, 'date': 1, 'quality': 1}
+            ).sort('date', -1).limit(20)
+            
+            movies = []
+            async for doc in cursor:
+                movies.append({
+                    'title': doc.get('title', 'Unknown'),
+                    'date': doc.get('date', datetime.now()).isoformat(),
+                    'is_new': is_new(doc.get('date', datetime.now())),
+                    'channel': 'SK4FiLM Files',
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(doc.get('title', ''))}",
+                    'poster_source': 'custom',
+                    'poster_rating': '0.0',
+                    'has_poster': True
+                })
+            
+            if movies:
+                logger.info(f"✅ Fallback: {len(movies)} movies from MongoDB")
+                return movies
+    except Exception as e:
+        logger.error(f"Fallback home movies error: {e}")
+    
+    # Ultimate fallback
+    return [
+        {
+            'title': 'Avatar: The Way of Water (2022)',
+            'date': datetime.now().isoformat(),
+            'is_new': True,
+            'channel': 'SK4FiLM',
+            'channel_id': Config.MAIN_CHANNEL_ID,
+            'poster_url': f"{Config.BACKEND_URL}/api/poster?title=Avatar+The+Way+of+Water&year=2022",
+            'poster_source': 'custom',
+            'poster_rating': '7.6',
+            'has_poster': True
+        },
+        {
+            'title': 'Top Gun: Maverick (2022)',
+            'date': (datetime.now() - timedelta(days=1)).isoformat(),
+            'is_new': False,
+            'channel': 'SK4FiLM',
+            'channel_id': Config.MAIN_CHANNEL_ID,
+            'poster_url': f"{Config.BACKEND_URL}/api/poster?title=Top+Gun+Maverick&year=2022",
+            'poster_source': 'custom',
+            'poster_rating': '8.2',
+            'has_poster': True
+        }
+    ]
+
 # OPTIMIZED API FUNCTIONS
 @performance_monitor.measure("search_api")
 async def search_movies_api(query, limit=12, page=1):
@@ -1211,71 +1284,99 @@ async def search_movies_api(query, limit=12, page=1):
             }
         }
 
-# Update get_home_movies_live function:
+# UPDATED get_home_movies_live FUNCTION
 @performance_monitor.measure("home_movies")
 async def get_home_movies_live():
-    """Optimized home movies with timeout"""
+    """Optimized home movies with timeout and fallback"""
     try:
-        posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=10))
-        posts = await asyncio.wait_for(posts_task, timeout=3.0)
+        # Check if Telegram is available
+        if not user_session_ready or not User:
+            logger.warning("⚠️ Telegram user session not ready, using fallback home movies")
+            return await get_fallback_home_movies()
         
-    except asyncio.TimeoutError:
-        logger.warning("⏰ Home movies timeout")
-        return []
-    
-    movies = []
-    seen = set()
-    
-    for post in posts[:15]:  # Limit to 15
-        tk = post['title'].lower().strip()
-        if tk not in seen:
-            seen.add(tk)
-            movies.append({
-                'title': post['title'],
-                'date': post['date'].isoformat() if isinstance(post['date'], datetime) else post['date'],
-                'is_new': post.get('is_new', False),
-                'channel': post.get('channel_name', 'SK4FiLM'),
-                'channel_id': post.get('channel_id')
-            })
-    
-    # Fetch posters with timeout
-    if movies and poster_fetcher:
-        titles = [movie['title'] for movie in movies]
-        
+        # Try to get posts with timeout
         try:
-            posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
-            posters = await asyncio.wait_for(posters_task, timeout=2.0)
-            
-            for movie in movies:
-                if movie['title'] in posters:
-                    poster_data = posters[movie['title']]
-                    movie['poster_url'] = poster_data.get('poster_url', '')
-                    movie['poster_source'] = poster_data.get('source', 'custom')
-                    movie['poster_rating'] = poster_data.get('rating', '0.0')
-                    movie['has_poster'] = True
-                else:
-                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                    movie['poster_source'] = 'custom'
-                    movie['poster_rating'] = '0.0'
-                    movie['has_poster'] = True
-                    
+            posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=10))
+            posts = await asyncio.wait_for(posts_task, timeout=5.0)
         except asyncio.TimeoutError:
-            logger.warning("⏰ Home posters timeout")
-            for movie in movies:
-                movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                movie['poster_source'] = 'custom'
-                movie['poster_rating'] = '0.0'
-                movie['has_poster'] = True
-        except AttributeError as e:
-            if "'Config' has no attribute 'get_poster'" in str(e):
-                logger.error("❌ FIXED: Config.get_poster() error in home movies")
-                for movie in movies:
-                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
-                    movie['poster_source'] = 'custom'
-                    movie['poster_rating'] = '0.0'
-                    movie['has_poster'] = True
-    
-    return movies
+            logger.warning("⏰ Home movies timeout, using fallback")
+            return await get_fallback_home_movies()
+        except Exception as e:
+            logger.error(f"Error getting live posts: {e}, using fallback")
+            return await get_fallback_home_movies()
+        
+        # If no posts, use fallback
+        if not posts:
+            logger.warning("No posts found, using fallback")
+            return await get_fallback_home_movies()
+        
+        movies = []
+        seen = set()
+        
+        for post in posts[:15]:  # Limit to 15
+            if not post or 'title' not in post:
+                continue
+                
+            tk = post['title'].lower().strip()
+            if tk not in seen and tk:
+                seen.add(tk)
+                movies.append({
+                    'title': post['title'],
+                    'date': post.get('date', datetime.now().isoformat()),
+                    'is_new': post.get('is_new', False),
+                    'channel': post.get('channel_name', 'SK4FiLM'),
+                    'channel_id': post.get('channel_id'),
+                    'message_id': post.get('message_id', 0)
+                })
+        
+        if not movies:
+            logger.warning("No valid movies found, using fallback")
+            return await get_fallback_home_movies()
+        
+        # Fetch posters with timeout
+        if movies and poster_fetcher:
+            titles = [movie['title'] for movie in movies if movie.get('title')]
+            
+            if titles:
+                try:
+                    posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
+                    posters = await asyncio.wait_for(posters_task, timeout=3.0)
+                    
+                    for movie in movies:
+                        if movie['title'] in posters:
+                            poster_data = posters[movie['title']]
+                            movie['poster_url'] = poster_data.get('poster_url', '')
+                            movie['poster_source'] = poster_data.get('source', 'custom')
+                            movie['poster_rating'] = poster_data.get('rating', '0.0')
+                            movie['has_poster'] = True
+                        else:
+                            # Fast fallback
+                            movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                            movie['poster_source'] = 'custom'
+                            movie['poster_rating'] = '0.0'
+                            movie['has_poster'] = True
+                            
+                except asyncio.TimeoutError:
+                    logger.warning("⏰ Home posters timeout")
+                    for movie in movies:
+                        movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                        movie['poster_source'] = 'custom'
+                        movie['poster_rating'] = '0.0'
+                        movie['has_poster'] = True
+                except Exception as e:
+                    logger.error(f"Poster fetch error: {e}")
+                    for movie in movies:
+                        movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                        movie['poster_source'] = 'custom'
+                        movie['poster_rating'] = '0.0'
+                        movie['has_poster'] = True
+        
+        logger.info(f"✅ Home movies loaded: {len(movies)} movies")
+        return movies
+        
+    except Exception as e:
+        logger.error(f"Home movies error: {e}, using fallback")
+        return await get_fallback_home_movies()
 
 # TELEGRAM BOT INITIALIZATION
 @performance_monitor.measure("telegram_init")
@@ -1468,22 +1569,40 @@ async def health():
 @app.route('/api/movies', methods=['GET'])
 @performance_monitor.measure("movies_endpoint")
 async def api_movies():
-    """Optimized movies endpoint"""
+    """Optimized movies endpoint with debugging"""
     try:
+        logger.debug("📽️ Getting home movies...")
+        
+        # Check system status
+        status = {
+            'user_session_ready': user_session_ready,
+            'User_available': User is not None,
+            'telegram_channels': len(Config.TEXT_CHANNEL_IDS),
+            'cache_manager': cache_manager is not None,
+            'poster_fetcher': poster_fetcher is not None
+        }
+        logger.debug(f"System status: {status}")
+        
         movies = await get_home_movies_live()
+        
+        logger.info(f"✅ Home movies API: {len(movies)} movies returned")
         
         return jsonify({
             'status': 'success',
             'movies': movies,
             'total': len(movies),
+            'system_status': status,
             'timestamp': datetime.now().isoformat(),
-            'cache_hit': True
+            'cache_hit': False  # Always false for live endpoint
         })
     except Exception as e:
         logger.error(f"Movies API error: {e}")
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': str(e),
+            'movies': [],  # Always return empty array on error
+            'total': 0,
+            'timestamp': datetime.now().isoformat()
         }), 500
 
 @app.route('/api/search', methods=['GET'])
