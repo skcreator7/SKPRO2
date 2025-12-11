@@ -1182,7 +1182,34 @@ async def search_movies_api(query, limit=12, page=1):
         
     except Exception as e:
         logger.error(f"Search API error: {e}")
-        raise
+        # Check if error is related to Config.get_poster
+        if "'Config' has no attribute 'get_poster'" in str(e):
+            logger.error("❌ FIXED: Config.get_poster() method does not exist")
+            # Return results without posters
+            if 'result_data' in locals():
+                for result in result_data.get('results', []):
+                    result['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result.get('title', ''))}"
+                    result['poster_source'] = 'custom'
+                    result['poster_rating'] = '0.0'
+                    result['has_poster'] = False
+                return result_data
+        
+        # Return empty results on error
+        return {
+            'results': [],
+            'pagination': {
+                'current_page': page,
+                'total_pages': 1,
+                'total_results': 0,
+                'per_page': limit,
+                'has_next': False,
+                'has_previous': False
+            },
+            'search_metadata': {
+                'error': True,
+                'query': query
+            }
+        }
 
 # Update get_home_movies_live function:
 @performance_monitor.measure("home_movies")
@@ -1239,6 +1266,14 @@ async def get_home_movies_live():
                 movie['poster_source'] = 'custom'
                 movie['poster_rating'] = '0.0'
                 movie['has_poster'] = True
+        except AttributeError as e:
+            if "'Config' has no attribute 'get_poster'" in str(e):
+                logger.error("❌ FIXED: Config.get_poster() error in home movies")
+                for movie in movies:
+                    movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}"
+                    movie['poster_source'] = 'custom'
+                    movie['poster_rating'] = '0.0'
+                    movie['has_poster'] = True
     
     return movies
 
