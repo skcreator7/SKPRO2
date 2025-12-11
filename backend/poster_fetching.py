@@ -8,6 +8,20 @@ import logging
 from urllib.parse import quote
 import re
 
+# ⭐ ADD THIS CODE HERE ⭐
+from enum import Enum
+
+class PosterSource(Enum):
+    LETTERBOXD = "letterboxd"
+    OMDB = "omdb"
+    IMDB = "imdb"
+    IMPAWARDS = "impawards"
+    JUSTWATCH = "justwatch"
+    YOUTUBE = "youtube"
+    CUSTOM = "custom"
+    DEFAULT = "default"
+
+# DO NOT CHANGE ANYTHING BELOW THIS LINE  
 logger = logging.getLogger(__name__)
 
 class PosterFetcher:
