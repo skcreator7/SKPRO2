@@ -402,6 +402,151 @@ class CacheManager:
         except:
             return 0
     
+    async def batch_set(self, data: Dict[str, Any], expire_seconds: int = 3600, 
+                        use_redis: bool = True, priority: str = 'normal') -> bool:
+        """
+        Efficiently store multiple cache items using Redis pipeline
+        
+        Args:
+            data: Dictionary of key-value pairs to cache
+            expire_seconds: Cache expiry in seconds
+            use_redis: Whether to use Redis (True) or memory only (False)
+            priority: Cache priority ('high', 'normal', 'low')
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Priority-based expiry adjustments (same as in set method)
+            if priority == 'high':
+                memory_expire_seconds = min(expire_seconds, 300)  # Max 5 min in memory
+                redis_expire_seconds = expire_seconds
+            elif priority == 'low':
+                memory_expire_seconds = min(expire_seconds, 60)   # Max 1 min in memory
+                redis_expire_seconds = min(expire_seconds, 1800)  # Max 30 min in Redis
+            else:  # normal
+                memory_expire_seconds = min(expire_seconds, 180)  # Max 3 min in memory
+                redis_expire_seconds = expire_seconds
+            
+            # Store in memory cache for all items
+            memory_expiry = datetime.now() + timedelta(seconds=memory_expire_seconds) if memory_expire_seconds > 0 else None
+            for key, value in data.items():
+                self.memory_cache[key] = (value, memory_expiry)
+            
+            # Store in Redis if enabled using pipeline
+            if use_redis and self.redis_enabled and self.redis_client:
+                try:
+                    pipe = self.redis_client.pipeline()
+                    
+                    for key, value in data.items():
+                        # Serialize based on value type (same as in set method)
+                        if isinstance(value, (dict, list, tuple, int, float, bool, str)) and not key.startswith('binary:'):
+                            serialized = self._serialize_value(value)
+                            prefixed_key = f"json:{key}"
+                        else:
+                            serialized = self._serialize_value(value)
+                            prefixed_key = key
+                        
+                        # Store with expiry
+                        if redis_expire_seconds > 0:
+                            pipe.setex(prefixed_key, redis_expire_seconds, serialized)
+                        else:
+                            pipe.set(prefixed_key, serialized)
+                    
+                    await pipe.execute()
+                    return True
+                except Exception as e:
+                    logger.debug(f"Redis batch set error: {e}")
+                    # Don't fail if Redis is down, memory cache still worked
+                    return True  # Still success because memory cache worked
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Batch set error: {e}")
+            return False
+    
+    async def batch_get(self, keys: List[str], use_redis: bool = True) -> Dict[str, Optional[Any]]:
+        """
+        Get multiple values from cache at once
+        
+        Args:
+            keys: List of keys to retrieve
+            use_redis: Whether to check Redis
+        
+        Returns:
+            Dict of key-value pairs (missing keys will have None value)
+        """
+        results = {}
+        
+        # First check memory cache
+        for key in keys:
+            if key in self.memory_cache:
+                value, expiry = self.memory_cache[key]
+                if expiry is None or datetime.now() < expiry:
+                    self.stats['memory_hits'] += 1
+                    results[key] = value
+                else:
+                    # Expired
+                    del self.memory_cache[key]
+                    self.stats['memory_evictions'] += 1
+                    results[key] = None
+            else:
+                self.stats['memory_misses'] += 1
+                results[key] = None
+        
+        # For keys not found in memory, check Redis
+        if use_redis and self.redis_enabled and self.redis_client:
+            try:
+                # Get all missing keys from Redis
+                missing_keys = [k for k in keys if results.get(k) is None]
+                
+                if missing_keys:
+                    # Try with json prefix first
+                    prefixed_keys = [f"json:{k}" for k in missing_keys]
+                    redis_values = await self.redis_client.mget(*prefixed_keys)
+                    
+                    # Process results
+                    for i, key in enumerate(missing_keys):
+                        value = redis_values[i]
+                        if value is not None:
+                            self.stats['redis_hits'] += 1
+                            deserialized = self._deserialize_value(value, use_json=True)
+                            results[key] = deserialized
+                            
+                            # Cache in memory for faster access
+                            memory_expiry = datetime.now() + timedelta(minutes=2)
+                            self.memory_cache[key] = (deserialized, memory_expiry)
+                        else:
+                            self.stats['redis_misses'] += 1
+            except Exception as e:
+                logger.debug(f"Redis batch get error: {e}")
+        
+        return results
+    
+    async def exists(self, key: str) -> bool:
+        """Check if a key exists in cache (checks both memory and Redis)"""
+        # Check memory cache
+        if key in self.memory_cache:
+            value, expiry = self.memory_cache[key]
+            if expiry is None or datetime.now() < expiry:
+                return True
+            else:
+                # Expired, remove it
+                del self.memory_cache[key]
+                self.stats['memory_evictions'] += 1
+        
+        # Check Redis
+        if self.redis_enabled and self.redis_client:
+            try:
+                # Check both prefixed and non-prefixed versions
+                exists = await self.redis_client.exists(f"json:{key}", key)
+                return exists > 0
+            except Exception as e:
+                logger.debug(f"Redis exists check error: {e}")
+        
+        return False
+    
     async def get_stats_summary(self) -> Dict[str, Any]:
         """Get cache statistics summary"""
         redis_info = {}
