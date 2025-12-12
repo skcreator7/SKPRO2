@@ -1700,7 +1700,7 @@ async def search_movies_api(query, limit=12, page=1):
             # Fetch posters with timeout
             try:
                 posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
-                posters = await asyncio.wait_for(posters_task, timeout=3.0)
+                posters = await asyncio.wait_for(posters_task, timeout=7.0)
                 
                 for result in result_data['results']:
                     if result['title'] in posters:
@@ -1736,7 +1736,7 @@ async def get_home_movies_live():
     """Optimized home movies with timeout"""
     try:
         posts_task = asyncio.create_task(get_live_posts_multi_channel(limit_per_channel=10))
-        posts = await asyncio.wait_for(posts_task, timeout=3.0)
+        posts = await asyncio.wait_for(posts_task, timeout=7.0)
         
     except asyncio.TimeoutError:
         logger.warning("⏰ Home movies timeout")
