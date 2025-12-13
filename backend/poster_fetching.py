@@ -65,7 +65,7 @@ class PosterFetcher:
         }
         
         # Default fallback
-        self.default_poster = "https://via.placeholder.com/300x450/1a1a2e/ffffff?text=No+Poster"
+        self.default_poster = "https://iili.io/fAeIwv9.th.png"
     
     async def init_session(self):
         """Initialize HTTP session"""
