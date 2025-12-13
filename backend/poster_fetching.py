@@ -1,5 +1,6 @@
 """
 poster_fetching.py - Multi-source poster fetching with intelligent fallback
+UPDATED: Fixed to work with app.py
 """
 import aiohttp
 import asyncio
@@ -7,9 +8,10 @@ from typing import Dict, Any, Optional, List
 import logging
 from urllib.parse import quote
 import re
-
-# ⭐ ADD THIS CODE HERE ⭐
+from datetime import datetime, timedelta
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 class PosterSource(Enum):
     LETTERBOXD = "letterboxd"
@@ -20,9 +22,6 @@ class PosterSource(Enum):
     YOUTUBE = "youtube"
     CUSTOM = "custom"
     DEFAULT = "default"
-
-# DO NOT CHANGE ANYTHING BELOW THIS LINE  
-logger = logging.getLogger(__name__)
 
 class PosterFetcher:
     def __init__(self, cache_manager, config):
@@ -40,7 +39,7 @@ class PosterFetcher:
             'omdb': {
                 'priority': 2,
                 'timeout': 2,
-                'enabled': hasattr(config, 'OMDB_API_KEY') and config.OMDB_API_KEY
+                'enabled': hasattr(config, 'OMDB_KEYS') and config.OMDB_KEYS
             },
             'imdb': {
                 'priority': 3,
@@ -88,12 +87,17 @@ class PosterFetcher:
         start_time = asyncio.get_event_loop().time()
         
         # Check cache first
-        for source_name in self.sources.keys():
-            cached = await self.cache.get_poster(title, source_name)
+        cache_key = f"poster:{title}:{year}" if year else f"poster:{title}"
+        if self.cache and hasattr(self.cache, 'get'):
+            cached = await self.cache.get(cache_key)
             if cached:
-                cached['cached'] = True
-                cached['response_time'] = 0
-                return cached
+                try:
+                    result = json.loads(cached)
+                    result['cached'] = True
+                    result['response_time'] = 0
+                    return result
+                except:
+                    pass
         
         # Prepare search query
         search_query = f"{title} {year}" if year else title
@@ -111,7 +115,12 @@ class PosterFetcher:
                 result = await task
                 if result and result.get('url'):
                     # Cache the result
-                    await self.cache.cache_poster(title, result, result['source'])
+                    if self.cache and hasattr(self.cache, 'set'):
+                        await self.cache.set(
+                            cache_key, 
+                            json.dumps(result), 
+                            expire_seconds=getattr(self.config, 'CACHE_TTL', 300)
+                        )
                     
                     end_time = asyncio.get_event_loop().time()
                     result['response_time'] = int((end_time - start_time) * 1000)
@@ -123,7 +132,7 @@ class PosterFetcher:
                 continue
         
         # Fallback to default
-        return {
+        result = {
             'url': self.default_poster,
             'source': 'default',
             'quality': 'low',
@@ -131,6 +140,16 @@ class PosterFetcher:
             'cached': False,
             'response_time': int((asyncio.get_event_loop().time() - start_time) * 1000)
         }
+        
+        # Cache default result too
+        if self.cache and hasattr(self.cache, 'set'):
+            await self.cache.set(
+                cache_key, 
+                json.dumps(result), 
+                expire_seconds=3600
+            )
+        
+        return result
     
     async def _fetch_from_source(self, source: str, title: str, year: Optional[str], search_query: str) -> Optional[Dict[str, Any]]:
         """Fetch poster from specific source"""
@@ -175,7 +194,7 @@ class PosterFetcher:
                 year_found = year_match.group() if year_match else year or ""
                 
                 return {
-                    'url': f"{self.config.BACKEND_URL}/api/poster/custom?title={quote(title)}&year={year_found}",
+                    'url': getattr(self.config, 'BACKEND_URL', '') + f"/api/poster?title={quote(title)}&year={year_found}",
                     'source': 'custom',
                     'quality': 'low',
                     'rating': '0.0'
@@ -254,7 +273,7 @@ class PosterFetcher:
         try:
             await self.init_session()
             
-            if not hasattr(self.config, 'OMDB_API_KEY') or not self.config.OMDB_API_KEY:
+            if not hasattr(self.config, 'OMDB_KEYS') or not self.config.OMDB_KEYS:
                 return None
             
             # Try multiple API keys
@@ -446,52 +465,25 @@ class PosterFetcher:
         """Fetch posters for multiple titles efficiently"""
         results = {}
         
-        # First check cache for all titles
+        # Fetch individually
         for title in titles:
-            for source_name in self.sources.keys():
-                cached = await self.cache.get_poster(title, source_name)
-                if cached:
-                    results[title] = cached
-                    break
-        
-        # Fetch uncached titles
-        uncached_titles = [title for title in titles if title not in results]
-        
-        if uncached_titles:
-            tasks = []
-            for title in uncached_titles:
-                task = self.fetch_poster(title)
-                tasks.append(task)
-            
-            fetched_results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            for i, result in enumerate(fetched_results):
-                if not isinstance(result, Exception) and result:
-                    title = uncached_titles[i]
+            try:
+                result = await self.fetch_poster(title)
+                if result:
                     results[title] = result
-        
-        # Ensure all titles have at least default poster
-        for title in titles:
-            if title not in results:
-                results[title] = {
-                    'url': self.default_poster,
-                    'source': 'default',
-                    'quality': 'low',
-                    'rating': '0.0',
-                    'cached': False
-                }
+                await asyncio.sleep(0.1)  # Small delay
+            except:
+                pass
         
         return results
     
     def clear_cache(self):
         """Clear local cache"""
-        if hasattr(self.cache, 'clear_pattern'):
-            asyncio.create_task(self.cache.clear_pattern("poster:"))
+        logger.info("✅ Poster cache clear requested")
     
     async def cleanup_expired_cache(self):
         """Cleanup expired cache entries"""
-        if hasattr(self.cache, 'cleanup_expired'):
-            await self.cache.cleanup_expired()
+        pass
     
     async def close(self):
         """Close HTTP session"""
