@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SK4FiLM - Latest Movies | Download HD Movies</title>
     <meta name="description" content="Search and download latest movies with multiple quality options">
+    <meta name="robots" content="index, follow">
+    <meta name="copyright" content="SK4FiLM">
+    <meta name="language" content="English">
     
     <!-- CSS Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -388,6 +391,55 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
         
+        /* ==== SKELETON LOADING EFFECTS ==== */
+        .skeleton {
+            background: linear-gradient(90deg, 
+                rgba(255, 255, 255, 0.05) 25%, 
+                rgba(255, 255, 255, 0.1) 50%, 
+                rgba(255, 255, 255, 0.05) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite ease-in-out;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        @keyframes skeleton-loading {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+        
+        .skeleton-poster {
+            width: 100%;
+            height: 225px;
+            border-radius: 10px;
+        }
+        
+        .skeleton-title {
+            height: 20px;
+            width: 80%;
+            margin: 10px auto;
+        }
+        
+        .skeleton-text {
+            height: 15px;
+            width: 60%;
+            margin: 8px auto;
+        }
+        
+        .skeleton-movie-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 15px;
+            overflow: hidden;
+            height: 100%;
+            position: relative;
+        }
+        
+        /* Movie card styles */
         .movie-card {
             background: rgba(30, 41, 59, 0.9);
             border: 1px solid rgba(255,255,255,0.1);
@@ -426,17 +478,17 @@
             height: 225px;
             object-fit: cover;
             object-position: center;
-            background: #1a1a2e;
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d3748 100%);
             border-bottom: 1px solid rgba(255,255,255,0.1);
             transition: all 0.5s ease;
         }
         
         @media (min-width: 1200px) {
-            .hq-poster { height: 313px; }
+            .hq-poster, .skeleton-poster { height: 313px; }
         }
         
         @media (min-width: 768px) and (max-width: 1199px) {
-            .hq-poster { height: 250px; }
+            .hq-poster, .skeleton-poster { height: 250px; }
         }
         
         .movie-card:hover .hq-poster {
@@ -458,7 +510,7 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            animation: shimmer 2s infinite;
+            animation: shimmer 1.5s infinite;
         }
 
         @keyframes shimmer {
@@ -909,12 +961,113 @@
             </div>
             
             <div class="row g-4" id="homeMoviesContainer">
-                <div class="col-12">
-                    <div style="text-align: center; padding: 60px 20px;">
-                        <div class="loading-spinner"></div>
-                        <h4 style="color: #28a745; margin-bottom: 20px; font-weight: 600;">
-                            <i class="fas fa-spinner fa-spin me-2"></i>Loading Movies
-                        </h4>
+                <!-- Skeleton loading cards (12 cards for responsive layout) -->
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                            <div class="skeleton skeleton-text"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -946,7 +1099,7 @@
                     <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
                         <h5 style="color: var(--accent); margin-bottom: 15px;">How to Search Movies</h5>
                         <div class="ratio ratio-16x9">
-                            <iframe allowfullscreen src="https://www.youtube.com/embed/PSQ9_KLzm8s" style="border-radius: 8px;"></iframe>
+                            <iframe allowfullscreen src="https://www.youtube.com/embed/PSQ9_KLzm8s" style="border-radius: 8px;" loading="lazy"></iframe>
                         </div>
                     </div>
                 </div>
@@ -955,7 +1108,7 @@
                     <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
                         <h5 style="color: var(--accent); margin-bottom: 15px;">StreaamNet Link</h5>
                         <div class="ratio ratio-16x9">
-                            <iframe allowfullscreen src="https://www.youtube.com/embed/fVL7DfhnwWM" style="border-radius: 8px;"></iframe>
+                            <iframe allowfullscreen src="https://www.youtube.com/embed/fVL7DfhnwWM" style="border-radius: 8px;" loading="lazy"></iframe>
                         </div>
                     </div>
                 </div>
@@ -964,7 +1117,7 @@
                     <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
                         <h5 style="color: var(--accent); margin-bottom: 15px;">DiskWala Link</h5>
                         <div class="ratio ratio-16x9">
-                            <iframe allowfullscreen src="https://www.youtube.com/embed/ZNKeL-pcIDw" style="border-radius: 8px;"></iframe>
+                            <iframe allowfullscreen src="https://www.youtube.com/embed/ZNKeL-pcIDw" style="border-radius: 8px;" loading="lazy"></iframe>
                         </div>
                     </div>
                 </div>
@@ -1015,6 +1168,7 @@
             <div class="popup-ad-container" id="popupAdContainer">
                 <!-- First Popup Ad -->
                 <ins style="width: 300px;height:250px" data-width="300" data-height="250" class="t13b383e0a9" data-domain="//data527.click" data-affquery="/c6913712bda9ddeea753/13b383e0a9/?placementName=default"><script src="//data527.click/js/responsive.js" async></script></ins>
+            </div>
         </div>
     </div>
 
@@ -1033,7 +1187,7 @@
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         
-        console.log('🎬 SK4FiLM v6.0 - ALL SOURCES POSTER SYSTEM');
+        console.log('🎬 SK4FiLM v6.0 - SKELETON LOADING SYSTEM');
 
         // ==== Enhanced Poster Loading System ====
         const posterCache = new Map();
@@ -1227,6 +1381,10 @@
         
         function displayHomeMovies(movies) {
             const container = document.getElementById('homeMoviesContainer');
+            
+            // Clear skeleton loading
+            container.innerHTML = '';
+            
             let html = '';
             
             movies.forEach((movie, index) => {
@@ -1238,7 +1396,7 @@
                 
                 html += `
                     <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.08}s">
+                        <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.05}s">
                             <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
                             
                             <div id="${uniqueId}">
@@ -1286,7 +1444,8 @@
         }
         
         function showError() {
-            document.getElementById('homeMoviesContainer').innerHTML = `
+            const container = document.getElementById('homeMoviesContainer');
+            container.innerHTML = `
                 <div class="col-12" style="text-align: center; padding: 60px;">
                     <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
                     <h3>Error loading movies</h3>
@@ -1317,8 +1476,7 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v6.0 FINAL - ALL SOURCES POSTERS + RESPONSIVE ADS');
-            console.log('🎯 Poster Sources: Letterboxd → IMDb → JustWatch → IMPAwards → OMDB+TMDB');
+            console.log('🚀 SK4FiLM v6.0 FINAL - SKELETON LOADING + RESPONSIVE ADS');
             
             // Set up popup event listeners
             document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
@@ -1330,8 +1488,10 @@
             // Show first popup automatically after 3 seconds
             setTimeout(showFirstPopup, 3000);
             
-            loadHomeMovies();
+            // Load movies after a short delay to show skeleton effect
+            setTimeout(loadHomeMovies, 800);
             
+            // Visitor counter animation
             setInterval(() => {
                 const counter = document.getElementById('visitorCount');
                 if (counter) {
@@ -1339,6 +1499,7 @@
                 }
             }, 35000);
             
+            // Background audio
             const audio = document.getElementById('bg-audio');
             if (audio) {
                 audio.volume = 0.3;
@@ -1346,6 +1507,15 @@
                     document.addEventListener('click', () => audio.play(), { once: true });
                 });
             }
+            
+            // Add smooth scroll behavior
+            document.documentElement.style.scrollBehavior = 'smooth';
+        });
+        
+        // Add loading state management
+        window.addEventListener('load', function() {
+            // Add loaded class to body for any post-load effects
+            document.body.classList.add('loaded');
         });
     </script>
 </body>
