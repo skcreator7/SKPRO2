@@ -1,7 +1,7 @@
 """
 app.py - Complete SK4FiLM Web API System with Multi-Channel Search
 OPTIMIZED: Supersonic speed with caching, async optimization, and performance monitoring
-UPDATED: Fixed all errors and improved performance
+ENHANCED: Auto delete from MongoDB when deleted from Telegram, duplicate prevention
 """
 import asyncio
 import os
@@ -13,11 +13,11 @@ import html
 import time
 import secrets
 import base64
+import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple, Union
 from collections import defaultdict
 from functools import lru_cache, wraps
-import hashlib
 
 import aiohttp
 import urllib.parse
@@ -149,7 +149,7 @@ class Config:
     # Channel Configuration - OPTIMIZED
     MAIN_CHANNEL_ID = -1001891090100
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Only active channels
-    FILE_CHANNEL_ID = -1001768249569
+    FILE_CHANNEL_ID = -1001768249569  # ✅ FILE CHANNEL FOR AUTO MANAGEMENT
     
     # Links
     MAIN_CHANNEL_LINK = "https://t.me/sk4film"
@@ -186,6 +186,10 @@ class Config:
     MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
+    
+    # Auto Management Settings
+    AUTO_DELETE_DAYS = int(os.environ.get("AUTO_DELETE_DAYS", "30"))  # Delete after 30 days
+    MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", "300"))  # Check every 5 minutes
     
     @staticmethod
     def get_poster(title, year=""):
@@ -238,8 +242,565 @@ telegram_initialized = False
 CHANNEL_CONFIG = {
     -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'search_priority': 1},
     -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'search_priority': 2},
-    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0}
+    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0, 'auto_manage': True}
 }
+
+# ============================================================================
+# ✅ TELEGRAM CHANNEL MONITORING FOR AUTO DELETE
+# ============================================================================
+
+class ChannelMonitor:
+    def __init__(self):
+        self.last_checked_message_id = {}
+        self.is_monitoring = False
+        self.monitoring_task = None
+        self.deleted_count = 0
+        self.last_cleanup = time.time()
+    
+    async def start_monitoring(self):
+        """Start monitoring Telegram channel for deletions"""
+        if not User or not user_session_ready:
+            logger.warning("⚠️ Cannot start monitoring - User session not ready")
+            return
+        
+        if self.is_monitoring:
+            logger.info("✅ Channel monitoring already running")
+            return
+        
+        logger.info("👁️ Starting Telegram channel monitoring (Auto Delete)...")
+        self.is_monitoring = True
+        self.monitoring_task = asyncio.create_task(self.monitor_channel())
+    
+    async def stop_monitoring(self):
+        """Stop monitoring"""
+        self.is_monitoring = False
+        if self.monitoring_task:
+            self.monitoring_task.cancel()
+            try:
+                await self.monitoring_task
+            except asyncio.CancelledError:
+                pass
+        logger.info("🛑 Channel monitoring stopped")
+    
+    async def monitor_channel(self):
+        """Monitor Telegram channel for deletions"""
+        logger.info(f"🔍 Monitoring FILE_CHANNEL_ID: {Config.FILE_CHANNEL_ID} for deletions")
+        
+        while self.is_monitoring:
+            try:
+                await self.check_for_deletions()
+                await asyncio.sleep(Config.MONITOR_INTERVAL)  # Check every 5 minutes
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"❌ Channel monitoring error: {e}")
+                await asyncio.sleep(60)  # Wait 1 minute on error
+    
+    async def check_for_deletions(self):
+        """Check for deleted messages in Telegram channel and auto delete from MongoDB"""
+        try:
+            if not files_col or not User:
+                return
+            
+            current_time = time.time()
+            if current_time - self.last_cleanup < 300:  # Run every 5 minutes
+                return
+            
+            self.last_cleanup = current_time
+            logger.debug("🔍 Checking for deleted files in Telegram channel...")
+            
+            # Get all files from MongoDB for FILE_CHANNEL_ID
+            cursor = files_col.find(
+                {"channel_id": Config.FILE_CHANNEL_ID},
+                {"message_id": 1, "title": 1, "_id": 0}
+            )
+            
+            message_ids_in_db = []
+            file_titles = {}
+            
+            async for doc in cursor:
+                msg_id = doc.get('message_id')
+                if msg_id:
+                    message_ids_in_db.append(msg_id)
+                    file_titles[msg_id] = doc.get('title', 'Unknown')
+            
+            if not message_ids_in_db:
+                logger.debug("📭 No files in database to check")
+                return
+            
+            logger.info(f"📊 Checking {len(message_ids_in_db)} files from database...")
+            
+            deleted_count = 0
+            batch_size = 50  # Telegram allows up to 200 messages per request
+            
+            for i in range(0, len(message_ids_in_db), batch_size):
+                batch = message_ids_in_db[i:i + batch_size]
+                
+                try:
+                    # Try to get messages from Telegram
+                    messages = await safe_telegram_operation(
+                        User.get_messages,
+                        Config.FILE_CHANNEL_ID,
+                        batch
+                    )
+                    
+                    # Determine which messages exist
+                    existing_ids = set()
+                    if isinstance(messages, list):
+                        for msg in messages:
+                            if msg and hasattr(msg, 'id'):
+                                existing_ids.add(msg.id)
+                    elif messages and hasattr(messages, 'id'):
+                        existing_ids.add(messages.id)
+                    
+                    # Find deleted message IDs
+                    deleted_ids = [msg_id for msg_id in batch if msg_id not in existing_ids]
+                    
+                    # Delete from MongoDB
+                    if deleted_ids:
+                        result = await files_col.delete_many({
+                            "channel_id": Config.FILE_CHANNEL_ID,
+                            "message_id": {"$in": deleted_ids}
+                        })
+                        
+                        if result.deleted_count > 0:
+                            deleted_count += result.deleted_count
+                            self.deleted_count += result.deleted_count
+                            
+                            # Log deleted files
+                            for msg_id in deleted_ids[:5]:  # Log first 5
+                                title = file_titles.get(msg_id, f"ID: {msg_id}")
+                                logger.info(f"🗑️ Auto Deleted: {title}")
+                            
+                            if len(deleted_ids) > 5:
+                                logger.info(f"🗑️ ... and {len(deleted_ids) - 5} more files")
+                
+                except Exception as e:
+                    logger.error(f"❌ Error checking batch: {e}")
+                    continue
+            
+            if deleted_count > 0:
+                logger.info(f"✅ Auto cleanup: {deleted_count} files deleted from MongoDB")
+            
+            # Also check for expired files (older than AUTO_DELETE_DAYS)
+            await self.cleanup_expired_files()
+            
+        except Exception as e:
+            logger.error(f"❌ Error checking for deletions: {e}")
+    
+    async def cleanup_expired_files(self):
+        """Cleanup files older than AUTO_DELETE_DAYS"""
+        try:
+            if not files_col:
+                return
+            
+            expiry_date = datetime.now() - timedelta(days=Config.AUTO_DELETE_DAYS)
+            
+            # Find expired files
+            expired_files = await files_col.find({
+                "channel_id": Config.FILE_CHANNEL_ID,
+                "indexed_at": {"$lt": expiry_date}
+            }, {"title": 1, "message_id": 1}).to_list(length=50)
+            
+            if expired_files:
+                expired_ids = [doc['message_id'] for doc in expired_files]
+                
+                # Delete from MongoDB
+                result = await files_col.delete_many({
+                    "channel_id": Config.FILE_CHANNEL_ID,
+                    "message_id": {"$in": expired_ids}
+                })
+                
+                if result.deleted_count > 0:
+                    logger.info(f"🧹 Auto deleted {result.deleted_count} expired files (older than {Config.AUTO_DELETE_DAYS} days)")
+                    
+                    # Log some expired files
+                    for doc in expired_files[:3]:
+                        logger.info(f"   📅 Expired: {doc.get('title', 'Unknown')} (ID: {doc['message_id']})")
+        
+        except Exception as e:
+            logger.error(f"❌ Error cleaning expired files: {e}")
+
+# Create global monitor instance
+channel_monitor = ChannelMonitor()
+
+# ============================================================================
+# ✅ SMART FILE INDEXING WITH DUPLICATE PREVENTION
+# ============================================================================
+
+async def generate_file_hash(message):
+    """Generate unique hash for file to detect duplicates"""
+    try:
+        hash_parts = []
+        
+        # Add file-specific information
+        if message.document:
+            file_attrs = message.document
+            hash_parts.append(f"doc_{file_attrs.file_id}")
+            if file_attrs.file_name:
+                hash_parts.append(f"name_{hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:8]}")
+            if file_attrs.file_size:
+                hash_parts.append(f"size_{file_attrs.file_size}")
+        elif message.video:
+            file_attrs = message.video
+            hash_parts.append(f"vid_{file_attrs.file_id}")
+            if file_attrs.file_name:
+                hash_parts.append(f"name_{hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:8]}")
+            if file_attrs.file_size:
+                hash_parts.append(f"size_{file_attrs.file_size}")
+            if hasattr(file_attrs, 'duration'):
+                hash_parts.append(f"dur_{file_attrs.duration}")
+        else:
+            return None
+        
+        # Add caption hash if available
+        if message.caption:
+            caption_hash = hashlib.md5(message.caption.encode()).hexdigest()[:12]
+            hash_parts.append(f"cap_{caption_hash}")
+        
+        return "_".join(hash_parts)
+    except Exception as e:
+        logger.debug(f"Hash generation error: {e}")
+        return None
+
+@performance_monitor.measure("smart_file_indexing")
+async def index_single_file_smart(message):
+    """
+    Smart file indexing with:
+    1. Duplicate prevention (multiple checks)
+    2. Auto delete tracking
+    3. Hash-based duplicate detection
+    """
+    try:
+        if not files_col:
+            logger.error("❌ Files collection not available")
+            return False
+        
+        # ============================================================================
+        # ✅ STEP 1: BASIC VALIDATION
+        # ============================================================================
+        if not message or (not message.document and not message.video):
+            return False
+        
+        # ============================================================================
+        # ✅ STEP 2: CHECK IF ALREADY EXISTS (MULTI-LAYER DUPLICATE DETECTION)
+        # ============================================================================
+        
+        # Layer 1: Check by channel_id + message_id (exact match)
+        existing_by_id = await files_col.find_one({
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'message_id': message.id
+        }, {'_id': 1, 'title': 1})
+        
+        if existing_by_id:
+            logger.debug(f"📝 Skipping - Already indexed: {message.id}")
+            return True  # Already exists
+        
+        # Extract title
+        title = await extract_title_from_telegram_msg_cached(message)
+        if not title:
+            logger.debug(f"📝 Skipping - No title: {message.id}")
+            return False
+        
+        normalized_title = normalize_title_cached(title)
+        
+        # Layer 2: Generate file hash for duplicate detection
+        file_hash = await generate_file_hash(message)
+        
+        if file_hash:
+            # Check if same file hash exists (same file reposted)
+            existing_by_hash = await files_col.find_one({
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'file_hash': file_hash
+            }, {'_id': 1, 'title': 1})
+            
+            if existing_by_hash:
+                logger.info(f"🔁 Skipping duplicate (same file hash): {title}")
+                return False
+        
+        # Layer 3: Check by file_id (for Telegram file duplicates)
+        file_id = None
+        file_size = 0
+        
+        if message.document:
+            file_id = message.document.file_id
+            file_size = message.document.file_size or 0
+        elif message.video:
+            file_id = message.video.file_id
+            file_size = message.video.file_size or 0
+        
+        if file_id:
+            existing_by_file_id = await files_col.find_one({
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'file_id': file_id
+            }, {'_id': 1, 'title': 1})
+            
+            if existing_by_file_id:
+                logger.info(f"🔁 Skipping duplicate (same file_id): {title}")
+                return False
+        
+        # Layer 4: Check by title + similar size (within 20%)
+        if file_size > 0:
+            # Look for files with same normalized title
+            similar_title_files = await files_col.find({
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'normalized_title': normalized_title
+            }).limit(3).to_list(length=3)
+            
+            if similar_title_files:
+                # Check if any have similar file size
+                for existing_file in similar_title_files:
+                    existing_size = existing_file.get('file_size', 0)
+                    if existing_size > 0:
+                        # Check if size is within 20%
+                        size_ratio = file_size / existing_size if existing_size > 0 else 0
+                        if 0.8 <= size_ratio <= 1.2:  # Within 20%
+                            logger.info(f"🔁 Skipping duplicate (similar title & size): {title}")
+                            return False
+        
+        # ============================================================================
+        # ✅ STEP 3: CREATE DOCUMENT WITH AUTO DELETE TRACKING
+        # ============================================================================
+        doc = {
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'message_id': message.id,
+            'title': title,
+            'normalized_title': normalized_title,
+            'date': message.date,
+            'indexed_at': datetime.now(),
+            'last_checked': datetime.now(),
+            'expires_at': datetime.now() + timedelta(days=Config.AUTO_DELETE_DAYS),
+            'is_video_file': False,
+            'thumbnail': None,
+            'thumbnail_source': 'none',
+            'file_id': file_id,
+            'file_size': file_size,
+            'file_hash': file_hash,
+            'status': 'active',
+            'duplicate_checked': True
+        }
+        
+        # Add file-specific data
+        if message.document:
+            doc.update({
+                'file_name': message.document.file_name or '',
+                'quality': detect_quality(message.document.file_name or ''),
+                'is_video_file': is_video_file(message.document.file_name or ''),
+                'caption': message.caption or '',
+                'mime_type': message.document.mime_type or ''
+            })
+        elif message.video:
+            doc.update({
+                'file_name': message.video.file_name or 'video.mp4',
+                'quality': detect_quality(message.video.file_name or ''),
+                'is_video_file': True,
+                'caption': message.caption or '',
+                'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
+                'width': message.video.width if hasattr(message.video, 'width') else 0,
+                'height': message.video.height if hasattr(message.video, 'height') else 0
+            })
+        else:
+            return False
+        
+        # Extract thumbnail if video
+        if doc['is_video_file'] and User:
+            try:
+                thumbnail_url = await extract_video_thumbnail(User, message)
+                if thumbnail_url:
+                    doc['thumbnail'] = thumbnail_url
+                    doc['thumbnail_source'] = 'video_direct'
+            except:
+                pass
+        
+        # ============================================================================
+        # ✅ STEP 4: INSERT WITH ERROR HANDLING
+        # ============================================================================
+        try:
+            await files_col.insert_one(doc)
+            
+            # Log successful indexing
+            file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
+            size_str = format_size(file_size) if file_size > 0 else "Unknown size"
+            
+            logger.info(f"✅ {file_type} indexed: {title}")
+            logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')} | ID: {message.id}")
+            
+            return True
+        except Exception as e:
+            if "duplicate key error" in str(e).lower():
+                logger.debug(f"📝 Race condition duplicate: {message.id}")
+                return True
+            else:
+                logger.error(f"❌ Error inserting document: {e}")
+                return False
+        
+    except Exception as e:
+        logger.error(f"❌ Smart indexing error: {e}")
+        return False
+
+# ============================================================================
+# ✅ BACKGROUND INDEXING WITH AUTO MANAGEMENT
+# ============================================================================
+
+async def index_files_background_smart():
+    """Smart background indexing with auto management features"""
+    if not User or files_col is None or not user_session_ready:
+        logger.warning("⚠️ Cannot start smart indexing - User session not ready")
+        return
+    
+    logger.info("📁 Starting SMART background indexing with auto management...")
+    
+    try:
+        # ============================================================================
+        # ✅ STEP 1: SETUP MONGODB INDEXES FOR AUTO MANAGEMENT
+        # ============================================================================
+        await setup_mongodb_auto_indexes()
+        
+        # ============================================================================
+        # ✅ STEP 2: GET LAST INDEXED MESSAGE ID
+        # ============================================================================
+        last_indexed = await files_col.find_one(
+            {"channel_id": Config.FILE_CHANNEL_ID}, 
+            sort=[('message_id', -1)],
+            projection={'message_id': 1, 'title': 1}
+        )
+        
+        last_message_id = last_indexed['message_id'] if last_indexed else 0
+        last_title = last_indexed.get('title', 'Unknown') if last_indexed else 'None'
+        
+        logger.info(f"🔄 Starting from message ID: {last_message_id}")
+        logger.info(f"📝 Last indexed file: {last_title}")
+        
+        # ============================================================================
+        # ✅ STEP 3: FETCH AND PROCESS NEW MESSAGES
+        # ============================================================================
+        total_indexed = 0
+        total_skipped = 0
+        batch_size = 20
+        
+        # Fetch messages newer than last_indexed
+        messages = []
+        async for msg in safe_telegram_generator(
+            User.get_chat_history, 
+            Config.FILE_CHANNEL_ID,
+            limit=100  # Start with 100 messages
+        ):
+            if msg.id <= last_message_id:
+                break
+            
+            if msg and (msg.document or msg.video):
+                messages.append(msg)
+        
+        # Process in reverse order (oldest first for consistency)
+        messages.reverse()
+        
+        logger.info(f"📥 Found {len(messages)} potential new files to index")
+        
+        for msg in messages:
+            try:
+                success = await index_single_file_smart(msg)
+                if success:
+                    total_indexed += 1
+                else:
+                    total_skipped += 1
+                
+                # Small delay to avoid rate limiting
+                await asyncio.sleep(0.3)
+                
+                # Log progress every 5 files
+                if (total_indexed + total_skipped) % 5 == 0:
+                    logger.info(f"📊 Progress: {total_indexed} new, {total_skipped} skipped")
+                
+            except Exception as e:
+                logger.error(f"❌ Error processing message {msg.id}: {e}")
+                continue
+        
+        # ============================================================================
+        # ✅ STEP 4: START AUTO MONITORING
+        # ============================================================================
+        if total_indexed > 0:
+            logger.info(f"✅ Smart indexing complete: {total_indexed} NEW files indexed")
+        
+        if total_skipped > 0:
+            logger.info(f"📝 Skipped {total_skipped} files (duplicates or errors)")
+        
+        # Start auto monitoring for deletions
+        await channel_monitor.start_monitoring()
+        
+        # Initial cleanup check
+        await channel_monitor.check_for_deletions()
+        
+        logger.info("🚀 Auto management system activated!")
+        logger.info(f"   • Auto delete monitoring: Every {Config.MONITOR_INTERVAL//60} minutes")
+        logger.info(f"   • File expiration: {Config.AUTO_DELETE_DAYS} days")
+        logger.info(f"   • Duplicate prevention: Active")
+        
+    except Exception as e:
+        logger.error(f"❌ Smart background indexing error: {e}")
+
+async def setup_mongodb_auto_indexes():
+    """Setup MongoDB indexes for auto management"""
+    try:
+        if not files_col:
+            return
+        
+        logger.info("🗂️ Setting up MongoDB indexes for auto management...")
+        
+        # 1. TTL Index for auto delete after expiration
+        try:
+            await files_col.create_index(
+                "expires_at", 
+                expireAfterSeconds=0
+            )
+            logger.info("✅ TTL index created (auto delete after expiration)")
+        except Exception as e:
+            logger.debug(f"TTL index may already exist: {e}")
+        
+        # 2. Compound index for fast channel + message lookups
+        try:
+            await files_col.create_index(
+                [("channel_id", 1), ("message_id", 1)],
+                unique=True,
+                name="channel_message_unique"
+            )
+            logger.info("✅ Unique index created (channel_id + message_id)")
+        except Exception as e:
+            logger.debug(f"Unique index may already exist: {e}")
+        
+        # 3. Index for file hash (duplicate detection)
+        try:
+            await files_col.create_index(
+                [("channel_id", 1), ("file_hash", 1)],
+                name="file_hash_index"
+            )
+            logger.info("✅ File hash index created (duplicate detection)")
+        except Exception as e:
+            logger.debug(f"File hash index may already exist: {e}")
+        
+        # 4. Index for file_id (Telegram duplicate detection)
+        try:
+            await files_col.create_index(
+                [("channel_id", 1), ("file_id", 1)],
+                name="file_id_index"
+            )
+            logger.info("✅ File ID index created")
+        except Exception as e:
+            logger.debug(f"File ID index may already exist: {e}")
+        
+        # 5. Index for last_checked (monitoring performance)
+        try:
+            await files_col.create_index(
+                [("channel_id", 1), ("last_checked", 1)],
+                name="last_checked_index"
+            )
+            logger.info("✅ Last checked index created")
+        except Exception as e:
+            logger.debug(f"Last checked index may already exist: {e}")
+        
+        logger.info("✅ MongoDB indexes setup complete")
+        
+    except Exception as e:
+        logger.error(f"❌ Error setting up MongoDB indexes: {e}")
 
 # ============================================================================
 # TELEGRAM SESSION GENERATOR FUNCTION (BUILT-IN)
@@ -379,14 +940,14 @@ async def init_telegram_clients():
                 
                 # Test channel access
                 try:
-                    chat = await User.get_chat(Config.MAIN_CHANNEL_ID)
-                    logger.info(f"✅ Channel Access: {chat.title}")
+                    chat = await User.get_chat(Config.FILE_CHANNEL_ID)  # ✅ Test FILE_CHANNEL_ID
+                    logger.info(f"✅ FILE Channel Access: {chat.title} (ID: {Config.FILE_CHANNEL_ID})")
                     
                     # Quick message test
                     try:
-                        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=1):
-                            if msg.text:
-                                logger.info(f"✅ Can fetch messages: YES")
+                        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=1):
+                            if msg:
+                                logger.info(f"✅ Can fetch FILE channel messages: YES")
                                 break
                     except:
                         logger.warning("⚠️ Can read channel but may need admin rights")
@@ -394,8 +955,8 @@ async def init_telegram_clients():
                     user_session_ready = True
                     
                 except Exception as e:
-                    logger.warning(f"⚠️ Channel access issue: {e}")
-                    logger.warning("   Make sure you're a member of the channel!")
+                    logger.warning(f"⚠️ FILE Channel access issue: {e}")
+                    logger.warning(f"   Make sure you're a member of channel {Config.FILE_CHANNEL_ID}!")
                     user_session_ready = False  # Can't fetch movies
                 
                 break  # Success
@@ -469,12 +1030,14 @@ async def init_telegram_clients():
     logger.info(f"User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
     logger.info(f"Bot Session: {'✅ READY' if bot_started else '❌ NOT READY'}")
     logger.info(f"Movies Fetch: {'✅ ENABLED' if user_session_ready else '❌ DISABLED'}")
+    logger.info(f"FILE Channel ID: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"Auto Delete: {'✅ ENABLED' if user_session_ready else '❌ DISABLED'}")
     
     if not user_session_ready:
         logger.warning("\n⚠️ WARNING: Movies will be EMPTY without Telegram session")
         logger.warning("   To fix:")
-        logger.warning("   1. Check API_ID, API_HASH, USER_SESSION_STRING")
-        logger.warning("   2. Ensure you're member of channel -1001891090100")
+        logger.warning(f"   1. Check API_ID, API_HASH, USER_SESSION_STRING")
+        logger.warning(f"   2. Ensure you're member of channel {Config.FILE_CHANNEL_ID}")
         logger.warning("   3. Regenerate session if expired")
     
     telegram_initialized = True
@@ -546,15 +1109,27 @@ async def get_index_status_api():
         total_files = await files_col.count_documents({}) if files_col else 0
         video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
         
-        # ✅ ADDED: Poster collection stats
-        total_posters = await poster_col.count_documents({}) if poster_col else 0
-        expired_posters = await poster_col.count_documents({"expires_at": {"$lt": datetime.utcnow()}}) if poster_col else 0
+        # ✅ ADDED: Auto management stats
+        if files_col:
+            expired_files = await files_col.count_documents({
+                "expires_at": {"$lt": datetime.now()}
+            })
+            
+            channel_files = await files_col.count_documents({
+                "channel_id": Config.FILE_CHANNEL_ID
+            })
+        else:
+            expired_files = 0
+            channel_files = 0
         
         return {
             'indexed_files': total_files,
             'video_files': video_files,
-            'posters_cached': total_posters,
-            'expired_posters': expired_posters,
+            'file_channel_files': channel_files,
+            'expired_files': expired_files,
+            'auto_delete_days': Config.AUTO_DELETE_DAYS,
+            'monitoring_active': channel_monitor.is_monitoring,
+            'deleted_by_monitor': channel_monitor.deleted_count,
             'user_session_ready': user_session_ready,
             'last_update': datetime.now().isoformat(),
             'status': 'active' if user_session_ready else 'inactive'
@@ -811,29 +1386,6 @@ async def init_mongodb():
         verification_col = db.verifications
         poster_col = db.posters
         
-        # Create indexes
-        logger.info("✅ Creating MongoDB indexes...")
-        
-        # Create indexes for files collection
-        if files_col:
-            await files_col.create_index([('title', 'text')])
-            await files_col.create_index([('normalized_title', 1)])
-            await files_col.create_index([('message_id', 1)])
-            await files_col.create_index([('channel_id', 1)])
-            await files_col.create_index([('indexed_at', -1)])
-            logger.info("✅ Files collection indexes created")
-        
-        # Create indexes for posters collection
-        if poster_col:
-            # TTL index for auto-cleanup after 7 days
-            await poster_col.create_index(
-                "expires_at", 
-                expireAfterSeconds=0
-            )
-            await poster_col.create_index([("normalized_title", 1)])
-            await poster_col.create_index([("created_at", -1)])
-            logger.info("✅ Posters collection indexes created (7-day auto-cleanup)")
-        
         logger.info("✅ MongoDB OK - Optimized and Ready")
         return True
         
@@ -844,143 +1396,16 @@ async def init_mongodb():
         logger.error(f"❌ MongoDB error: {e}")
         return False
 
-# FILE INDEXING WITH PERFORMANCE
+# OLD FILE INDEXING FUNCTION (FOR BACKWARD COMPATIBILITY)
 @performance_monitor.measure("file_indexing")
 async def index_single_file(message):
-    """Optimized single file indexing"""
-    try:
-        if not files_col:
-            return False
-        
-        # Quick existence check
-        existing = await files_col.find_one({
-            'channel_id': Config.FILE_CHANNEL_ID,
-            'message_id': message.id
-        }, {'_id': 1})
-        
-        if existing:
-            return True
-        
-        # Extract title
-        title = await extract_title_from_telegram_msg_cached(message)
-        if not title:
-            return False
-        
-        # Prepare document efficiently
-        doc = {
-            'channel_id': Config.FILE_CHANNEL_ID,
-            'message_id': message.id,
-            'title': title,
-            'normalized_title': normalize_title_cached(title),
-            'date': message.date,
-            'indexed_at': datetime.now(),
-            'is_video_file': False,
-            'thumbnail': None,
-            'thumbnail_source': 'none'
-        }
-        
-        # Add file-specific data
-        if message.document:
-            doc.update({
-                'file_id': message.document.file_id,
-                'file_size': message.document.file_size or 0,
-                'file_name': message.document.file_name or '',
-                'quality': detect_quality(message.document.file_name or ''),
-                'is_video_file': is_video_file(message.document.file_name or ''),
-                'caption': message.caption or ''
-            })
-        elif message.video:
-            doc.update({
-                'file_id': message.video.file_id,
-                'file_size': message.video.file_size or 0,
-                'file_name': message.video.file_name or 'video.mp4',
-                'quality': detect_quality(message.video.file_name or ''),
-                'is_video_file': True,
-                'caption': message.caption or ''
-            })
-        else:
-            return False
-        
-        # Extract thumbnail if video
-        if doc['is_video_file'] and User and user_session_ready:
-            thumbnail_url = await extract_video_thumbnail(User, message)
-            if thumbnail_url:
-                doc['thumbnail'] = thumbnail_url
-                doc['thumbnail_source'] = 'video_direct'
-        
-        # Upsert with atomic operation
-        await files_col.update_one(
-            {
-                'channel_id': Config.FILE_CHANNEL_ID,
-                'message_id': message.id
-            },
-            {'$set': doc},
-            upsert=True
-        )
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error indexing file: {e}")
-        return False
+    """Optimized single file indexing (legacy function)"""
+    return await index_single_file_smart(message)
 
-# BACKGROUND INDEXING
+# OLD BACKGROUND INDEXING FUNCTION (FOR BACKWARD COMPATIBILITY)
 async def index_files_background():
-    """Optimized background indexing"""
-    if not User or files_col is None or not user_session_ready:
-        logger.warning("⚠️ Cannot start indexing - User session not ready")
-        return
-    
-    logger.info("📁 Starting OPTIMIZED background indexing...")
-    
-    try:
-        # Get the last indexed message ID
-        last_indexed = await files_col.find_one(
-            {}, 
-            sort=[('message_id', -1)],
-            projection={'message_id': 1}
-        )
-        
-        last_message_id = last_indexed['message_id'] if last_indexed else 0
-        logger.info(f"🔄 Starting from message ID: {last_message_id}")
-        
-        total_indexed = 0
-        batch_size = 20
-        batch = []
-        
-        async for msg in safe_telegram_generator(User.get_chat_history, Config.FILE_CHANNEL_ID):
-            if msg.id <= last_message_id:
-                break
-            
-            if msg and (msg.document or msg.video):
-                batch.append(msg)
-                total_indexed += 1
-                
-                # Process in batches
-                if len(batch) >= batch_size:
-                    tasks = [index_single_file(m) for m in batch]
-                    await asyncio.gather(*tasks, return_exceptions=True)
-                    batch = []
-                    
-                    logger.info(f"📥 Indexed {total_indexed} new files...")
-                    
-                    # Small delay between batches
-                    await asyncio.sleep(1)
-        
-        # Process remaining batch
-        if batch:
-            tasks = [index_single_file(m) for m in batch]
-            await asyncio.gather(*tasks, return_exceptions=True)
-        
-        logger.info(f"✅ Background indexing finished: {total_indexed} NEW files")
-        
-        # Clear search cache after indexing
-        if cache_manager:
-            await cache_manager.clear_search_cache()
-            logger.info("🧹 Search cache cleared after indexing")
-        
-    except Exception as e:
-        logger.error(f"❌ Background indexing error: {e}")
+    """Optimized background indexing (legacy function)"""
+    await index_files_background_smart()
 
 # POSTER FETCHING WITH CACHE
 @performance_monitor.measure("poster_fetch")
@@ -1484,6 +1909,187 @@ async def get_home_movies_live():
         return []  # ✅ EMPTY ARRAY ON ERROR - NO FALLBACK
 
 # ============================================================================
+# ✅ AUTO MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@app.route('/api/auto_management/status', methods=['GET'])
+async def api_auto_management_status():
+    """Get auto management status"""
+    try:
+        status = {
+            'file_channel_id': Config.FILE_CHANNEL_ID,
+            'monitoring_active': channel_monitor.is_monitoring,
+            'monitoring_interval': Config.MONITOR_INTERVAL,
+            'auto_delete_days': Config.AUTO_DELETE_DAYS,
+            'deleted_count': channel_monitor.deleted_count,
+            'last_cleanup': channel_monitor.last_cleanup,
+            'user_session_ready': user_session_ready,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Add MongoDB stats if available
+        if files_col:
+            try:
+                total_files = await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID})
+                expired_files = await files_col.count_documents({
+                    "channel_id": Config.FILE_CHANNEL_ID,
+                    "expires_at": {"$lt": datetime.now()}
+                })
+                
+                status['mongo_stats'] = {
+                    'total_files_in_channel': total_files,
+                    'expired_files': expired_files,
+                    'next_cleanup': (datetime.now() + timedelta(days=Config.AUTO_DELETE_DAYS)).isoformat()
+                }
+            except:
+                pass
+        
+        return jsonify({
+            'status': 'success',
+            'auto_management': status,
+            'message': 'Auto management active' if channel_monitor.is_monitoring else 'Auto management inactive'
+        })
+        
+    except Exception as e:
+        logger.error(f"Auto management status API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/auto_management/start', methods=['POST'])
+async def api_auto_management_start():
+    """Start auto management"""
+    try:
+        if not user_session_ready:
+            return jsonify({
+                'status': 'error',
+                'message': 'Telegram session not ready'
+            }), 400
+        
+        await channel_monitor.start_monitoring()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Auto management started',
+            'monitoring': True,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Start auto management API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/auto_management/stop', methods=['POST'])
+async def api_auto_management_stop():
+    """Stop auto management"""
+    try:
+        await channel_monitor.stop_monitoring()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Auto management stopped',
+            'monitoring': False,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Stop auto management API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/auto_management/cleanup', methods=['POST'])
+async def api_auto_management_cleanup():
+    """Manual cleanup of deleted files"""
+    try:
+        if not user_session_ready:
+            return jsonify({
+                'status': 'error',
+                'message': 'Telegram session not ready'
+            }), 400
+        
+        # Run manual cleanup
+        await channel_monitor.check_for_deletions()
+        await channel_monitor.cleanup_expired_files()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Manual cleanup completed',
+            'deleted_count': channel_monitor.deleted_count,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Manual cleanup API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/auto_management/stats', methods=['GET'])
+async def api_auto_management_stats():
+    """Get detailed auto management stats"""
+    try:
+        if not files_col:
+            return jsonify({
+                'status': 'error',
+                'message': 'MongoDB not available'
+            }), 500
+        
+        # Get detailed stats
+        total_files = await files_col.count_documents({})
+        file_channel_files = await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID})
+        video_files = await files_col.count_documents({"is_video_file": True})
+        expired_files = await files_col.count_documents({"expires_at": {"$lt": datetime.now()}})
+        
+        # Get recent deletions
+        recent_deletions = []
+        
+        # Get file size distribution
+        size_stats = await files_col.aggregate([
+            {"$match": {"channel_id": Config.FILE_CHANNEL_ID}},
+            {"$group": {
+                "_id": None,
+                "total_size": {"$sum": "$file_size"},
+                "avg_size": {"$avg": "$file_size"},
+                "max_size": {"$max": "$file_size"},
+                "min_size": {"$min": "$file_size"},
+                "count": {"$sum": 1}
+            }}
+        ]).to_list(length=1)
+        
+        stats = {
+            'total_files': total_files,
+            'file_channel_files': file_channel_files,
+            'video_files': video_files,
+            'expired_files': expired_files,
+            'auto_delete_enabled': True,
+            'auto_delete_days': Config.AUTO_DELETE_DAYS,
+            'monitoring_active': channel_monitor.is_monitoring,
+            'monitoring_interval': Config.MONITOR_INTERVAL,
+            'total_deleted': channel_monitor.deleted_count,
+            'file_size_stats': size_stats[0] if size_stats else {},
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Auto management stats API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# ============================================================================
 # TELEGRAM STATUS API ENDPOINTS
 # ============================================================================
 
@@ -1512,6 +2118,7 @@ async def api_telegram_status():
             },
             'channels': {
                 'main_channel': Config.MAIN_CHANNEL_ID,
+                'file_channel': Config.FILE_CHANNEL_ID,
                 'movies_source': 'Telegram Channel',
                 'total_channels': len(Config.TEXT_CHANNEL_IDS)
             },
@@ -1521,6 +2128,12 @@ async def api_telegram_status():
                 'limit': 30,
                 'no_fallback': True,
                 'current_status': 'active' if user_session_ready else 'inactive'
+            },
+            'auto_management': {
+                'enabled': channel_monitor.is_monitoring,
+                'file_channel_id': Config.FILE_CHANNEL_ID,
+                'auto_delete_days': Config.AUTO_DELETE_DAYS,
+                'monitoring_interval': Config.MONITOR_INTERVAL
             },
             'timestamp': datetime.now().isoformat(),
             'server_time': time.time()
@@ -1591,7 +2204,8 @@ async def api_telegram_test():
                 test_results['channel_tests'].append({
                     'channel_id': Config.MAIN_CHANNEL_ID,
                     'name': chat.title,
-                    'accessible': True
+                    'accessible': True,
+                    'type': 'main'
                 })
                 
                 # Try to fetch a message
@@ -1599,24 +2213,65 @@ async def api_telegram_test():
                     async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=1):
                         test_results['messages_test'] = {
                             'can_fetch': True,
-                            'sample_text': msg.text[:50] + '...' if msg.text else 'No text'
+                            'sample_text': msg.text[:50] + '...' if msg.text else 'No text',
+                            'channel': 'main'
                         }
                         break
                 except Exception as e:
                     test_results['messages_test'] = {
                         'can_fetch': False,
-                        'error': str(e)
+                        'error': str(e),
+                        'channel': 'main'
                     }
                     
             except Exception as e:
                 test_results['channel_tests'].append({
                     'channel_id': Config.MAIN_CHANNEL_ID,
                     'accessible': False,
-                    'error': str(e)
+                    'error': str(e),
+                    'type': 'main'
+                })
+            
+            # Test FILE channel
+            try:
+                file_chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+                test_results['channel_tests'].append({
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'name': file_chat.title,
+                    'accessible': True,
+                    'type': 'file',
+                    'auto_management': True
+                })
+                
+                # Try to fetch a message from FILE channel
+                try:
+                    async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=1):
+                        has_file = bool(msg.document or msg.video)
+                        test_results['file_channel_test'] = {
+                            'can_fetch': True,
+                            'has_file': has_file,
+                            'channel': 'file'
+                        }
+                        break
+                except Exception as e:
+                    test_results['file_channel_test'] = {
+                        'can_fetch': False,
+                        'error': str(e),
+                        'channel': 'file'
+                    }
+                    
+            except Exception as e:
+                test_results['channel_tests'].append({
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'accessible': False,
+                    'error': str(e),
+                    'type': 'file',
+                    'auto_management': False
                 })
         
         test_results['overall'] = 'READY' if user_session_ready else 'NOT READY'
         test_results['movies_available'] = user_session_ready
+        test_results['auto_management_ready'] = user_session_ready
         
         return jsonify({
             'status': 'success',
@@ -1637,11 +2292,11 @@ async def api_telegram_test():
 
 @performance_monitor.measure("system_init")
 async def init_system():
-    """Turbo-charged system initialization"""
+    """Turbo-charged system initialization with auto management"""
     start_time = time.time()
     
     try:
-        logger.info("🚀 Starting SK4FiLM v8.0 - TURBO OPTIMIZED...")
+        logger.info("🚀 Starting SK4FiLM v8.0 - AUTO MANAGEMENT EDITION...")
         
         # Import PosterFetcher here to avoid circular imports
         from poster_fetching import PosterFetcher
@@ -1680,7 +2335,7 @@ async def init_system():
         else:
             logger.warning("⚠️ Premium System - MongoDB not available")
         
-        # ✅ FIXED: Initialize Poster Fetcher with correct arguments (2 instead of 3)
+        # ✅ Initialize Poster Fetcher
         poster_fetcher = PosterFetcher(cache_manager, Config)
         logger.info("✅ Poster Fetcher initialized")
         
@@ -1711,17 +2366,25 @@ async def init_system():
         # Start background tasks
         asyncio.create_task(cache_cleanup())
         
-        # Start indexing in background only if Telegram is ready
+        # Start SMART indexing in background only if Telegram is ready
         if user_session_ready:
-            asyncio.create_task(index_files_background())
+            asyncio.create_task(index_files_background_smart())
+            logger.info("✅ Started SMART background indexing with auto management")
         else:
             logger.warning("⚠️ Cannot start indexing - User session not ready")
         
         init_time = time.time() - start_time
-        logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s - TURBO READY")
+        logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s - AUTO MANAGEMENT READY")
         
         # Log initial performance
         logger.info(f"📊 Initial performance: {performance_monitor.get_stats()}")
+        
+        # Log auto management status
+        logger.info("🔧 AUTO MANAGEMENT FEATURES:")
+        logger.info(f"   • FILE_CHANNEL_ID: {Config.FILE_CHANNEL_ID}")
+        logger.info(f"   • Auto Delete: {Config.AUTO_DELETE_DAYS} days")
+        logger.info(f"   • Monitoring: Every {Config.MONITOR_INTERVAL//60} minutes")
+        logger.info(f"   • Duplicate Prevention: Active")
         
         return True
         
@@ -1742,15 +2405,25 @@ async def root():
     video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
     posters_cached = await poster_col.count_documents({}) if poster_col is not None else 0
     
+    # Auto management stats
+    auto_stats = {
+        'monitoring_active': channel_monitor.is_monitoring,
+        'file_channel_id': Config.FILE_CHANNEL_ID,
+        'auto_delete_days': Config.AUTO_DELETE_DAYS,
+        'deleted_count': channel_monitor.deleted_count
+    }
+    
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.0 - TURBO OPTIMIZED',
+        'service': 'SK4FiLM v8.0 - AUTO MANAGEMENT EDITION',
         'telegram': {
             'user_session_ready': user_session_ready,
             'bot_started': bot_started,
             'movies_fetch': user_session_ready,
-            'main_channel': Config.MAIN_CHANNEL_ID
+            'main_channel': Config.MAIN_CHANNEL_ID,
+            'file_channel': Config.FILE_CHANNEL_ID
         },
+        'auto_management': auto_stats,
         'performance': {
             'cache_enabled': cache_manager.redis_enabled if cache_manager else False,
             'modules_loaded': all([
@@ -1783,6 +2456,10 @@ async def health():
                 'started': bot_started,
                 'initialized': bot is not None
             }
+        },
+        'auto_management': {
+            'monitoring': channel_monitor.is_monitoring,
+            'file_channel': Config.FILE_CHANNEL_ID
         },
         'cache': cache_manager.redis_enabled if cache_manager else False,
         'timestamp': datetime.now().isoformat(),
@@ -2127,8 +2804,18 @@ async def api_stats():
             stats['database'] = {
                 'total_files': await files_col.count_documents({}),
                 'video_files': await files_col.count_documents({'is_video_file': True}),
-                'unique_titles': len(await files_col.distinct('normalized_title'))
+                'unique_titles': len(await files_col.distinct('normalized_title')),
+                'file_channel_files': await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID})
             }
+        
+        # Auto management stats
+        stats['auto_management'] = {
+            'monitoring_active': channel_monitor.is_monitoring,
+            'deleted_count': channel_monitor.deleted_count,
+            'auto_delete_days': Config.AUTO_DELETE_DAYS,
+            'monitoring_interval': Config.MONITOR_INTERVAL,
+            'file_channel_id': Config.FILE_CHANNEL_ID
+        }
         
         # Poster stats
         if poster_col:
@@ -2151,6 +2838,7 @@ async def api_stats():
                 'user_session_ready': user_session_ready,
                 'bot_started': bot_started,
                 'main_channel': Config.MAIN_CHANNEL_ID,
+                'file_channel': Config.FILE_CHANNEL_ID,
                 'movies_fetch': user_session_ready
             },
             'uptime': time.time() - app_start_time if 'app_start_time' in globals() else 0,
@@ -2250,6 +2938,9 @@ async def shutdown():
     logger.info("🛑 Shutting down SK4FiLM...")
     
     shutdown_tasks = []
+    
+    # Stop auto monitoring
+    await channel_monitor.stop_monitoring()
     
     if User and user_session_ready:
         shutdown_tasks.append(User.stop())
