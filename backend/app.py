@@ -2,6 +2,7 @@
 app.py - Complete SK4FiLM Web API System with Multi-Channel Search
 OPTIMIZED: Supersonic speed with caching, async optimization, and performance monitoring
 ENHANCED: Auto delete from MongoDB when deleted from Telegram, duplicate prevention
+NO TTL: No automatic time-based deletion
 """
 import asyncio
 import os
@@ -149,7 +150,7 @@ class Config:
     # Channel Configuration - OPTIMIZED
     MAIN_CHANNEL_ID = -1001891090100
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Only active channels
-    FILE_CHANNEL_ID = -1001768249569  # ✅ FILE CHANNEL FOR AUTO MANAGEMENT
+    FILE_CHANNEL_ID = -1001768249569  # ✅ FILE CHANNEL FOR SYNC MANAGEMENT
     
     # Links
     MAIN_CHANNEL_LINK = "https://t.me/sk4film"
@@ -187,8 +188,7 @@ class Config:
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
     
-    # Auto Management Settings
-    AUTO_DELETE_DAYS = int(os.environ.get("AUTO_DELETE_DAYS", "30"))  # Delete after 30 days
+    # Sync Management Settings
     MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", "300"))  # Check every 5 minutes
     
     @staticmethod
@@ -211,7 +211,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.0-OPTIMIZED'
+    response.headers['X-SK4FiLM-Version'] = '8.0-SYNC-ONLY'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -242,37 +242,37 @@ telegram_initialized = False
 CHANNEL_CONFIG = {
     -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'search_priority': 1},
     -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'search_priority': 2},
-    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0, 'auto_manage': True}
+    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0, 'sync_manage': True}
 }
 
 # ============================================================================
-# ✅ TELEGRAM CHANNEL MONITORING FOR AUTO DELETE
+# ✅ TELEGRAM CHANNEL SYNC MANAGEMENT (DELETE SYNC ONLY)
 # ============================================================================
 
-class ChannelMonitor:
+class ChannelSyncManager:
     def __init__(self):
         self.last_checked_message_id = {}
         self.is_monitoring = False
         self.monitoring_task = None
         self.deleted_count = 0
-        self.last_cleanup = time.time()
+        self.last_sync = time.time()
     
-    async def start_monitoring(self):
-        """Start monitoring Telegram channel for deletions"""
+    async def start_sync_monitoring(self):
+        """Start monitoring Telegram channel for deletions sync"""
         if not User or not user_session_ready:
-            logger.warning("⚠️ Cannot start monitoring - User session not ready")
+            logger.warning("⚠️ Cannot start sync monitoring - User session not ready")
             return
         
         if self.is_monitoring:
-            logger.info("✅ Channel monitoring already running")
+            logger.info("✅ Channel sync monitoring already running")
             return
         
-        logger.info("👁️ Starting Telegram channel monitoring (Auto Delete)...")
+        logger.info("👁️ Starting Telegram channel sync monitoring (Delete Sync Only)...")
         self.is_monitoring = True
-        self.monitoring_task = asyncio.create_task(self.monitor_channel())
+        self.monitoring_task = asyncio.create_task(self.monitor_channel_sync())
     
-    async def stop_monitoring(self):
-        """Stop monitoring"""
+    async def stop_sync_monitoring(self):
+        """Stop sync monitoring"""
         self.is_monitoring = False
         if self.monitoring_task:
             self.monitoring_task.cancel()
@@ -280,34 +280,34 @@ class ChannelMonitor:
                 await self.monitoring_task
             except asyncio.CancelledError:
                 pass
-        logger.info("🛑 Channel monitoring stopped")
+        logger.info("🛑 Channel sync monitoring stopped")
     
-    async def monitor_channel(self):
-        """Monitor Telegram channel for deletions"""
-        logger.info(f"🔍 Monitoring FILE_CHANNEL_ID: {Config.FILE_CHANNEL_ID} for deletions")
+    async def monitor_channel_sync(self):
+        """Monitor Telegram channel for deletions sync"""
+        logger.info(f"🔍 Monitoring FILE_CHANNEL_ID: {Config.FILE_CHANNEL_ID} for deletions sync")
         
         while self.is_monitoring:
             try:
-                await self.check_for_deletions()
+                await self.sync_deletions_from_telegram()
                 await asyncio.sleep(Config.MONITOR_INTERVAL)  # Check every 5 minutes
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"❌ Channel monitoring error: {e}")
+                logger.error(f"❌ Channel sync monitoring error: {e}")
                 await asyncio.sleep(60)  # Wait 1 minute on error
     
-    async def check_for_deletions(self):
-        """Check for deleted messages in Telegram channel and auto delete from MongoDB"""
+    async def sync_deletions_from_telegram(self):
+        """Sync deletions from Telegram to MongoDB"""
         try:
             if not files_col or not User:
                 return
             
             current_time = time.time()
-            if current_time - self.last_cleanup < 300:  # Run every 5 minutes
+            if current_time - self.last_sync < 300:  # Run every 5 minutes
                 return
             
-            self.last_cleanup = current_time
-            logger.debug("🔍 Checking for deleted files in Telegram channel...")
+            self.last_sync = current_time
+            logger.debug("🔍 Syncing deletions from Telegram channel...")
             
             # Get all files from MongoDB for FILE_CHANNEL_ID
             cursor = files_col.find(
@@ -325,10 +325,10 @@ class ChannelMonitor:
                     file_titles[msg_id] = doc.get('title', 'Unknown')
             
             if not message_ids_in_db:
-                logger.debug("📭 No files in database to check")
+                logger.debug("📭 No files in database to sync")
                 return
             
-            logger.info(f"📊 Checking {len(message_ids_in_db)} files from database...")
+            logger.info(f"📊 Checking {len(message_ids_in_db)} files for sync...")
             
             deleted_count = 0
             batch_size = 50  # Telegram allows up to 200 messages per request
@@ -353,10 +353,10 @@ class ChannelMonitor:
                     elif messages and hasattr(messages, 'id'):
                         existing_ids.add(messages.id)
                     
-                    # Find deleted message IDs
+                    # Find deleted message IDs (in database but not in Telegram)
                     deleted_ids = [msg_id for msg_id in batch if msg_id not in existing_ids]
                     
-                    # Delete from MongoDB
+                    # Delete from MongoDB (SYNC DELETION)
                     if deleted_ids:
                         result = await files_col.delete_many({
                             "channel_id": Config.FILE_CHANNEL_ID,
@@ -370,7 +370,7 @@ class ChannelMonitor:
                             # Log deleted files
                             for msg_id in deleted_ids[:5]:  # Log first 5
                                 title = file_titles.get(msg_id, f"ID: {msg_id}")
-                                logger.info(f"🗑️ Auto Deleted: {title}")
+                                logger.info(f"🗑️ Synced Deletion: {title}")
                             
                             if len(deleted_ids) > 5:
                                 logger.info(f"🗑️ ... and {len(deleted_ids) - 5} more files")
@@ -380,49 +380,19 @@ class ChannelMonitor:
                     continue
             
             if deleted_count > 0:
-                logger.info(f"✅ Auto cleanup: {deleted_count} files deleted from MongoDB")
-            
-            # Also check for expired files (older than AUTO_DELETE_DAYS)
-            await self.cleanup_expired_files()
+                logger.info(f"✅ Sync completed: {deleted_count} files deleted from MongoDB")
+            else:
+                logger.debug("✅ Sync completed: No deletions found")
             
         except Exception as e:
-            logger.error(f"❌ Error checking for deletions: {e}")
+            logger.error(f"❌ Error syncing deletions: {e}")
     
-    async def cleanup_expired_files(self):
-        """Cleanup files older than AUTO_DELETE_DAYS"""
-        try:
-            if not files_col:
-                return
-            
-            expiry_date = datetime.now() - timedelta(days=Config.AUTO_DELETE_DAYS)
-            
-            # Find expired files
-            expired_files = await files_col.find({
-                "channel_id": Config.FILE_CHANNEL_ID,
-                "indexed_at": {"$lt": expiry_date}
-            }, {"title": 1, "message_id": 1}).to_list(length=50)
-            
-            if expired_files:
-                expired_ids = [doc['message_id'] for doc in expired_files]
-                
-                # Delete from MongoDB
-                result = await files_col.delete_many({
-                    "channel_id": Config.FILE_CHANNEL_ID,
-                    "message_id": {"$in": expired_ids}
-                })
-                
-                if result.deleted_count > 0:
-                    logger.info(f"🧹 Auto deleted {result.deleted_count} expired files (older than {Config.AUTO_DELETE_DAYS} days)")
-                    
-                    # Log some expired files
-                    for doc in expired_files[:3]:
-                        logger.info(f"   📅 Expired: {doc.get('title', 'Unknown')} (ID: {doc['message_id']})")
-        
-        except Exception as e:
-            logger.error(f"❌ Error cleaning expired files: {e}")
+    async def manual_sync(self):
+        """Manual sync trigger"""
+        await self.sync_deletions_from_telegram()
 
-# Create global monitor instance
-channel_monitor = ChannelMonitor()
+# Create global sync manager instance
+channel_sync_manager = ChannelSyncManager()
 
 # ============================================================================
 # ✅ SMART FILE INDEXING WITH DUPLICATE PREVENTION
@@ -468,7 +438,7 @@ async def index_single_file_smart(message):
     """
     Smart file indexing with:
     1. Duplicate prevention (multiple checks)
-    2. Auto delete tracking
+    2. Delete sync tracking
     3. Hash-based duplicate detection
     """
     try:
@@ -559,7 +529,7 @@ async def index_single_file_smart(message):
                             return False
         
         # ============================================================================
-        # ✅ STEP 3: CREATE DOCUMENT WITH AUTO DELETE TRACKING
+        # ✅ STEP 3: CREATE DOCUMENT WITHOUT EXPIRY (NO TTL)
         # ============================================================================
         doc = {
             'channel_id': Config.FILE_CHANNEL_ID,
@@ -569,7 +539,6 @@ async def index_single_file_smart(message):
             'date': message.date,
             'indexed_at': datetime.now(),
             'last_checked': datetime.now(),
-            'expires_at': datetime.now() + timedelta(days=Config.AUTO_DELETE_DAYS),
             'is_video_file': False,
             'thumbnail': None,
             'thumbnail_source': 'none',
@@ -639,22 +608,22 @@ async def index_single_file_smart(message):
         return False
 
 # ============================================================================
-# ✅ BACKGROUND INDEXING WITH AUTO MANAGEMENT
+# ✅ BACKGROUND INDEXING WITH SYNC MANAGEMENT
 # ============================================================================
 
 async def index_files_background_smart():
-    """Smart background indexing with auto management features"""
+    """Smart background indexing with sync management features"""
     if not User or files_col is None or not user_session_ready:
         logger.warning("⚠️ Cannot start smart indexing - User session not ready")
         return
     
-    logger.info("📁 Starting SMART background indexing with auto management...")
+    logger.info("📁 Starting SMART background indexing with sync management...")
     
     try:
         # ============================================================================
-        # ✅ STEP 1: SETUP MONGODB INDEXES FOR AUTO MANAGEMENT
+        # ✅ STEP 1: SETUP MONGODB INDEXES FOR SYNC MANAGEMENT
         # ============================================================================
-        await setup_mongodb_auto_indexes()
+        await setup_mongodb_sync_indexes()
         
         # ============================================================================
         # ✅ STEP 2: GET LAST INDEXED MESSAGE ID
@@ -716,7 +685,7 @@ async def index_files_background_smart():
                 continue
         
         # ============================================================================
-        # ✅ STEP 4: START AUTO MONITORING
+        # ✅ STEP 4: START SYNC MONITORING
         # ============================================================================
         if total_indexed > 0:
             logger.info(f"✅ Smart indexing complete: {total_indexed} NEW files indexed")
@@ -724,39 +693,29 @@ async def index_files_background_smart():
         if total_skipped > 0:
             logger.info(f"📝 Skipped {total_skipped} files (duplicates or errors)")
         
-        # Start auto monitoring for deletions
-        await channel_monitor.start_monitoring()
+        # Start sync monitoring for deletions
+        await channel_sync_manager.start_sync_monitoring()
         
-        # Initial cleanup check
-        await channel_monitor.check_for_deletions()
+        # Initial sync check
+        await channel_sync_manager.sync_deletions_from_telegram()
         
-        logger.info("🚀 Auto management system activated!")
-        logger.info(f"   • Auto delete monitoring: Every {Config.MONITOR_INTERVAL//60} minutes")
-        logger.info(f"   • File expiration: {Config.AUTO_DELETE_DAYS} days")
+        logger.info("🚀 Sync management system activated!")
+        logger.info(f"   • Delete sync monitoring: Every {Config.MONITOR_INTERVAL//60} minutes")
+        logger.info(f"   • Auto expiry: DISABLED (No TTL)")
         logger.info(f"   • Duplicate prevention: Active")
         
     except Exception as e:
         logger.error(f"❌ Smart background indexing error: {e}")
 
-async def setup_mongodb_auto_indexes():
-    """Setup MongoDB indexes for auto management"""
+async def setup_mongodb_sync_indexes():
+    """Setup MongoDB indexes for sync management (NO TTL)"""
     try:
         if not files_col:
             return
         
-        logger.info("🗂️ Setting up MongoDB indexes for auto management...")
+        logger.info("🗂️ Setting up MongoDB indexes for sync management...")
         
-        # 1. TTL Index for auto delete after expiration
-        try:
-            await files_col.create_index(
-                "expires_at", 
-                expireAfterSeconds=0
-            )
-            logger.info("✅ TTL index created (auto delete after expiration)")
-        except Exception as e:
-            logger.debug(f"TTL index may already exist: {e}")
-        
-        # 2. Compound index for fast channel + message lookups
+        # 1. Compound index for fast channel + message lookups
         try:
             await files_col.create_index(
                 [("channel_id", 1), ("message_id", 1)],
@@ -767,7 +726,7 @@ async def setup_mongodb_auto_indexes():
         except Exception as e:
             logger.debug(f"Unique index may already exist: {e}")
         
-        # 3. Index for file hash (duplicate detection)
+        # 2. Index for file hash (duplicate detection)
         try:
             await files_col.create_index(
                 [("channel_id", 1), ("file_hash", 1)],
@@ -777,7 +736,7 @@ async def setup_mongodb_auto_indexes():
         except Exception as e:
             logger.debug(f"File hash index may already exist: {e}")
         
-        # 4. Index for file_id (Telegram duplicate detection)
+        # 3. Index for file_id (Telegram duplicate detection)
         try:
             await files_col.create_index(
                 [("channel_id", 1), ("file_id", 1)],
@@ -787,7 +746,7 @@ async def setup_mongodb_auto_indexes():
         except Exception as e:
             logger.debug(f"File ID index may already exist: {e}")
         
-        # 5. Index for last_checked (monitoring performance)
+        # 4. Index for last_checked (monitoring performance)
         try:
             await files_col.create_index(
                 [("channel_id", 1), ("last_checked", 1)],
@@ -797,7 +756,17 @@ async def setup_mongodb_auto_indexes():
         except Exception as e:
             logger.debug(f"Last checked index may already exist: {e}")
         
-        logger.info("✅ MongoDB indexes setup complete")
+        # 5. Text index for search
+        try:
+            await files_col.create_index(
+                [("normalized_title", "text"), ("title", "text")],
+                name="text_search_index"
+            )
+            logger.info("✅ Text search index created")
+        except Exception as e:
+            logger.debug(f"Text index may already exist: {e}")
+        
+        logger.info("✅ MongoDB indexes setup complete (NO TTL INDEXES)")
         
     except Exception as e:
         logger.error(f"❌ Error setting up MongoDB indexes: {e}")
@@ -1031,7 +1000,7 @@ async def init_telegram_clients():
     logger.info(f"Bot Session: {'✅ READY' if bot_started else '❌ NOT READY'}")
     logger.info(f"Movies Fetch: {'✅ ENABLED' if user_session_ready else '❌ DISABLED'}")
     logger.info(f"FILE Channel ID: {Config.FILE_CHANNEL_ID}")
-    logger.info(f"Auto Delete: {'✅ ENABLED' if user_session_ready else '❌ DISABLED'}")
+    logger.info(f"Delete Sync: {'✅ ENABLED' if user_session_ready else '❌ DISABLED'}")
     
     if not user_session_ready:
         logger.warning("\n⚠️ WARNING: Movies will be EMPTY without Telegram session")
@@ -1109,30 +1078,24 @@ async def get_index_status_api():
         total_files = await files_col.count_documents({}) if files_col else 0
         video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
         
-        # ✅ ADDED: Auto management stats
+        # ✅ ADDED: Sync management stats
         if files_col:
-            expired_files = await files_col.count_documents({
-                "expires_at": {"$lt": datetime.now()}
-            })
-            
             channel_files = await files_col.count_documents({
                 "channel_id": Config.FILE_CHANNEL_ID
             })
         else:
-            expired_files = 0
             channel_files = 0
         
         return {
             'indexed_files': total_files,
             'video_files': video_files,
             'file_channel_files': channel_files,
-            'expired_files': expired_files,
-            'auto_delete_days': Config.AUTO_DELETE_DAYS,
-            'monitoring_active': channel_monitor.is_monitoring,
-            'deleted_by_monitor': channel_monitor.deleted_count,
+            'sync_monitoring': channel_sync_manager.is_monitoring,
+            'deleted_by_sync': channel_sync_manager.deleted_count,
             'user_session_ready': user_session_ready,
             'last_update': datetime.now().isoformat(),
-            'status': 'active' if user_session_ready else 'inactive'
+            'status': 'active' if user_session_ready else 'inactive',
+            'note': 'NO TTL - Sync deletions only'
         }
     except Exception as e:
         logger.error(f"Index status API error: {e}")
@@ -1292,7 +1255,7 @@ async def warm_up_cache():
             warm_data = {
                 "system:warm": True,
                 "startup_time": datetime.now().isoformat(),
-                "version": "8.0-OPTIMIZED"
+                "version": "8.0-SYNC-ONLY"
             }
             
             await cache_manager.batch_set(warm_data, expire_seconds=3600)
@@ -1386,7 +1349,7 @@ async def init_mongodb():
         verification_col = db.verifications
         poster_col = db.posters
         
-        logger.info("✅ MongoDB OK - Optimized and Ready")
+        logger.info("✅ MongoDB OK - Optimized and Ready (NO TTL)")
         return True
         
     except asyncio.TimeoutError:
@@ -1909,57 +1872,53 @@ async def get_home_movies_live():
         return []  # ✅ EMPTY ARRAY ON ERROR - NO FALLBACK
 
 # ============================================================================
-# ✅ AUTO MANAGEMENT API ENDPOINTS
+# ✅ SYNC MANAGEMENT API ENDPOINTS
 # ============================================================================
 
-@app.route('/api/auto_management/status', methods=['GET'])
-async def api_auto_management_status():
-    """Get auto management status"""
+@app.route('/api/sync/status', methods=['GET'])
+async def api_sync_status():
+    """Get sync management status"""
     try:
         status = {
             'file_channel_id': Config.FILE_CHANNEL_ID,
-            'monitoring_active': channel_monitor.is_monitoring,
+            'sync_monitoring_active': channel_sync_manager.is_monitoring,
             'monitoring_interval': Config.MONITOR_INTERVAL,
-            'auto_delete_days': Config.AUTO_DELETE_DAYS,
-            'deleted_count': channel_monitor.deleted_count,
-            'last_cleanup': channel_monitor.last_cleanup,
+            'deleted_count': channel_sync_manager.deleted_count,
+            'last_sync': channel_sync_manager.last_sync,
             'user_session_ready': user_session_ready,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'note': 'NO TTL - Only sync deletions from Telegram'
         }
         
         # Add MongoDB stats if available
         if files_col:
             try:
                 total_files = await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID})
-                expired_files = await files_col.count_documents({
-                    "channel_id": Config.FILE_CHANNEL_ID,
-                    "expires_at": {"$lt": datetime.now()}
-                })
                 
                 status['mongo_stats'] = {
                     'total_files_in_channel': total_files,
-                    'expired_files': expired_files,
-                    'next_cleanup': (datetime.now() + timedelta(days=Config.AUTO_DELETE_DAYS)).isoformat()
+                    'no_expiry': True,
+                    'sync_only': True
                 }
             except:
                 pass
         
         return jsonify({
             'status': 'success',
-            'auto_management': status,
-            'message': 'Auto management active' if channel_monitor.is_monitoring else 'Auto management inactive'
+            'sync_management': status,
+            'message': 'Sync management active' if channel_sync_manager.is_monitoring else 'Sync management inactive'
         })
         
     except Exception as e:
-        logger.error(f"Auto management status API error: {e}")
+        logger.error(f"Sync status API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
-@app.route('/api/auto_management/start', methods=['POST'])
-async def api_auto_management_start():
-    """Start auto management"""
+@app.route('/api/sync/start', methods=['POST'])
+async def api_sync_start():
+    """Start sync management"""
     try:
         if not user_session_ready:
             return jsonify({
@@ -1967,45 +1926,45 @@ async def api_auto_management_start():
                 'message': 'Telegram session not ready'
             }), 400
         
-        await channel_monitor.start_monitoring()
+        await channel_sync_manager.start_sync_monitoring()
         
         return jsonify({
             'status': 'success',
-            'message': 'Auto management started',
-            'monitoring': True,
+            'message': 'Sync management started',
+            'sync_monitoring': True,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Start auto management API error: {e}")
+        logger.error(f"Start sync management API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
-@app.route('/api/auto_management/stop', methods=['POST'])
-async def api_auto_management_stop():
-    """Stop auto management"""
+@app.route('/api/sync/stop', methods=['POST'])
+async def api_sync_stop():
+    """Stop sync management"""
     try:
-        await channel_monitor.stop_monitoring()
+        await channel_sync_manager.stop_sync_monitoring()
         
         return jsonify({
             'status': 'success',
-            'message': 'Auto management stopped',
-            'monitoring': False,
+            'message': 'Sync management stopped',
+            'sync_monitoring': False,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Stop auto management API error: {e}")
+        logger.error(f"Stop sync management API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
-@app.route('/api/auto_management/cleanup', methods=['POST'])
-async def api_auto_management_cleanup():
-    """Manual cleanup of deleted files"""
+@app.route('/api/sync/manual', methods=['POST'])
+async def api_sync_manual():
+    """Manual sync trigger"""
     try:
         if not user_session_ready:
             return jsonify({
@@ -2013,27 +1972,26 @@ async def api_auto_management_cleanup():
                 'message': 'Telegram session not ready'
             }), 400
         
-        # Run manual cleanup
-        await channel_monitor.check_for_deletions()
-        await channel_monitor.cleanup_expired_files()
+        # Run manual sync
+        await channel_sync_manager.manual_sync()
         
         return jsonify({
             'status': 'success',
-            'message': 'Manual cleanup completed',
-            'deleted_count': channel_monitor.deleted_count,
+            'message': 'Manual sync completed',
+            'deleted_count': channel_sync_manager.deleted_count,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Manual cleanup API error: {e}")
+        logger.error(f"Manual sync API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
-@app.route('/api/auto_management/stats', methods=['GET'])
-async def api_auto_management_stats():
-    """Get detailed auto management stats"""
+@app.route('/api/sync/stats', methods=['GET'])
+async def api_sync_stats():
+    """Get detailed sync management stats"""
     try:
         if not files_col:
             return jsonify({
@@ -2045,10 +2003,6 @@ async def api_auto_management_stats():
         total_files = await files_col.count_documents({})
         file_channel_files = await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID})
         video_files = await files_col.count_documents({"is_video_file": True})
-        expired_files = await files_col.count_documents({"expires_at": {"$lt": datetime.now()}})
-        
-        # Get recent deletions
-        recent_deletions = []
         
         # Get file size distribution
         size_stats = await files_col.aggregate([
@@ -2067,23 +2021,23 @@ async def api_auto_management_stats():
             'total_files': total_files,
             'file_channel_files': file_channel_files,
             'video_files': video_files,
-            'expired_files': expired_files,
-            'auto_delete_enabled': True,
-            'auto_delete_days': Config.AUTO_DELETE_DAYS,
-            'monitoring_active': channel_monitor.is_monitoring,
+            'sync_enabled': True,
+            'ttl_expiry': False,
+            'monitoring_active': channel_sync_manager.is_monitoring,
             'monitoring_interval': Config.MONITOR_INTERVAL,
-            'total_deleted': channel_monitor.deleted_count,
+            'total_synced_deletions': channel_sync_manager.deleted_count,
             'file_size_stats': size_stats[0] if size_stats else {},
             'timestamp': datetime.now().isoformat()
         }
         
         return jsonify({
             'status': 'success',
-            'stats': stats
+            'stats': stats,
+            'note': 'No automatic expiry - Only sync deletions from Telegram'
         })
         
     except Exception as e:
-        logger.error(f"Auto management stats API error: {e}")
+        logger.error(f"Sync stats API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -2129,10 +2083,11 @@ async def api_telegram_status():
                 'no_fallback': True,
                 'current_status': 'active' if user_session_ready else 'inactive'
             },
-            'auto_management': {
-                'enabled': channel_monitor.is_monitoring,
+            'sync_management': {
+                'enabled': channel_sync_manager.is_monitoring,
                 'file_channel_id': Config.FILE_CHANNEL_ID,
-                'auto_delete_days': Config.AUTO_DELETE_DAYS,
+                'ttl_expiry': False,
+                'sync_only': True,
                 'monitoring_interval': Config.MONITOR_INTERVAL
             },
             'timestamp': datetime.now().isoformat(),
@@ -2240,7 +2195,7 @@ async def api_telegram_test():
                     'name': file_chat.title,
                     'accessible': True,
                     'type': 'file',
-                    'auto_management': True
+                    'sync_management': True
                 })
                 
                 # Try to fetch a message from FILE channel
@@ -2266,12 +2221,12 @@ async def api_telegram_test():
                     'accessible': False,
                     'error': str(e),
                     'type': 'file',
-                    'auto_management': False
+                    'sync_management': False
                 })
         
         test_results['overall'] = 'READY' if user_session_ready else 'NOT READY'
         test_results['movies_available'] = user_session_ready
-        test_results['auto_management_ready'] = user_session_ready
+        test_results['sync_management_ready'] = user_session_ready
         
         return jsonify({
             'status': 'success',
@@ -2292,11 +2247,12 @@ async def api_telegram_test():
 
 @performance_monitor.measure("system_init")
 async def init_system():
-    """Turbo-charged system initialization with auto management"""
+    """Turbo-charged system initialization with sync management"""
     start_time = time.time()
     
     try:
-        logger.info("🚀 Starting SK4FiLM v8.0 - AUTO MANAGEMENT EDITION...")
+        logger.info("🚀 Starting SK4FiLM v8.0 - SYNC MANAGEMENT EDITION...")
+        logger.info("📌 NO TTL - Only sync deletions from Telegram")
         
         # Import PosterFetcher here to avoid circular imports
         from poster_fetching import PosterFetcher
@@ -2369,21 +2325,21 @@ async def init_system():
         # Start SMART indexing in background only if Telegram is ready
         if user_session_ready:
             asyncio.create_task(index_files_background_smart())
-            logger.info("✅ Started SMART background indexing with auto management")
+            logger.info("✅ Started SMART background indexing with sync management")
         else:
             logger.warning("⚠️ Cannot start indexing - User session not ready")
         
         init_time = time.time() - start_time
-        logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s - AUTO MANAGEMENT READY")
+        logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s - SYNC MANAGEMENT READY")
         
         # Log initial performance
         logger.info(f"📊 Initial performance: {performance_monitor.get_stats()}")
         
-        # Log auto management status
-        logger.info("🔧 AUTO MANAGEMENT FEATURES:")
+        # Log sync management status
+        logger.info("🔧 SYNC MANAGEMENT FEATURES:")
         logger.info(f"   • FILE_CHANNEL_ID: {Config.FILE_CHANNEL_ID}")
-        logger.info(f"   • Auto Delete: {Config.AUTO_DELETE_DAYS} days")
-        logger.info(f"   • Monitoring: Every {Config.MONITOR_INTERVAL//60} minutes")
+        logger.info(f"   • Auto expiry: DISABLED (No TTL)")
+        logger.info(f"   • Delete sync: Every {Config.MONITOR_INTERVAL//60} minutes")
         logger.info(f"   • Duplicate Prevention: Active")
         
         return True
@@ -2405,17 +2361,17 @@ async def root():
     video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
     posters_cached = await poster_col.count_documents({}) if poster_col is not None else 0
     
-    # Auto management stats
-    auto_stats = {
-        'monitoring_active': channel_monitor.is_monitoring,
+    # Sync management stats
+    sync_stats = {
+        'sync_monitoring': channel_sync_manager.is_monitoring,
         'file_channel_id': Config.FILE_CHANNEL_ID,
-        'auto_delete_days': Config.AUTO_DELETE_DAYS,
-        'deleted_count': channel_monitor.deleted_count
+        'ttl_expiry': False,
+        'deleted_count': channel_sync_manager.deleted_count
     }
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.0 - AUTO MANAGEMENT EDITION',
+        'service': 'SK4FiLM v8.0 - SYNC MANAGEMENT EDITION',
         'telegram': {
             'user_session_ready': user_session_ready,
             'bot_started': bot_started,
@@ -2423,7 +2379,7 @@ async def root():
             'main_channel': Config.MAIN_CHANNEL_ID,
             'file_channel': Config.FILE_CHANNEL_ID
         },
-        'auto_management': auto_stats,
+        'sync_management': sync_stats,
         'performance': {
             'cache_enabled': cache_manager.redis_enabled if cache_manager else False,
             'modules_loaded': all([
@@ -2435,7 +2391,8 @@ async def root():
         'database': {
             'total_files': tf, 
             'video_files': video_files,
-            'posters_cached': posters_cached
+            'posters_cached': posters_cached,
+            'no_ttl': True
         },
         'channels': len(Config.TEXT_CHANNEL_IDS),
         'response_time': f"{time.perf_counter():.3f}s"
@@ -2457,9 +2414,10 @@ async def health():
                 'initialized': bot is not None
             }
         },
-        'auto_management': {
-            'monitoring': channel_monitor.is_monitoring,
-            'file_channel': Config.FILE_CHANNEL_ID
+        'sync_management': {
+            'monitoring': channel_sync_manager.is_monitoring,
+            'file_channel': Config.FILE_CHANNEL_ID,
+            'ttl_expiry': False
         },
         'cache': cache_manager.redis_enabled if cache_manager else False,
         'timestamp': datetime.now().isoformat(),
@@ -2805,16 +2763,18 @@ async def api_stats():
                 'total_files': await files_col.count_documents({}),
                 'video_files': await files_col.count_documents({'is_video_file': True}),
                 'unique_titles': len(await files_col.distinct('normalized_title')),
-                'file_channel_files': await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID})
+                'file_channel_files': await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID}),
+                'ttl_expiry': False,
+                'sync_only': True
             }
         
-        # Auto management stats
-        stats['auto_management'] = {
-            'monitoring_active': channel_monitor.is_monitoring,
-            'deleted_count': channel_monitor.deleted_count,
-            'auto_delete_days': Config.AUTO_DELETE_DAYS,
+        # Sync management stats
+        stats['sync_management'] = {
+            'sync_monitoring': channel_sync_manager.is_monitoring,
+            'deleted_count': channel_sync_manager.deleted_count,
             'monitoring_interval': Config.MONITOR_INTERVAL,
-            'file_channel_id': Config.FILE_CHANNEL_ID
+            'file_channel_id': Config.FILE_CHANNEL_ID,
+            'last_sync': channel_sync_manager.last_sync
         }
         
         # Poster stats
@@ -2842,7 +2802,8 @@ async def api_stats():
                 'movies_fetch': user_session_ready
             },
             'uptime': time.time() - app_start_time if 'app_start_time' in globals() else 0,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'note': 'NO TTL - Only sync deletions from Telegram'
         }
         
         return jsonify({
@@ -2939,8 +2900,8 @@ async def shutdown():
     
     shutdown_tasks = []
     
-    # Stop auto monitoring
-    await channel_monitor.stop_monitoring()
+    # Stop sync monitoring
+    await channel_sync_manager.stop_sync_monitoring()
     
     if User and user_session_ready:
         shutdown_tasks.append(User.stop())
