@@ -1,7 +1,7 @@
 """
 app.py - Complete SK4FiLM Web API System with Multi-Channel Search
 OPTIMIZED: Supersonic speed with caching, async optimization, and performance monitoring
-UPDATED: Fixed Config.get_poster() and added MongoDB poster auto-cleanup (7 days)
+UPDATED: Fixed all errors and improved performance
 """
 import asyncio
 import os
@@ -41,7 +41,6 @@ except ImportError:
 from cache import CacheManager
 from verification import VerificationSystem
 from premium import PremiumSystem, PremiumTier
-from poster_fetching import PosterFetcher, PosterSource
 
 # Import shared utilities
 from utils import (
@@ -188,10 +187,6 @@ class Config:
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
     
-    # ✅ NEW: Poster cache settings
-    POSTER_CACHE_TTL = int(os.environ.get("POSTER_CACHE_TTL", "86400"))  # 24 hours
-    POSTER_CLEANUP_DAYS = int(os.environ.get("POSTER_CLEANUP_DAYS", "7"))
-    
     @staticmethod
     def get_poster(title, year=""):
         """Generate poster URL for fallback"""
@@ -221,7 +216,7 @@ mongo_client = None
 db = None
 files_col = None
 verification_col = None
-poster_col = None  # ✅ NEW: Poster collection
+poster_col = None
 
 # MODULAR COMPONENTS
 cache_manager = None
@@ -560,7 +555,6 @@ async def get_index_status_api():
             'video_files': video_files,
             'posters_cached': total_posters,
             'expired_posters': expired_posters,
-            'poster_cleanup_days': Config.POSTER_CLEANUP_DAYS,
             'user_session_ready': user_session_ready,
             'last_update': datetime.now().isoformat(),
             'status': 'active' if user_session_ready else 'inactive'
@@ -728,19 +722,6 @@ async def warm_up_cache():
             
             await cache_manager.batch_set(warm_data, expire_seconds=3600)
         
-        if poster_fetcher:
-            # Warm up poster cache with popular movies
-            popular_movies = [
-                "Avatar", "Avengers Endgame", "Spider-Man", "Batman",
-                "John Wick 4", "Fast X", "Mission Impossible"
-            ]
-            
-            tasks = []
-            for movie in popular_movies[:3]:  # Only warm up 3
-                tasks.append(poster_fetcher.fetch_poster(movie))
-            
-            await asyncio.gather(*tasks, return_exceptions=True)
-        
         logger.info("✅ Cache warm-up complete")
         
     except Exception as e:
@@ -752,29 +733,12 @@ async def cache_cleanup():
     while True:
         await asyncio.sleep(1800)  # Run every 30 minutes
         try:
-            if poster_fetcher:
-                await poster_fetcher.cleanup_expired_cache()
-            
             if cache_manager:
                 await cache_manager.clear_pattern("temp:")
             
             logger.debug("🧹 Cache cleanup completed")
         except Exception as e:
             logger.error(f"Cache cleanup error: {e}")
-
-# ✅ POSTER CLEANUP TASK
-async def poster_cleanup_task():
-    """Cleanup expired posters from MongoDB every day"""
-    while True:
-        await asyncio.sleep(86400)  # Run every 24 hours
-        
-        try:
-            if poster_fetcher:
-                await poster_fetcher.cleanup_expired_cache()
-            
-            logger.info("🧹 Poster cleanup completed (7-day auto-cleanup)")
-        except Exception as e:
-            logger.error(f"Poster cleanup error: {e}")
 
 # OPTIMIZED TITLE EXTRACTION
 @async_cache_with_ttl(maxsize=1000, ttl=3600)
@@ -825,51 +789,50 @@ async def init_mongodb():
     try:
         logger.info("🔌 MongoDB initialization...")
         
-        # Connection with optimized parameters
+        # ✅ FIXED: Increase timeout for cloud databases
         mongo_client = AsyncIOMotorClient(
             Config.MONGODB_URI,
-            serverSelectionTimeoutMS=3000,  # Reduced from 5000
-            connectTimeoutMS=3000,
-            socketTimeoutMS=3000,
-            maxPoolSize=20,  # Reduced from 50
+            serverSelectionTimeoutMS=10000,  # ✅ Increased to 10 seconds
+            connectTimeoutMS=10000,
+            socketTimeoutMS=15000,
+            maxPoolSize=20,
             minPoolSize=5,
             maxIdleTimeMS=30000,
             retryWrites=True,
-            retryReads=True
+            retryReads=True,
+            ssl=True  # ✅ Add SSL for cloud databases
         )
         
-        # Quick ping test
-        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=2)
+        # Quick ping test with longer timeout
+        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=5)
         
         db = mongo_client.sk4film
         files_col = db.files
         verification_col = db.verifications
-        poster_col = db.posters  # ✅ NEW: Poster collection
+        poster_col = db.posters
         
-        # Create indexes only if they don't exist (optimized)
-        existing_indexes = await files_col.index_information()
+        # Create indexes
+        logger.info("✅ Creating MongoDB indexes...")
         
-        required_indexes = [
-            ('title', 'text'),
-            ('normalized_title', 1),
-            ('message_id', 1),
-            ('channel_id', 1),
-            ('indexed_at', -1),
-            ('is_video_file', 1),
-            ('thumbnail', 1)
-        ]
+        # Create indexes for files collection
+        if files_col:
+            await files_col.create_index([('title', 'text')])
+            await files_col.create_index([('normalized_title', 1)])
+            await files_col.create_index([('message_id', 1)])
+            await files_col.create_index([('channel_id', 1)])
+            await files_col.create_index([('indexed_at', -1)])
+            logger.info("✅ Files collection indexes created")
         
-        for field, direction in required_indexes:
-            index_name = f"{field}_{direction if isinstance(direction, int) else 'text'}"
-            if index_name not in existing_indexes:
-                try:
-                    if direction == 'text':
-                        await files_col.create_index([(field, 'text')])
-                    else:
-                        await files_col.create_index([(field, direction)])
-                    logger.debug(f"✅ Created index: {index_name}")
-                except Exception as e:
-                    logger.warning(f"Index creation failed for {index_name}: {e}")
+        # Create indexes for posters collection
+        if poster_col:
+            # TTL index for auto-cleanup after 7 days
+            await poster_col.create_index(
+                "expires_at", 
+                expireAfterSeconds=0
+            )
+            await poster_col.create_index([("normalized_title", 1)])
+            await poster_col.create_index([("created_at", -1)])
+            logger.info("✅ Posters collection indexes created (7-day auto-cleanup)")
         
         logger.info("✅ MongoDB OK - Optimized and Ready")
         return True
@@ -878,7 +841,7 @@ async def init_mongodb():
         logger.error("❌ MongoDB connection timeout")
         return False
     except Exception as e:
-        logger.error(f"❌ MongoDB: {e}")
+        logger.error(f"❌ MongoDB error: {e}")
         return False
 
 # FILE INDEXING WITH PERFORMANCE
@@ -1021,18 +984,22 @@ async def index_files_background():
 
 # POSTER FETCHING WITH CACHE
 @performance_monitor.measure("poster_fetch")
-async def get_poster_guaranteed(title):
+async def get_poster_guaranteed(title, year=""):
     """Optimized poster fetching"""
     if poster_fetcher:
-        return await poster_fetcher.fetch_poster(title)
+        poster_data = await poster_fetcher.fetch_poster(title, year)
+        if poster_data:
+            return {
+                'poster_url': poster_data.get('url', ''),
+                'source': poster_data.get('source', 'custom'),
+                'rating': poster_data.get('rating', '0.0'),
+                'year': year
+            }
     
     # Fallback using Config.get_poster()
-    year_match = re.search(r'\b(19|20)\d{2}\b', title)
-    year = year_match.group() if year_match else ""
-    
     return {
         'poster_url': Config.get_poster(title, year),
-        'source': PosterSource.CUSTOM.value,
+        'source': 'custom',
         'rating': '0.0',
         'year': year,
         'title': title
@@ -1314,6 +1281,18 @@ async def get_home_movies_telegram(limit=30):
                     clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
                     clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
                     
+                    # Get poster URL
+                    poster_url = Config.get_poster(title, year)
+                    
+                    # If poster_fetcher is available, try to get better poster
+                    if poster_fetcher:
+                        try:
+                            poster_data = await poster_fetcher.fetch_poster(title, year)
+                            if poster_data and poster_data.get('url'):
+                                poster_url = poster_data['url']
+                        except:
+                            pass
+                    
                     movies.append({
                         'title': clean_title,
                         'original_title': title,
@@ -1324,7 +1303,7 @@ async def get_home_movies_telegram(limit=30):
                         'channel_id': Config.MAIN_CHANNEL_ID,
                         'message_id': msg.id,
                         'has_poster': True,
-                        'poster_url': Config.get_poster(title, year),  # ✅ UPDATED: Using Config.get_poster()
+                        'poster_url': poster_url,
                         'poster_source': 'telegram',
                         'poster_rating': '0.0'
                     })
@@ -1389,23 +1368,29 @@ async def get_single_post_api(channel_id, message_id):
                             }
                             has_file = True
                 
-                # Get poster - using poster_fetcher or Config.get_poster()
-                poster_url = Config.get_poster(title)  # ✅ UPDATED: Using Config.get_poster()
+                # Get poster - using Config.get_poster()
+                year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                year = year_match.group() if year_match else ""
+                
+                poster_url = Config.get_poster(title, year)
                 poster_source = 'custom'
                 poster_rating = '0.0'
                 
                 if poster_fetcher:
-                    poster_data = await poster_fetcher.fetch_poster(title)
-                    if poster_data:
-                        poster_url = poster_data['poster_url']
-                        poster_source = poster_data['source']
-                        poster_rating = poster_data.get('rating', '0.0')
+                    try:
+                        poster_data = await poster_fetcher.fetch_poster(title, year)
+                        if poster_data:
+                            poster_url = poster_data.get('url', poster_url)
+                            poster_source = poster_data.get('source', poster_source)
+                            poster_rating = poster_data.get('rating', poster_rating)
+                    except:
+                        pass
                 
-                # FIXED: Using channel_name function instead of undefined channel_name variable
+                # FIXED: Using channel_name function
                 post_data = {
                     'title': title,
                     'content': format_post(msg.text),
-                    'channel': channel_name(channel_id),  # FIXED HERE
+                    'channel': channel_name(channel_id),
                     'channel_id': channel_id,
                     'message_id': message_id,
                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
@@ -1462,37 +1447,17 @@ async def search_movies_api(query, limit=12, page=1):
                 }
             }
         
-        # Enhance with posters using batch fetching with timeout
-        if poster_fetcher and result_data.get('results'):
-            titles = [result['title'] for result in result_data['results']]
-            
-            # Fetch posters with timeout
-            try:
-                posters_task = asyncio.create_task(poster_fetcher.fetch_batch_posters(titles))
-                posters = await asyncio.wait_for(posters_task, timeout=3.0)
+        # Enhance with posters
+        if result_data.get('results'):
+            for result in result_data['results']:
+                title = result.get('title', '')
+                year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                year = year_match.group() if year_match else ""
                 
-                for result in result_data['results']:
-                    if result['title'] in posters:
-                        poster_data = posters[result['title']]
-                        result['poster_url'] = poster_data.get('poster_url', '')
-                        result['poster_source'] = poster_data.get('source', 'custom')
-                        result['poster_rating'] = poster_data.get('rating', '0.0')
-                        result['has_poster'] = True
-                    else:
-                        # ✅ Use Config.get_poster() for fallback
-                        result['poster_url'] = Config.get_poster(result['title'])
-                        result['poster_source'] = 'custom'
-                        result['poster_rating'] = '0.0'
-                        result['has_poster'] = False
-                        
-            except asyncio.TimeoutError:
-                logger.warning("⏰ Poster fetch timeout")
-                # Set default posters using Config.get_poster()
-                for result in result_data['results']:
-                    result['poster_url'] = Config.get_poster(result['title'])
-                    result['poster_source'] = 'custom'
-                    result['poster_rating'] = '0.0'
-                    result['has_poster'] = False
+                result['poster_url'] = Config.get_poster(title, year)
+                result['poster_source'] = 'custom'
+                result['poster_rating'] = '0.0'
+                result['has_poster'] = True
         
         return result_data
         
@@ -1678,6 +1643,9 @@ async def init_system():
     try:
         logger.info("🚀 Starting SK4FiLM v8.0 - TURBO OPTIMIZED...")
         
+        # Import PosterFetcher here to avoid circular imports
+        from poster_fetching import PosterFetcher
+        
         # Initialize MongoDB
         mongo_ok = await init_mongodb()
         if not mongo_ok:
@@ -1712,15 +1680,12 @@ async def init_system():
         else:
             logger.warning("⚠️ Premium System - MongoDB not available")
         
-        # ✅ Initialize Poster Fetcher with MongoDB support
-        poster_fetcher = PosterFetcher(Config, cache_manager, db)
-        logger.info("✅ Poster Fetcher initialized with MongoDB 7-day auto-cleanup")
+        # ✅ FIXED: Initialize Poster Fetcher with correct arguments (2 instead of 3)
+        poster_fetcher = PosterFetcher(cache_manager, Config)
+        logger.info("✅ Poster Fetcher initialized")
         
         # ✅ WARM UP CACHE FOR INSTANT RESPONSE
         asyncio.create_task(warm_up_cache())
-        
-        # ✅ Start poster cleanup task
-        asyncio.create_task(poster_cleanup_task())
         
         # ✅ Initialize Telegram if available
         if PYROGRAM_AVAILABLE:
@@ -1797,8 +1762,7 @@ async def root():
         'database': {
             'total_files': tf, 
             'video_files': video_files,
-            'posters_cached': posters_cached,
-            'poster_cleanup_days': Config.POSTER_CLEANUP_DAYS
+            'posters_cached': posters_cached
         },
         'channels': len(Config.TEXT_CHANNEL_IDS),
         'response_time': f"{time.perf_counter():.3f}s"
@@ -1935,12 +1899,16 @@ async def api_poster():
             }), 400
         
         if poster_fetcher:
-            poster_data = await poster_fetcher.fetch_poster(title)
+            poster_data = await poster_fetcher.fetch_poster(title, year)
             
             if poster_data:
                 return jsonify({
                     'status': 'success',
-                    'poster': poster_data,
+                    'poster': {
+                        'poster_url': poster_data.get('url', ''),
+                        'source': poster_data.get('source', 'custom'),
+                        'rating': poster_data.get('rating', '0.0')
+                    },
                     'title': title,
                     'year': year,
                     'timestamp': datetime.now().isoformat()
@@ -1951,7 +1919,7 @@ async def api_poster():
             'status': 'success',
             'poster': {
                 'poster_url': Config.get_poster(title, year),
-                'source': PosterSource.CUSTOM.value,
+                'source': 'custom',
                 'rating': '0.0',
                 'year': year,
                 'title': title
@@ -2166,8 +2134,7 @@ async def api_stats():
         if poster_col:
             stats['posters'] = {
                 'total_posters': await poster_col.count_documents({}),
-                'expired_posters': await poster_col.count_documents({"expires_at": {"$lt": datetime.utcnow()}}),
-                'auto_cleanup_days': Config.POSTER_CLEANUP_DAYS
+                'expired_posters': await poster_col.count_documents({"expires_at": {"$lt": datetime.utcnow()}})
             }
         
         # Cache stats
