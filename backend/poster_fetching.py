@@ -1,9 +1,10 @@
 """
 poster_fetching.py - Multi-source poster fetching with intelligent fallback
-UPDATED: Fixed to work with app.py
+FIXED: Added json import and fixed all errors
 """
 import aiohttp
 import asyncio
+import json  # ✅ ADDED THIS IMPORT
 from typing import Dict, Any, Optional, List
 import logging
 from urllib.parse import quote
@@ -64,7 +65,7 @@ class PosterFetcher:
         }
         
         # Default fallback
-        self.default_poster = "https://iili.io/fAeIwv9.th.png"
+        self.default_poster = "https://via.placeholder.com/300x450/1a1a2e/ffffff?text=No+Poster"
     
     async def init_session(self):
         """Initialize HTTP session"""
@@ -89,15 +90,15 @@ class PosterFetcher:
         # Check cache first
         cache_key = f"poster:{title}:{year}" if year else f"poster:{title}"
         if self.cache and hasattr(self.cache, 'get'):
-            cached = await self.cache.get(cache_key)
-            if cached:
-                try:
+            try:
+                cached = await self.cache.get(cache_key)
+                if cached:
                     result = json.loads(cached)
                     result['cached'] = True
                     result['response_time'] = 0
                     return result
-                except:
-                    pass
+            except Exception as e:
+                logger.debug(f"Cache read error: {e}")
         
         # Prepare search query
         search_query = f"{title} {year}" if year else title
@@ -116,11 +117,14 @@ class PosterFetcher:
                 if result and result.get('url'):
                     # Cache the result
                     if self.cache and hasattr(self.cache, 'set'):
-                        await self.cache.set(
-                            cache_key, 
-                            json.dumps(result), 
-                            expire_seconds=getattr(self.config, 'CACHE_TTL', 300)
-                        )
+                        try:
+                            await self.cache.set(
+                                cache_key, 
+                                json.dumps(result), 
+                                expire_seconds=getattr(self.config, 'CACHE_TTL', 300)
+                            )
+                        except Exception as e:
+                            logger.debug(f"Cache write error: {e}")
                     
                     end_time = asyncio.get_event_loop().time()
                     result['response_time'] = int((end_time - start_time) * 1000)
@@ -131,9 +135,16 @@ class PosterFetcher:
                 logger.debug(f"Source fetch failed: {e}")
                 continue
         
-        # Fallback to default
+        # Fallback to default or config.get_poster()
+        fallback_url = self.default_poster
+        if hasattr(self.config, 'get_poster'):
+            try:
+                fallback_url = self.config.get_poster(title, year or "")
+            except:
+                pass
+        
         result = {
-            'url': self.default_poster,
+            'url': fallback_url,
             'source': 'default',
             'quality': 'low',
             'rating': '0.0',
@@ -143,11 +154,14 @@ class PosterFetcher:
         
         # Cache default result too
         if self.cache and hasattr(self.cache, 'set'):
-            await self.cache.set(
-                cache_key, 
-                json.dumps(result), 
-                expire_seconds=3600
-            )
+            try:
+                await self.cache.set(
+                    cache_key, 
+                    json.dumps(result), 
+                    expire_seconds=3600
+                )
+            except:
+                pass
         
         return result
     
@@ -365,13 +379,16 @@ class PosterFetcher:
                 url = f"http://www.impawards.com/{year}/{title.replace(' ', '_')}.html"
             else:
                 # Try recent years
-                current_year = 2024
+                current_year = datetime.now().year
                 for y in range(current_year, current_year - 5, -1):
                     url = f"http://www.impawards.com/{y}/{title.replace(' ', '_')}.html"
                     
-                    async with self.session.head(url, timeout=2) as response:
-                        if response.status == 200:
-                            break
+                    try:
+                        async with self.session.head(url, timeout=2) as response:
+                            if response.status == 200:
+                                break
+                    except:
+                        continue
                 else:
                     return None
             
@@ -465,15 +482,20 @@ class PosterFetcher:
         """Fetch posters for multiple titles efficiently"""
         results = {}
         
-        # Fetch individually
-        for title in titles:
-            try:
-                result = await self.fetch_poster(title)
-                if result:
-                    results[title] = result
-                await asyncio.sleep(0.1)  # Small delay
-            except:
-                pass
+        # Fetch individually with concurrency limit
+        semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
+        
+        async def fetch_with_limit(title):
+            async with semaphore:
+                try:
+                    result = await self.fetch_poster(title)
+                    if result:
+                        results[title] = result
+                except Exception as e:
+                    logger.debug(f"Error fetching poster for {title}: {e}")
+        
+        tasks = [fetch_with_limit(title) for title in titles]
+        await asyncio.gather(*tasks)
         
         return results
     
