@@ -1,9 +1,4 @@
-"""
-app.py - Complete SK4FiLM Web API System with Multi-Channel Search
-OPTIMIZED: Supersonic speed with caching, async optimization, and performance monitoring
-ENHANCED: Auto delete from MongoDB when deleted from Telegram, duplicate prevention
-NO TTL: No automatic time-based deletion
-"""
+#all features keep don't remove
 import asyncio
 import os
 import logging
