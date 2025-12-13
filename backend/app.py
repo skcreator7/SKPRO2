@@ -1,6 +1,7 @@
 """
 app.py - Complete SK4FiLM Web API System with Multi-Channel Search
 OPTIMIZED: Supersonic speed with caching, async optimization, and performance monitoring
+UPDATED: Fixed Config.get_poster() and added MongoDB poster auto-cleanup (7 days)
 """
 import asyncio
 import os
@@ -186,6 +187,19 @@ class Config:
     MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
+    
+    # ✅ NEW: Poster cache settings
+    POSTER_CACHE_TTL = int(os.environ.get("POSTER_CACHE_TTL", "86400"))  # 24 hours
+    POSTER_CLEANUP_DAYS = int(os.environ.get("POSTER_CLEANUP_DAYS", "7"))
+    
+    @staticmethod
+    def get_poster(title, year=""):
+        """Generate poster URL for fallback"""
+        if not title:
+            return f"https://via.placeholder.com/300x450/1a1a2e/ffffff?text=No+Poster"
+        
+        encoded_title = urllib.parse.quote(title)
+        return f"{Config.BACKEND_URL}/api/poster?title={encoded_title}&year={year}"
 
 # FAST INITIALIZATION
 app = Quart(__name__)
@@ -207,6 +221,7 @@ mongo_client = None
 db = None
 files_col = None
 verification_col = None
+poster_col = None  # ✅ NEW: Poster collection
 
 # MODULAR COMPONENTS
 cache_manager = None
@@ -536,9 +551,16 @@ async def get_index_status_api():
         total_files = await files_col.count_documents({}) if files_col else 0
         video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
         
+        # ✅ ADDED: Poster collection stats
+        total_posters = await poster_col.count_documents({}) if poster_col else 0
+        expired_posters = await poster_col.count_documents({"expires_at": {"$lt": datetime.utcnow()}}) if poster_col else 0
+        
         return {
             'indexed_files': total_files,
             'video_files': video_files,
+            'posters_cached': total_posters,
+            'expired_posters': expired_posters,
+            'poster_cleanup_days': Config.POSTER_CLEANUP_DAYS,
             'user_session_ready': user_session_ready,
             'last_update': datetime.now().isoformat(),
             'status': 'active' if user_session_ready else 'inactive'
@@ -740,6 +762,20 @@ async def cache_cleanup():
         except Exception as e:
             logger.error(f"Cache cleanup error: {e}")
 
+# ✅ POSTER CLEANUP TASK
+async def poster_cleanup_task():
+    """Cleanup expired posters from MongoDB every day"""
+    while True:
+        await asyncio.sleep(86400)  # Run every 24 hours
+        
+        try:
+            if poster_fetcher:
+                await poster_fetcher.cleanup_expired_cache()
+            
+            logger.info("🧹 Poster cleanup completed (7-day auto-cleanup)")
+        except Exception as e:
+            logger.error(f"Poster cleanup error: {e}")
+
 # OPTIMIZED TITLE EXTRACTION
 @async_cache_with_ttl(maxsize=1000, ttl=3600)
 async def extract_title_from_telegram_msg_cached(msg):
@@ -784,7 +820,7 @@ async def extract_video_thumbnail(user_client, message):
 @performance_monitor.measure("mongodb_init")
 async def init_mongodb():
     """Optimized MongoDB initialization"""
-    global mongo_client, db, files_col, verification_col
+    global mongo_client, db, files_col, verification_col, poster_col
     
     try:
         logger.info("🔌 MongoDB initialization...")
@@ -808,6 +844,7 @@ async def init_mongodb():
         db = mongo_client.sk4film
         files_col = db.files
         verification_col = db.verifications
+        poster_col = db.posters  # ✅ NEW: Poster collection
         
         # Create indexes only if they don't exist (optimized)
         existing_indexes = await files_col.index_information()
@@ -989,12 +1026,12 @@ async def get_poster_guaranteed(title):
     if poster_fetcher:
         return await poster_fetcher.fetch_poster(title)
     
-    # Fallback
+    # Fallback using Config.get_poster()
     year_match = re.search(r'\b(19|20)\d{2}\b', title)
     year = year_match.group() if year_match else ""
     
     return {
-        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
+        'poster_url': Config.get_poster(title, year),
         'source': PosterSource.CUSTOM.value,
         'rating': '0.0',
         'year': year,
@@ -1287,7 +1324,7 @@ async def get_home_movies_telegram(limit=30):
                         'channel_id': Config.MAIN_CHANNEL_ID,
                         'message_id': msg.id,
                         'has_poster': True,
-                        'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
+                        'poster_url': Config.get_poster(title, year),  # ✅ UPDATED: Using Config.get_poster()
                         'poster_source': 'telegram',
                         'poster_rating': '0.0'
                     })
@@ -1352,8 +1389,8 @@ async def get_single_post_api(channel_id, message_id):
                             }
                             has_file = True
                 
-                # Get poster
-                poster_url = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}"
+                # Get poster - using poster_fetcher or Config.get_poster()
+                poster_url = Config.get_poster(title)  # ✅ UPDATED: Using Config.get_poster()
                 poster_source = 'custom'
                 poster_rating = '0.0'
                 
@@ -1442,17 +1479,17 @@ async def search_movies_api(query, limit=12, page=1):
                         result['poster_rating'] = poster_data.get('rating', '0.0')
                         result['has_poster'] = True
                     else:
-                        # Fast fallback
-                        result['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result['title'])}"
+                        # ✅ Use Config.get_poster() for fallback
+                        result['poster_url'] = Config.get_poster(result['title'])
                         result['poster_source'] = 'custom'
                         result['poster_rating'] = '0.0'
                         result['has_poster'] = False
                         
             except asyncio.TimeoutError:
                 logger.warning("⏰ Poster fetch timeout")
-                # Set default posters
+                # Set default posters using Config.get_poster()
                 for result in result_data['results']:
-                    result['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(result['title'])}"
+                    result['poster_url'] = Config.get_poster(result['title'])
                     result['poster_source'] = 'custom'
                     result['poster_rating'] = '0.0'
                     result['has_poster'] = False
@@ -1675,12 +1712,15 @@ async def init_system():
         else:
             logger.warning("⚠️ Premium System - MongoDB not available")
         
-        # Initialize Poster Fetcher
-        poster_fetcher = PosterFetcher(Config, cache_manager)
-        logger.info("✅ Poster Fetcher initialized")
+        # ✅ Initialize Poster Fetcher with MongoDB support
+        poster_fetcher = PosterFetcher(Config, cache_manager, db)
+        logger.info("✅ Poster Fetcher initialized with MongoDB 7-day auto-cleanup")
         
         # ✅ WARM UP CACHE FOR INSTANT RESPONSE
         asyncio.create_task(warm_up_cache())
+        
+        # ✅ Start poster cleanup task
+        asyncio.create_task(poster_cleanup_task())
         
         # ✅ Initialize Telegram if available
         if PYROGRAM_AVAILABLE:
@@ -1735,6 +1775,7 @@ async def root():
     """Optimized root endpoint"""
     tf = await files_col.count_documents({}) if files_col is not None else 0
     video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
+    posters_cached = await poster_col.count_documents({}) if poster_col is not None else 0
     
     return jsonify({
         'status': 'healthy',
@@ -1755,7 +1796,9 @@ async def root():
         },
         'database': {
             'total_files': tf, 
-            'video_files': video_files
+            'video_files': video_files,
+            'posters_cached': posters_cached,
+            'poster_cleanup_days': Config.POSTER_CLEANUP_DAYS
         },
         'channels': len(Config.TEXT_CHANNEL_IDS),
         'response_time': f"{time.perf_counter():.3f}s"
@@ -1903,13 +1946,15 @@ async def api_poster():
                     'timestamp': datetime.now().isoformat()
                 })
         
-        # Fallback
+        # ✅ FIXED: Using Config.get_poster() for fallback
         return jsonify({
             'status': 'success',
             'poster': {
-                'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
+                'poster_url': Config.get_poster(title, year),
                 'source': PosterSource.CUSTOM.value,
-                'rating': '0.0'
+                'rating': '0.0',
+                'year': year,
+                'title': title
             },
             'title': title,
             'year': year,
@@ -2049,7 +2094,8 @@ async def api_clear_cache():
         cleared = {
             'cache_manager': False,
             'poster_fetcher': False,
-            'search_cache': 0
+            'search_cache': 0,
+            'poster_collection': False
         }
         
         if cache_manager:
@@ -2062,6 +2108,11 @@ async def api_clear_cache():
         
         if cache_manager:
             cleared['search_cache'] = await cache_manager.clear_search_cache()
+        
+        # Clear MongoDB poster collection
+        if poster_col:
+            await poster_col.delete_many({})
+            cleared['poster_collection'] = True
         
         return jsonify({
             'status': 'success',
@@ -2109,6 +2160,14 @@ async def api_stats():
                 'total_files': await files_col.count_documents({}),
                 'video_files': await files_col.count_documents({'is_video_file': True}),
                 'unique_titles': len(await files_col.distinct('normalized_title'))
+            }
+        
+        # Poster stats
+        if poster_col:
+            stats['posters'] = {
+                'total_posters': await poster_col.count_documents({}),
+                'expired_posters': await poster_col.count_documents({"expires_at": {"$lt": datetime.utcnow()}}),
+                'auto_cleanup_days': Config.POSTER_CLEANUP_DAYS
             }
         
         # Cache stats
