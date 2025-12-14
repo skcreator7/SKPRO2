@@ -214,6 +214,11 @@ files_col = None
 verification_col = None
 poster_col = None
 
+# Bot instance
+bot_instance = None
+bot_handlers_ready = False
+
+
 # Components
 cache_manager = None
 poster_fetcher = None
@@ -223,11 +228,6 @@ CHANNEL_CONFIG = {
     -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'session': 'user'},
     -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'session': 'user'},
     -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'session': 'bot', 'sync_manage': True}
-
-# Bot instance
-bot_instance = None
-bot_handlers_ready = False
-
 }
 
 # ============================================================================
@@ -569,7 +569,7 @@ async def init_telegram_sessions():
                 bot_token=Config.BOT_TOKEN,
                 sleep_threshold=30,
                 in_memory=True,
-                no_updates=False  # ✅ Enable updates for handlers
+                no_updates=True
             )
             
             await Bot.start()
@@ -603,50 +603,25 @@ async def init_telegram_sessions():
     return user_session_ready or bot_session_ready
 
 
-# ============================================================================
-# ✅ BOT HANDLERS INITIALIZATION
-# ============================================================================
-
 async def init_bot_handlers():
-    """Initialize bot with handlers"""
     global bot_instance, bot_handlers_ready
-
     try:
-        if not BOT_HANDLERS_AVAILABLE:
-            logger.warning("⚠️ Bot handlers module not available")
+        if not BOT_HANDLERS_AVAILABLE or not Bot or not bot_session_ready:
             return False
-
-        if not Bot or not bot_session_ready:
-            logger.warning("⚠️ Bot session not ready for handlers")
-            return False
-
         logger.info("🎮 Initializing bot handlers...")
-
-        # Create bot instance with all required parameters
         bot_instance = BotInstance(bot=Bot, config=Config)
         bot_instance.user_client = User
         bot_instance.user_session_ready = user_session_ready
         bot_instance.bot_session_ready = bot_session_ready
         bot_instance.files_col = files_col
         bot_instance.verification_col = verification_col
-
-        # Setup all command handlers
         await setup_bot_handlers(Bot, bot_instance)
-        logger.info("✅ Bot command handlers registered")
-
-        # Initialize bot instance systems (verification, premium, etc)
         await bot_instance.initialize()
-        logger.info("✅ Bot systems initialized")
-
         bot_handlers_ready = True
-        logger.info("✅ Bot handlers fully operational")
-
+        logger.info("✅ Bot handlers ready")
         return True
-
     except Exception as e:
-        logger.error(f"❌ Bot handlers initialization failed: {e}")
-        logger.error(f"   Error details: {str(e)[:200]}")
-        bot_handlers_ready = False
+        logger.error(f"❌ Bot handlers failed: {e}")
         return False
 
 
@@ -1515,13 +1490,9 @@ async def init_system():
             logger.warning("⚠️ Pyrogram not available")
         
 
-        # Initialize bot handlers
+        # Bot handlers
         if BOT_HANDLERS_AVAILABLE and bot_session_ready:
-            handlers_ok = await init_bot_handlers()
-            if handlers_ok:
-                logger.info("✅ Bot handlers ready to receive commands")
-            else:
-                logger.warning("⚠️ Bot handlers initialization failed")
+            await init_bot_handlers()
 
 
         # Start background tasks
