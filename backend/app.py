@@ -27,11 +27,13 @@ import redis.asyncio as redis
 try:
     from pyrogram import Client
     from pyrogram.errors import FloodWait, SessionPasswordNeeded, PhoneCodeInvalid
+    from pyrogram.types import Message
     PYROGRAM_AVAILABLE = True
 except ImportError:
     PYROGRAM_AVAILABLE = False
     Client = None
     FloodWait = None
+    Message = None
 
 # Import modular components
 try:
@@ -59,14 +61,58 @@ except ImportError:
     class PosterFetcher: pass
     UTILS_AVAILABLE = False
     
-    def normalize_title(title): return title
-    def extract_title_smart(text): return text
-    def extract_title_from_file(file_name, caption): return file_name
-    def format_size(size): return str(size)
-    def detect_quality(filename): return "480p"
-    def is_video_file(file_name): return False
-    def format_post(text): return text
-    def is_new(date): return False
+    def normalize_title(title): return title.lower().strip() if title else ""
+    def extract_title_smart(text): 
+        if not text: return ""
+        # Simple extraction logic
+        lines = text.split('\n')
+        if lines:
+            return lines[0].strip()[:50]
+        return text[:50]
+    def extract_title_from_file(file_name, caption): 
+        if caption:
+            return extract_title_smart(caption)
+        if file_name:
+            return file_name.rsplit('.', 1)[0]
+        return "Unknown"
+    def format_size(size): 
+        if not size: return "Unknown"
+        if size < 1024*1024:
+            return f"{size/1024:.1f} KB"
+        elif size < 1024*1024*1024:
+            return f"{size/(1024*1024):.1f} MB"
+        else:
+            return f"{size/(1024*1024*1024):.2f} GB"
+    def detect_quality(filename): 
+        if not filename: return "480p"
+        fl = filename.lower()
+        if '2160p' in fl or '4k' in fl:
+            return "2160p"
+        elif '1080p' in fl:
+            return "1080p"
+        elif '720p' in fl:
+            return "720p"
+        elif '480p' in fl:
+            return "480p"
+        return "480p"
+    def is_video_file(file_name): 
+        if not file_name: return False
+        video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.mpg', '.mpeg']
+        file_name_lower = file_name.lower()
+        return any(file_name_lower.endswith(ext) for ext in video_extensions)
+    def format_post(text): 
+        if not text: return ""
+        text = html.escape(text)
+        text = re.sub(r'(https?://[^\s]+)', r'<a href="\1" target="_blank" style="color:#00ccff">\1</a>', text)
+        return text.replace('\n', '<br>')
+    def is_new(date): 
+        try:
+            if isinstance(date, str):
+                date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+            hours = (datetime.now() - date.replace(tzinfo=None)).total_seconds() / 3600
+            return hours <= 48
+        except:
+            return False
 
 # Import bot_handlers AFTER all other imports
 try:
@@ -80,7 +126,7 @@ except ImportError:
 # ✅ ULTRA-FAST LOADING OPTIMIZATIONS
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%H:%M:%S'
 )
 logger = logging.getLogger(__name__)
@@ -1419,11 +1465,11 @@ async def get_poster_guaranteed(title, year=""):
         'title': title
     }
 
-# ULTRA-FAST SEARCH FUNCTION
+# ✅ FIXED: ULTRA-FAST SEARCH FUNCTION WITH BETTER TEXT SEARCH
 @performance_monitor.measure("multi_channel_search")
 @async_cache_with_ttl(maxsize=500, ttl=300)
 async def search_movies_multi_channel(query, limit=12, page=1):
-    """Turbo-charged multi-channel search"""
+    """Turbo-charged multi-channel search with improved text search"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -1441,12 +1487,21 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     posts_dict = {}
     files_dict = {}
     
-    # MongoDB search with optimization
+    # ✅ FIXED: MongoDB search with regex for better matching
     try:
         if files_col is not None:
-            # Use projection for faster queries
+            # Use regex for case-insensitive search
+            regex_pattern = f".*{re.escape(query)}.*"
+            
+            # First try regex search for better matching
             cursor = files_col.find(
-                {'$text': {'$search': query}},
+                {
+                    '$or': [
+                        {'title': {'$regex': regex_pattern, '$options': 'i'}},
+                        {'normalized_title': {'$regex': regex_pattern, '$options': 'i'}},
+                        {'file_name': {'$regex': regex_pattern, '$options': 'i'}}
+                    ]
+                },
                 {
                     'title': 1,
                     'normalized_title': 1,
@@ -1489,7 +1544,8 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                             'channel_id': doc.get('channel_id'),
                             'message_id': doc.get('message_id')
                         }
-                except:
+                except Exception as e:
+                    logger.error(f"Error processing document: {e}")
                     continue
     except Exception as e:
         logger.error(f"File search error: {e}")
@@ -1603,9 +1659,135 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     if cache_manager and hasattr(cache_manager, 'cache_search_results'):
         await cache_manager.cache_search_results(query, page, limit, result_data)
     
-    logger.info(f"✅ Search completed: {len(paginated)} results")
+    logger.info(f"✅ Search completed: {len(paginated)} results, {len(files_dict)} files found")
     
     return result_data
+
+# ✅ FIXED: BETTER INDEXING FUNCTION THAT ACTUALLY WORKS
+async def index_all_files_from_telegram():
+    """Index all files from Telegram channel"""
+    if not User or not user_session_ready:
+        logger.error("❌ Cannot index - User session not ready")
+        return
+    
+    try:
+        logger.info("📁 Starting to index ALL files from Telegram channel...")
+        
+        total_indexed = 0
+        total_skipped = 0
+        
+        # Get messages in batches
+        batch_size = 50
+        offset_id = 0
+        
+        while True:
+            try:
+                # Get messages batch
+                messages = []
+                async for msg in User.get_chat_history(
+                    Config.FILE_CHANNEL_ID,
+                    limit=batch_size,
+                    offset_id=offset_id
+                ):
+                    messages.append(msg)
+                
+                if not messages:
+                    break
+                
+                # Process each message
+                for msg in messages:
+                    if msg and (msg.document or msg.video):
+                        success = await index_single_file_smart(msg)
+                        if success:
+                            total_indexed += 1
+                        else:
+                            total_skipped += 1
+                    
+                    # Update offset
+                    offset_id = msg.id
+                
+                # Log progress
+                logger.info(f"📊 Progress: {total_indexed} indexed, {total_skipped} skipped")
+                
+                # Small delay to avoid rate limiting
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logger.error(f"❌ Error processing batch: {e}")
+                break
+        
+        logger.info(f"✅ Indexing complete: {total_indexed} files indexed, {total_skipped} skipped")
+        
+    except Exception as e:
+        logger.error(f"❌ Indexing error: {e}")
+
+# ✅ FIXED: ADDED DIRECT INDEXING ENDPOINT
+@app.route('/api/index/all', methods=['POST'])
+async def api_index_all():
+    """Manually trigger indexing of all files"""
+    try:
+        # Check admin key
+        data = await request.get_json()
+        admin_key = data.get('admin_key') if data else request.headers.get('X-Admin-Key')
+        
+        if not admin_key or admin_key != os.environ.get('ADMIN_KEY', 'sk4film_admin_123'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+        
+        if not user_session_ready:
+            return jsonify({
+                'status': 'error',
+                'message': 'Telegram session not ready'
+            }), 400
+        
+        # Start indexing in background
+        asyncio.create_task(index_all_files_from_telegram())
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Indexing started in background',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Index all API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# ✅ FIXED: ADDED FORCE SYNC ENDPOINT
+@app.route('/api/sync/force', methods=['POST'])
+async def api_sync_force():
+    """Force sync of deletions"""
+    try:
+        # Check admin key
+        data = await request.get_json()
+        admin_key = data.get('admin_key') if data else request.headers.get('X-Admin-Key')
+        
+        if not admin_key or admin_key != os.environ.get('ADMIN_KEY', 'sk4film_admin_123'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+        
+        await channel_sync_manager.manual_sync()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Force sync completed',
+            'deleted_count': channel_sync_manager.deleted_count,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Force sync API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 # LIVE POSTS WITH CACHE
 @async_cache_with_ttl(maxsize=100, ttl=60)
@@ -2385,6 +2567,7 @@ async def init_system():
         
         # Start SMART indexing in background only if Telegram is ready
         if user_session_ready:
+            # Start indexing
             asyncio.create_task(index_files_background_smart())
             logger.info("✅ Started SMART background indexing with sync management")
         else:
