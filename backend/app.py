@@ -1,10 +1,3 @@
-# ============================================================================
-# 🚀 SK4FiLM v8.0 - DUAL SESSION ARCHITECTURE
-# ============================================================================
-# ✅ User Session: Text Channel Searches (-1001891090100, -1002024811395)
-# ✅ Bot Session: File Channel Operations (-1001768249569)
-# ============================================================================
-
 import asyncio
 import os
 import logging
@@ -33,6 +26,17 @@ import redis.asyncio as redis
 try:
     from pyrogram import Client
     from pyrogram.errors import FloodWait, SessionPasswordNeeded, PhoneCodeInvalid
+
+# Bot handlers imports
+try:
+    from bot_commands import setup_bot_handlers
+    from bot_handlers import BotInstance
+    BOT_HANDLERS_AVAILABLE = True
+except ImportError:
+    BOT_HANDLERS_AVAILABLE = False
+    setup_bot_handlers = None
+    BotInstance = None
+
     PYROGRAM_AVAILABLE = True
 except ImportError:
     PYROGRAM_AVAILABLE = False
@@ -219,6 +223,11 @@ CHANNEL_CONFIG = {
     -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'session': 'user'},
     -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'session': 'user'},
     -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'session': 'bot', 'sync_manage': True}
+
+# Bot instance
+bot_instance = None
+bot_handlers_ready = False
+
 }
 
 # ============================================================================
@@ -560,7 +569,7 @@ async def init_telegram_sessions():
                 bot_token=Config.BOT_TOKEN,
                 sleep_threshold=30,
                 in_memory=True,
-                no_updates=True
+                no_updates=False  # ✅ Enable updates for handlers
             )
             
             await Bot.start()
@@ -592,6 +601,54 @@ async def init_telegram_sessions():
     logger.info(f"FILE Channel: {Config.FILE_CHANNEL_ID}")
     
     return user_session_ready or bot_session_ready
+
+
+# ============================================================================
+# ✅ BOT HANDLERS INITIALIZATION
+# ============================================================================
+
+async def init_bot_handlers():
+    """Initialize bot with handlers"""
+    global bot_instance, bot_handlers_ready
+
+    try:
+        if not BOT_HANDLERS_AVAILABLE:
+            logger.warning("⚠️ Bot handlers module not available")
+            return False
+
+        if not Bot or not bot_session_ready:
+            logger.warning("⚠️ Bot session not ready for handlers")
+            return False
+
+        logger.info("🎮 Initializing bot handlers...")
+
+        # Create bot instance with all required parameters
+        bot_instance = BotInstance(bot=Bot, config=Config)
+        bot_instance.user_client = User
+        bot_instance.user_session_ready = user_session_ready
+        bot_instance.bot_session_ready = bot_session_ready
+        bot_instance.files_col = files_col
+        bot_instance.verification_col = verification_col
+
+        # Setup all command handlers
+        await setup_bot_handlers(Bot, bot_instance)
+        logger.info("✅ Bot command handlers registered")
+
+        # Initialize bot instance systems (verification, premium, etc)
+        await bot_instance.initialize()
+        logger.info("✅ Bot systems initialized")
+
+        bot_handlers_ready = True
+        logger.info("✅ Bot handlers fully operational")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Bot handlers initialization failed: {e}")
+        logger.error(f"   Error details: {str(e)[:200]}")
+        bot_handlers_ready = False
+        return False
+
 
 # ============================================================================
 # ✅ MONGODB INITIALIZATION
@@ -1457,6 +1514,16 @@ async def init_system():
         else:
             logger.warning("⚠️ Pyrogram not available")
         
+
+        # Initialize bot handlers
+        if BOT_HANDLERS_AVAILABLE and bot_session_ready:
+            handlers_ok = await init_bot_handlers()
+            if handlers_ok:
+                logger.info("✅ Bot handlers ready to receive commands")
+            else:
+                logger.warning("⚠️ Bot handlers initialization failed")
+
+
         # Start background tasks
         if bot_session_ready and files_col:
             asyncio.create_task(index_files_background_smart())
