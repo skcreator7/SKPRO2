@@ -1,3 +1,7 @@
+# ============================================================================
+# 🚀 SK4FiLM v8.0 - DUAL SESSION ARCHITECTURE (FIXED)
+# ============================================================================
+
 import asyncio
 import os
 import logging
@@ -182,7 +186,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.0-DUAL-SESSION'
+    response.headers['X-SK4FiLM-Version'] = '8.0-DUAL-SESSION-FIXED'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -377,7 +381,7 @@ class CacheManager:
     
     async def get(self, key: str, default=None):
         try:
-            if self.redis_enabled and self.redis_client:
+            if self.redis_enabled and self.redis_client is not None:
                 value = await self.redis_client.get(key)
                 if value:
                     return json.loads(value)
@@ -393,7 +397,7 @@ class CacheManager:
     
     async def set(self, key: str, value: Any, expire_seconds: int = 300):
         try:
-            if self.redis_enabled and self.redis_client:
+            if self.redis_enabled and self.redis_client is not None:
                 await self.redis_client.setex(key, expire_seconds, json.dumps(value))
         except:
             pass
@@ -411,7 +415,7 @@ class CacheManager:
     
     async def clear_all(self):
         try:
-            if self.redis_enabled and self.redis_client:
+            if self.redis_enabled and self.redis_client is not None:
                 await self.redis_client.flushdb()
         except:
             pass
@@ -451,7 +455,7 @@ class PosterFetcher:
             if expiry > datetime.now():
                 return data
         
-        if self.cache_manager and self.cache_manager.redis_enabled:
+        if self.cache_manager is not None and self.cache_manager.redis_enabled:
             cached_data = await self.cache_manager.get(cache_key)
             if cached_data:
                 self.memory_cache[cache_key] = (cached_data, datetime.now() + timedelta(hours=24))
@@ -462,7 +466,7 @@ class PosterFetcher:
         
         if poster_data:
             self.memory_cache[cache_key] = (poster_data, datetime.now() + timedelta(hours=24))
-            if self.cache_manager:
+            if self.cache_manager is not None:
                 await self.cache_manager.set(cache_key, poster_data, expire_seconds=7*24*3600)
         
         return poster_data
@@ -539,6 +543,12 @@ async def init_telegram_sessions():
         except Exception as e:
             logger.error(f"❌ USER Session failed: {e}")
             user_session_ready = False
+            if User is not None:
+                try:
+                    await User.stop()
+                except:
+                    pass
+            User = None
     
     # ============================================================================
     # ✅ 2. INITIALIZE BOT SESSION (for FILE channel)
@@ -572,6 +582,12 @@ async def init_telegram_sessions():
         except Exception as e:
             logger.error(f"❌ BOT Session failed: {e}")
             bot_session_ready = False
+            if Bot is not None:
+                try:
+                    await Bot.stop()
+                except:
+                    pass
+            Bot = None
     
     # ============================================================================
     # ✅ 3. SUMMARY
@@ -714,7 +730,7 @@ async def generate_file_hash(message):
 async def index_single_file_smart(message):
     """Index single file using BOT session"""
     try:
-        if not files_col or not Bot or not bot_session_ready:
+        if files_col is None or Bot is None or not bot_session_ready:
             logger.error("❌ Bot session not ready for indexing")
             return False
         
@@ -817,7 +833,7 @@ async def index_single_file_smart(message):
 
 async def index_files_background_smart():
     """Background indexing using BOT session"""
-    if not Bot or not files_col or not bot_session_ready:
+    if Bot is None or files_col is None or not bot_session_ready:
         logger.warning("⚠️ Bot session not ready for indexing")
         return
     
@@ -895,7 +911,7 @@ class ChannelSyncManager:
     
     async def start_sync_monitoring(self):
         """Start sync monitoring using BOT session"""
-        if not Bot or not bot_session_ready:
+        if Bot is None or not bot_session_ready:
             logger.warning("⚠️ Bot session not ready for sync")
             return
         
@@ -908,7 +924,7 @@ class ChannelSyncManager:
     
     async def stop_sync_monitoring(self):
         self.is_monitoring = False
-        if self.monitoring_task:
+        if self.monitoring_task is not None:
             self.monitoring_task.cancel()
             try:
                 await self.monitoring_task
@@ -930,7 +946,7 @@ class ChannelSyncManager:
     async def sync_deletions_from_telegram(self):
         """Sync deletions using BOT session"""
         try:
-            if not files_col or not Bot:
+            if files_col is None or Bot is None:
                 return
             
             current_time = time.time()
@@ -969,7 +985,7 @@ class ChannelSyncManager:
                         for msg in messages:
                             if msg and hasattr(msg, 'id'):
                                 existing_ids.add(msg.id)
-                    elif messages and hasattr(messages, 'id'):
+                    elif messages is not None and hasattr(messages, 'id'):
                         existing_ids.add(messages.id)
                     
                     # Find deleted IDs
@@ -1026,7 +1042,7 @@ async def extract_title_from_telegram_msg_cached(msg):
 async def get_home_movies_telegram(limit=30):
     """Get movies from TEXT channels using USER session"""
     try:
-        if not User or not user_session_ready:
+        if User is None or not user_session_ready:
             return []
         
         movies = []
@@ -1035,7 +1051,7 @@ async def get_home_movies_telegram(limit=30):
         logger.info(f"🎬 Fetching movies via USER session...")
         
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=limit * 2):
-            if msg and msg.text and len(msg.text) > 20:
+            if msg is not None and msg.text and len(msg.text) > 20:
                 title = extract_title_smart(msg.text)
                 
                 if title and title not in seen_titles:
@@ -1084,7 +1100,7 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     
     # Try cache first
     cache_key = f"search:{query}:{page}:{limit}"
-    if cache_manager and cache_manager.redis_enabled:
+    if cache_manager is not None and cache_manager.redis_enabled:
         cached_data = await cache_manager.get(cache_key)
         if cached_data:
             logger.info(f"✅ Cache HIT for: {query}")
@@ -1099,13 +1115,13 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     # ============================================================================
     # ✅ 1. SEARCH TEXT CHANNELS (USER SESSION)
     # ============================================================================
-    if user_session_ready and User:
+    if user_session_ready and User is not None:
         async def search_text_channel(channel_id):
             channel_posts = {}
             try:
                 cname = channel_name_cached(channel_id)
                 async for msg in User.search_messages(channel_id, query=query, limit=10):
-                    if msg and msg.text and len(msg.text) > 15:
+                    if msg is not None and msg.text and len(msg.text) > 15:
                         title = extract_title_smart(msg.text)
                         if title and query_lower in title.lower():
                             norm_title = normalize_title_cached(title)
@@ -1262,7 +1278,7 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     }
     
     # Cache results
-    if cache_manager:
+    if cache_manager is not None:
         await cache_manager.cache_search_results(query, page, limit, result_data)
     
     logger.info(f"✅ DUAL search complete: {len(paginated)} results")
@@ -1278,16 +1294,16 @@ async def get_single_post_api(channel_id, message_id):
         # Determine which session to use
         if channel_id == Config.FILE_CHANNEL_ID:
             # Use BOT session for file channel
-            if not Bot or not bot_session_ready:
+            if Bot is None or not bot_session_ready:
                 return None
             msg = await Bot.get_messages(channel_id, message_id)
         else:
             # Use USER session for text channels
-            if not User or not user_session_ready:
+            if User is None or not user_session_ready:
                 return None
             msg = await User.get_messages(channel_id, message_id)
         
-        if msg and msg.text:
+        if msg is not None and msg.text:
             title = extract_title_smart(msg.text)
             if not title:
                 title = msg.text.split('\n')[0][:60] if msg.text else "Movie Post"
@@ -1384,15 +1400,16 @@ async def get_home_movies_live():
 
 async def get_index_status_api():
     try:
-        total_files = await files_col.count_documents({}) if files_col is not None else 0
-        video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
+        total_files = 0
+        video_files = 0
+        file_channel_files = 0
         
         if files_col is not None:
+            total_files = await files_col.count_documents({})
+            video_files = await files_col.count_documents({'is_video_file': True})
             file_channel_files = await files_col.count_documents({
                 "channel_id": Config.FILE_CHANNEL_ID
             })
-        else:
-            file_channel_files = 0
         
         return {
             'indexed_files': total_files,
@@ -1474,18 +1491,23 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ API ROUTES
+# ✅ API ROUTES - FIXED PyMongo Collection Checks
 # ============================================================================
 
 @app.route('/')
 @performance_monitor.measure("root_endpoint")
 async def root():
-    tf = await files_col.count_documents({}) if files_col is not None else 0
-    video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
+    # ✅ FIXED: Check files_col is not None, not if files_col
+    if files_col is not None:
+        tf = await files_col.count_documents({})
+        video_files = await files_col.count_documents({'is_video_file': True})
+    else:
+        tf = 0
+        video_files = 0
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.0 - DUAL SESSION',
+        'service': 'SK4FiLM v8.0 - DUAL SESSION FIXED',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -1502,7 +1524,7 @@ async def root():
             'connected': files_col is not None
         },
         'cache': {
-            'redis_enabled': cache_manager.redis_enabled if cache_manager else False
+            'redis_enabled': cache_manager.redis_enabled if cache_manager is not None else False
         },
         'response_time': f"{time.perf_counter():.3f}s"
     })
@@ -1622,7 +1644,7 @@ async def api_poster():
                 'message': 'Title is required'
             }), 400
         
-        if poster_fetcher:
+        if poster_fetcher is not None:
             poster_data = await poster_fetcher.fetch_poster(title, year)
             if poster_data:
                 return jsonify({
@@ -1730,19 +1752,19 @@ async def shutdown():
     
     await channel_sync_manager.stop_sync_monitoring()
     
-    if User:
+    if User is not None:
         shutdown_tasks.append(User.stop())
     
-    if Bot:
+    if Bot is not None:
         shutdown_tasks.append(Bot.stop())
     
-    if cache_manager:
+    if cache_manager is not None:
         shutdown_tasks.append(cache_manager.stop())
     
     if shutdown_tasks:
         await asyncio.gather(*shutdown_tasks, return_exceptions=True)
     
-    if mongo_client:
+    if mongo_client is not None:
         mongo_client.close()
     
     logger.info(f"👋 Shutdown complete. Uptime: {time.time() - app_start_time:.1f}s")
