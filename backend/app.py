@@ -729,9 +729,22 @@ async def index_files_background_smart():
     
     if not User or files_col is None or not user_session_ready:
         logger.warning("⚠️ Cannot start smart indexing - User session not ready")
+        logger.info("📊 Status check:")
+        logger.info(f"   User: {'✅' if User else '❌'}")
+        logger.info(f"   files_col: {'✅' if files_col else '❌'}")
+        logger.info(f"   user_session_ready: {'✅' if user_session_ready else '❌'}")
         return
     
     try:
+        # First check Telegram channel access
+        logger.info("🔍 Checking Telegram channel access...")
+        try:
+            chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+            logger.info(f"✅ FILE Channel accessible: {chat.title}")
+        except Exception as e:
+            logger.error(f"❌ Cannot access FILE channel: {e}")
+            return
+        
         # ✅ STEP 1: SETUP MONGODB INDEXES FOR SYNC MANAGEMENT
         await setup_mongodb_sync_indexes()
         
@@ -748,7 +761,55 @@ async def index_files_background_smart():
         logger.info(f"🔄 Starting from message ID: {last_message_id}")
         logger.info(f"📝 Last indexed file: {last_title}")
         
-        # ✅ STEP 3: FETCH AND PROCESS NEW MESSAGES
+        # ✅ STEP 3: EXPLORE CHANNEL FIRST
+        logger.info("🔍 Exploring FILE channel to understand structure...")
+        message_stats = {
+            'total': 0,
+            'files': 0,
+            'texts': 0,
+            'others': 0
+        }
+        
+        sample_messages = []
+        async for msg in safe_telegram_generator(
+            User.get_chat_history, 
+            Config.FILE_CHANNEL_ID,
+            limit=30
+        ):
+            message_stats['total'] += 1
+            
+            if msg.document:
+                message_stats['files'] += 1
+                file_name = msg.document.file_name or 'Unknown'
+                sample_messages.append(f"📄 Document: {file_name}")
+            elif msg.video:
+                message_stats['files'] += 1
+                file_name = msg.video.file_name or 'Unknown'
+                sample_messages.append(f"🎬 Video: {file_name}")
+            elif msg.text:
+                message_stats['texts'] += 1
+                sample_messages.append(f"📝 Text: {msg.text[:30]}...")
+            else:
+                message_stats['others'] += 1
+        
+        logger.info(f"📊 Channel exploration:")
+        logger.info(f"   Total messages: {message_stats['total']}")
+        logger.info(f"   Files/Documents: {message_stats['files']}")
+        logger.info(f"   Text messages: {message_stats['texts']}")
+        logger.info(f"   Others: {message_stats['others']}")
+        
+        if message_stats['files'] == 0:
+            logger.warning("⚠️ No files found in FILE channel!")
+            logger.warning("   Check if channel actually contains files")
+            
+            # Show sample messages
+            if sample_messages:
+                logger.info("📋 Sample messages from channel:")
+                for sample in sample_messages[:5]:
+                    logger.info(f"   {sample}")
+            return
+        
+        # ✅ STEP 4: FETCH AND PROCESS NEW MESSAGES
         total_indexed = 0
         total_skipped = 0
         
@@ -758,7 +819,7 @@ async def index_files_background_smart():
         async for msg in safe_telegram_generator(
             User.get_chat_history, 
             Config.FILE_CHANNEL_ID,
-            limit=100
+            limit=200  # Increased limit
         ):
             if msg.id <= last_message_id:
                 logger.debug(f"Reached last indexed message {msg.id}, stopping")
@@ -770,25 +831,28 @@ async def index_files_background_smart():
         messages.reverse()
         logger.info(f"📥 Found {len(messages)} potential new files to index")
         
-        for idx, msg in enumerate(messages, 1):
-            try:
-                logger.debug(f"📄 Processing message {idx}/{len(messages)} (ID: {msg.id})")
-                success = await index_single_file_smart(msg)
-                if success:
-                    total_indexed += 1
-                else:
-                    total_skipped += 1
-                
-                await asyncio.sleep(0.3)
-                
-                if (total_indexed + total_skipped) % 5 == 0:
-                    logger.info(f"📊 Progress: {total_indexed} new, {total_skipped} skipped")
-                
-            except Exception as e:
-                logger.error(f"❌ Error processing message {msg.id}: {e}")
-                continue
+        if not messages:
+            logger.info("📭 No new files to index")
+        else:
+            for idx, msg in enumerate(messages, 1):
+                try:
+                    logger.debug(f"📄 Processing message {idx}/{len(messages)} (ID: {msg.id})")
+                    success = await index_single_file_smart(msg)
+                    if success:
+                        total_indexed += 1
+                    else:
+                        total_skipped += 1
+                    
+                    await asyncio.sleep(0.3)
+                    
+                    if (total_indexed + total_skipped) % 5 == 0:
+                        logger.info(f"📊 Progress: {total_indexed} new, {total_skipped} skipped")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error processing message {msg.id}: {e}")
+                    continue
         
-        # ✅ STEP 4: START SYNC MONITORING
+        # ✅ STEP 5: START SYNC MONITORING
         logger.info(f"✅ Smart indexing complete: {total_indexed} NEW files indexed")
         
         if total_skipped > 0:
@@ -800,6 +864,10 @@ async def index_files_background_smart():
         # Initial sync check
         await channel_sync_manager.sync_deletions_from_telegram()
         
+        # Log final stats
+        total_in_db = await files_col.count_documents({}) if files_col else 0
+        logger.info(f"📊 FINAL STATS: {total_in_db} total files in database")
+        
         logger.info("🚀 Sync management system activated!")
         logger.info(f"   • Delete sync monitoring: Every {Config.MONITOR_INTERVAL//60} minutes")
         logger.info(f"   • Auto expiry: DISABLED (No TTL)")
@@ -807,6 +875,8 @@ async def index_files_background_smart():
         
     except Exception as e:
         logger.error(f"❌ Smart background indexing error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 async def setup_mongodb_sync_indexes():
     """Setup MongoDB indexes for sync management (NO TTL)"""
@@ -872,6 +942,71 @@ async def setup_mongodb_sync_indexes():
         
     except Exception as e:
         logger.error(f"❌ Error setting up MongoDB indexes: {e}")
+
+# ============================================================================
+# ✅ CHECK TELEGRAM SESSION DETAILS
+# ============================================================================
+
+async def check_telegram_session_details():
+    """Check detailed Telegram session status"""
+    logger.info("🔍 Checking Telegram session details...")
+    
+    if not User or not user_session_ready:
+        logger.error("❌ Telegram User session not ready")
+        return False
+    
+    try:
+        # Get user info
+        me = await User.get_me()
+        logger.info(f"👤 User: {me.first_name} (@{me.username})")
+        
+        # Test MAIN_CHANNEL access
+        try:
+            main_chat = await User.get_chat(Config.MAIN_CHANNEL_ID)
+            logger.info(f"📺 MAIN Channel: {main_chat.title}")
+            
+            # Try to get a message
+            message_count = 0
+            async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=5):
+                message_count += 1
+                if message_count == 1:
+                    logger.info(f"📝 Sample message: {msg.text[:50] if msg.text else 'No text'}...")
+            
+            logger.info(f"📊 MAIN Channel messages accessible: {message_count} messages")
+        except Exception as e:
+            logger.error(f"❌ MAIN Channel access error: {e}")
+        
+        # Test FILE_CHANNEL access
+        try:
+            file_chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+            logger.info(f"📁 FILE Channel: {file_chat.title}")
+            
+            # Count messages in FILE_CHANNEL
+            message_count = 0
+            file_count = 0
+            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=20):
+                message_count += 1
+                if msg and (msg.document or msg.video):
+                    file_count += 1
+                    file_name = msg.document.file_name if msg.document else msg.video.file_name
+                    logger.info(f"📄 Found file {file_count}: {file_name}")
+            
+            logger.info(f"📊 FILE Channel Stats: {message_count} messages, {file_count} files")
+            
+            if file_count == 0:
+                logger.warning("⚠️ No files found in FILE channel!")
+                logger.warning("   Please check if the channel actually contains files")
+            else:
+                logger.info("✅ Files found in FILE channel - Ready for indexing")
+            
+        except Exception as e:
+            logger.error(f"❌ FILE Channel access error: {e}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Telegram session check failed: {e}")
+        return False
 
 # ============================================================================
 # TELEGRAM SESSION GENERATOR FUNCTION (BUILT-IN)
@@ -1794,6 +1929,48 @@ async def api_index_all():
             'message': str(e)
         }), 500
 
+# ✅ ADDED: IMMEDIATE INDEXING API
+@app.route('/api/index/now', methods=['POST'])
+async def api_index_now():
+    """Immediate file indexing"""
+    logger.info("📥 API: Immediate indexing")
+    try:
+        data = await request.get_json()
+        admin_key = data.get('admin_key') if data else request.headers.get('X-Admin-Key')
+        
+        if not admin_key or admin_key != os.environ.get('ADMIN_KEY', 'sk4film_admin_123'):
+            logger.warning(f"Unauthorized indexing attempt")
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+        
+        if not user_session_ready:
+            return jsonify({
+                'status': 'error',
+                'message': 'Telegram session not ready'
+            }), 400
+        
+        # Run immediate indexing
+        await index_all_files_from_telegram()
+        
+        # Count files
+        total_files = await files_col.count_documents({}) if files_col else 0
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Immediate indexing completed',
+            'files_indexed': total_files,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Immediate indexing API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # ✅ FIXED: ADDED FORCE SYNC ENDPOINT
 @app.route('/api/sync/force', methods=['POST'])
 async def api_sync_force():
@@ -2301,6 +2478,70 @@ async def api_sync_stats():
         }), 500
 
 # ============================================================================
+# ✅ DEBUG ENDPOINTS FOR TROUBLESHOOTING
+# ============================================================================
+
+@app.route('/api/debug/telegram', methods=['GET'])
+async def api_debug_telegram():
+    """Debug Telegram connection"""
+    logger.info("📥 API: Debug Telegram")
+    try:
+        result = await check_telegram_session_details()
+        
+        return jsonify({
+            'status': 'success' if result else 'error',
+            'telegram_session_ready': user_session_ready,
+            'bot_started': bot_started,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Debug Telegram API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/debug/database', methods=['GET'])
+async def api_debug_database():
+    """Debug database status"""
+    logger.info("📥 API: Debug database")
+    try:
+        stats = {
+            'files_collection_exists': files_col is not None,
+            'total_files': 0,
+            'file_channel_files': 0,
+            'sample_files': []
+        }
+        
+        if files_col:
+            stats['total_files'] = await files_col.count_documents({})
+            stats['file_channel_files'] = await files_col.count_documents({"channel_id": Config.FILE_CHANNEL_ID})
+            
+            # Get sample files
+            cursor = files_col.find().limit(5)
+            async for doc in cursor:
+                stats['sample_files'].append({
+                    'title': doc.get('title', 'Unknown'),
+                    'message_id': doc.get('message_id'),
+                    'channel_id': doc.get('channel_id'),
+                    'is_video_file': doc.get('is_video_file', False)
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'database': stats,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Debug database API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# ============================================================================
 # TELEGRAM STATUS API ENDPOINTS
 # ============================================================================
 
@@ -2580,22 +2821,12 @@ async def init_system():
             telegram_ok = await init_telegram_clients()
             if not telegram_ok:
                 logger.warning("⚠️ Telegram clients not initialized - Movies will be empty")
-            
-            # Initialize SK4FiLMBot if available
-            if BOT_HANDLERS_AVAILABLE and sk4film_bot:
-                try:
-                    logger.info("🤖 Initializing SK4FiLMBot...")
-                    sk4film_bot = SK4FiLMBot(Config, db)
-                    await sk4film_bot.initialize()
-                    logger.info("✅ SK4FiLMBot initialized")
-                    
-                    if sk4film_bot and hasattr(sk4film_bot, 'bot_started') and sk4film_bot.bot_started and bot:
-                        if hasattr(sk4film_bot, 'setup_bot_handlers'):
-                            await sk4film_bot.setup_bot_handlers()
-                        logger.info("✅ Bot handlers setup complete")
-                except Exception as e:
-                    logger.warning(f"⚠️ SK4FiLMBot initialization failed: {e}")
-                    sk4film_bot = None
+            else:
+                # Wait a bit for Telegram to stabilize
+                await asyncio.sleep(2)
+                
+                # Check Telegram session details
+                await check_telegram_session_details()
         else:
             logger.warning("⚠️ Pyrogram not available - Movies will be empty")
             sk4film_bot = None
@@ -2605,10 +2836,17 @@ async def init_system():
         
         # Start SMART indexing in background only if Telegram is ready
         if user_session_ready:
+            logger.info("⏳ Waiting 5 seconds before starting indexing...")
+            await asyncio.sleep(5)
+            
             logger.info("🚀 Starting SMART background indexing...")
             asyncio.create_task(index_files_background_smart())
         else:
             logger.warning("⚠️ Cannot start indexing - User session not ready")
+            logger.info("📋 Please check:")
+            logger.info("   1. API_ID, API_HASH, USER_SESSION_STRING environment variables")
+            logger.info("   2. Telegram session is valid")
+            logger.info("   3. You're a member of the required channels")
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s - SYNC MANAGEMENT READY")
