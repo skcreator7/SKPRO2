@@ -832,7 +832,7 @@ async def index_files_background_smart():
     
     try:
         # Setup indexes
-        if files_col:
+        if files_col is not None:
             try:
                 await files_col.create_index(
                     [("channel_id", 1), ("message_id", 1)],
@@ -1391,10 +1391,10 @@ async def get_home_movies_live():
 
 async def get_index_status_api():
     try:
-        total_files = await files_col.count_documents({}) if files_col else 0
-        video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+        total_files = await files_col.count_documents({}) if files_col is not None else 0
+        video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
         
-        if files_col:
+        if files_col is not None:
             file_channel_files = await files_col.count_documents({
                 "channel_id": Config.FILE_CHANNEL_ID
             })
@@ -1487,8 +1487,8 @@ async def init_system():
 @app.route('/')
 @performance_monitor.measure("root_endpoint")
 async def root():
-    tf = await files_col.count_documents({}) if files_col else 0
-    video_files = await files_col.count_documents({'is_video_file': True}) if files_col else 0
+    tf = await files_col.count_documents({}) if files_col is not None else 0
+    video_files = await files_col.count_documents({'is_video_file': True}) if files_col is not None else 0
     
     return jsonify({
         'status': 'healthy',
