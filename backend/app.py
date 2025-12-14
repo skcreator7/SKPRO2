@@ -15,6 +15,18 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 from collections import defaultdict
 from functools import lru_cache, wraps
 
+# ✅ FIRST: Setup logging before any other imports
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+logger.info("=" * 80)
+logger.info("🚀 STARTING SK4FiLM v8.0 - SYNC MANAGEMENT EDITION")
+logger.info("=" * 80)
+
 import aiohttp
 import urllib.parse
 from quart import Quart, jsonify, request, Response
@@ -164,12 +176,6 @@ except ImportError as e:
     setup_bot_handlers = None
 
 # ✅ ULTRA-FAST LOADING OPTIMIZATIONS WITH DETAILED LOGGING
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
-logger = logging.getLogger(__name__)
 
 # Reduce log noise but keep important logs
 logging.getLogger('asyncio').setLevel(logging.WARNING)
@@ -177,10 +183,6 @@ logging.getLogger('pyrogram').setLevel(logging.WARNING)
 logging.getLogger('hypercorn').setLevel(logging.WARNING)
 logging.getLogger('motor').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
-
-logger.info("=" * 80)
-logger.info("🚀 STARTING SK4FiLM v8.0 - SYNC MANAGEMENT EDITION")
-logger.info("=" * 80)
 
 # Performance monitoring
 class PerformanceMonitor:
