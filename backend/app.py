@@ -1451,7 +1451,7 @@ async def init_system():
             logger.warning("⚠️ Pyrogram not available")
         
         # Start background tasks
-        if bot_session_ready and files_col:
+        if bot_session_ready and files_col is not None:
             asyncio.create_task(index_files_background_smart())
             logger.info("✅ Started BOT indexing")
             await channel_sync_manager.start_sync_monitoring()
