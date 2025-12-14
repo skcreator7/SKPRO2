@@ -495,6 +495,58 @@ class PosterFetcher:
         self.memory_cache.clear()
 
 # ============================================================================
+# ✅ THUMBNAIL SOURCES CONFIGURATION
+# ============================================================================
+
+THUMBNAIL_SOURCES = {
+    'video_file': {
+        'priority': 1,
+        'description': 'From video file metadata',
+        'icon': '🎬'
+    },
+    'poster_service': {
+        'priority': 2,
+        'description': 'From external poster service',
+        'icon': '🖼️'
+    },
+    'home_movie_poster': {
+        'priority': 3,
+        'description': 'Home movie poster',
+        'icon': '🏠'
+    },
+    'custom': {
+        'priority': 4,
+        'description': 'Custom generated poster',
+        'icon': '⚙️'
+    },
+    'none': {
+        'priority': 5,
+        'description': 'No thumbnail',
+        'icon': '❌'
+    }
+}
+
+def get_thumbnail_for_result(result):
+    """Get appropriate thumbnail for search result"""
+    title = result.get('title', '')
+    year_match = re.search(r'\b(19|20)\d{2}\b', title)
+    year = year_match.group() if year_match else ""
+    
+    # यदि पहले से thumbnail है
+    if result.get('thumbnail'):
+        return result['thumbnail'], result.get('thumbnail_source', 'custom')
+    
+    # Video file के लिए special thumbnail
+    if result.get('is_video_file'):
+        clean_title = title[:30]
+        thumbnail_url = f"https://via.placeholder.com/300x450/1a1a2e/00ccff?text={urllib.parse.quote(clean_title)}&logo=https://img.icons8.com/color/96/000000/video.png"
+        return thumbnail_url, 'video_file'
+    
+    # Regular poster
+    poster_url = Config.get_poster(title, year)
+    return poster_url, 'poster_service'
+
+# ============================================================================
 # ✅ DUAL SESSION INITIALIZATION
 # ============================================================================
 
@@ -1042,10 +1094,14 @@ async def extract_title_from_telegram_msg_cached(msg):
         logger.error(f"Title extraction error: {e}")
         return None
 
+# ============================================================================
+# ✅ HOME MOVIES - FIXED VERSION (POSTERS SHOWING)
+# ============================================================================
+
 @performance_monitor.measure("home_movies_telegram")
 @async_cache_with_ttl(maxsize=1, ttl=60)
 async def get_home_movies_telegram(limit=30):
-    """Get movies from TEXT channels using USER session"""
+    """Get movies from TEXT channels using USER session - WITH POSTERS"""
     try:
         if User is None or not user_session_ready:
             return []
@@ -1053,7 +1109,7 @@ async def get_home_movies_telegram(limit=30):
         movies = []
         seen_titles = set()
         
-        logger.info(f"🎬 Fetching movies via USER session...")
+        logger.info(f"🎬 Fetching home movies via USER session...")
         
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=limit * 2):
             if msg is not None and msg.text and len(msg.text) > 20:
@@ -1068,6 +1124,13 @@ async def get_home_movies_telegram(limit=30):
                     clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
                     clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
                     
+                    # ✅ POSTER/THUMBNAIL URL generate करें
+                    poster_url = Config.get_poster(clean_title, year)
+                    
+                    # ✅ FULL POST CONTENT
+                    post_content = msg.text
+                    formatted_content = format_post(msg.text, max_length=500)
+                    
                     movies.append({
                         'title': clean_title,
                         'original_title': title,
@@ -1078,15 +1141,23 @@ async def get_home_movies_telegram(limit=30):
                         'channel_id': Config.MAIN_CHANNEL_ID,
                         'message_id': msg.id,
                         'has_poster': True,
-                        'poster_url': Config.get_poster(clean_title, year),
-                        'poster_source': 'telegram',
-                        'poster_rating': '0.0'
+                        'thumbnail': poster_url,  # ✅ THUMBNAIL
+                        'thumbnail_source': 'home_movie_poster',
+                        'poster_url': poster_url,  # ✅ POSTER (same as thumbnail)
+                        'poster_source': 'home_movie',
+                        'poster_rating': '0.0',
+                        'has_file': False,  # Home movies में files नहीं होते
+                        'has_post': True,   # ✅ Post है
+                        'content': formatted_content,  # ✅ HTML formatted post
+                        'post_content': post_content,  # ✅ RAW POST content
+                        'quality_options': {},  # Empty for home movies
+                        'is_video_file': False  # Not a video file
                     })
                     
                     if len(movies) >= limit:
                         break
         
-        logger.info(f"✅ Fetched {len(movies)} movies via USER")
+        logger.info(f"✅ Fetched {len(movies)} home movies with posters")
         return movies[:limit]
         
     except Exception as e:
@@ -1094,13 +1165,13 @@ async def get_home_movies_telegram(limit=30):
         return []
 
 # ============================================================================
-# ✅ COMBINED SEARCH (USER + BOT)
+# ✅ COMBINED SEARCH (USER + BOT) - COMPLETELY FIXED VERSION
 # ============================================================================
 
 @performance_monitor.measure("multi_channel_search")
 @async_cache_with_ttl(maxsize=500, ttl=300)
 async def search_movies_multi_channel(query, limit=12, page=1):
-    """COMBINED search: USER for text, BOT for files"""
+    """COMBINED search: USER for text (posts), BOT for files - ALL IN ONE"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -1114,36 +1185,49 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     logger.info(f"🔍 DUAL search for: {query}")
     
     query_lower = query.lower()
-    posts_dict = {}    # From USER session (text channels)
+    posts_dict = {}    # From USER session (text channels) 
     files_dict = {}    # From BOT session (file channel)
+    thumbnails_dict = {}  # Thumbnails store करने के लिए
+    all_titles = set()  # सभी titles track करने के लिए
     
     # ============================================================================
-    # ✅ 1. SEARCH TEXT CHANNELS (USER SESSION)
+    # ✅ 1. SEARCH TEXT CHANNELS (USER SESSION) - FULL POSTS लाने के लिए
     # ============================================================================
     if user_session_ready and User is not None:
         async def search_text_channel(channel_id):
             channel_posts = {}
             try:
                 cname = channel_name_cached(channel_id)
-                async for msg in User.search_messages(channel_id, query=query, limit=10):
+                async for msg in User.search_messages(channel_id, query=query, limit=15):
                     if msg is not None and msg.text and len(msg.text) > 15:
                         title = extract_title_smart(msg.text)
-                        if title and query_lower in title.lower():
+                        if title and (query_lower in title.lower() or query_lower in msg.text.lower()):
                             norm_title = normalize_title_cached(title)
                             if norm_title not in channel_posts:
+                                # ✅ FULL POST CONTENT स्टोर करें
+                                post_content = msg.text  # Raw content
+                                formatted_content = format_post(msg.text, max_length=1000)
+                                
                                 channel_posts[norm_title] = {
                                     'title': title,
-                                    'content': format_post(msg.text),
+                                    'content': formatted_content,  # ✅ HTML formatted post
+                                    'post_content': post_content,  # ✅ RAW POST content
                                     'channel': cname,
                                     'channel_id': channel_id,
                                     'message_id': msg.id,
                                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
                                     'is_new': is_new(msg.date) if msg.date else False,
-                                    'has_file': False,
-                                    'has_post': True,
-                                    'quality_options': {},
-                                    'thumbnail': None
+                                    'has_file': False,  # पहले से files नहीं हैं
+                                    'has_post': True,   # ✅ Post है
+                                    'quality_options': {},  # अभी के लिए खाली
+                                    'thumbnail': None,
+                                    'thumbnail_source': 'none',
+                                    'is_video_file': False  # Text posts are not video files
                                 }
+                                
+                                # Thumbnail के लिए title save करें
+                                thumbnails_dict[norm_title] = title
+                                all_titles.add(norm_title)
             except Exception as e:
                 logger.error(f"Text search error in {channel_id}: {e}")
             return channel_posts
@@ -1157,7 +1241,7 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                 posts_dict.update(result)
     
     # ============================================================================
-    # ✅ 2. SEARCH FILE CHANNEL (BOT SESSION) via MongoDB
+    # ✅ 2. SEARCH FILE CHANNEL (BOT SESSION) via MongoDB - FILES लाने के लिए
     # ============================================================================
     if files_col is not None:
         try:
@@ -1180,6 +1264,7 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                     'channel_id': 1,
                     'message_id': 1,
                     'date': 1,
+                    'caption': 1,  # ✅ Caption भी लाएं
                     '_id': 0
                 }
             ).limit(limit * 2)
@@ -1189,16 +1274,31 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                     norm_title = doc.get('normalized_title', normalize_title_cached(doc['title']))
                     quality = doc['quality']
                     
+                    # ✅ FILE से POST CONTENT बनाएं (caption से)
+                    caption = doc.get('caption', '')
+                    post_content = caption if caption else f"File: {doc.get('file_name', '')}"
+                    formatted_content = format_post(post_content, max_length=500) if post_content else "<p>File available for download</p>"
+                    
+                    # Quality options update करें
                     if norm_title not in files_dict:
                         files_dict[norm_title] = {
                             'title': doc['title'], 
+                            'content': formatted_content,  # ✅ Caption से post content
+                            'post_content': post_content,  # ✅ RAW caption/content
                             'quality_options': {}, 
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
+                            'is_new': is_new(doc['date']) if doc.get('date') else False,
                             'is_video_file': doc.get('is_video_file', False),
                             'channel_id': doc.get('channel_id'),
-                            'channel_name': channel_name_cached(doc.get('channel_id'))
+                            'channel_name': channel_name_cached(doc.get('channel_id')),
+                            'has_file': True,  # ✅ File है
+                            'has_post': bool(caption),  # ✅ Caption है तो post भी है
+                            'thumbnail': None,
+                            'thumbnail_source': 'none',
+                            'file_caption': caption  # Extra field for caption
                         }
                     
+                    # Quality options add करें
                     if quality not in files_dict[norm_title]['quality_options']:
                         files_dict[norm_title]['quality_options'][quality] = {
                             'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
@@ -1208,60 +1308,104 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                             'channel_id': doc.get('channel_id'),
                             'message_id': doc.get('message_id')
                         }
-                except:
+                        
+                    # Thumbnail के लिए title save करें
+                    if norm_title not in thumbnails_dict:
+                        thumbnails_dict[norm_title] = doc['title']
+                    
+                    all_titles.add(norm_title)
+                        
+                except Exception as e:
+                    logger.error(f"File processing error: {e}")
                     continue
         except Exception as e:
             logger.error(f"File search error: {e}")
     
     # ============================================================================
-    # ✅ 3. MERGE RESULTS
+    # ✅ 3. MERGE RESULTS - THUMBNAIL, FULL POST, FILES एक साथ
     # ============================================================================
     merged = {}
     
-    # Add text posts from USER session
+    # सबसे पहले text posts को merged में डालें
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data
     
-    # Add/update with file information from BOT session
+    # अब files को merged में add/update करें
     for norm_title, file_data in files_dict.items():
         if norm_title in merged:
+            # यदि पहले से post है, तो उसमें files add करें
             merged[norm_title]['has_file'] = True
             merged[norm_title]['quality_options'] = file_data['quality_options']
+            merged[norm_title]['is_video_file'] = file_data.get('is_video_file', False)
+            
+            # यदि post में कोई content नहीं है लेकिन file में caption है, तो उसे use करें
+            if not merged[norm_title].get('post_content') and file_data.get('file_caption'):
+                merged[norm_title]['post_content'] = file_data['file_caption']
+                merged[norm_title]['content'] = format_post(file_data['file_caption'], max_length=500)
         else:
-            merged[norm_title] = {
-                'title': file_data['title'],
-                'content': f"<p>File available in {file_data['channel_name']}</p>",
-                'channel': file_data.get('channel_name', 'SK4FiLM Files'),
-                'date': file_data['date'],
-                'is_new': False,
-                'has_file': True,
-                'has_post': False,
-                'quality_options': file_data['quality_options'],
-                'thumbnail': None,
-                'thumbnail_source': 'none'
-            }
+            # यदि केवल file है, नया entry create करें
+            merged[norm_title] = file_data
     
-    # Sort and paginate
+    # ============================================================================
+    # ✅ 4. THUMBNAILS ADD करें - ALL RESULTS के लिए
+    # ============================================================================
+    for norm_title, result in merged.items():
+        title = result.get('title', '')
+        
+        # Thumbnail sources की priority:
+        # 1. पहले से मौजूद thumbnail (post से)
+        # 2. File से thumbnail (अगर video file है)
+        # 3. External poster service
+        # 4. Default placeholder
+        
+        if not result.get('thumbnail'):
+            # Thumbnail generate करें
+            year_match = re.search(r'\b(19|20)\d{2}\b', title)
+            year = year_match.group() if year_match else ""
+            
+            # यदि video file है तो विशेष thumbnail
+            if result.get('is_video_file'):
+                # Video file के लिए special thumbnail
+                clean_title = title[:30]
+                thumbnail_url = f"https://via.placeholder.com/300x450/1a1a2e/00ccff?text={urllib.parse.quote(clean_title)}&logo=https://img.icons8.com/color/96/000000/video.png"
+                result['thumbnail'] = thumbnail_url
+                result['thumbnail_source'] = 'video_file'
+                logger.debug(f"🎬 Video file thumbnail generated for: {clean_title}")
+            else:
+                # Regular poster thumbnail
+                poster_url = Config.get_poster(title, year)
+                result['thumbnail'] = poster_url
+                result['thumbnail_source'] = 'poster_service'
+        
+        # Poster info for frontend
+        result['poster_url'] = result['thumbnail']
+        result['poster_source'] = result['thumbnail_source']
+        result['poster_rating'] = '0.0'
+        result['has_poster'] = True
+        
+        # Ensure has_file और has_post flags सही हैं
+        if 'has_file' not in result:
+            result['has_file'] = bool(result.get('quality_options', {}))
+        
+        if 'has_post' not in result:
+            result['has_post'] = bool(result.get('post_content', ''))
+    
+    # ============================================================================
+    # ✅ 5. SORT AND PAGINATE
+    # ============================================================================
     results_list = list(merged.values())
+    
+    # Sort: पहले नए, फिर files वाले, फिर date
     results_list.sort(key=lambda x: (
         not x.get('is_new', False),
         not x['has_file'],
-        x['date']
+        x['date'] if isinstance(x.get('date'), str) else ''
     ), reverse=True)
     
     total = len(results_list)
     paginated = results_list[offset:offset + limit]
     
-    # Add posters
-    for result in paginated:
-        title = result.get('title', '')
-        year_match = re.search(r'\b(19|20)\d{2}\b', title)
-        year = year_match.group() if year_match else ""
-        result['poster_url'] = Config.get_poster(title, year)
-        result['poster_source'] = 'custom'
-        result['poster_rating'] = '0.0'
-        result['has_poster'] = True
-    
+    # Final data structure
     result_data = {
         'results': paginated,
         'pagination': {
@@ -1278,6 +1422,9 @@ async def search_movies_multi_channel(query, limit=12, page=1):
             'text_channels': len(Config.TEXT_CHANNEL_IDS),
             'file_channel': Config.FILE_CHANNEL_ID,
             'query': query,
+            'total_posts': len(posts_dict),
+            'total_files': len(files_dict),
+            'total_merged': len(merged),
             'cache_hit': False
         }
     }
@@ -1288,83 +1435,6 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     
     logger.info(f"✅ DUAL search complete: {len(paginated)} results")
     return result_data
-
-# ============================================================================
-# ✅ SINGLE POST API
-# ============================================================================
-
-async def get_single_post_api(channel_id, message_id):
-    """Get single post - uses appropriate session based on channel"""
-    try:
-        # Determine which session to use
-        if channel_id == Config.FILE_CHANNEL_ID:
-            # Use BOT session for file channel
-            if Bot is None or not bot_session_ready:
-                return None
-            msg = await Bot.get_messages(channel_id, message_id)
-        else:
-            # Use USER session for text channels
-            if User is None or not user_session_ready:
-                return None
-            msg = await User.get_messages(channel_id, message_id)
-        
-        if msg is not None and msg.text:
-            title = extract_title_smart(msg.text)
-            if not title:
-                title = msg.text.split('\n')[0][:60] if msg.text else "Movie Post"
-            
-            normalized_title = normalize_title(title)
-            quality_options = {}
-            has_file = False
-            
-            # Search for files with same title in FILE_CHANNEL_ID
-            if files_col is not None:
-                cursor = files_col.find({
-                    'channel_id': Config.FILE_CHANNEL_ID,
-                    'normalized_title': normalized_title
-                })
-                async for doc in cursor:
-                    quality = doc.get('quality', '480p')
-                    if quality not in quality_options:
-                        quality_options[quality] = {
-                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
-                            'file_size': doc.get('file_size', 0),
-                            'file_name': doc.get('file_name', 'video.mp4'),
-                            'is_video': doc.get('is_video_file', False),
-                            'channel_id': doc.get('channel_id'),
-                            'message_id': doc.get('message_id')
-                        }
-                        has_file = True
-            
-            # Get poster
-            year_match = re.search(r'\b(19|20)\d{2}\b', title)
-            year = year_match.group() if year_match else ""
-            
-            post_data = {
-                'title': title,
-                'content': format_post(msg.text),
-                'channel': channel_name(channel_id),
-                'channel_id': channel_id,
-                'message_id': message_id,
-                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
-                'is_new': is_new(msg.date) if msg.date else False,
-                'has_file': has_file,
-                'quality_options': quality_options,
-                'views': getattr(msg, 'views', 0),
-                'thumbnail': None,
-                'thumbnail_source': 'none',
-                'poster_url': Config.get_poster(title, year),
-                'poster_source': 'custom',
-                'poster_rating': '0.0'
-            }
-            
-            return post_data
-        
-        return None
-        
-    except Exception as e:
-        logger.error(f"Single post API error: {e}")
-        return None
 
 # ============================================================================
 # ✅ API FUNCTIONS
@@ -1552,6 +1622,13 @@ async def api_movies():
     try:
         movies = await get_home_movies_live()
         
+        # ✅ Ensure all movies have thumbnails
+        for movie in movies:
+            if not movie.get('thumbnail'):
+                movie['thumbnail'], movie['thumbnail_source'] = get_thumbnail_for_result(movie)
+                movie['poster_url'] = movie['thumbnail']
+                movie['poster_source'] = movie['thumbnail_source']
+        
         return jsonify({
             'status': 'success' if movies else 'empty',
             'movies': movies,
@@ -1560,6 +1637,7 @@ async def api_movies():
             'session_used': 'user',
             'channel_id': Config.MAIN_CHANNEL_ID,
             'timestamp': datetime.now().isoformat(),
+            'thumbnail_sources': THUMBNAIL_SOURCES,
             'cache_hit': True if movies else False
         })
     except Exception as e:
@@ -1593,45 +1671,11 @@ async def api_search():
             'results': result_data['results'],
             'pagination': result_data['pagination'],
             'search_metadata': result_data.get('search_metadata', {}),
+            'thumbnail_sources': THUMBNAIL_SOURCES,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
         logger.error(f"Search API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/post', methods=['GET'])
-async def api_post():
-    try:
-        channel_id = int(request.args.get('channel', Config.MAIN_CHANNEL_ID))
-        message_id = int(request.args.get('message', 0))
-        
-        if message_id <= 0:
-            return jsonify({
-                'status': 'error',
-                'message': 'Invalid message ID'
-            }), 400
-        
-        post_data = await get_single_post_api(channel_id, message_id)
-        
-        if post_data:
-            session_used = 'bot' if channel_id == Config.FILE_CHANNEL_ID else 'user'
-            return jsonify({
-                'status': 'success',
-                'post': post_data,
-                'session_used': session_used,
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Post not found'
-            }), 404
-            
-    except Exception as e:
-        logger.error(f"Post API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1658,14 +1702,17 @@ async def api_poster():
                     'timestamp': datetime.now().isoformat()
                 })
         
+        # Default poster
+        poster_url = Config.get_poster(title, year)
         return jsonify({
             'status': 'success',
             'poster': {
-                'url': Config.get_poster(title, year),
+                'url': poster_url,
                 'source': 'custom',
                 'rating': '0.0',
                 'year': year,
-                'title': title
+                'title': title,
+                'thumbnail_source': 'custom'
             },
             'timestamp': datetime.now().isoformat()
         })
