@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.1 - QUALITY MERGING & FAST POSTERS
+# 🚀 SK4FiLM v8.1 - QUALITY MERGING & FAST POSTERS - COMPLETE FIXED
 # ============================================================================
 
 import asyncio
@@ -34,6 +34,58 @@ except ImportError:
     PYROGRAM_AVAILABLE = False
     Client = None
     FloodWait = None
+
+# ✅ LOGGING SETUP
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+# Reduce log noise
+logging.getLogger('asyncio').setLevel(logging.WARNING)
+logging.getLogger('pyrogram').setLevel(logging.WARNING)
+logging.getLogger('hypercorn').setLevel(logging.WARNING)
+logging.getLogger('motor').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+# ============================================================================
+# ✅ ASYNC CACHE DECORATOR - ADDED HERE
+# ============================================================================
+
+def async_cache_with_ttl(maxsize=128, ttl=300):
+    """Async cache decorator with TTL"""
+    cache = {}
+    cache_lock = asyncio.Lock()
+    
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            key_parts = [func.__name__]
+            key_parts.extend(str(arg) for arg in args)
+            key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
+            key = hashlib.md5(":".join(key_parts).encode()).hexdigest()
+            
+            now = time.time()
+            
+            async with cache_lock:
+                if key in cache:
+                    value, timestamp = cache[key]
+                    if now - timestamp < ttl:
+                        return value
+            
+            result = await func(*args, **kwargs)
+            
+            async with cache_lock:
+                cache[key] = (result, now)
+                if len(cache) > maxsize:
+                    oldest_key = min(cache.keys(), key=lambda k: cache[k][1])
+                    del cache[oldest_key]
+            
+            return result
+        return wrapper
+    return decorator
 
 # ✅ ULTRA-FAST POSTER CONFIGURATION
 POSTER_SOURCES = [
@@ -215,6 +267,132 @@ async def add_headers(response):
     return response
 
 # ============================================================================
+# ✅ UTILITY FUNCTIONS
+# ============================================================================
+
+def normalize_title(title):
+    """Normalize title for consistent search"""
+    if not title:
+        return ""
+    
+    title = title.lower()
+    title = re.sub(r'\s*(?:\(|\[)?(?:19|20)\d{2}(?:\)|\])?', '', title)
+    title = re.sub(r'\.(mp4|mkv|avi|mov|wmv|flv|webm|m4v|3gp)$', '', title)
+    title = re.sub(r'\s*(?:480p|720p|1080p|2160p|4k|hd|fullhd|uhd|bluray|dvdrip|webrip|webdl|hdtv|brrip)', '', title)
+    title = re.sub(r'[^\w\s]', ' ', title)
+    title = re.sub(r'\s+', ' ', title).strip()
+    return title
+
+def extract_title_smart(text):
+    """Extract title from Telegram message text"""
+    if not text:
+        return ""
+    
+    text = re.sub(r'https?://\S+', '', text)
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    
+    for line in lines:
+        if len(line) > 10:
+            clean = re.sub(r'^[▶►▷•\-*›»›]\s*', '', line)
+            clean = re.sub(r'\s*[⬇️👇📥🎬✨🔥💥⭐🌟🎥📽️]\s*$', '', clean)
+            clean = clean.strip()
+            if len(clean) > 10:
+                return clean[:200]
+    
+    return lines[0][:200] if lines else "Untitled"
+
+def extract_title_from_file(filename, caption=None):
+    """Extract title from filename or caption"""
+    if caption and len(caption) > 10:
+        title = extract_title_smart(caption)
+        if title and len(title) > 10:
+            return title
+    
+    if filename:
+        name = re.sub(r'\.[a-zA-Z0-9]+$', '', filename)
+        name = re.sub(r'\s*[\(\[]?\d{3,4}p[\)\]]?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'\s*(?:hd|fullhd|4k|uhd|bluray|webrip|hdtv)', '', name, flags=re.IGNORECASE)
+        return name.strip()
+    
+    return "Unknown Title"
+
+def format_size(size_bytes):
+    """Format file size in human readable format"""
+    if size_bytes == 0:
+        return "0B"
+    
+    size_names = ("B", "KB", "MB", "GB", "TB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_names[i]}"
+
+def is_video_file(filename):
+    """Check if file is a video"""
+    if not filename:
+        return False
+    
+    video_extensions = {'.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.mpg', '.mpeg'}
+    return any(filename.lower().endswith(ext) for ext in video_extensions)
+
+def format_post(text, max_length=500):
+    """Format Telegram post for display"""
+    if not text:
+        return "<p>No content</p>"
+    
+    text = html.escape(text)
+    paragraphs = []
+    for p in text.split('\n'):
+        p = p.strip()
+        if p:
+            paragraphs.append(p)
+    
+    if not paragraphs:
+        return "<p>No content</p>"
+    
+    formatted = ""
+    for i, p in enumerate(paragraphs):
+        if i == 0 and len(p) > 30:
+            formatted += f'<h3>{p[:100]}{"..." if len(p) > 100 else ""}</h3>'
+        else:
+            if len(p) > max_length:
+                p = p[:max_length] + "..."
+            formatted += f'<p>{p}</p>'
+    
+    return formatted
+
+def is_new(date, hours=48):
+    """Check if content is new (within hours)"""
+    if not date:
+        return False
+    
+    try:
+        if isinstance(date, str):
+            if 'Z' in date:
+                date = date.replace('Z', '+00:00')
+            date_obj = datetime.fromisoformat(date)
+        elif isinstance(date, datetime):
+            date_obj = date
+        else:
+            return False
+        
+        time_diff = datetime.now() - date_obj
+        return time_diff.total_seconds() < hours * 3600
+    except:
+        return False
+
+@lru_cache(maxsize=10000)
+def channel_name_cached(cid):
+    return f"Channel {cid}"
+
+@lru_cache(maxsize=5000)
+def normalize_title_cached(title: str) -> str:
+    return normalize_title(title)
+
+def channel_name(channel_id):
+    return channel_name_cached(channel_id)
+
+# ============================================================================
 # ✅ DUAL SESSION ARCHITECTURE
 # ============================================================================
 
@@ -234,6 +412,101 @@ poster_col = None
 # Components
 cache_manager = None
 poster_fetcher = None
+
+# CHANNEL CONFIGURATION
+CHANNEL_CONFIG = {
+    -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'session': 'user'},
+    -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'session': 'user'},
+    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'session': 'bot', 'sync_manage': True}
+}
+
+# ============================================================================
+# ✅ CACHE MANAGER
+# ============================================================================
+
+class CacheManager:
+    def __init__(self, config):
+        self.config = config
+        self.redis_client = None
+        self.redis_enabled = False
+        self.memory_cache = {}
+    
+    async def init_redis(self):
+        try:
+            self.redis_client = redis.from_url(
+                self.config.REDIS_URL,
+                password=self.config.REDIS_PASSWORD or None,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_keepalive=True
+            )
+            await self.redis_client.ping()
+            self.redis_enabled = True
+            logger.info("✅ Redis connected successfully!")
+            return True
+        except Exception as e:
+            logger.warning(f"⚠️ Redis not available: {e}")
+            self.redis_enabled = False
+            return False
+    
+    async def get(self, key: str, default=None):
+        try:
+            if self.redis_enabled and self.redis_client is not None:
+                value = await self.redis_client.get(key)
+                if value:
+                    return json.loads(value)
+        except:
+            pass
+        
+        if key in self.memory_cache:
+            data, expiry = self.memory_cache[key]
+            if expiry > datetime.now():
+                return data
+        
+        return default
+    
+    async def set(self, key: str, value: Any, expire_seconds: int = 300):
+        try:
+            if self.redis_enabled and self.redis_client is not None:
+                await self.redis_client.setex(key, expire_seconds, json.dumps(value))
+        except:
+            pass
+        
+        expiry = datetime.now() + timedelta(seconds=expire_seconds)
+        self.memory_cache[key] = (value, expiry)
+    
+    async def get_search_results(self, query: str, page: int, limit: int):
+        cache_key = f"search:{query}:{page}:{limit}"
+        return await self.get(cache_key)
+    
+    async def cache_search_results(self, query: str, page: int, limit: int, data: Dict):
+        cache_key = f"search:{query}:{page}:{limit}"
+        await self.set(cache_key, data, expire_seconds=600)
+    
+    async def clear_all(self):
+        try:
+            if self.redis_enabled and self.redis_client is not None:
+                await self.redis_client.flushdb()
+        except:
+            pass
+        self.memory_cache.clear()
+    
+    async def start_cleanup_task(self):
+        async def cleanup():
+            while True:
+                await asyncio.sleep(300)
+                self._cleanup_memory_cache()
+        
+        asyncio.create_task(cleanup())
+    
+    def _cleanup_memory_cache(self):
+        now = datetime.now()
+        expired_keys = [k for k, (_, expiry) in self.memory_cache.items() if expiry < now]
+        for key in expired_keys:
+            del self.memory_cache[key]
+    
+    async def stop(self):
+        pass
 
 # ============================================================================
 # ✅ QUALITY DETECTION ENHANCED
@@ -672,6 +945,485 @@ class QualityMerger:
         return " • ".join(summary_parts)
 
 # ============================================================================
+# ✅ DUAL SESSION INITIALIZATION
+# ============================================================================
+
+@performance_monitor.measure("telegram_init")
+async def init_telegram_sessions():
+    """Initialize DUAL sessions: User for text, Bot for files"""
+    global User, Bot, user_session_ready, bot_session_ready
+    
+    logger.info("=" * 60)
+    logger.info("🚀 DUAL SESSION INITIALIZATION")
+    logger.info("=" * 60)
+    
+    if not PYROGRAM_AVAILABLE:
+        logger.error("❌ Pyrogram not installed!")
+        return False
+    
+    # ============================================================================
+    # ✅ 1. INITIALIZE USER SESSION (for TEXT channels)
+    # ============================================================================
+    if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
+        logger.info("\n👤 Initializing USER Session for TEXT channels...")
+        try:
+            User = Client(
+                "sk4film_user",
+                api_id=Config.API_ID,
+                api_hash=Config.API_HASH,
+                session_string=Config.USER_SESSION_STRING,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await User.start()
+            me = await User.get_me()
+            logger.info(f"✅ USER Session Ready: {me.first_name}")
+            
+            # Test TEXT channel access
+            try:
+                chat = await User.get_chat(Config.MAIN_CHANNEL_ID)
+                logger.info(f"✅ TEXT Channel Access: {chat.title}")
+                user_session_ready = True
+            except Exception as e:
+                logger.error(f"❌ TEXT Channel access failed: {e}")
+                user_session_ready = False
+                
+        except Exception as e:
+            logger.error(f"❌ USER Session failed: {e}")
+            user_session_ready = False
+            if User is not None:
+                try:
+                    await User.stop()
+                except:
+                    pass
+            User = None
+    
+    # ============================================================================
+    # ✅ 2. INITIALIZE BOT SESSION (for FILE channel)
+    # ============================================================================
+    if Config.BOT_TOKEN:
+        logger.info("\n🤖 Initializing BOT Session for FILE channel...")
+        try:
+            Bot = Client(
+                "sk4film_bot",
+                api_id=Config.API_ID,
+                api_hash=Config.API_HASH,
+                bot_token=Config.BOT_TOKEN,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await Bot.start()
+            bot_info = await Bot.get_me()
+            logger.info(f"✅ BOT Session Ready: @{bot_info.username}")
+            
+            # Test FILE channel access
+            try:
+                chat = await Bot.get_chat(Config.FILE_CHANNEL_ID)
+                logger.info(f"✅ FILE Channel Access: {chat.title}")
+                bot_session_ready = True
+            except Exception as e:
+                logger.error(f"❌ FILE Channel access failed: {e}")
+                bot_session_ready = False
+                
+        except Exception as e:
+            logger.error(f"❌ BOT Session failed: {e}")
+            bot_session_ready = False
+            if Bot is not None:
+                try:
+                    await Bot.stop()
+                except:
+                    pass
+            Bot = None
+    
+    # ============================================================================
+    # ✅ 3. SUMMARY
+    # ============================================================================
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 SESSION SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"USER Session (TEXT): {'✅ READY' if user_session_ready else '❌ NOT READY'}")
+    logger.info(f"BOT Session (FILE): {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
+    logger.info(f"TEXT Channels: {Config.TEXT_CHANNEL_IDS}")
+    logger.info(f"FILE Channel: {Config.FILE_CHANNEL_ID}")
+    
+    return user_session_ready or bot_session_ready
+
+# ============================================================================
+# ✅ MONGODB INITIALIZATION
+# ============================================================================
+
+@performance_monitor.measure("mongodb_init")
+async def init_mongodb():
+    global mongo_client, db, files_col, verification_col, poster_col
+    
+    try:
+        logger.info("🔌 MongoDB initialization...")
+        
+        mongo_client = AsyncIOMotorClient(
+            Config.MONGODB_URI,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=15000,
+            maxPoolSize=20,
+            minPoolSize=5,
+            retryWrites=True,
+            retryReads=True
+        )
+        
+        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=5)
+        
+        db = mongo_client.sk4film
+        files_col = db.files
+        verification_col = db.verifications
+        poster_col = db.posters
+        
+        logger.info("✅ MongoDB OK")
+        return True
+        
+    except asyncio.TimeoutError:
+        logger.error("❌ MongoDB connection timeout")
+        return False
+    except Exception as e:
+        logger.error(f"❌ MongoDB error: {e}")
+        return False
+
+# ============================================================================
+# ✅ SYNC MANAGEMENT
+# ============================================================================
+
+class ChannelSyncManager:
+    def __init__(self):
+        self.is_monitoring = False
+        self.monitoring_task = None
+        self.deleted_count = 0
+        self.last_sync = time.time()
+    
+    async def start_sync_monitoring(self):
+        """Start sync monitoring using BOT session"""
+        if Bot is None or not bot_session_ready:
+            logger.warning("⚠️ Bot session not ready for sync")
+            return
+        
+        if self.is_monitoring:
+            return
+        
+        logger.info("👁️ Starting sync monitoring via BOT...")
+        self.is_monitoring = True
+        self.monitoring_task = asyncio.create_task(self.monitor_channel_sync())
+    
+    async def stop_sync_monitoring(self):
+        self.is_monitoring = False
+        if self.monitoring_task is not None:
+            self.monitoring_task.cancel()
+            try:
+                await self.monitoring_task
+            except:
+                pass
+        logger.info("🛑 Sync monitoring stopped")
+    
+    async def monitor_channel_sync(self):
+        while self.is_monitoring:
+            try:
+                await self.sync_deletions_from_telegram()
+                await asyncio.sleep(Config.MONITOR_INTERVAL)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"❌ Sync error: {e}")
+                await asyncio.sleep(60)
+    
+    async def sync_deletions_from_telegram(self):
+        """Sync deletions using BOT session"""
+        try:
+            if files_col is None or Bot is None:
+                return
+            
+            current_time = time.time()
+            if current_time - self.last_sync < 300:
+                return
+            
+            self.last_sync = current_time
+            
+            # Get message IDs from MongoDB
+            cursor = files_col.find(
+                {"channel_id": Config.FILE_CHANNEL_ID},
+                {"message_id": 1, "_id": 0}
+            )
+            
+            message_ids_in_db = []
+            async for doc in cursor:
+                msg_id = doc.get('message_id')
+                if msg_id:
+                    message_ids_in_db.append(msg_id)
+            
+            if not message_ids_in_db:
+                return
+            
+            deleted_count = 0
+            batch_size = 50
+            
+            for i in range(0, len(message_ids_in_db), batch_size):
+                batch = message_ids_in_db[i:i + batch_size]
+                
+                try:
+                    # Check if messages exist using BOT
+                    messages = await Bot.get_messages(Config.FILE_CHANNEL_ID, batch)
+                    
+                    existing_ids = set()
+                    if isinstance(messages, list):
+                        for msg in messages:
+                            if msg and hasattr(msg, 'id'):
+                                existing_ids.add(msg.id)
+                    elif messages is not None and hasattr(messages, 'id'):
+                        existing_ids.add(messages.id)
+                    
+                    # Find deleted IDs
+                    deleted_ids = [msg_id for msg_id in batch if msg_id not in existing_ids]
+                    
+                    # Delete from MongoDB
+                    if deleted_ids:
+                        result = await files_col.delete_many({
+                            "channel_id": Config.FILE_CHANNEL_ID,
+                            "message_id": {"$in": deleted_ids}
+                        })
+                        
+                        if result.deleted_count > 0:
+                            deleted_count += result.deleted_count
+                            self.deleted_count += result.deleted_count
+                
+                except Exception as e:
+                    logger.error(f"❌ Batch check error: {e}")
+                    continue
+            
+            if deleted_count > 0:
+                logger.info(f"✅ Sync: {deleted_count} files deleted")
+            
+        except Exception as e:
+            logger.error(f"❌ Sync deletions error: {e}")
+    
+    async def manual_sync(self):
+        await self.sync_deletions_from_telegram()
+
+channel_sync_manager = ChannelSyncManager()
+
+# ============================================================================
+# ✅ FILE INDEXING
+# ============================================================================
+
+async def generate_file_hash(message):
+    """Generate unique hash for file to detect duplicates"""
+    try:
+        hash_parts = []
+        
+        if message.document:
+            file_attrs = message.document
+            hash_parts.append(f"doc_{file_attrs.file_id}")
+            if file_attrs.file_name:
+                hash_parts.append(f"name_{hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:8]}")
+            if file_attrs.file_size:
+                hash_parts.append(f"size_{file_attrs.file_size}")
+        elif message.video:
+            file_attrs = message.video
+            hash_parts.append(f"vid_{file_attrs.file_id}")
+            if file_attrs.file_name:
+                hash_parts.append(f"name_{hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:8]}")
+            if file_attrs.file_size:
+                hash_parts.append(f"size_{file_attrs.file_size}")
+            if hasattr(file_attrs, 'duration'):
+                hash_parts.append(f"dur_{file_attrs.duration}")
+        else:
+            return None
+        
+        if message.caption:
+            caption_hash = hashlib.md5(message.caption.encode()).hexdigest()[:12]
+            hash_parts.append(f"cap_{caption_hash}")
+        
+        return "_".join(hash_parts)
+    except Exception as e:
+        logger.debug(f"Hash generation error: {e}")
+        return None
+
+async def index_single_file_smart(message):
+    """Index single file using BOT session"""
+    try:
+        if files_col is None or Bot is None or not bot_session_ready:
+            logger.error("❌ Bot session not ready for indexing")
+            return False
+        
+        if not message or (not message.document and not message.video):
+            return False
+        
+        # Check if already exists
+        existing_by_id = await files_col.find_one({
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'message_id': message.id
+        }, {'_id': 1})
+        
+        if existing_by_id:
+            logger.debug(f"📝 Already indexed: {message.id}")
+            return True
+        
+        # Extract title
+        caption = message.caption if hasattr(message, 'caption') else None
+        file_name = None
+        
+        if message.document:
+            file_name = message.document.file_name
+        elif message.video:
+            file_name = message.video.file_name
+        
+        title = extract_title_from_file(file_name, caption)
+        if not title:
+            logger.debug(f"📝 Skipping - No title: {message.id}")
+            return False
+        
+        normalized_title = normalize_title_cached(title)
+        
+        # Create document
+        doc = {
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'message_id': message.id,
+            'title': title,
+            'normalized_title': normalized_title,
+            'date': message.date,
+            'indexed_at': datetime.now(),
+            'last_checked': datetime.now(),
+            'is_video_file': False,
+            'thumbnail': None,
+            'thumbnail_source': 'none',
+            'file_id': None,
+            'file_size': 0,
+            'file_hash': None,
+            'status': 'active'
+        }
+        
+        # Add file-specific data
+        if message.document:
+            doc.update({
+                'file_name': message.document.file_name or '',
+                'quality': detect_quality_enhanced(message.document.file_name or ''),
+                'is_video_file': is_video_file(message.document.file_name or ''),
+                'caption': caption or '',
+                'mime_type': message.document.mime_type or '',
+                'file_id': message.document.file_id,
+                'file_size': message.document.file_size or 0
+            })
+            doc['file_hash'] = await generate_file_hash(message)
+        elif message.video:
+            doc.update({
+                'file_name': message.video.file_name or 'video.mp4',
+                'quality': detect_quality_enhanced(message.video.file_name or ''),
+                'is_video_file': True,
+                'caption': caption or '',
+                'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
+                'width': message.video.width if hasattr(message.video, 'width') else 0,
+                'height': message.video.height if hasattr(message.video, 'height') else 0,
+                'file_id': message.video.file_id,
+                'file_size': message.video.file_size or 0
+            })
+            doc['file_hash'] = await generate_file_hash(message)
+        else:
+            return False
+        
+        # Insert into MongoDB
+        try:
+            await files_col.insert_one(doc)
+            
+            file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
+            size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
+            
+            logger.info(f"✅ {file_type} indexed via BOT: {title}")
+            logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
+            
+            return True
+        except Exception as e:
+            if "duplicate key error" in str(e).lower():
+                return True
+            else:
+                logger.error(f"❌ Insert error: {e}")
+                return False
+        
+    except Exception as e:
+        logger.error(f"❌ Indexing error: {e}")
+        return False
+
+async def index_files_background_smart():
+    """Background indexing - Use USER session to fetch, BOT for file ops"""
+    if User is None or files_col is None or not user_session_ready:
+        logger.warning("⚠️ User session not ready for indexing")
+        return
+    
+    logger.info("📁 Starting hybrid indexing (USER fetches, BOT processes)...")
+    
+    try:
+        # Setup indexes
+        if files_col is not None:
+            try:
+                await files_col.create_index(
+                    [("channel_id", 1), ("message_id", 1)],
+                    unique=True,
+                    name="channel_message_unique"
+                )
+                await files_col.create_index(
+                    [("normalized_title", "text")],
+                    name="text_search_index"
+                )
+            except:
+                pass
+        
+        # Get last indexed message
+        last_indexed = await files_col.find_one(
+            {"channel_id": Config.FILE_CHANNEL_ID}, 
+            sort=[('message_id', -1)],
+            projection={'message_id': 1}
+        )
+        
+        last_message_id = last_indexed['message_id'] if last_indexed else 0
+        
+        logger.info(f"🔄 Starting from message ID: {last_message_id}")
+        
+        # ✅ USE USER SESSION to fetch FILE channel history
+        total_indexed = 0
+        messages = []
+        
+        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=50):
+            if msg.id <= last_message_id:
+                break
+            
+            if msg is not None and (msg.document or msg.video):
+                messages.append(msg)
+        
+        messages.reverse()
+        logger.info(f"📥 Found {len(messages)} new files to index")
+        
+        for msg in messages:
+            try:
+                success = await index_single_file_smart(msg)
+                if success:
+                    total_indexed += 1
+                await asyncio.sleep(0.3)  # Rate limiting
+            except Exception as e:
+                logger.error(f"❌ Error processing {msg.id}: {e}")
+                continue
+        
+        if total_indexed > 0:
+            logger.info(f"✅ Hybrid indexing complete: {total_indexed} new files")
+        else:
+            logger.info("✅ No new files to index")
+        
+        # Start sync monitoring with BOT session
+        if bot_session_ready:
+            await channel_sync_manager.start_sync_monitoring()
+            logger.info("✅ Started BOT sync monitoring")
+        
+    except Exception as e:
+        logger.error(f"❌ Background indexing error: {e}")
+
+# ============================================================================
 # ✅ COMBINED SEARCH WITH QUALITY MERGING
 # ============================================================================
 
@@ -1047,7 +1799,7 @@ async def get_home_movies_fast(limit=6):
         return []
 
 # ============================================================================
-# ✅ API FUNCTIONS UPDATED
+# ✅ API FUNCTIONS
 # ============================================================================
 
 @performance_monitor.measure("search_api_merged")
@@ -1074,7 +1826,44 @@ async def search_movies_api_merged(query, limit=12, page=1):
         }
 
 # ============================================================================
-# ✅ INITIALIZATION UPDATED
+# ✅ THUMBNAIL SOURCES CONFIGURATION
+# ============================================================================
+
+THUMBNAIL_SOURCES = {
+    'video_file': {
+        'priority': 1,
+        'description': 'From video file metadata',
+        'icon': '🎬'
+    },
+    'tmdb': {
+        'priority': 2,
+        'description': 'From TMDB API',
+        'icon': '🖼️'
+    },
+    'omdb': {
+        'priority': 3,
+        'description': 'From OMDB API',
+        'icon': '🎥'
+    },
+    'google': {
+        'priority': 4,
+        'description': 'From Google Images',
+        'icon': '🔍'
+    },
+    'placeholder': {
+        'priority': 5,
+        'description': 'Generated placeholder',
+        'icon': '⚙️'
+    },
+    'local': {
+        'priority': 6,
+        'description': 'Local generated',
+        'icon': '🏠'
+    }
+}
+
+# ============================================================================
+# ✅ MAIN INITIALIZATION
 # ============================================================================
 
 @performance_monitor.measure("system_init_enhanced")
@@ -1133,8 +1922,93 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ UPDATED API ROUTES
+# ✅ API ROUTES
 # ============================================================================
+
+@app.route('/')
+@performance_monitor.measure("root_endpoint")
+async def root():
+    # Check files_col is not None
+    if files_col is not None:
+        tf = await files_col.count_documents({})
+        video_files = await files_col.count_documents({'is_video_file': True})
+    else:
+        tf = 0
+        video_files = 0
+    
+    return jsonify({
+        'status': 'healthy',
+        'service': 'SK4FiLM v8.1 - QUALITY MERGED & FAST POSTERS',
+        'sessions': {
+            'user_session': {
+                'ready': user_session_ready,
+                'channels': Config.TEXT_CHANNEL_IDS
+            },
+            'bot_session': {
+                'ready': bot_session_ready,
+                'channel': Config.FILE_CHANNEL_ID
+            }
+        },
+        'database': {
+            'total_files': tf, 
+            'video_files': video_files,
+            'connected': files_col is not None
+        },
+        'cache': {
+            'redis_enabled': cache_manager.redis_enabled if cache_manager is not None else False
+        },
+        'features': {
+            'quality_merging': True,
+            'fast_posters': True,
+            'home_movies_6_6': True,
+            'hevc_support': True
+        },
+        'response_time': f"{time.perf_counter():.3f}s"
+    })
+
+@app.route('/health')
+@performance_monitor.measure("health_endpoint")
+async def health():
+    return jsonify({
+        'status': 'ok',
+        'sessions': {
+            'user': user_session_ready,
+            'bot': bot_session_ready
+        },
+        'features': {
+            'quality_merging': True,
+            'fast_posters': True
+        },
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api/movies', methods=['GET'])
+@performance_monitor.measure("movies_endpoint_fast")
+async def api_movies_fast():
+    try:
+        # Get 6 home movies with FAST posters
+        movies = await get_home_movies_fast(limit=6)
+        
+        return jsonify({
+            'status': 'success' if movies else 'empty',
+            'movies': movies,
+            'total': len(movies),
+            'limit': 6,
+            'source': 'telegram_fast',
+            'poster_sources': POSTER_SOURCES,
+            'session_used': 'user',
+            'channel_id': Config.MAIN_CHANNEL_ID,
+            'timestamp': datetime.now().isoformat(),
+            'feature': 'home_movies_6_6'
+        })
+    except Exception as e:
+        logger.error(f"Movies API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'movies': [],
+            'total': 0
+        }), 500
 
 @app.route('/api/search', methods=['GET'])
 @performance_monitor.measure("search_endpoint_enhanced")
@@ -1170,34 +2044,6 @@ async def api_search_enhanced():
         return jsonify({
             'status': 'error',
             'message': str(e)
-        }), 500
-
-@app.route('/api/movies', methods=['GET'])
-@performance_monitor.measure("movies_endpoint_fast")
-async def api_movies_fast():
-    try:
-        # Get 6 home movies with FAST posters
-        movies = await get_home_movies_fast(limit=6)
-        
-        return jsonify({
-            'status': 'success' if movies else 'empty',
-            'movies': movies,
-            'total': len(movies),
-            'limit': 6,
-            'source': 'telegram_fast',
-            'poster_sources': POSTER_SOURCES,
-            'session_used': 'user',
-            'channel_id': Config.MAIN_CHANNEL_ID,
-            'timestamp': datetime.now().isoformat(),
-            'feature': 'home_movies_6_6'
-        })
-    except Exception as e:
-        logger.error(f"Movies API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e),
-            'movies': [],
-            'total': 0
         }), 500
 
 @app.route('/api/poster/fast', methods=['GET'])
@@ -1242,10 +2088,6 @@ async def api_poster_fast():
             'status': 'error',
             'message': str(e)
         }), 500
-
-# ============================================================================
-# ✅ NEW ENDPOINTS FOR QUALITY INFO
-# ============================================================================
 
 @app.route('/api/quality/info', methods=['GET'])
 async def api_quality_info():
@@ -1300,9 +2142,72 @@ async def api_thumbnail_generate():
             'message': str(e)
         }), 500
 
+@app.route('/api/index_status', methods=['GET'])
+async def api_index_status():
+    try:
+        if files_col is not None:
+            total_files = await files_col.count_documents({})
+            video_files = await files_col.count_documents({'is_video_file': True})
+            file_channel_files = await files_col.count_documents({
+                "channel_id": Config.FILE_CHANNEL_ID
+            })
+        else:
+            total_files = 0
+            video_files = 0
+            file_channel_files = 0
+        
+        return jsonify({
+            'status': 'success',
+            'indexing': {
+                'indexed_files': total_files,
+                'video_files': video_files,
+                'file_channel_files': file_channel_files,
+                'sync_monitoring': channel_sync_manager.is_monitoring,
+                'deleted_by_sync': channel_sync_manager.deleted_count,
+                'user_session_ready': user_session_ready,
+                'bot_session_ready': bot_session_ready,
+                'last_update': datetime.now().isoformat(),
+                'status': 'active' if (user_session_ready or bot_session_ready) else 'inactive'
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Index status API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/sync/status', methods=['GET'])
+async def api_sync_status():
+    try:
+        return jsonify({
+            'status': 'success',
+            'sync': {
+                'monitoring': channel_sync_manager.is_monitoring,
+                'deleted_count': channel_sync_manager.deleted_count,
+                'file_channel': Config.FILE_CHANNEL_ID,
+                'session_used': 'bot',
+                'bot_session_ready': bot_session_ready,
+                'timestamp': datetime.now().isoformat()
+            }
+        })
+    except Exception as e:
+        logger.error(f"Sync status API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 # ============================================================================
-# ✅ SHUTDOWN UPDATED
+# ✅ STARTUP AND SHUTDOWN
 # ============================================================================
+
+app_start_time = time.time()
+
+@app.before_serving
+async def startup():
+    await init_system()
 
 @app.after_serving
 async def shutdown():
