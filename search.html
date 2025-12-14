@@ -119,29 +119,42 @@
             line-height: 1.3;
         }
         
-        /* Video Thumbnail Section */
-        .video-thumbnail-section {
+        /* Result Structure */
+        .result-thumbnail-top {
             margin-bottom: 1.5rem;
-            display: none;
-        }
-        .video-thumbnail-section.has-thumbnail {
-            display: block;
-        }
-        .video-thumbnail-container {
             position: relative;
             border-radius: 10px;
             overflow: hidden;
             cursor: pointer;
-            height: 200px;
+            height: 250px;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         }
-        .video-thumbnail-container img {
+        .result-post-content {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .result-download-section {
+            margin-top: 1rem;
+        }
+        
+        /* Thumbnail Container */
+        .thumbnail-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .thumbnail-container img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: transform 0.3s ease;
         }
-        .video-thumbnail-container:hover img {
+        .thumbnail-container:hover img {
             transform: scale(1.05);
         }
         .play-overlay {
@@ -157,7 +170,7 @@
             opacity: 0;
             transition: opacity 0.3s ease;
         }
-        .video-thumbnail-container:hover .play-overlay {
+        .thumbnail-container:hover .play-overlay {
             opacity: 1;
         }
         .play-button {
@@ -178,6 +191,26 @@
             background: var(--secondary-color);
         }
         
+        /* Post Content */
+        .post-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+        .post-content video {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+        .post-content a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+        .post-content a:hover {
+            text-decoration: underline;
+        }
+        
         /* Thumbnail Loading States */
         .thumbnail-loading {
             display: flex;
@@ -193,7 +226,7 @@
         }
         
         /* Default Thumbnail */
-        .default-video-thumbnail {
+        .default-thumbnail {
             width: 100%;
             height: 100%;
             display: flex;
@@ -205,27 +238,22 @@
             text-align: center;
             padding: 20px;
         }
-        .default-video-thumbnail i {
+        .default-thumbnail i {
             font-size: 3rem;
             margin-bottom: 10px;
             opacity: 0.8;
         }
-        .default-video-thumbnail span {
+        .default-thumbnail span {
             font-size: 0.9rem;
             opacity: 0.9;
         }
         
-        /* Buttons - Always Side by Side */
-        .result-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+        /* Download Button */
+        .btn-download-wrapper {
             width: 100%;
+            padding: 0;
         }
-        .result-actions .btn, .result-actions .btn-download-wrapper { 
-            width: 100%; 
-        }
-        .btn-watch, .btn-download-main {
+        .btn-download-main {
             width: 100%;
             padding: 12px 20px;
             font-weight: 600;
@@ -233,34 +261,26 @@
             font-size: 1rem;
             border: none;
             transition: all 0.3s ease;
-        }
-        .btn-watch { 
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-        }
-        .btn-download-main {
             background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .btn-watch:hover:not(:disabled),
         .btn-download-main:hover:not(:disabled) {
             transform: scale(1.03);
             box-shadow: 0 6px 20px rgba(40,167,69,0.35);
             color: white;
         }
-        .btn:disabled {
+        .btn-download-main:disabled {
             background: #495057 !important;
             opacity: 0.6;
             cursor: not-allowed;
             transform: none !important;
         }
-        .btn-download-wrapper {
-            position: relative;
-            padding: 0;
-        }
         .quality-dropdown {
             display: none;
-            grid-column: 1 / -1;
             background: rgba(20, 30, 48, 0.98);
             border: 2px solid var(--accent-color);
             border-radius: 10px;
@@ -302,10 +322,6 @@
             font-size: 0.75rem;
             opacity: 0.9;
             margin-top: 2px;
-        }
-        /* Arrow Animation */
-        .btn-download-main i.fa-chevron-down { 
-            transition: transform 0.3s ease;
         }
         
         /* Video File Badge */
@@ -386,12 +402,16 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
+        .skeleton-thumbnail {
+            height: 250px;
+            width: 100%;
+        }
         .skeleton-title {
             height: 24px;
             width: 70%;
         }
-        .skeleton-thumbnail {
-            height: 200px;
+        .skeleton-post {
+            height: 100px;
             width: 100%;
         }
         .skeleton-button {
@@ -436,6 +456,7 @@
             margin: 1rem 0 2rem 0;
             text-align: center;
         }
+        
         /* Disclaimer Styles */
         .disclaimer {
             background: rgba(255, 0, 0, 0.1);
@@ -485,25 +506,14 @@
             color: #ffc107;
         }
         
-        /* Mobile Optimizations - Buttons Always Side by Side */
+        /* Mobile Optimizations */
         @media (max-width: 768px) {
-            .result-actions {
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
+            .result-thumbnail-top {
+                height: 200px;
             }
-            .btn-watch, .btn-download-main {
+            .btn-download-main {
                 font-size: 0.9rem;
                 padding: 12px 10px;
-            }
-            .disclaimer {
-                margin: 2rem 1rem 0 1rem;
-                font-size: 0.85rem;
-            }
-            .top-ad-container {
-                margin: 1rem 0;
-            }
-            .video-thumbnail-container {
-                height: 150px;
             }
             .play-button {
                 width: 60px;
@@ -516,14 +526,17 @@
             .quality-option {
                 width: 100%;
             }
+            .post-content {
+                font-size: 0.9rem;
+                padding: 1rem;
+            }
         }
         
         @media (max-width: 576px) {
-            .result-actions {
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
+            .result-thumbnail-top {
+                height: 180px;
             }
-            .btn-watch, .btn-download-main {
+            .btn-download-main {
                 font-size: 0.85rem;
                 padding: 10px 8px;
             }
@@ -533,16 +546,22 @@
             .quality-option {
                 width: 100%;
             }
+            .post-content {
+                font-size: 0.85rem;
+                padding: 0.8rem;
+            }
         }
         
         @media (max-width: 400px) {
-            .result-actions {
-                grid-template-columns: 1fr 1fr;
-                gap: 6px;
+            .result-thumbnail-top {
+                height: 150px;
             }
-            .btn-watch, .btn-download-main {
+            .btn-download-main {
                 font-size: 0.8rem;
                 padding: 10px 6px;
+            }
+            .post-content {
+                font-size: 0.8rem;
             }
         }
     </style>
@@ -891,12 +910,10 @@ function showSkeletonLoader() {
     for (let i = 0; i < RESULTS_PER_PAGE; i++) {
         html += `
         <div class="result-card">
-            <div class="skeleton-loader skeleton-title"></div>
             <div class="skeleton-loader skeleton-thumbnail mb-3"></div>
-            <div class="result-actions">
-                <div class="skeleton-loader skeleton-button"></div>
-                <div class="skeleton-loader skeleton-button"></div>
-            </div>
+            <div class="skeleton-loader skeleton-title mb-3"></div>
+            <div class="skeleton-loader skeleton-post mb-3"></div>
+            <div class="skeleton-loader skeleton-button"></div>
         </div>
         `;
     }
@@ -1006,62 +1023,49 @@ async function displayResults(results, pagination) {
     let html = '';
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        const hasPost = result.has_post !== false;
         const hasFile = result.has_file === true;
         const qualityOptions = result.quality_options || {};
         const hasQualities = Object.keys(qualityOptions).length > 0;
-        const thumbnail = result.thumbnail;
-        const hasVideoFiles = Object.values(qualityOptions).some(option => option.is_video === true);
-        
-        // Show thumbnail section only if we have video files OR original thumbnail
-        const showThumbnailSection = hasVideoFiles || thumbnail;
+        const postContent = result.post_content || '';
+        const hasPostContent = postContent.trim().length > 0;
         
         html += `
         <div class="result-card">
+            <!-- 1. THUMBNAIL - सबसे ऊपर -->
+            <div class="result-thumbnail-top">
+                <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
+                    <!-- Thumbnail will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- 2. TITLE -->
             <h3 class="result-title">${escapeHtml(result.title)}</h3>
             
-            ${showThumbnailSection ? `
-                <div class="video-thumbnail-section has-thumbnail">
-                    <div class="video-thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
-                        ${thumbnail ? `
-                            <!-- Original Thumbnail -->
-                            ${hasVideoFiles ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>VIDEO</div>` : ''}
-                            <img src="${thumbnail}" alt="${escapeHtml(result.title)}" loading="lazy" onerror="handleOriginalThumbnailError(this, '${escapeHtml(result.title)}', ${i}, ${hasVideoFiles})">
-                        ` : hasVideoFiles ? `
-                            <!-- Loading for Video Files without Thumbnail -->
-                            <div class="thumbnail-loading">
-                                <div class="spinner-border text-light" role="status">
-                                    <span class="visually-hidden">Loading thumbnail...</span>
-                                </div>
-                            </div>
-                        ` : ''}
-                        <div class="play-overlay">
-                            <div class="play-button">
-                                <i class="fas fa-play"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="text-center text-muted mt-2"><small>Click the thumbnail to watch</small></p>
+            <!-- 3. POST CONTENT - बीच में -->
+            ${hasPostContent ? `
+                <div class="result-post-content">
+                    ${formatPostContent(postContent)}
                 </div>
             ` : ''}
             
-            <div class="result-actions">
-                ${hasPost ? `
-                    <a href="/view.html?channel=${result.channel_id}&message=${result.message_id}" class="btn btn-watch">
-                        <i class="fas fa-eye me-2"></i>Watch
-                    </a>
-                ` : `<button class="btn btn-watch" disabled><i class="fas fa-eye-slash me-2"></i>Not Available</button>`}
-                
+            <!-- 4. DOWNLOAD BUTTON - सबसे नीचे -->
+            <div class="result-download-section">
                 <div class="btn-download-wrapper">
                     ${hasFile && hasQualities ? `
                         <button class="btn btn-download-main" onclick="toggleQuality(${i})">
-                            <i class="fas fa-download me-2"></i>Download
+                            <i class="fas fa-download me-2"></i>Download Movie
                             <i class="fas fa-chevron-down ms-2" id="arrow-${i}"></i>
                         </button>
-                    ` : `<button class="btn btn-download-main" disabled><i class="fas fa-times me-2"></i>No File</button>`}
+                    ` : `<button class="btn btn-download-main" disabled>
+                        <i class="fas fa-times me-2"></i>File Not Available
+                    </button>`}
                 </div>
                 
-                ${hasFile && hasQualities ? `<div class="quality-dropdown" id="quality-${i}">${generateQualityOptions(qualityOptions)}</div>` : ''}
+                ${hasFile && hasQualities ? `
+                    <div class="quality-dropdown" id="quality-${i}">
+                        ${generateQualityOptions(qualityOptions)}
+                    </div>
+                ` : ''}
             </div>
         </div>
         `;
@@ -1069,82 +1073,101 @@ async function displayResults(results, pagination) {
     
     resultsContainer.innerHTML = html;
     
-    // Load fallback thumbnails for video files that don't have original thumbnails
+    // Load thumbnails for ALL results
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        const qualityOptions = result.quality_options || {};
-        const hasVideoFiles = Object.values(qualityOptions).some(option => option.is_video === true);
-        const hasOriginalThumbnail = result.thumbnail;
-        
-        // Load fallback thumbnails only for video files without original thumbnails
-        if (hasVideoFiles && !hasOriginalThumbnail) {
-            loadFallbackThumbnail(result.title, i);
-        }
+        loadThumbnailForResult(result, i);
     }
     
     if (pagination && pagination.total_pages > 1) displayPagination(pagination);
     if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function handleOriginalThumbnailError(img, movieTitle, index, hasVideoFiles) {
-    // If original thumbnail fails to load and it's a video file, try fallback
-    if (hasVideoFiles) {
-        loadFallbackThumbnail(movieTitle, index);
+async function loadThumbnailForResult(result, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
+    
+    // Show loading state first
+    thumbnailContainer.innerHTML = `
+        <div class="thumbnail-loading">
+            <div class="spinner-border text-light" role="status">
+                <span class="visually-hidden">Loading thumbnail...</span>
+            </div>
+        </div>
+    `;
+    
+    // Try original thumbnail first
+    if (result.thumbnail) {
+        setTimeout(() => {
+            thumbnailContainer.innerHTML = `
+                ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
+                <img src="${result.thumbnail}" alt="${escapeHtml(result.title)}" loading="lazy" 
+                     onerror="loadFallbackThumbnail('${escapeHtml(result.title)}', ${index})">
+                <div class="play-overlay" onclick="triggerAdLink()">
+                    <div class="play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
+            `;
+        }, 300);
     } else {
-        // For non-video files, just hide the thumbnail section
-        const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
-        if (thumbnailContainer) {
-            thumbnailContainer.closest('.video-thumbnail-section').style.display = 'none';
-        }
+        // Load fallback thumbnail
+        await loadFallbackThumbnail(result.title, index);
     }
 }
 
 async function loadFallbackThumbnail(movieTitle, index) {
-    try {
-        const thumbnailUrl = await thumbnailCache.getThumbnail(movieTitle);
-        updateFallbackThumbnail(thumbnailUrl, movieTitle, index);
-    } catch (error) {
-        showDefaultVideoThumbnail(movieTitle, index);
-    }
-}
-
-function updateFallbackThumbnail(thumbnailUrl, movieTitle, index) {
     const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
     if (!thumbnailContainer) return;
     
-    if (thumbnailUrl) {
-        thumbnailContainer.innerHTML = `
-            <div class="video-file-badge">
-                <i class="fas fa-play-circle me-1"></i>VIDEO
-            </div>
-            <div class="thumbnail-source-badge">External</div>
-            <img src="${thumbnailUrl}" alt="${escapeHtml(movieTitle)}" loading="lazy" onerror="showDefaultVideoThumbnail('${escapeHtml(movieTitle)}', ${index})">
-            <div class="play-overlay">
-                <div class="play-button">
-                    <i class="fas fa-play"></i>
+    try {
+        const thumbnailUrl = await thumbnailCache.getThumbnail(movieTitle);
+        if (thumbnailUrl) {
+            thumbnailContainer.innerHTML = `
+                <div class="thumbnail-source-badge">External</div>
+                <img src="${thumbnailUrl}" alt="${escapeHtml(movieTitle)}" loading="lazy" 
+                     onerror="showDefaultThumbnail('${escapeHtml(movieTitle)}', ${index})">
+                <div class="play-overlay" onclick="triggerAdLink()">
+                    <div class="play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
                 </div>
-            </div>
-        `;
-    } else {
-        showDefaultVideoThumbnail(movieTitle, index);
+            `;
+        } else {
+            showDefaultThumbnail(movieTitle, index);
+        }
+    } catch (error) {
+        showDefaultThumbnail(movieTitle, index);
     }
 }
 
-function showDefaultVideoThumbnail(movieTitle, index) {
+function showDefaultThumbnail(movieTitle, index) {
     const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
     if (!thumbnailContainer) return;
     
     thumbnailContainer.innerHTML = `
-        <div class="default-video-thumbnail">
+        <div class="default-thumbnail" onclick="triggerAdLink()">
             <i class="fas fa-film"></i>
             <span>${escapeHtml(movieTitle.substring(0, 30))}${movieTitle.length > 30 ? '...' : ''}</span>
         </div>
-        <div class="play-overlay">
+        <div class="play-overlay" onclick="triggerAdLink()">
             <div class="play-button">
                 <i class="fas fa-play"></i>
             </div>
         </div>
     `;
+}
+
+function formatPostContent(content) {
+    let formatted = escapeHtml(content);
+    formatted = formatted.replace(/\n/g, '<br>');
+    formatted = formatted.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+    formatted = formatted.replace(/(t\.me\/[^\s]+)/g, '<a href="https://$1" target="_blank">$1</a>');
+    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, '<a href="https://t.me/$1" target="_blank">@$1</a>');
+    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, '<span class="text-info">#$1</span>');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    return formatted;
 }
 
 function triggerAdLink() {
@@ -1158,8 +1181,8 @@ function toggleQuality(index) {
     document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
         if (el.id !== `quality-${index}`) {
             el.classList.remove('show');
-            const otherA = document.getElementById(`arrow-${i}`);
-            if (otherA) otherA.style.transform = 'rotate(0deg)';
+            const otherArrow = document.getElementById(`arrow-${i}`);
+            if (otherArrow) otherArrow.style.transform = 'rotate(0deg)';
         }
     });
     
