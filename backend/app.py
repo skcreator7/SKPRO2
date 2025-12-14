@@ -32,10 +32,12 @@ try:
     from bot_commands import setup_bot_handlers
     from bot_handlers import BotInstance
     BOT_HANDLERS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     BOT_HANDLERS_AVAILABLE = False
     setup_bot_handlers = None
     BotInstance = None
+    import logging
+    logging.warning(f"⚠️ Bot handlers not available: {e}")
 
     PYROGRAM_AVAILABLE = True
 except ImportError:
@@ -604,24 +606,42 @@ async def init_telegram_sessions():
 
 
 async def init_bot_handlers():
+    """Initialize bot with command handlers"""
     global bot_instance, bot_handlers_ready
+
     try:
-        if not BOT_HANDLERS_AVAILABLE or not Bot or not bot_session_ready:
+        if not BOT_HANDLERS_AVAILABLE:
+            logger.warning("⚠️ Bot handlers module not available")
             return False
+
+        if not Bot or not bot_session_ready:
+            logger.warning("⚠️ Bot session not ready")
+            return False
+
         logger.info("🎮 Initializing bot handlers...")
+
+        # Create bot instance
         bot_instance = BotInstance(bot=Bot, config=Config)
         bot_instance.user_client = User
         bot_instance.user_session_ready = user_session_ready
         bot_instance.bot_session_ready = bot_session_ready
         bot_instance.files_col = files_col
         bot_instance.verification_col = verification_col
+
+        # Setup command handlers
         await setup_bot_handlers(Bot, bot_instance)
+
+        # Initialize bot systems
         await bot_instance.initialize()
+
         bot_handlers_ready = True
         logger.info("✅ Bot handlers ready")
+
         return True
+
     except Exception as e:
-        logger.error(f"❌ Bot handlers failed: {e}")
+        logger.error(f"❌ Bot handlers initialization failed: {e}")
+        bot_handlers_ready = False
         return False
 
 
@@ -1490,9 +1510,11 @@ async def init_system():
             logger.warning("⚠️ Pyrogram not available")
         
 
-        # Bot handlers
+        # Initialize bot command handlers
         if BOT_HANDLERS_AVAILABLE and bot_session_ready:
-            await init_bot_handlers()
+            bot_ok = await init_bot_handlers()
+            if bot_ok:
+                logger.info("✅ Bot ready to receive commands")
 
 
         # Start background tasks
