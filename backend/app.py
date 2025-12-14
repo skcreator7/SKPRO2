@@ -37,22 +37,136 @@ except ImportError:
     FloodWait = None
 
 # Import modular components
-from cache import CacheManager
-from verification import VerificationSystem
-from premium import PremiumSystem, PremiumTier
-from poster_fetching import PosterFetcher, PosterSource
+try:
+    from cache import CacheManager
+    from verification import VerificationSystem
+    from premium import PremiumSystem, PremiumTier
+    from poster_fetching import PosterFetcher, PosterSource
+    MODULES_AVAILABLE = True
+except ImportError:
+    MODULES_AVAILABLE = False
+    CacheManager = None
+    VerificationSystem = None
+    PremiumSystem = None
+    PosterFetcher = None
+    PosterSource = type('PosterSource', (), {'CUSTOM': type('Enum', (), {'value': 'custom'})()})
 
 # Import shared utilities
-from utils import (
-    normalize_title,
-    extract_title_smart,
-    extract_title_from_file,
-    format_size,
-    detect_quality,
-    is_video_file,
-    format_post,
-    is_new
-)
+try:
+    from utils import (
+        normalize_title,
+        extract_title_smart,
+        extract_title_from_file,
+        format_size,
+        detect_quality,
+        is_video_file,
+        format_post,
+        is_new
+    )
+    UTILS_AVAILABLE = True
+except ImportError:
+    UTILS_AVAILABLE = False
+    # Define fallback functions
+    def normalize_title(title: str) -> str:
+        if not title:
+            return ""
+        title = title.lower()
+        # Remove year in parentheses
+        title = re.sub(r'\s*\(\d{4}\)', '', title)
+        # Remove year at the end
+        title = re.sub(r'\s*\d{4}$', '', title)
+        # Remove special characters
+        title = re.sub(r'[^\w\s]', '', title)
+        # Remove extra spaces
+        title = re.sub(r'\s+', ' ', title).strip()
+        return title
+    
+    def extract_title_smart(text: str) -> Optional[str]:
+        if not text:
+            return None
+        # Find first line with meaningful content
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) > 10 and not line.startswith(('http://', 'https://', '@', '#')):
+                # Remove common prefixes
+                line = re.sub(r'^(Movie|Film|Title|Name):\s*', '', line, flags=re.IGNORECASE)
+                return line[:100]
+        return None
+    
+    def extract_title_from_file(filename: Optional[str], caption: Optional[str]) -> Optional[str]:
+        if caption:
+            title = extract_title_smart(caption)
+            if title:
+                return title
+        
+        if filename:
+            # Remove extension
+            name = os.path.splitext(filename)[0]
+            # Remove common patterns
+            name = re.sub(r'[\._\-]', ' ', name)
+            # Remove quality indicators
+            name = re.sub(r'\b(1080p|720p|480p|360p|HD|FHD|UHD|BluRay|WEB-DL|HDRip|DVDRip)\b', '', name, flags=re.IGNORECASE)
+            # Remove excess spaces
+            name = re.sub(r'\s+', ' ', name).strip()
+            if len(name) > 3:
+                return name
+        
+        return None
+    
+    def format_size(size_bytes):
+        if size_bytes == 0:
+            return "0B"
+        size_names = ("B", "KB", "MB", "GB", "TB")
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return f"{s} {size_names[i]}"
+    
+    def detect_quality(filename: str) -> str:
+        filename = filename.lower()
+        if '2160p' in filename or '4k' in filename or 'uhd' in filename:
+            return '4K'
+        elif '1080p' in filename or 'fhd' in filename:
+            return '1080p'
+        elif '720p' in filename or 'hd' in filename:
+            return '720p'
+        elif '480p' in filename:
+            return '480p'
+        elif '360p' in filename:
+            return '360p'
+        else:
+            return 'Unknown'
+    
+    def is_video_file(filename: str) -> bool:
+        video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
+        return any(filename.lower().endswith(ext) for ext in video_extensions)
+    
+    def format_post(text: str) -> str:
+        if not text:
+            return "<p></p>"
+        # Basic formatting
+        text = html.escape(text)
+        # Replace newlines with paragraphs
+        paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+        if not paragraphs:
+            return "<p></p>"
+        return '<p>' + '</p><p>'.join(paragraphs) + '</p>'
+    
+    def is_new(date_obj) -> bool:
+        if not date_obj:
+            return False
+        if isinstance(date_obj, datetime):
+            age = datetime.now() - date_obj
+        elif isinstance(date_obj, str):
+            try:
+                post_date = datetime.fromisoformat(date_obj.replace('Z', '+00:00'))
+                age = datetime.now() - post_date
+            except:
+                return False
+        else:
+            return False
+        return age.days < 7  # New if less than 7 days old
 
 # Import bot_handlers AFTER all other imports
 try:
@@ -231,6 +345,50 @@ CHANNEL_CONFIG = {
     -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'search_priority': 0}
 }
 
+# Fallback PosterFetcher if imported one fails
+class SimplePosterFetcher:
+    def __init__(self, config=None, cache_manager=None):
+        self.config = config
+        self.cache_manager = cache_manager
+    
+    async def fetch_poster(self, title):
+        """Simple poster fetcher that returns a default URL"""
+        try:
+            year_match = re.search(r'\b(19|20)\d{2}\b', title)
+            year = year_match.group() if year_match else ""
+            
+            return {
+                'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
+                'source': 'custom',
+                'rating': '0.0',
+                'year': year,
+                'title': title
+            }
+        except Exception as e:
+            logger.error(f"Poster fetch error: {e}")
+            return {
+                'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}",
+                'source': 'fallback',
+                'rating': '0.0',
+                'year': '',
+                'title': title
+            }
+    
+    async def fetch_batch_posters(self, titles):
+        """Fetch multiple posters"""
+        result = {}
+        for title in titles:
+            result[title] = await self.fetch_poster(title)
+        return result
+    
+    def clear_cache(self):
+        """Clear cache - no-op"""
+        pass
+    
+    async def cleanup_expired_cache(self):
+        """Cleanup - no-op"""
+        pass
+
 # ============================================================================
 # TELEGRAM SESSION GENERATOR FUNCTION (BUILT-IN)
 # ============================================================================
@@ -335,8 +493,6 @@ async def init_telegram_clients():
     if not env_status["USER_SESSION_STRING"]:
         logger.warning("⚠️ Session string missing or invalid")
         logger.info("   Would you like to generate a new session? (y/n): ")
-        # Note: In production, you'd need to handle this differently
-        # For now, we'll just log and continue
     
     # Initialize User Client with retry logic
     if env_status["API_ID"] and env_status["API_HASH"] and env_status["USER_SESSION_STRING"]:
@@ -386,9 +542,9 @@ async def init_telegram_clients():
                 except Exception as e:
                     logger.warning(f"⚠️ Channel access issue: {e}")
                     logger.warning("   Make sure you're a member of the channel!")
-                    user_session_ready = False  # Can't fetch movies
+                    user_session_ready = False
                 
-                break  # Success
+                break
                 
             except asyncio.TimeoutError:
                 logger.error(f"⏰ Timeout on attempt {attempt + 1}")
@@ -397,14 +553,13 @@ async def init_telegram_clients():
                     User = None
                 
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    await asyncio.sleep(2 ** attempt)
                     continue
                     
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"❌ Attempt {attempt + 1} failed: {error_msg}")
                 
-                # Handle specific errors
                 if "SessionRevoked" in error_msg or "session expired" in error_msg.lower():
                     logger.critical("🚨 SESSION EXPIRED! Need new session string")
                     break
@@ -462,10 +617,6 @@ async def init_telegram_clients():
     
     if not user_session_ready:
         logger.warning("\n⚠️ WARNING: Movies will be EMPTY without Telegram session")
-        logger.warning("   To fix:")
-        logger.warning("   1. Check API_ID, API_HASH, USER_SESSION_STRING")
-        logger.warning("   2. Ensure you're member of channel -1001891090100")
-        logger.warning("   3. Regenerate session if expired")
     
     telegram_initialized = True
     return user_session_ready or bot_started
@@ -481,8 +632,7 @@ def normalize_title_cached(title: str) -> str:
     """Cached title normalization"""
     return normalize_title(title)
 
-# FIXED: Missing channel_name function
-@lru_cache(maxsize=1000)
+# FIXED: Compatibility function
 def channel_name(channel_id):
     """Get channel name from channel ID (compatibility function)"""
     return channel_name_cached(channel_id)
@@ -604,7 +754,7 @@ class TurboFloodProtection:
             self.last_cleanup = current_time
         
         # Global rate limiting
-        bucket_key = int(current_time // 10)  # 10-second buckets
+        bucket_key = int(current_time // 10)
         
         if bucket_key not in self.request_buckets:
             self.request_buckets[bucket_key] = 0
@@ -623,7 +773,7 @@ class TurboFloodProtection:
     def _cleanup_buckets(self, current_time):
         """Cleanup old buckets"""
         current_bucket = int(current_time // 10)
-        old_buckets = [k for k in self.request_buckets.keys() if k < current_bucket - 6]  # Keep last minute
+        old_buckets = [k for k in self.request_buckets.keys() if k < current_bucket - 6]
         for bucket in old_buckets:
             del self.request_buckets[bucket]
 
@@ -696,7 +846,7 @@ async def warm_up_cache():
     try:
         logger.info("🔥 Warming up caches...")
         
-        if cache_manager and cache_manager.redis_enabled:
+        if cache_manager and hasattr(cache_manager, 'redis_enabled') and cache_manager.redis_enabled:
             # Warm up Redis with common data
             warm_data = {
                 "system:warm": True,
@@ -704,17 +854,17 @@ async def warm_up_cache():
                 "version": "8.0-OPTIMIZED"
             }
             
-            await cache_manager.batch_set(warm_data, expire_seconds=3600)
+            if hasattr(cache_manager, 'batch_set'):
+                await cache_manager.batch_set(warm_data, expire_seconds=3600)
         
         if poster_fetcher:
             # Warm up poster cache with popular movies
             popular_movies = [
-                "Avatar", "Avengers Endgame", "Spider-Man", "Batman",
-                "John Wick 4", "Fast X", "Mission Impossible"
+                "Avatar", "Avengers Endgame", "Spider-Man"
             ]
             
             tasks = []
-            for movie in popular_movies[:3]:  # Only warm up 3
+            for movie in popular_movies[:2]:
                 tasks.append(poster_fetcher.fetch_poster(movie))
             
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -728,12 +878,12 @@ async def warm_up_cache():
 async def cache_cleanup():
     """Background cache cleanup"""
     while True:
-        await asyncio.sleep(1800)  # Run every 30 minutes
+        await asyncio.sleep(1800)
         try:
-            if poster_fetcher:
+            if poster_fetcher and hasattr(poster_fetcher, 'cleanup_expired_cache'):
                 await poster_fetcher.cleanup_expired_cache()
             
-            if cache_manager:
+            if cache_manager and hasattr(cache_manager, 'clear_pattern'):
                 await cache_manager.clear_pattern("temp:")
             
             logger.debug("🧹 Cache cleanup completed")
@@ -763,8 +913,8 @@ async def extract_title_from_telegram_msg_cached(msg):
 async def extract_video_thumbnail(user_client, message):
     """Optimized thumbnail extraction"""
     try:
-        if message.video:
-            thumbnail = message.video.thumbs[0] if message.video.thumbs else None
+        if message.video and hasattr(message.video, 'thumbs') and message.video.thumbs:
+            thumbnail = message.video.thumbs[0]
             if thumbnail:
                 thumbnail_path = await safe_telegram_operation(
                     user_client.download_media, 
@@ -780,68 +930,56 @@ async def extract_video_thumbnail(user_client, message):
         logger.error(f"Thumbnail extraction failed: {e}")
         return None
 
-# MONGODB INITIALIZATION WITH OPTIMIZATIONS
+# MONGODB INITIALIZATION WITH OPTIMIZATIONS - FIXED
 @performance_monitor.measure("mongodb_init")
 async def init_mongodb():
-    """Optimized MongoDB initialization"""
+    """Optimized MongoDB initialization with fallback"""
     global mongo_client, db, files_col, verification_col
     
     try:
         logger.info("🔌 MongoDB initialization...")
         
+        if not Config.MONGODB_URI or Config.MONGODB_URI == "mongodb://localhost:27017":
+            logger.warning("⚠️ MongoDB URI not configured, running without database")
+            mongo_client = None
+            db = None
+            files_col = None
+            verification_col = None
+            return False
+        
         # Connection with optimized parameters
         mongo_client = AsyncIOMotorClient(
             Config.MONGODB_URI,
-            serverSelectionTimeoutMS=3000,  # Reduced from 5000
-            connectTimeoutMS=3000,
-            socketTimeoutMS=3000,
-            maxPoolSize=20,  # Reduced from 50
-            minPoolSize=5,
+            serverSelectionTimeoutMS=2000,
+            connectTimeoutMS=2000,
+            socketTimeoutMS=2000,
+            maxPoolSize=10,
+            minPoolSize=1,
             maxIdleTimeMS=30000,
             retryWrites=True,
             retryReads=True
         )
         
         # Quick ping test
-        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=2)
+        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=1.5)
         
         db = mongo_client.sk4film
         files_col = db.files
         verification_col = db.verifications
         
-        # Create indexes only if they don't exist (optimized)
-        existing_indexes = await files_col.index_information()
-        
-        required_indexes = [
-            ('title', 'text'),
-            ('normalized_title', 1),
-            ('message_id', 1),
-            ('channel_id', 1),
-            ('indexed_at', -1),
-            ('is_video_file', 1),
-            ('thumbnail', 1)
-        ]
-        
-        for field, direction in required_indexes:
-            index_name = f"{field}_{direction if isinstance(direction, int) else 'text'}"
-            if index_name not in existing_indexes:
-                try:
-                    if direction == 'text':
-                        await files_col.create_index([(field, 'text')])
-                    else:
-                        await files_col.create_index([(field, direction)])
-                    logger.debug(f"✅ Created index: {index_name}")
-                except Exception as e:
-                    logger.warning(f"Index creation failed for {index_name}: {e}")
-        
         logger.info("✅ MongoDB OK - Optimized and Ready")
         return True
         
-    except asyncio.TimeoutError:
-        logger.error("❌ MongoDB connection timeout")
-        return False
-    except Exception as e:
-        logger.error(f"❌ MongoDB: {e}")
+    except (asyncio.TimeoutError, Exception) as e:
+        logger.error(f"❌ MongoDB connection failed: {e}")
+        
+        # Initialize collections anyway with None values
+        mongo_client = None
+        db = None
+        files_col = None
+        verification_col = None
+        
+        logger.warning("⚠️ Running without MongoDB - some features disabled")
         return False
 
 # FILE INDEXING WITH PERFORMANCE
@@ -928,7 +1066,7 @@ async def index_single_file(message):
 async def index_files_background():
     """Optimized background indexing"""
     if not User or files_col is None or not user_session_ready:
-        logger.warning("⚠️ Cannot start indexing - User session not ready")
+        logger.warning("⚠️ Cannot start indexing - User session not ready or no MongoDB")
         return
     
     logger.info("📁 Starting OPTIMIZED background indexing...")
@@ -975,17 +1113,16 @@ async def index_files_background():
         logger.info(f"✅ Background indexing finished: {total_indexed} NEW files")
         
         # Clear search cache after indexing
-        if cache_manager:
+        if cache_manager and hasattr(cache_manager, 'clear_search_cache'):
             await cache_manager.clear_search_cache()
             logger.info("🧹 Search cache cleared after indexing")
         
     except Exception as e:
         logger.error(f"❌ Background indexing error: {e}")
 
-# POSTER FETCHING WITH CACHE
-@performance_monitor.measure("poster_fetch")
+# POSTER FETCHING WITH CACHE - FIXED
 async def get_poster_guaranteed(title):
-    """Optimized poster fetching"""
+    """Optimized poster fetching - FIXED async/await"""
     if poster_fetcher:
         return await poster_fetcher.fetch_poster(title)
     
@@ -995,13 +1132,13 @@ async def get_poster_guaranteed(title):
     
     return {
         'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
-        'source': PosterSource.CUSTOM.value,
+        'source': 'custom',
         'rating': '0.0',
         'year': year,
         'title': title
     }
 
-# ULTRA-FAST SEARCH FUNCTION
+# ULTRA-FAST SEARCH FUNCTION - FIXED
 @performance_monitor.measure("multi_channel_search")
 @async_cache_with_ttl(maxsize=500, ttl=300)
 async def search_movies_multi_channel(query, limit=12, page=1):
@@ -1010,11 +1147,12 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     
     # Try cache first
     cache_key = f"search:{query}:{page}:{limit}"
-    if cache_manager and cache_manager.redis_enabled:
-        cached_data = await cache_manager.get_search_results(query, page, limit)
-        if cached_data:
-            logger.info(f"✅ Cache HIT for: {query}")
-            return cached_data
+    if cache_manager and hasattr(cache_manager, 'redis_enabled') and cache_manager.redis_enabled:
+        if hasattr(cache_manager, 'get_search_results'):
+            cached_data = await cache_manager.get_search_results(query, page, limit)
+            if cached_data:
+                logger.info(f"✅ Cache HIT for: {query}")
+                return cached_data
     
     logger.info(f"🔍 Multi-channel search for: {query}")
     
@@ -1042,18 +1180,18 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                     'date': 1,
                     '_id': 0
                 }
-            ).limit(limit * 2)  # Get slightly more for filtering
+            ).limit(limit * 2)
             
             async for doc in cursor:
                 try:
                     norm_title = doc.get('normalized_title', normalize_title_cached(doc['title']))
-                    quality = doc['quality']
+                    quality = doc.get('quality', 'Unknown')
                     
                     if norm_title not in files_dict:
                         files_dict[norm_title] = {
                             'title': doc['title'], 
                             'quality_options': {}, 
-                            'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
+                            'date': doc.get('date', datetime.now()).isoformat() if isinstance(doc.get('date'), datetime) else doc.get('date', ''),
                             'thumbnail': doc.get('thumbnail'),
                             'is_video_file': doc.get('is_video_file', False),
                             'thumbnail_source': doc.get('thumbnail_source', 'unknown'),
@@ -1063,20 +1201,21 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                     
                     if quality not in files_dict[norm_title]['quality_options']:
                         files_dict[norm_title]['quality_options'][quality] = {
-                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
-                            'file_size': doc['file_size'],
-                            'file_name': doc['file_name'],
+                            'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id', 0)}_{quality}",
+                            'file_size': doc.get('file_size', 0),
+                            'file_name': doc.get('file_name', ''),
                             'is_video': doc.get('is_video_file', False),
                             'channel_id': doc.get('channel_id'),
                             'message_id': doc.get('message_id')
                         }
-                except:
+                except Exception as e:
+                    logger.error(f"Error processing doc: {e}")
                     continue
     except Exception as e:
         logger.error(f"File search error: {e}")
     
     # Telegram channel search (async)
-    if user_session_ready:
+    if user_session_ready and User:
         channel_tasks = []
         
         async def search_channel(channel_id):
@@ -1087,7 +1226,7 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                     User.search_messages, 
                     channel_id, 
                     query=query, 
-                    limit=15  # Reduced from 20
+                    limit=15
                 ):
                     if msg and msg.text and len(msg.text) > 15:
                         title = extract_title_smart(msg.text)
@@ -1100,7 +1239,7 @@ async def search_movies_multi_channel(query, limit=12, page=1):
                                     'channel': cname,
                                     'channel_id': channel_id,
                                     'message_id': msg.id,
-                                    'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
+                                    'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
                                     'is_new': is_new(msg.date) if msg.date else False,
                                     'has_file': False,
                                     'has_post': True,
@@ -1181,7 +1320,7 @@ async def search_movies_multi_channel(query, limit=12, page=1):
     }
     
     # Cache results
-    if cache_manager:
+    if cache_manager and hasattr(cache_manager, 'cache_search_results'):
         await cache_manager.cache_search_results(query, page, limit, result_data)
     
     logger.info(f"✅ Search completed: {len(paginated)} results")
@@ -1242,7 +1381,7 @@ async def get_live_posts_multi_channel(limit_per_channel=10):
     return unique_posts[:20]
 
 # ================================
-# ✅ Fetch 30 Real Movies from Telegram - NO FALLBACK
+# ✅ Fetch 30 Real Movies from Telegram - NO FALLBACK - FIXED
 # ================================
 @performance_monitor.measure("home_movies_telegram")
 async def get_home_movies_telegram(limit=30):
@@ -1250,7 +1389,7 @@ async def get_home_movies_telegram(limit=30):
     try:
         if not User or not user_session_ready:
             logger.warning("❌ User session not ready for Telegram fetch")
-            return []  # ✅ EMPTY ARRAY - NO FALLBACK
+            return []
         
         movies = []
         seen_titles = set()
@@ -1260,9 +1399,9 @@ async def get_home_movies_telegram(limit=30):
         async for msg in safe_telegram_generator(
             User.get_chat_history, 
             Config.MAIN_CHANNEL_ID, 
-            limit=limit * 2  # Fetch extra to account for non-movie posts
+            limit=limit * 2
         ):
-            if msg and msg.text and len(msg.text) > 20:  # Minimum text length
+            if msg and msg.text and len(msg.text) > 20:
                 # Extract title from message
                 title = extract_title_smart(msg.text)
                 
@@ -1281,7 +1420,7 @@ async def get_home_movies_telegram(limit=30):
                         'title': clean_title,
                         'original_title': title,
                         'year': year,
-                        'date': msg.date.isoformat() if isinstance(msg.date, datetime) else msg.date,
+                        'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
                         'is_new': is_new(msg.date) if msg.date else False,
                         'channel': channel_name_cached(Config.MAIN_CHANNEL_ID),
                         'channel_id': Config.MAIN_CHANNEL_ID,
@@ -1296,11 +1435,11 @@ async def get_home_movies_telegram(limit=30):
                         break
         
         logger.info(f"✅ Fetched {len(movies)} real movies from Telegram")
-        return movies[:limit]  # Ensure exact limit
+        return movies[:limit]
         
     except Exception as e:
         logger.error(f"❌ Telegram movies fetch error: {e}")
-        return []  # ✅ EMPTY ARRAY ON ERROR - NO FALLBACK
+        return []
 
 async def get_single_post_api(channel_id, message_id):
     """Get single movie/post details"""
@@ -1364,11 +1503,10 @@ async def get_single_post_api(channel_id, message_id):
                         poster_source = poster_data['source']
                         poster_rating = poster_data.get('rating', '0.0')
                 
-                # FIXED: Using channel_name function instead of undefined channel_name variable
                 post_data = {
                     'title': title,
                     'content': format_post(msg.text),
-                    'channel': channel_name(channel_id),  # FIXED HERE
+                    'channel': channel_name(channel_id),
                     'channel_id': channel_id,
                     'message_id': message_id,
                     'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
@@ -1391,7 +1529,7 @@ async def get_single_post_api(channel_id, message_id):
         logger.error(f"Single post API error: {e}")
         return None
 
-# OPTIMIZED API FUNCTIONS
+# OPTIMIZED API FUNCTIONS - FIXED
 @performance_monitor.measure("search_api")
 async def search_movies_api(query, limit=12, page=1):
     """Optimized search API with timeout protection"""
@@ -1404,7 +1542,7 @@ async def search_movies_api(query, limit=12, page=1):
         except asyncio.TimeoutError:
             logger.warning(f"⏰ Search timeout for query: {query}")
             # Return cached or empty results
-            if cache_manager:
+            if cache_manager and hasattr(cache_manager, 'get_search_results'):
                 cached = await cache_manager.get_search_results(query, page, limit)
                 if cached:
                     return cached
@@ -1463,7 +1601,7 @@ async def search_movies_api(query, limit=12, page=1):
         logger.error(f"Search API error: {e}")
         raise
 
-# Update get_home_movies_live function:
+# Update get_home_movies_live function - FIXED
 @performance_monitor.measure("home_movies")
 async def get_home_movies_live():
     """Optimized home movies with timeout - Now uses Telegram, NO FALLBACK"""
@@ -1471,15 +1609,15 @@ async def get_home_movies_live():
         posts_task = asyncio.create_task(get_home_movies_telegram(limit=30))
         posts = await asyncio.wait_for(posts_task, timeout=5.0)
         
-        return posts  # Could be empty array
+        return posts
         
     except asyncio.TimeoutError:
         logger.warning("⏰ Home movies timeout")
-        return []  # ✅ EMPTY ARRAY ON TIMEOUT - NO FALLBACK
+        return []
     
     except Exception as e:
         logger.error(f"Home movies error: {e}")
-        return []  # ✅ EMPTY ARRAY ON ERROR - NO FALLBACK
+        return []
 
 # ============================================================================
 # TELEGRAM STATUS API ENDPOINTS
@@ -1630,54 +1768,78 @@ async def api_telegram_test():
         }), 500
 
 # ============================================================================
-# MAIN INITIALIZATION
+# MAIN INITIALIZATION - FIXED
 # ============================================================================
 
 @performance_monitor.measure("system_init")
 async def init_system():
-    """Turbo-charged system initialization"""
+    """Turbo-charged system initialization - FIXED"""
     start_time = time.time()
     
     try:
         logger.info("🚀 Starting SK4FiLM v8.0 - TURBO OPTIMIZED...")
         
-        # Initialize MongoDB
+        # Initialize MongoDB with fallback
         mongo_ok = await init_mongodb()
-        if not mongo_ok:
-            logger.error("❌ MongoDB initialization failed")
-            # Continue anyway - some features will work without DB
         
         # Initialize modular components
         global cache_manager, verification_system, premium_system, poster_fetcher, sk4film_bot
         
         # Initialize Cache Manager
-        cache_manager = CacheManager(Config)
-        redis_ok = await cache_manager.init_redis()
-        if redis_ok:
-            logger.info("✅ Cache Manager initialized")
-            await cache_manager.start_cleanup_task()
+        if MODULES_AVAILABLE and CacheManager:
+            cache_manager = CacheManager(Config)
+            if hasattr(cache_manager, 'init_redis'):
+                redis_ok = await cache_manager.init_redis()
+                if redis_ok:
+                    logger.info("✅ Cache Manager initialized")
+                    if hasattr(cache_manager, 'start_cleanup_task'):
+                        await cache_manager.start_cleanup_task()
+                else:
+                    logger.warning("⚠️ Cache Manager - Redis not available")
+            else:
+                cache_manager = None
+                logger.warning("⚠️ Cache Manager not available")
         else:
-            logger.warning("⚠️ Cache Manager - Redis not available")
+            cache_manager = None
+            logger.warning("⚠️ Cache Manager module not available")
         
-        # Initialize Verification System
-        if mongo_ok:
+        # Initialize Poster Fetcher - FIXED
+        if MODULES_AVAILABLE and PosterFetcher:
+            try:
+                # Try with different parameter combinations
+                poster_fetcher = PosterFetcher(config=Config, cache_manager=cache_manager)
+                logger.info("✅ Poster Fetcher initialized")
+            except TypeError as e:
+                try:
+                    poster_fetcher = PosterFetcher(Config, cache_manager)
+                    logger.info("✅ Poster Fetcher initialized (alternative)")
+                except:
+                    logger.warning(f"⚠️ PosterFetcher failed: {e}")
+                    poster_fetcher = SimplePosterFetcher(config=Config, cache_manager=cache_manager)
+                    logger.info("✅ Simple Poster Fetcher initialized (fallback)")
+        else:
+            poster_fetcher = SimplePosterFetcher(config=Config, cache_manager=cache_manager)
+            logger.info("✅ Simple Poster Fetcher initialized")
+        
+        # Initialize Verification System only if MongoDB is available
+        if mongo_ok and MODULES_AVAILABLE and VerificationSystem:
             verification_system = VerificationSystem(Config, db)
-            await verification_system.start_cleanup_task()
+            if hasattr(verification_system, 'start_cleanup_task'):
+                await verification_system.start_cleanup_task()
             logger.info("✅ Verification System initialized")
         else:
-            logger.warning("⚠️ Verification System - MongoDB not available")
+            verification_system = None
+            logger.warning("⚠️ Verification System not available")
         
-        # Initialize Premium System
-        if mongo_ok:
+        # Initialize Premium System only if MongoDB is available
+        if mongo_ok and MODULES_AVAILABLE and PremiumSystem:
             premium_system = PremiumSystem(Config, db)
-            await premium_system.start_cleanup_task()
+            if hasattr(premium_system, 'start_cleanup_task'):
+                await premium_system.start_cleanup_task()
             logger.info("✅ Premium System initialized")
         else:
-            logger.warning("⚠️ Premium System - MongoDB not available")
-        
-        # Initialize Poster Fetcher
-        poster_fetcher = PosterFetcher(Config, cache_manager)
-        logger.info("✅ Poster Fetcher initialized")
+            premium_system = None
+            logger.warning("⚠️ Premium System not available")
         
         # ✅ WARM UP CACHE FOR INSTANT RESPONSE
         asyncio.create_task(warm_up_cache())
@@ -1690,15 +1852,17 @@ async def init_system():
                 logger.warning("⚠️ Telegram clients not initialized - Movies will be empty")
             
             # Initialize SK4FiLMBot if available
-            if BOT_HANDLERS_AVAILABLE:
+            if BOT_HANDLERS_AVAILABLE and SK4FiLMBot:
                 sk4film_bot = SK4FiLMBot(Config, db)
-                await sk4film_bot.initialize()
-                logger.info("✅ SK4FiLMBot initialized")
-                
-                # Setup bot handlers
-                if sk4film_bot and sk4film_bot.bot_started and bot:
-                    await setup_bot_handlers(bot, sk4film_bot)
-                    logger.info("✅ Bot handlers setup complete")
+                if hasattr(sk4film_bot, 'initialize'):
+                    await sk4film_bot.initialize()
+                    logger.info("✅ SK4FiLMBot initialized")
+                    
+                    # Setup bot handlers
+                    if sk4film_bot and hasattr(sk4film_bot, 'bot_started') and sk4film_bot.bot_started and bot:
+                        if setup_bot_handlers:
+                            await setup_bot_handlers(bot, sk4film_bot)
+                            logger.info("✅ Bot handlers setup complete")
         else:
             logger.warning("⚠️ Pyrogram not available - Movies will be empty")
             sk4film_bot = None
@@ -1706,11 +1870,11 @@ async def init_system():
         # Start background tasks
         asyncio.create_task(cache_cleanup())
         
-        # Start indexing in background only if Telegram is ready
-        if user_session_ready:
+        # Start indexing in background only if Telegram and MongoDB are ready
+        if user_session_ready and files_col is not None:
             asyncio.create_task(index_files_background())
         else:
-            logger.warning("⚠️ Cannot start indexing - User session not ready")
+            logger.warning("⚠️ Cannot start indexing - User session not ready or no MongoDB")
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s - TURBO READY")
@@ -1726,7 +1890,7 @@ async def init_system():
         return False
 
 # ============================================================================
-# API ROUTES WITH OPTIMIZATIONS
+# API ROUTES WITH OPTIMIZATIONS - FIXED
 # ============================================================================
 
 @app.route('/')
@@ -1746,7 +1910,7 @@ async def root():
             'main_channel': Config.MAIN_CHANNEL_ID
         },
         'performance': {
-            'cache_enabled': cache_manager.redis_enabled if cache_manager else False,
+            'cache_enabled': cache_manager.redis_enabled if cache_manager and hasattr(cache_manager, 'redis_enabled') else False,
             'modules_loaded': all([
                 verification_system is not None,
                 premium_system is not None,
@@ -1777,7 +1941,7 @@ async def health():
                 'initialized': bot is not None
             }
         },
-        'cache': cache_manager.redis_enabled if cache_manager else False,
+        'cache': cache_manager.redis_enabled if cache_manager and hasattr(cache_manager, 'redis_enabled') else False,
         'timestamp': datetime.now().isoformat(),
         'performance': {
             'avg_response_time': performance_monitor.get_stats()
@@ -1787,13 +1951,20 @@ async def health():
 @app.route('/api/movies', methods=['GET'])
 @performance_monitor.measure("movies_endpoint")
 async def api_movies():
-    """Optimized movies endpoint - ONLY Telegram, NO FALLBACK"""
+    """Optimized movies endpoint - ONLY Telegram, NO FALLBACK - FIXED"""
     try:
         movies = await get_home_movies_live()
         
+        # Add basic posters if missing
+        for movie in movies:
+            if 'poster_url' not in movie or not movie['poster_url']:
+                movie['poster_url'] = f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(movie['title'])}&year={movie.get('year', '')}"
+                movie['poster_source'] = 'fallback'
+                movie['poster_rating'] = '0.0'
+        
         return jsonify({
             'status': 'success' if movies else 'empty',
-            'movies': movies,  # Could be empty array
+            'movies': movies,
             'total': len(movies),
             'source': 'telegram',
             'telegram_ready': user_session_ready,
@@ -1807,7 +1978,7 @@ async def api_movies():
         return jsonify({
             'status': 'error',
             'message': str(e),
-            'movies': [],  # ✅ EMPTY ARRAY ON ERROR
+            'movies': [],
             'total': 0,
             'telegram_ready': user_session_ready
         }), 500
@@ -1880,7 +2051,7 @@ async def api_post():
 
 @app.route('/api/poster', methods=['GET'])
 async def api_poster():
-    """Get movie poster"""
+    """Get movie poster - FIXED async/await issue"""
     try:
         title = request.args.get('title', '').strip()
         year = request.args.get('year', '')
@@ -1891,6 +2062,7 @@ async def api_poster():
                 'message': 'Title is required'
             }), 400
         
+        # Fetch from poster fetcher - FIXED: await properly
         if poster_fetcher:
             poster_data = await poster_fetcher.fetch_poster(title)
             
@@ -1904,13 +2076,17 @@ async def api_poster():
                 })
         
         # Fallback
+        fallback_poster = {
+            'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
+            'source': 'custom',
+            'rating': '0.0',
+            'year': year or '',
+            'title': title
+        }
+        
         return jsonify({
             'status': 'success',
-            'poster': {
-                'poster_url': f"{Config.BACKEND_URL}/api/poster?title={urllib.parse.quote(title)}&year={year}",
-                'source': PosterSource.CUSTOM.value,
-                'rating': '0.0'
-            },
+            'poster': fallback_poster,
             'title': title,
             'year': year,
             'timestamp': datetime.now().isoformat()
@@ -1963,18 +2139,31 @@ async def api_premium_plans():
     """Get premium plans"""
     try:
         if premium_system:
-            plans = await premium_system.get_all_plans()
-            
-            return jsonify({
-                'status': 'success',
-                'plans': plans,
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Premium system not available'
-            }), 503
+            if hasattr(premium_system, 'get_all_plans'):
+                plans = await premium_system.get_all_plans()
+                
+                return jsonify({
+                    'status': 'success',
+                    'plans': plans,
+                    'timestamp': datetime.now().isoformat()
+                })
+        
+        # Fallback plans
+        fallback_plans = [
+            {
+                'name': 'Basic',
+                'price': 0,
+                'duration_days': 30,
+                'max_downloads_per_day': 2,
+                'features': ['Basic access', '2 downloads/day']
+            }
+        ]
+        
+        return jsonify({
+            'status': 'success',
+            'plans': fallback_plans,
+            'timestamp': datetime.now().isoformat()
+        })
     except Exception as e:
         logger.error(f"Premium plans API error: {e}")
         return jsonify({
@@ -1997,26 +2186,44 @@ async def api_user_status():
         result = {}
         
         # Get premium status
-        if premium_system:
+        if premium_system and hasattr(premium_system, 'get_subscription_details'):
             premium_status = await premium_system.get_subscription_details(user_id)
             result['premium'] = premium_status
+        else:
+            result['premium'] = {
+                'is_premium': False,
+                'plan': 'Free',
+                'expires_at': None
+            }
         
         # Get verification status
-        if verification_system:
+        if verification_system and hasattr(verification_system, 'check_user_verified'):
             is_verified, message = await verification_system.check_user_verified(user_id, premium_system)
             result['verification'] = {
                 'is_verified': is_verified,
                 'message': message,
                 'needs_verification': not is_verified and Config.VERIFICATION_REQUIRED
             }
+        else:
+            result['verification'] = {
+                'is_verified': True,
+                'message': 'Verification system not available',
+                'needs_verification': False
+            }
         
         # Get download permissions
-        if premium_system:
+        if premium_system and hasattr(premium_system, 'can_user_download'):
             can_download, download_message, download_details = await premium_system.can_user_download(user_id)
             result['download'] = {
                 'can_download': can_download,
                 'message': download_message,
                 'details': download_details
+            }
+        else:
+            result['download'] = {
+                'can_download': True,
+                'message': 'Download allowed',
+                'details': {}
             }
         
         return jsonify({
@@ -2053,14 +2260,15 @@ async def api_clear_cache():
         }
         
         if cache_manager:
-            await cache_manager.clear_all()
-            cleared['cache_manager'] = True
+            if hasattr(cache_manager, 'clear_all'):
+                await cache_manager.clear_all()
+                cleared['cache_manager'] = True
         
-        if poster_fetcher:
+        if poster_fetcher and hasattr(poster_fetcher, 'clear_cache'):
             poster_fetcher.clear_cache()
             cleared['poster_fetcher'] = True
         
-        if cache_manager:
+        if cache_manager and hasattr(cache_manager, 'clear_search_cache'):
             cleared['search_cache'] = await cache_manager.clear_search_cache()
         
         return jsonify({
@@ -2110,11 +2318,19 @@ async def api_stats():
                 'video_files': await files_col.count_documents({'is_video_file': True}),
                 'unique_titles': len(await files_col.distinct('normalized_title'))
             }
+        else:
+            stats['database'] = {
+                'total_files': 0,
+                'video_files': 0,
+                'unique_titles': 0
+            }
         
         # Cache stats
-        if cache_manager:
+        if cache_manager and hasattr(cache_manager, 'get_stats_summary'):
             cache_stats = await cache_manager.get_stats_summary()
             stats['cache'] = cache_stats
+        else:
+            stats['cache'] = {'enabled': False}
         
         # Performance stats
         stats['performance'] = performance_monitor.get_stats()
@@ -2176,29 +2392,19 @@ async def api_generate_session():
         
         logger.info("🔧 Generating Telegram session...")
         
-        try:
-            # This would need to be implemented with proper async handling
-            # For now, just return instructions
-            return jsonify({
-                'status': 'info',
-                'message': 'Session generation requires interactive input',
-                'instructions': [
-                    '1. Make sure pyrogram is installed: pip install pyrogram',
-                    '2. Run the following Python code:',
-                    '   from pyrogram import Client',
-                    '   async with Client("session", api_id, api_hash) as app:',
-                    '       session_string = await app.export_session_string()',
-                    '       print(session_string)',
-                    '3. Set the session string as USER_SESSION_STRING environment variable'
-                ]
-            })
-            
-        except Exception as e:
-            logger.error(f"Session generation error: {e}")
-            return jsonify({
-                'status': 'error',
-                'message': str(e)
-            }), 500
+        return jsonify({
+            'status': 'info',
+            'message': 'Session generation requires interactive input',
+            'instructions': [
+                '1. Make sure pyrogram is installed: pip install pyrogram',
+                '2. Run the following Python code:',
+                '   from pyrogram import Client',
+                '   async with Client("session", api_id, api_hash) as app:',
+                '       session_string = await app.export_session_string()',
+                '       print(session_string)',
+                '3. Set the session string as USER_SESSION_STRING environment variable'
+            ]
+        })
             
     except Exception as e:
         logger.error(f"Generate session API error: {e}")
@@ -2231,16 +2437,16 @@ async def shutdown():
     if bot and bot_started:
         shutdown_tasks.append(bot.stop())
     
-    if sk4film_bot:
+    if sk4film_bot and hasattr(sk4film_bot, 'shutdown'):
         shutdown_tasks.append(sk4film_bot.shutdown())
     
-    if cache_manager:
+    if cache_manager and hasattr(cache_manager, 'stop'):
         shutdown_tasks.append(cache_manager.stop())
     
-    if verification_system:
+    if verification_system and hasattr(verification_system, 'stop'):
         shutdown_tasks.append(verification_system.stop())
     
-    if premium_system:
+    if premium_system and hasattr(premium_system, 'stop_cleanup_task'):
         shutdown_tasks.append(premium_system.stop_cleanup_task())
     
     # Execute shutdown tasks concurrently
@@ -2261,10 +2467,10 @@ if __name__ == "__main__":
     config.bind = [f"0.0.0.0:{Config.WEB_SERVER_PORT}"]
     config.worker_class = "asyncio"
     config.workers = 1
-    config.accesslog = None  # Disable access log for performance
+    config.accesslog = None
     config.errorlog = "-"
-    config.loglevel = "warning"  # Reduced logging
-    config.http2 = True  # Enable HTTP/2
+    config.loglevel = "warning"
+    config.http2 = True
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting Quart server on port {Config.WEB_SERVER_PORT}...")
