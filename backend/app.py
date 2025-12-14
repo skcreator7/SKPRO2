@@ -832,12 +832,12 @@ async def index_single_file_smart(message):
         return False
 
 async def index_files_background_smart():
-    """Background indexing using BOT session"""
-    if Bot is None or files_col is None or not bot_session_ready:
-        logger.warning("⚠️ Bot session not ready for indexing")
+    """Background indexing - Use USER session to fetch, BOT for file ops"""
+    if User is None or files_col is None or not user_session_ready:
+        logger.warning("⚠️ User session not ready for indexing")
         return
     
-    logger.info("📁 Starting background indexing via BOT session...")
+    logger.info("📁 Starting hybrid indexing (USER fetches, BOT processes)...")
     
     try:
         # Setup indexes
@@ -866,15 +866,15 @@ async def index_files_background_smart():
         
         logger.info(f"🔄 Starting from message ID: {last_message_id}")
         
-        # Fetch and process new messages
+        # ✅ USE USER SESSION to fetch FILE channel history
         total_indexed = 0
         messages = []
         
-        async for msg in Bot.get_chat_history(Config.FILE_CHANNEL_ID, limit=100):
+        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=50):
             if msg.id <= last_message_id:
                 break
             
-            if msg and (msg.document or msg.video):
+            if msg is not None and (msg.document or msg.video):
                 messages.append(msg)
         
         messages.reverse()
@@ -885,15 +885,20 @@ async def index_files_background_smart():
                 success = await index_single_file_smart(msg)
                 if success:
                     total_indexed += 1
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.3)  # Rate limiting
             except Exception as e:
                 logger.error(f"❌ Error processing {msg.id}: {e}")
                 continue
         
         if total_indexed > 0:
-            logger.info(f"✅ Indexing complete: {total_indexed} new files")
+            logger.info(f"✅ Hybrid indexing complete: {total_indexed} new files")
         else:
             logger.info("✅ No new files to index")
+        
+        # Start sync monitoring with BOT session
+        if bot_session_ready:
+            await channel_sync_manager.start_sync_monitoring()
+            logger.info("✅ Started BOT sync monitoring")
         
     except Exception as e:
         logger.error(f"❌ Background indexing error: {e}")
