@@ -986,7 +986,7 @@ class ChannelSyncManager:
             try:
                 await self.monitoring_task
             except:
-            pass
+                pass
         logger.info("🛑 Sync monitoring stopped")
     
     async def monitor_channel_sync(self):
