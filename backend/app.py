@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.2 - COMPLETE INTEGRATED SYSTEM WITH FIXED INDEXING
+# 🚀 SK4FiLM v8.3 - COMPLETE INTEGRATED SYSTEM WITH AUTO INDEXING & DUPLICATE PREVENTION
 # ============================================================================
 
 import asyncio
@@ -229,6 +229,11 @@ class Config:
     # Thumbnail Settings
     THUMBNAIL_EXTRACT_TIMEOUT = 10  # seconds
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60  # 24 hours
+    
+    # Auto Indexing Settings
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "3600"))  # 1 hour
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "100"))  # Messages per batch
+    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "1000"))  # Max messages to check
 
 # ============================================================================
 # ✅ FAST INITIALIZATION
@@ -244,7 +249,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.2-COMPLETE-INTEGRATED'
+    response.headers['X-SK4FiLM-Version'] = '8.3-AUTO-INDEXING-DUPLICATE-PREVENTION'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -257,6 +262,7 @@ mongo_client = None
 db = None
 files_col = None
 verification_col = None
+indexing_col = None  # New collection for indexing state
 
 # Telegram Sessions
 try:
@@ -277,6 +283,11 @@ cache_manager = None
 verification_system = None
 premium_system = None
 poster_fetcher = None
+
+# Indexing State
+is_indexing = False
+last_index_time = None
+indexing_task = None
 
 # ============================================================================
 # ✅ ASYNC CACHE DECORATOR
@@ -731,6 +742,519 @@ class VideoThumbnailExtractor:
 thumbnail_extractor = VideoThumbnailExtractor()
 
 # ============================================================================
+# ✅ DUPLICATE PREVENTION SYSTEM
+# ============================================================================
+
+class DuplicatePreventionSystem:
+    """Advanced duplicate detection and prevention"""
+    
+    def __init__(self):
+        self.file_hashes = set()
+        self.title_cache = defaultdict(set)
+        self.lock = asyncio.Lock()
+    
+    async def initialize_from_database(self):
+        """Load existing hashes from database"""
+        if files_col is None:
+            return
+        
+        try:
+            async with self.lock:
+                # Clear existing data
+                self.file_hashes.clear()
+                self.title_cache.clear()
+                
+                # Load file hashes
+                cursor = files_col.find(
+                    {"file_hash": {"$ne": None}},
+                    {"file_hash": 1, "normalized_title": 1, "_id": 0}
+                )
+                
+                async for doc in cursor:
+                    file_hash = doc.get('file_hash')
+                    normalized_title = doc.get('normalized_title')
+                    
+                    if file_hash:
+                        self.file_hashes.add(file_hash)
+                    
+                    if normalized_title:
+                        if file_hash:
+                            self.title_cache[normalized_title].add(file_hash)
+                
+                logger.info(f"✅ Loaded {len(self.file_hashes)} file hashes from database")
+                logger.info(f"✅ Loaded {len(self.title_cache)} unique titles from database")
+                
+        except Exception as e:
+            logger.error(f"❌ Error initializing duplicate prevention: {e}")
+    
+    async def is_duplicate_file(self, file_hash, normalized_title=None):
+        """
+        Check if file is a duplicate
+        Returns: (is_duplicate, reason)
+        """
+        if not file_hash:
+            return False, "no_hash"
+        
+        async with self.lock:
+            # Check if hash already exists
+            if file_hash in self.file_hashes:
+                return True, "same_hash"
+            
+            # Check for similar files with same title
+            if normalized_title and normalized_title in self.title_cache:
+                # We have other files with same title, but different hash
+                # This is okay - different quality versions
+                pass
+            
+            return False, "unique"
+    
+    async def add_file_hash(self, file_hash, normalized_title=None):
+        """Add new file hash to tracking"""
+        if not file_hash:
+            return
+        
+        async with self.lock:
+            self.file_hashes.add(file_hash)
+            
+            if normalized_title:
+                self.title_cache[normalized_title].add(file_hash)
+    
+    async def remove_file_hash(self, file_hash, normalized_title=None):
+        """Remove file hash from tracking"""
+        if not file_hash:
+            return
+        
+        async with self.lock:
+            if file_hash in self.file_hashes:
+                self.file_hashes.remove(file_hash)
+            
+            if normalized_title and normalized_title in self.title_cache:
+                if file_hash in self.title_cache[normalized_title]:
+                    self.title_cache[normalized_title].remove(file_hash)
+                
+                # Clean up empty sets
+                if not self.title_cache[normalized_title]:
+                    del self.title_cache[normalized_title]
+    
+    async def get_duplicate_stats(self):
+        """Get duplicate statistics"""
+        async with self.lock:
+            return {
+                'total_unique_hashes': len(self.file_hashes),
+                'total_unique_titles': len(self.title_cache),
+                'files_per_title': {
+                    title: len(hashes) 
+                    for title, hashes in list(self.title_cache.items())[:10]
+                }
+            }
+
+# Initialize duplicate prevention
+duplicate_prevention = DuplicatePreventionSystem()
+
+# ============================================================================
+# ✅ AUTO INDEXING MANAGER
+# ============================================================================
+
+class AutoIndexingManager:
+    """Automatic batch indexing with duplicate prevention"""
+    
+    def __init__(self):
+        self.is_running = False
+        self.indexing_task = None
+        self.last_run = None
+        self.next_run = None
+        self.total_indexed = 0
+        self.total_duplicates = 0
+        self.indexing_stats = {
+            'total_runs': 0,
+            'total_files_processed': 0,
+            'total_indexed': 0,
+            'total_duplicates': 0,
+            'total_errors': 0,
+            'last_success': None
+        }
+    
+    async def start_auto_indexing(self):
+        """Start automatic indexing"""
+        if self.is_running:
+            logger.warning("⚠️ Auto indexing already running")
+            return
+        
+        logger.info("🚀 Starting AUTO INDEXING system...")
+        self.is_running = True
+        
+        # Initialize duplicate prevention
+        await duplicate_prevention.initialize_from_database()
+        
+        # Start the main loop
+        self.indexing_task = asyncio.create_task(self._indexing_loop())
+    
+    async def stop_auto_indexing(self):
+        """Stop automatic indexing"""
+        self.is_running = False
+        if self.indexing_task:
+            self.indexing_task.cancel()
+            try:
+                await self.indexing_task
+            except asyncio.CancelledError:
+                pass
+        
+        logger.info("🛑 Auto indexing stopped")
+    
+    async def _indexing_loop(self):
+        """Main indexing loop"""
+        while self.is_running:
+            try:
+                # Wait for next run
+                if self.next_run and self.next_run > datetime.now():
+                    wait_seconds = (self.next_run - datetime.now()).total_seconds()
+                    logger.info(f"⏰ Next auto index in {wait_seconds:.0f} seconds")
+                    await asyncio.sleep(min(wait_seconds, 60))  # Check every minute
+                    continue
+                
+                # Run indexing
+                await self._run_indexing_cycle()
+                
+                # Schedule next run
+                self.next_run = datetime.now() + timedelta(seconds=Config.AUTO_INDEX_INTERVAL)
+                self.last_run = datetime.now()
+                
+                # Sleep a bit before checking again
+                await asyncio.sleep(10)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"❌ Indexing loop error: {e}")
+                await asyncio.sleep(60)  # Wait a minute on error
+    
+    async def _run_indexing_cycle(self):
+        """Run one indexing cycle"""
+        logger.info("=" * 60)
+        logger.info("🔄 STARTING AUTO INDEXING CYCLE")
+        logger.info("=" * 60)
+        
+        start_time = time.time()
+        cycle_stats = {
+            'processed': 0,
+            'indexed': 0,
+            'duplicates': 0,
+            'errors': 0
+        }
+        
+        try:
+            # Get last indexed message
+            last_indexed = await files_col.find_one(
+                {"channel_id": Config.FILE_CHANNEL_ID}, 
+                sort=[('message_id', -1)],
+                projection={'message_id': 1}
+            )
+            
+            last_message_id = last_indexed['message_id'] if last_indexed else 0
+            
+            logger.info(f"📊 Last indexed message ID: {last_message_id}")
+            logger.info(f"📡 Fetching up to {Config.MAX_INDEX_LIMIT} new messages...")
+            
+            # Fetch new messages in batches
+            messages_to_index = []
+            fetched_count = 0
+            
+            async for msg in User.get_chat_history(
+                Config.FILE_CHANNEL_ID, 
+                limit=Config.MAX_INDEX_LIMIT
+            ):
+                fetched_count += 1
+                
+                # Stop if we reach already indexed messages
+                if msg.id <= last_message_id:
+                    logger.info(f"✅ Reached last indexed message {last_message_id}")
+                    break
+                
+                # Only index file messages
+                if msg and (msg.document or msg.video):
+                    messages_to_index.append(msg)
+                
+                # Process in batches
+                if len(messages_to_index) >= Config.BATCH_INDEX_SIZE:
+                    batch_stats = await self._process_indexing_batch(messages_to_index)
+                    cycle_stats['processed'] += batch_stats['processed']
+                    cycle_stats['indexed'] += batch_stats['indexed']
+                    cycle_stats['duplicates'] += batch_stats['duplicates']
+                    cycle_stats['errors'] += batch_stats['errors']
+                    
+                    messages_to_index = []  # Clear batch
+                    await asyncio.sleep(1)  # Small delay between batches
+            
+            # Process remaining messages
+            if messages_to_index:
+                batch_stats = await self._process_indexing_batch(messages_to_index)
+                cycle_stats['processed'] += batch_stats['processed']
+                cycle_stats['indexed'] += batch_stats['indexed']
+                cycle_stats['duplicates'] += batch_stats['duplicates']
+                cycle_stats['errors'] += batch_stats['errors']
+            
+            # Update global stats
+            self.indexing_stats['total_runs'] += 1
+            self.indexing_stats['total_files_processed'] += cycle_stats['processed']
+            self.indexing_stats['total_indexed'] += cycle_stats['indexed']
+            self.indexing_stats['total_duplicates'] += cycle_stats['duplicates']
+            self.indexing_stats['total_errors'] += cycle_stats['errors']
+            self.indexing_stats['last_success'] = datetime.now()
+            
+            elapsed = time.time() - start_time
+            
+            logger.info("=" * 60)
+            logger.info("📊 INDEXING CYCLE COMPLETE")
+            logger.info("=" * 60)
+            logger.info(f"⏱️  Time: {elapsed:.2f}s")
+            logger.info(f"📥 Fetched: {fetched_count} messages")
+            logger.info(f"📄 Processed: {cycle_stats['processed']} files")
+            logger.info(f"✅ Indexed: {cycle_stats['indexed']} new files")
+            logger.info(f"🔄 Duplicates: {cycle_stats['duplicates']} skipped")
+            logger.info(f"❌ Errors: {cycle_stats['errors']}")
+            logger.info("=" * 60)
+            
+            # Update global counts
+            self.total_indexed += cycle_stats['indexed']
+            self.total_duplicates += cycle_stats['duplicates']
+            
+        except Exception as e:
+            logger.error(f"❌ Indexing cycle failed: {e}")
+            self.indexing_stats['total_errors'] += 1
+    
+    async def _process_indexing_batch(self, messages):
+        """Process a batch of messages"""
+        batch_stats = {
+            'processed': len(messages),
+            'indexed': 0,
+            'duplicates': 0,
+            'errors': 0
+        }
+        
+        for msg in messages:
+            try:
+                # Check if already indexed by message ID
+                existing = await files_col.find_one({
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'message_id': msg.id
+                }, {'_id': 1})
+                
+                if existing:
+                    logger.debug(f"📝 Already indexed by message ID: {msg.id}")
+                    batch_stats['duplicates'] += 1
+                    continue
+                
+                # Index the file
+                success = await self._index_single_file_with_duplicate_check(msg)
+                
+                if success:
+                    batch_stats['indexed'] += 1
+                else:
+                    batch_stats['duplicates'] += 1
+                    
+            except Exception as e:
+                logger.error(f"❌ Error processing message {msg.id}: {e}")
+                batch_stats['errors'] += 1
+                continue
+        
+        logger.info(f"📦 Batch processed: {batch_stats}")
+        return batch_stats
+    
+    async def _index_single_file_with_duplicate_check(self, message):
+        """Index single file with duplicate check"""
+        try:
+            if not message or (not message.document and not message.video):
+                return False
+            
+            # Generate file hash for duplicate detection
+            file_hash = await generate_file_hash(message)
+            
+            # Extract title for duplicate check
+            caption = message.caption if hasattr(message, 'caption') else None
+            file_name = None
+            
+            if message.document:
+                file_name = message.document.file_name
+            elif message.video:
+                file_name = message.video.file_name
+            
+            title = extract_title_from_file(file_name, caption)
+            if not title:
+                logger.debug(f"📝 Skipping - No title: {message.id}")
+                return False
+            
+            normalized_title = normalize_title(title)
+            
+            # Check for duplicates
+            if file_hash:
+                is_duplicate, reason = await duplicate_prevention.is_duplicate_file(
+                    file_hash, normalized_title
+                )
+                
+                if is_duplicate:
+                    logger.info(f"🔄 DUPLICATE SKIPPED: {title} - Reason: {reason}")
+                    
+                    # Still add to database as duplicate (for tracking)
+                    await self._add_duplicate_record(message, title, normalized_title, file_hash, reason)
+                    return False
+            
+            # Extract thumbnail if video file
+            thumbnail_url = None
+            is_video = False
+            
+            if message.video or (message.document and is_video_file(file_name or '')):
+                is_video = True
+                try:
+                    thumbnail_url = await thumbnail_extractor.extract_thumbnail_from_message(
+                        Config.FILE_CHANNEL_ID,
+                        message.id,
+                        message.video.file_id if message.video else message.document.file_id
+                    )
+                    
+                    if thumbnail_url:
+                        logger.debug(f"✅ Thumbnail extracted for: {title}")
+                except Exception as e:
+                    logger.error(f"❌ Thumbnail extraction error: {e}")
+            
+            # Create document
+            doc = {
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'message_id': message.id,
+                'title': title,
+                'normalized_title': normalized_title,
+                'date': message.date,
+                'indexed_at': datetime.now(),
+                'last_checked': datetime.now(),
+                'is_video_file': is_video,
+                'file_id': None,
+                'file_size': 0,
+                'file_hash': file_hash,
+                'thumbnail_url': thumbnail_url,
+                'thumbnail_extracted': thumbnail_url is not None,
+                'status': 'active',
+                'is_duplicate': False,
+                'duplicate_reason': None
+            }
+            
+            # Add file-specific data
+            if message.document:
+                doc.update({
+                    'file_name': message.document.file_name or '',
+                    'quality': detect_quality_enhanced(message.document.file_name or ''),
+                    'is_video_file': is_video_file(message.document.file_name or ''),
+                    'caption': caption or '',
+                    'mime_type': message.document.mime_type or '',
+                    'file_id': message.document.file_id,
+                    'file_size': message.document.file_size or 0
+                })
+            elif message.video:
+                doc.update({
+                    'file_name': message.video.file_name or 'video.mp4',
+                    'quality': detect_quality_enhanced(message.video.file_name or ''),
+                    'is_video_file': True,
+                    'caption': caption or '',
+                    'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
+                    'width': message.video.width if hasattr(message.video, 'width') else 0,
+                    'height': message.video.height if hasattr(message.video, 'height') else 0,
+                    'file_id': message.video.file_id,
+                    'file_size': message.video.file_size or 0
+                })
+            else:
+                return False
+            
+            # Insert into MongoDB
+            try:
+                await files_col.insert_one(doc)
+                
+                # Add to duplicate prevention system
+                if file_hash:
+                    await duplicate_prevention.add_file_hash(file_hash, normalized_title)
+                
+                # Log success
+                file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
+                size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
+                thumbnail_status = "✅" if thumbnail_url else "❌"
+                
+                logger.info(f"✅ {file_type} AUTO-INDEXED: {title}")
+                logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
+                logger.info(f"   🖼️ Thumbnail: {thumbnail_status}")
+                logger.info(f"   🔑 Hash: {file_hash[:20] if file_hash else 'None'}")
+                
+                return True
+                
+            except Exception as e:
+                if "duplicate key error" in str(e).lower():
+                    logger.debug(f"📝 Duplicate key error: {message.id}")
+                    return False
+                else:
+                    logger.error(f"❌ Insert error: {e}")
+                    return False
+        
+        except Exception as e:
+            logger.error(f"❌ Indexing error for message {message.id if message else 'unknown'}: {e}")
+            return False
+    
+    async def _add_duplicate_record(self, message, title, normalized_title, file_hash, reason):
+        """Add duplicate record to database for tracking"""
+        try:
+            duplicate_doc = {
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'message_id': message.id,
+                'title': title,
+                'normalized_title': normalized_title,
+                'date': message.date,
+                'detected_at': datetime.now(),
+                'file_hash': file_hash,
+                'duplicate_reason': reason,
+                'status': 'duplicate'
+            }
+            
+            # Store in separate duplicates collection
+            await db.duplicates.insert_one(duplicate_doc)
+            
+        except Exception as e:
+            logger.error(f"❌ Error adding duplicate record: {e}")
+    
+    async def get_indexing_status(self):
+        """Get current indexing status"""
+        return {
+            'is_running': self.is_running,
+            'last_run': self.last_run.isoformat() if self.last_run else None,
+            'next_run': self.next_run.isoformat() if self.next_run else None,
+            'total_indexed': self.total_indexed,
+            'total_duplicates': self.total_duplicates,
+            'stats': self.indexing_stats
+        }
+    
+    async def run_manual_index(self, limit=100):
+        """Run manual indexing"""
+        logger.info(f"🔧 Running MANUAL indexing (limit: {limit})...")
+        
+        try:
+            # Fetch messages
+            messages_to_index = []
+            
+            async for msg in User.get_chat_history(
+                Config.FILE_CHANNEL_ID, 
+                limit=limit
+            ):
+                if msg and (msg.document or msg.video):
+                    messages_to_index.append(msg)
+            
+            # Process batch
+            stats = await self._process_indexing_batch(messages_to_index)
+            
+            logger.info(f"✅ Manual indexing complete: {stats}")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ Manual indexing error: {e}")
+            return None
+
+# Initialize auto indexing manager
+auto_indexing_manager = AutoIndexingManager()
+
+# ============================================================================
 # ✅ SYNC MANAGEMENT
 # ============================================================================
 
@@ -790,27 +1314,32 @@ class ChannelSyncManager:
             # Get message IDs from MongoDB
             cursor = files_col.find(
                 {"channel_id": Config.FILE_CHANNEL_ID},
-                {"message_id": 1, "_id": 0}
+                {"message_id": 1, "_id": 0, "file_hash": 1, "normalized_title": 1}
             )
             
-            message_ids_in_db = []
+            message_data = []
             async for doc in cursor:
                 msg_id = doc.get('message_id')
                 if msg_id:
-                    message_ids_in_db.append(msg_id)
+                    message_data.append({
+                        'message_id': msg_id,
+                        'file_hash': doc.get('file_hash'),
+                        'normalized_title': doc.get('normalized_title')
+                    })
             
-            if not message_ids_in_db:
+            if not message_data:
                 return
             
             deleted_count = 0
             batch_size = 50
             
-            for i in range(0, len(message_ids_in_db), batch_size):
-                batch = message_ids_in_db[i:i + batch_size]
+            for i in range(0, len(message_data), batch_size):
+                batch = message_data[i:i + batch_size]
+                message_ids = [item['message_id'] for item in batch]
                 
                 try:
                     # Check if messages exist using BOT
-                    messages = await Bot.get_messages(Config.FILE_CHANNEL_ID, batch)
+                    messages = await Bot.get_messages(Config.FILE_CHANNEL_ID, message_ids)
                     
                     existing_ids = set()
                     if isinstance(messages, list):
@@ -821,18 +1350,23 @@ class ChannelSyncManager:
                         existing_ids.add(messages.id)
                     
                     # Find deleted IDs
-                    deleted_ids = [msg_id for msg_id in batch if msg_id not in existing_ids]
-                    
-                    # Delete from MongoDB
-                    if deleted_ids:
-                        result = await files_col.delete_many({
-                            "channel_id": Config.FILE_CHANNEL_ID,
-                            "message_id": {"$in": deleted_ids}
-                        })
-                        
-                        if result.deleted_count > 0:
-                            deleted_count += result.deleted_count
-                            self.deleted_count += result.deleted_count
+                    for item in batch:
+                        if item['message_id'] not in existing_ids:
+                            # Delete from MongoDB
+                            await files_col.delete_one({
+                                "channel_id": Config.FILE_CHANNEL_ID,
+                                "message_id": item['message_id']
+                            })
+                            
+                            # Remove from duplicate prevention
+                            if item.get('file_hash'):
+                                await duplicate_prevention.remove_file_hash(
+                                    item['file_hash'],
+                                    item.get('normalized_title')
+                                )
+                            
+                            deleted_count += 1
+                            self.deleted_count += 1
                 
                 except Exception as e:
                     logger.error(f"❌ Batch check error: {e}")
@@ -848,6 +1382,404 @@ class ChannelSyncManager:
         await self.sync_deletions_from_telegram()
 
 channel_sync_manager = ChannelSyncManager()
+
+# ============================================================================
+# ✅ FILE INDEXING FUNCTIONS - UPDATED WITH DUPLICATE PREVENTION
+# ============================================================================
+
+async def generate_file_hash(message):
+    """Generate unique hash for file to detect duplicates - ENHANCED"""
+    try:
+        hash_parts = []
+        
+        if message.document:
+            file_attrs = message.document
+            hash_parts.append(f"doc_{file_attrs.file_unique_id}")
+            if file_attrs.file_name:
+                # Use file size and name for hash
+                name_hash = hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:16]
+                hash_parts.append(f"name_{name_hash}")
+            if file_attrs.file_size:
+                hash_parts.append(f"size_{file_attrs.file_size}")
+        elif message.video:
+            file_attrs = message.video
+            hash_parts.append(f"vid_{file_attrs.file_unique_id}")
+            if file_attrs.file_name:
+                name_hash = hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:16]
+                hash_parts.append(f"name_{name_hash}")
+            if file_attrs.file_size:
+                hash_parts.append(f"size_{file_attrs.file_size}")
+            if hasattr(file_attrs, 'duration'):
+                hash_parts.append(f"dur_{file_attrs.duration}")
+        else:
+            return None
+        
+        # Add caption hash only if exists
+        if message.caption:
+            caption_hash = hashlib.md5(message.caption.encode()).hexdigest()[:12]
+            hash_parts.append(f"cap_{caption_hash}")
+        
+        # Final hash
+        final_hash = hashlib.sha256("_".join(hash_parts).encode()).hexdigest()
+        return final_hash
+        
+    except Exception as e:
+        logger.debug(f"Hash generation error: {e}")
+        return None
+
+async def index_single_file_smart(message):
+    """Index single file using BOT session - Updated with duplicate prevention"""
+    try:
+        if files_col is None or Bot is None or not bot_session_ready:
+            logger.error("❌ Bot session not ready for indexing")
+            return False
+        
+        if not message or (not message.document and not message.video):
+            logger.debug(f"❌ Not a file message: {message.id}")
+            return False
+        
+        # Check if already exists by message ID
+        existing_by_id = await files_col.find_one({
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'message_id': message.id
+        }, {'_id': 1})
+        
+        if existing_by_id:
+            logger.debug(f"📝 Already indexed: {message.id}")
+            return True
+        
+        # Generate file hash for duplicate detection
+        file_hash = await generate_file_hash(message)
+        
+        # Extract title
+        caption = message.caption if hasattr(message, 'caption') else None
+        file_name = None
+        
+        if message.document:
+            file_name = message.document.file_name
+        elif message.video:
+            file_name = message.video.file_name
+        
+        title = extract_title_from_file(file_name, caption)
+        if not title:
+            logger.debug(f"📝 Skipping - No title: {message.id}")
+            return False
+        
+        normalized_title = normalize_title(title)
+        
+        # Check for duplicates using hash
+        if file_hash:
+            is_duplicate, reason = await duplicate_prevention.is_duplicate_file(
+                file_hash, normalized_title
+            )
+            
+            if is_duplicate:
+                logger.info(f"🔄 DUPLICATE DETECTED: {title} - Reason: {reason}")
+                
+                # Add duplicate record for tracking
+                await db.duplicates.insert_one({
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'message_id': message.id,
+                    'title': title,
+                    'normalized_title': normalized_title,
+                    'file_hash': file_hash,
+                    'duplicate_reason': reason,
+                    'detected_at': datetime.now(),
+                    'status': 'duplicate'
+                })
+                
+                return False
+        
+        # Extract thumbnail if video file
+        thumbnail_url = None
+        is_video = False
+        
+        if message.video or (message.document and is_video_file(file_name or '')):
+            is_video = True
+            try:
+                thumbnail_url = await thumbnail_extractor.extract_thumbnail_from_message(
+                    Config.FILE_CHANNEL_ID,
+                    message.id,
+                    message.video.file_id if message.video else message.document.file_id
+                )
+                
+                if thumbnail_url:
+                    logger.debug(f"✅ Thumbnail extracted for: {title}")
+            except Exception as e:
+                logger.error(f"❌ Thumbnail extraction error: {e}")
+        
+        # Create document
+        doc = {
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'message_id': message.id,
+            'title': title,
+            'normalized_title': normalized_title,
+            'date': message.date,
+            'indexed_at': datetime.now(),
+            'last_checked': datetime.now(),
+            'is_video_file': is_video,
+            'file_id': None,
+            'file_size': 0,
+            'file_hash': file_hash,
+            'thumbnail_url': thumbnail_url,
+            'thumbnail_extracted': thumbnail_url is not None,
+            'status': 'active',
+            'is_duplicate': False,
+            'duplicate_reason': None
+        }
+        
+        # Add file-specific data
+        if message.document:
+            doc.update({
+                'file_name': message.document.file_name or '',
+                'quality': detect_quality_enhanced(message.document.file_name or ''),
+                'is_video_file': is_video_file(message.document.file_name or ''),
+                'caption': caption or '',
+                'mime_type': message.document.mime_type or '',
+                'file_id': message.document.file_id,
+                'file_size': message.document.file_size or 0
+            })
+        elif message.video:
+            doc.update({
+                'file_name': message.video.file_name or 'video.mp4',
+                'quality': detect_quality_enhanced(message.video.file_name or ''),
+                'is_video_file': True,
+                'caption': caption or '',
+                'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
+                'width': message.video.width if hasattr(message.video, 'width') else 0,
+                'height': message.video.height if hasattr(message.video, 'height') else 0,
+                'file_id': message.video.file_id,
+                'file_size': message.video.file_size or 0
+            })
+        else:
+            return False
+        
+        # Insert into MongoDB
+        try:
+            await files_col.insert_one(doc)
+            
+            # Add to duplicate prevention system
+            if file_hash:
+                await duplicate_prevention.add_file_hash(file_hash, normalized_title)
+            
+            # Log success
+            file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
+            size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
+            thumbnail_status = "✅" if thumbnail_url else "❌"
+            
+            logger.info(f"✅ {file_type} indexed: {title}")
+            logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
+            logger.info(f"   🖼️ Thumbnail: {thumbnail_status}")
+            logger.info(f"   🔑 Hash: {file_hash[:20] if file_hash else 'None'}")
+            
+            return True
+            
+        except Exception as e:
+            if "duplicate key error" in str(e).lower():
+                logger.debug(f"📝 Duplicate key error: {message.id}")
+                return True  # Already exists
+            else:
+                logger.error(f"❌ Insert error: {e}")
+                return False
+        
+    except Exception as e:
+        logger.error(f"❌ Indexing error for message {message.id if message else 'unknown'}: {e}")
+        return False
+
+async def index_files_background_smart():
+    """Background indexing with duplicate prevention"""
+    if User is None or files_col is None or not user_session_ready:
+        logger.warning("⚠️ User session not ready for indexing")
+        return
+    
+    logger.info("📁 Starting smart indexing with duplicate prevention...")
+    
+    try:
+        # Setup indexes
+        await setup_database_indexes()
+        
+        # Initialize duplicate prevention
+        await duplicate_prevention.initialize_from_database()
+        
+        # Get last indexed message
+        last_indexed = await files_col.find_one(
+            {"channel_id": Config.FILE_CHANNEL_ID}, 
+            sort=[('message_id', -1)],
+            projection={'message_id': 1}
+        )
+        
+        last_message_id = last_indexed['message_id'] if last_indexed else 0
+        
+        logger.info(f"🔄 Starting from message ID: {last_message_id}")
+        logger.info(f"📡 Fetching messages from FILE channel: {Config.FILE_CHANNEL_ID}")
+        
+        # Fetch messages
+        messages = []
+        fetched_count = 0
+        
+        try:
+            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=Config.MAX_INDEX_LIMIT):
+                fetched_count += 1
+                if msg.id <= last_message_id:
+                    logger.info(f"✅ Reached last indexed message {last_message_id}")
+                    break
+                
+                if msg is not None and (msg.document or msg.video):
+                    messages.append(msg)
+                    logger.debug(f"📥 Found file: {msg.id}")
+        except Exception as e:
+            logger.error(f"❌ Error fetching chat history: {e}")
+            return
+        
+        logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages)} new files to index")
+        
+        # Process messages in reverse order (oldest first)
+        messages.reverse()
+        
+        # Process in batches
+        batch_size = 20
+        total_indexed = 0
+        total_duplicates = 0
+        
+        for i in range(0, len(messages), batch_size):
+            batch = messages[i:i + batch_size]
+            logger.info(f"📦 Processing batch {i//batch_size + 1}/{(len(messages)-1)//batch_size + 1}")
+            
+            for msg in batch:
+                try:
+                    success = await index_single_file_smart(msg)
+                    if success:
+                        total_indexed += 1
+                    else:
+                        total_duplicates += 1
+                    
+                    # Small delay to avoid rate limiting
+                    await asyncio.sleep(0.2)
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error processing message {msg.id}: {e}")
+                    continue
+            
+            # Delay between batches
+            await asyncio.sleep(2)
+        
+        if total_indexed > 0 or total_duplicates > 0:
+            logger.info(f"✅ Smart indexing complete:")
+            logger.info(f"   ✅ Indexed: {total_indexed} new files")
+            logger.info(f"   🔄 Skipped: {total_duplicates} duplicates")
+            
+            # Get stats
+            await log_database_stats()
+        else:
+            logger.info("✅ No new files to index")
+        
+        # Start auto indexing
+        await auto_indexing_manager.start_auto_indexing()
+        logger.info("✅ Started AUTO indexing system")
+        
+        # Start sync monitoring
+        if bot_session_ready:
+            await channel_sync_manager.start_sync_monitoring()
+            logger.info("✅ Started BOT sync monitoring")
+        
+    except Exception as e:
+        logger.error(f"❌ Background indexing error: {e}")
+
+async def setup_database_indexes():
+    """Setup all required database indexes"""
+    if files_col is None:
+        return
+    
+    try:
+        # Unique index for channel + message
+        await files_col.create_index(
+            [("channel_id", 1), ("message_id", 1)],
+            unique=True,
+            name="channel_message_unique",
+            background=True
+        )
+        logger.info("✅ Created unique index on channel_id + message_id")
+    except Exception as e:
+        logger.warning(f"⚠️ Index creation error (might already exist): {e}")
+    
+    try:
+        # Text search index
+        await files_col.create_index(
+            [("normalized_title", "text"), ("title", "text")],
+            name="text_search_index",
+            default_language="english",
+            background=True
+        )
+        logger.info("✅ Created text search index")
+    except Exception as e:
+        logger.warning(f"⚠️ Text index creation error: {e}")
+    
+    try:
+        # File hash index for duplicate detection
+        await files_col.create_index(
+            [("file_hash", 1)],
+            name="file_hash_index",
+            background=True,
+            sparse=True
+        )
+        logger.info("✅ Created file_hash index")
+    except Exception as e:
+        logger.warning(f"⚠️ File hash index creation error: {e}")
+    
+    try:
+        # Quality index
+        await files_col.create_index(
+            [("quality", 1)],
+            name="quality_index",
+            background=True
+        )
+        logger.info("✅ Created quality index")
+    except Exception as e:
+        logger.warning(f"⚠️ Quality index creation error: {e}")
+    
+    try:
+        # Date index for sorting
+        await files_col.create_index(
+            [("date", -1)],
+            name="date_index",
+            background=True
+        )
+        logger.info("✅ Created date index")
+    except Exception as e:
+        logger.warning(f"⚠️ Date index creation error: {e}")
+
+async def log_database_stats():
+    """Log database statistics"""
+    if files_col is None:
+        return
+    
+    try:
+        total_files = await files_col.count_documents({})
+        video_files = await files_col.count_documents({'is_video_file': True})
+        file_channel_files = await files_col.count_documents({
+            "channel_id": Config.FILE_CHANNEL_ID
+        })
+        
+        # Count thumbnails
+        thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
+        
+        # Count duplicates
+        total_duplicates = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
+        
+        # Get unique hashes
+        unique_hashes = await files_col.distinct("file_hash")
+        unique_hashes_count = len([h for h in unique_hashes if h])
+        
+        logger.info("📊 DATABASE STATISTICS:")
+        logger.info(f"   • Total files: {total_files}")
+        logger.info(f"   • Video files: {video_files}")
+        logger.info(f"   • FILE channel files: {file_channel_files}")
+        logger.info(f"   • Thumbnails extracted: {thumbnails_extracted}")
+        logger.info(f"   • Unique file hashes: {unique_hashes_count}")
+        logger.info(f"   • Tracked duplicates: {total_duplicates}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting database stats: {e}")
 
 # ============================================================================
 # ✅ POSTER FETCHING FUNCTIONS
@@ -1102,6 +2034,10 @@ async def init_mongodb():
         files_col = db.files
         verification_col = db.verifications
         
+        # Create duplicates collection if not exists
+        if 'duplicates' not in await db.list_collection_names():
+            await db.create_collection('duplicates')
+        
         logger.info("✅ MongoDB OK")
         return True
         
@@ -1111,280 +2047,6 @@ async def init_mongodb():
     except Exception as e:
         logger.error(f"❌ MongoDB error: {e}")
         return False
-
-# ============================================================================
-# ✅ FILE INDEXING FUNCTIONS - FIXED (WITH THUMBNAIL EXTRACTION)
-# ============================================================================
-
-async def generate_file_hash(message):
-    """Generate unique hash for file to detect duplicates"""
-    try:
-        hash_parts = []
-        
-        if message.document:
-            file_attrs = message.document
-            hash_parts.append(f"doc_{file_attrs.file_id}")
-            if file_attrs.file_name:
-                hash_parts.append(f"name_{hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:8]}")
-            if file_attrs.file_size:
-                hash_parts.append(f"size_{file_attrs.file_size}")
-        elif message.video:
-            file_attrs = message.video
-            hash_parts.append(f"vid_{file_attrs.file_id}")
-            if file_attrs.file_name:
-                hash_parts.append(f"name_{hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:8]}")
-            if file_attrs.file_size:
-                hash_parts.append(f"size_{file_attrs.file_size}")
-            if hasattr(file_attrs, 'duration'):
-                hash_parts.append(f"dur_{file_attrs.duration}")
-        else:
-            return None
-        
-        if message.caption:
-            caption_hash = hashlib.md5(message.caption.encode()).hexdigest()[:12]
-            hash_parts.append(f"cap_{caption_hash}")
-        
-        return "_".join(hash_parts)
-    except Exception as e:
-        logger.debug(f"Hash generation error: {e}")
-        return None
-
-async def index_single_file_smart(message):
-    """Index single file using BOT session - FIXED with thumbnail extraction"""
-    try:
-        if files_col is None or Bot is None or not bot_session_ready:
-            logger.error("❌ Bot session not ready for indexing")
-            return False
-        
-        if not message or (not message.document and not message.video):
-            logger.debug(f"❌ Not a file message: {message.id}")
-            return False
-        
-        # Check if already exists
-        existing_by_id = await files_col.find_one({
-            'channel_id': Config.FILE_CHANNEL_ID,
-            'message_id': message.id
-        }, {'_id': 1})
-        
-        if existing_by_id:
-            logger.debug(f"📝 Already indexed: {message.id}")
-            return True
-        
-        # Extract title
-        caption = message.caption if hasattr(message, 'caption') else None
-        file_name = None
-        
-        if message.document:
-            file_name = message.document.file_name
-        elif message.video:
-            file_name = message.video.file_name
-        
-        title = extract_title_from_file(file_name, caption)
-        if not title:
-            logger.debug(f"📝 Skipping - No title: {message.id}")
-            return False
-        
-        normalized_title = normalize_title(title)
-        
-        # Extract thumbnail if video file
-        thumbnail_url = None
-        is_video = False
-        
-        if message.video or (message.document and is_video_file(file_name or '')):
-            is_video = True
-            try:
-                # Extract thumbnail from video
-                thumbnail_url = await thumbnail_extractor.extract_thumbnail_from_message(
-                    Config.FILE_CHANNEL_ID,
-                    message.id,
-                    message.video.file_id if message.video else message.document.file_id
-                )
-                
-                if thumbnail_url:
-                    logger.info(f"✅ Extracted thumbnail for: {title}")
-                else:
-                    logger.warning(f"⚠️ No thumbnail extracted for: {title}")
-            except Exception as e:
-                logger.error(f"❌ Thumbnail extraction error: {e}")
-        
-        # Create document
-        doc = {
-            'channel_id': Config.FILE_CHANNEL_ID,
-            'message_id': message.id,
-            'title': title,
-            'normalized_title': normalized_title,
-            'date': message.date,
-            'indexed_at': datetime.now(),
-            'last_checked': datetime.now(),
-            'is_video_file': is_video,
-            'file_id': None,
-            'file_size': 0,
-            'file_hash': None,
-            'thumbnail_url': thumbnail_url,  # ✅ Store extracted thumbnail
-            'thumbnail_extracted': thumbnail_url is not None,
-            'status': 'active'
-        }
-        
-        # Add file-specific data
-        if message.document:
-            doc.update({
-                'file_name': message.document.file_name or '',
-                'quality': detect_quality_enhanced(message.document.file_name or ''),
-                'is_video_file': is_video_file(message.document.file_name or ''),
-                'caption': caption or '',
-                'mime_type': message.document.mime_type or '',
-                'file_id': message.document.file_id,
-                'file_size': message.document.file_size or 0
-            })
-            doc['file_hash'] = await generate_file_hash(message)
-        elif message.video:
-            doc.update({
-                'file_name': message.video.file_name or 'video.mp4',
-                'quality': detect_quality_enhanced(message.video.file_name or ''),
-                'is_video_file': True,
-                'caption': caption or '',
-                'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
-                'width': message.video.width if hasattr(message.video, 'width') else 0,
-                'height': message.video.height if hasattr(message.video, 'height') else 0,
-                'file_id': message.video.file_id,
-                'file_size': message.video.file_size or 0
-            })
-            doc['file_hash'] = await generate_file_hash(message)
-        else:
-            return False
-        
-        # Insert into MongoDB
-        try:
-            await files_col.insert_one(doc)
-            
-            file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
-            size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
-            thumbnail_status = "✅" if thumbnail_url else "❌"
-            
-            logger.info(f"✅ {file_type} indexed via BOT: {title}")
-            logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
-            logger.info(f"   🖼️ Thumbnail: {thumbnail_status}")
-            
-            return True
-        except Exception as e:
-            if "duplicate key error" in str(e).lower():
-                return True
-            else:
-                logger.error(f"❌ Insert error: {e}")
-                return False
-        
-    except Exception as e:
-        logger.error(f"❌ Indexing error for message {message.id if message else 'unknown'}: {e}")
-        return False
-
-async def index_files_background_smart():
-    """Background indexing - Use USER session to fetch, BOT for file ops - FIXED"""
-    if User is None or files_col is None or not user_session_ready:
-        logger.warning("⚠️ User session not ready for indexing")
-        return
-    
-    logger.info("📁 Starting hybrid indexing (USER fetches, BOT processes)...")
-    
-    try:
-        # Setup indexes
-        if files_col is not None:
-            try:
-                await files_col.create_index(
-                    [("channel_id", 1), ("message_id", 1)],
-                    unique=True,
-                    name="channel_message_unique"
-                )
-                logger.info("✅ Created unique index on channel_id + message_id")
-            except Exception as e:
-                logger.warning(f"⚠️ Index creation error (might already exist): {e}")
-            
-            try:
-                await files_col.create_index(
-                    [("normalized_title", "text")],
-                    name="text_search_index",
-                    default_language="english"
-                )
-                logger.info("✅ Created text search index")
-            except Exception as e:
-                logger.warning(f"⚠️ Text index creation error: {e}")
-        
-        # Get last indexed message
-        last_indexed = await files_col.find_one(
-            {"channel_id": Config.FILE_CHANNEL_ID}, 
-            sort=[('message_id', -1)],
-            projection={'message_id': 1}
-        )
-        
-        last_message_id = last_indexed['message_id'] if last_indexed else 0
-        
-        logger.info(f"🔄 Starting from message ID: {last_message_id}")
-        logger.info(f"📡 Fetching messages from FILE channel: {Config.FILE_CHANNEL_ID}")
-        
-        # ✅ USE USER SESSION to fetch FILE channel history
-        total_indexed = 0
-        messages = []
-        fetched_count = 0
-        
-        try:
-            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=100):
-                fetched_count += 1
-                if msg.id <= last_message_id:
-                    logger.info(f"Reached last indexed message {last_message_id}, stopping")
-                    break
-                
-                if msg is not None and (msg.document or msg.video):
-                    messages.append(msg)
-                    logger.debug(f"📥 Found file: {msg.id} - {'Document' if msg.document else 'Video'}")
-        except Exception as e:
-            logger.error(f"❌ Error fetching chat history: {e}")
-            return
-        
-        logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages)} new files to index")
-        
-        # Process messages in reverse order (oldest first)
-        messages.reverse()
-        
-        for msg in messages:
-            try:
-                success = await index_single_file_smart(msg)
-                if success:
-                    total_indexed += 1
-                # Small delay to avoid rate limiting
-                await asyncio.sleep(0.1)
-            except Exception as e:
-                logger.error(f"❌ Error processing message {msg.id}: {e}")
-                continue
-        
-        if total_indexed > 0:
-            logger.info(f"✅ Hybrid indexing complete: {total_indexed} new files indexed")
-            
-            # Get total count after indexing
-            total_files = await files_col.count_documents({})
-            video_files = await files_col.count_documents({'is_video_file': True})
-            file_channel_files = await files_col.count_documents({
-                "channel_id": Config.FILE_CHANNEL_ID
-            })
-            
-            # Count thumbnails extracted
-            thumbnails_extracted = await files_col.count_documents({
-                "thumbnail_extracted": True
-            })
-            
-            logger.info(f"📊 Database Stats:")
-            logger.info(f"   • Total files: {total_files}")
-            logger.info(f"   • Video files: {video_files}")
-            logger.info(f"   • FILE channel files: {file_channel_files}")
-            logger.info(f"   • Thumbnails extracted: {thumbnails_extracted}")
-        else:
-            logger.info("✅ No new files to index")
-        
-        # Start sync monitoring with BOT session
-        if bot_session_ready:
-            await channel_sync_manager.start_sync_monitoring()
-            logger.info("✅ Started BOT sync monitoring")
-        
-    except Exception as e:
-        logger.error(f"❌ Background indexing error: {e}")
 
 # ============================================================================
 # ✅ COMBINED SEARCH WITH QUALITY MERGING (WITH VIDEO THUMBNAILS)
@@ -1472,7 +2134,9 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                         {"normalized_title": {"$regex": query, "$options": "i"}},
                         {"file_name": {"$regex": query, "$options": "i"}},
                         {"caption": {"$regex": query, "$options": "i"}}
-                    ]
+                    ],
+                    "status": "active",
+                    "is_duplicate": False  # Exclude duplicates
                 },
                 {
                     'title': 1,
@@ -1486,7 +2150,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'date': 1,
                     'caption': 1,
                     'file_id': 1,
-                    'thumbnail_url': 1,  # ✅ Include thumbnail URL
+                    'thumbnail_url': 1,
                     'thumbnail_extracted': 1,
                     '_id': 0
                 }
@@ -1537,7 +2201,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                         'channel_id': doc.get('channel_id'),
                         'message_id': doc.get('message_id'),
                         'quality_info': quality_info,
-                        'thumbnail_url': thumbnail_url,  # ✅ Include thumbnail
+                        'thumbnail_url': thumbnail_url,
                         'has_thumbnail': thumbnail_url is not None
                     }
                     
@@ -1552,7 +2216,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             'normalized_title': norm_title,
                             'content': format_post(doc.get('caption', ''), max_length=500),
                             'post_content': doc.get('caption', ''),
-                            'quality_options': {quality: quality_option},  # Start with dict
+                            'quality_options': {quality: quality_option},
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
                             'is_new': is_new(doc['date']) if doc.get('date') else False,
                             'is_video_file': doc.get('is_video_file', False),
@@ -1681,7 +2345,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'thumbnail': movie['thumbnail'],
                     'thumbnail_source': movie['thumbnail_source'],
                     'has_thumbnail': True,
-                    # Still get poster for UI
                     'poster_url': movie.get('poster_url', Config.FALLBACK_POSTER),
                     'poster_source': movie.get('poster_source', 'fallback'),
                     'poster_rating': movie.get('poster_rating', '0.0'),
@@ -1696,7 +2359,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'thumbnail': movie['thumbnail'],
                     'thumbnail_source': movie['thumbnail_source'],
                     'has_poster': True,
-                    'has_thumbnail': True  # Now we have poster as thumbnail
+                    'has_thumbnail': True
                 })
     
     # ============================================================================
@@ -1743,6 +2406,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             'poster_fetcher': poster_fetcher is not None,
             'user_session_used': user_session_ready,
             'bot_session_used': bot_session_ready,
+            'duplicate_prevention': True,
             'cache_hit': False
         }
     }
@@ -1766,7 +2430,7 @@ def channel_name_cached(cid):
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
-async def get_home_movies(limit=6):
+async def get_home_movies(limit=20):
     """Get home movies"""
     try:
         if User is None or not user_session_ready:
@@ -1974,7 +2638,7 @@ async def init_system():
     start_time = time.time()
     
     try:
-        logger.info("🚀 Starting SK4FiLM v8.2 - COMPLETE INTEGRATED SYSTEM...")
+        logger.info("🚀 Starting SK4FiLM v8.3 - AUTO INDEXING WITH DUPLICATE PREVENTION...")
         
         # Initialize MongoDB
         mongo_ok = await init_mongodb()
@@ -2021,17 +2685,17 @@ async def init_system():
         else:
             logger.warning("⚠️ Pyrogram not available")
         
-        # Start background tasks
-        if bot_session_ready and files_col is not None:
+        # Start background indexing
+        if user_session_ready and files_col is not None:
             asyncio.create_task(index_files_background_smart())
-            logger.info("✅ Started BOT indexing with thumbnail extraction")
-            await channel_sync_manager.start_sync_monitoring()
-            logger.info("✅ Started BOT sync monitoring")
+            logger.info("✅ Started AUTO indexing with duplicate prevention")
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         
         logger.info("🔧 INTEGRATED FEATURES:")
+        logger.info(f"   • Auto Indexing: ✅ ENABLED ({Config.AUTO_INDEX_INTERVAL}s interval)")
+        logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
         logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
         logger.info(f"   • Verification: {'✅ ENABLED' if verification_system else '❌ DISABLED'}")
         logger.info(f"   • Premium System: {'✅ ENABLED' if premium_system else '❌ DISABLED'}")
@@ -2058,14 +2722,19 @@ async def root():
         tf = await files_col.count_documents({})
         video_files = await files_col.count_documents({'is_video_file': True})
         thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
+        duplicates_count = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
     else:
         tf = 0
         video_files = 0
         thumbnails_extracted = 0
+        duplicates_count = 0
+    
+    # Get indexing status
+    indexing_status = await auto_indexing_manager.get_indexing_status()
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.2 - COMPLETE INTEGRATED SYSTEM',
+        'service': 'SK4FiLM v8.3 - AUTO INDEXING WITH DUPLICATE PREVENTION',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2082,25 +2751,33 @@ async def root():
             'premium': premium_system is not None,
             'poster_fetcher': poster_fetcher is not None,
             'database': files_col is not None,
-            'thumbnail_extractor': True
+            'thumbnail_extractor': True,
+            'auto_indexing': True,
+            'duplicate_prevention': True
         },
         'features': {
             'quality_merging': True,
             'home_movies_6_6': True,
             'hevc_support': True,
-            'video_thumbnail_extraction': True
+            'video_thumbnail_extraction': True,
+            'auto_indexing_interval': Config.AUTO_INDEX_INTERVAL,
+            'duplicate_detection': True
         },
         'stats': {
             'total_files': tf,
             'video_files': video_files,
-            'thumbnails_extracted': thumbnails_extracted
+            'thumbnails_extracted': thumbnails_extracted,
+            'duplicates_tracked': duplicates_count
         },
+        'indexing': indexing_status,
         'response_time': f"{time.perf_counter():.3f}s"
     })
 
 @app.route('/health')
 @performance_monitor.measure("health_endpoint")
 async def health():
+    indexing_status = await auto_indexing_manager.get_indexing_status()
+    
     return jsonify({
         'status': 'ok',
         'sessions': {
@@ -2112,7 +2789,12 @@ async def health():
             'verification': verification_system is not None,
             'premium': premium_system is not None,
             'poster_fetcher': poster_fetcher is not None,
-            'thumbnail_extractor': True
+            'thumbnail_extractor': True,
+            'auto_indexing': True
+        },
+        'indexing': {
+            'running': indexing_status['is_running'],
+            'last_run': indexing_status['last_run']
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -2128,7 +2810,7 @@ async def api_movies():
             'status': 'success' if movies else 'empty',
             'movies': movies,
             'total': len(movies),
-            'limit': 6,
+            'limit': 20,
             'source': 'telegram',
             'poster_fetcher': poster_fetcher is not None,
             'thumbnail_extractor': True,
@@ -2171,7 +2853,8 @@ async def api_search():
                 **result_data.get('search_metadata', {}),
                 'feature': 'quality_merged_search',
                 'quality_priority': Config.QUALITY_PRIORITY,
-                'video_thumbnails': True
+                'video_thumbnails': True,
+                'duplicate_prevention': True
             },
             'timestamp': datetime.now().isoformat()
         })
@@ -2294,23 +2977,39 @@ async def api_stats():
         else:
             poster_stats = {}
         
-        # Get thumbnail stats
+        # Get database stats
         if files_col is not None:
-            total_videos = await files_col.count_documents({'is_video_file': True})
+            total_files = await files_col.count_documents({})
+            video_files = await files_col.count_documents({'is_video_file': True})
             thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
+            duplicates_count = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
+            
+            # Get indexing stats
+            indexing_status = await auto_indexing_manager.get_indexing_status()
+            
+            # Get duplicate stats
+            duplicate_stats = await duplicate_prevention.get_duplicate_stats()
         else:
-            total_videos = 0
+            total_files = 0
+            video_files = 0
             thumbnails_extracted = 0
+            duplicates_count = 0
+            indexing_status = {}
+            duplicate_stats = {}
         
         return jsonify({
             'status': 'success',
             'performance': perf_stats,
             'poster_fetcher': poster_stats,
-            'thumbnail_stats': {
-                'total_videos': total_videos,
+            'database_stats': {
+                'total_files': total_files,
+                'video_files': video_files,
                 'thumbnails_extracted': thumbnails_extracted,
-                'extraction_rate': f"{(thumbnails_extracted/total_videos*100):.1f}%" if total_videos > 0 else "0%"
+                'duplicates_tracked': duplicates_count,
+                'extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%"
             },
+            'indexing_stats': indexing_status,
+            'duplicate_stats': duplicate_stats,
             'cache': {
                 'redis_enabled': cache_manager.redis_enabled if cache_manager else False
             },
@@ -2335,14 +3034,25 @@ async def api_admin_index():
                 'message': 'Unauthorized'
             }), 401
         
-        # Start indexing in background
-        asyncio.create_task(index_files_background_smart())
+        data = await request.get_json()
+        limit = data.get('limit', 100) if data else 100
         
-        return jsonify({
-            'status': 'success',
-            'message': 'Indexing started in background',
-            'timestamp': datetime.now().isoformat()
-        })
+        # Run manual indexing
+        stats = await auto_indexing_manager.run_manual_index(limit)
+        
+        if stats:
+            return jsonify({
+                'status': 'success',
+                'message': 'Manual indexing completed',
+                'stats': stats,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Manual indexing failed',
+                'timestamp': datetime.now().isoformat()
+            }), 500
     except Exception as e:
         logger.error(f"Admin index API error: {e}")
         return jsonify({
@@ -2361,19 +3071,27 @@ async def api_admin_index_status():
                 "channel_id": Config.FILE_CHANNEL_ID
             })
             thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
+            duplicates_count = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
             
             # Get latest indexed file
             latest_file = await files_col.find_one(
                 {"channel_id": Config.FILE_CHANNEL_ID},
                 sort=[('message_id', -1)],
-                projection={'title': 1, 'message_id': 1, 'indexed_at': 1, 'thumbnail_extracted': 1}
+                projection={'title': 1, 'message_id': 1, 'indexed_at': 1, 'thumbnail_extracted': 1, 'file_hash': 1}
             )
         else:
             total_files = 0
             video_files = 0
             file_channel_files = 0
             thumbnails_extracted = 0
+            duplicates_count = 0
             latest_file = None
+        
+        # Get indexing status
+        indexing_status = await auto_indexing_manager.get_indexing_status()
+        
+        # Get duplicate stats
+        duplicate_stats = await duplicate_prevention.get_duplicate_stats()
         
         return jsonify({
             'status': 'success',
@@ -2382,18 +3100,168 @@ async def api_admin_index_status():
                 'video_files': video_files,
                 'file_channel_files': file_channel_files,
                 'thumbnails_extracted': thumbnails_extracted,
+                'duplicates_tracked': duplicates_count,
                 'thumbnail_extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%",
                 'latest_file': latest_file,
-                'sync_monitoring': channel_sync_manager.is_monitoring,
+                'auto_indexing_running': indexing_status['is_running'],
+                'auto_indexing_last_run': indexing_status['last_run'],
+                'auto_indexing_next_run': indexing_status['next_run'],
+                'auto_indexing_stats': indexing_status['stats'],
                 'user_session_ready': user_session_ready,
                 'bot_session_ready': bot_session_ready,
                 'file_channel_id': Config.FILE_CHANNEL_ID,
                 'last_update': datetime.now().isoformat()
             },
+            'duplicate_prevention': duplicate_stats,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
         logger.error(f"Index status API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/admin/duplicates', methods=['GET'])
+async def api_admin_duplicates():
+    """Get duplicate files information"""
+    try:
+        # Check admin
+        auth_token = request.headers.get('Authorization')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_2024'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+        
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        # Get duplicates from database
+        cursor = db.duplicates.find(
+            {},
+            {
+                'channel_id': 1,
+                'message_id': 1,
+                'title': 1,
+                'normalized_title': 1,
+                'file_hash': 1,
+                'duplicate_reason': 1,
+                'detected_at': 1,
+                '_id': 0
+            }
+        ).sort('detected_at', -1).skip(offset).limit(limit)
+        
+        duplicates = []
+        async for doc in cursor:
+            duplicates.append(doc)
+        
+        total_duplicates = await db.duplicates.count_documents({})
+        
+        return jsonify({
+            'status': 'success',
+            'duplicates': duplicates,
+            'pagination': {
+                'current_page': page,
+                'total_pages': math.ceil(total_duplicates / limit) if total_duplicates > 0 else 1,
+                'total_results': total_duplicates,
+                'per_page': limit
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Duplicates API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/admin/reindex', methods=['POST'])
+async def api_admin_reindex():
+    """Re-index specific file"""
+    try:
+        # Check admin
+        auth_token = request.headers.get('Authorization')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_2024'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+        
+        data = await request.get_json()
+        channel_id = data.get('channel_id', Config.FILE_CHANNEL_ID)
+        message_id = data.get('message_id')
+        
+        if not message_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'message_id required'
+            }), 400
+        
+        # Get message
+        try:
+            if User is None:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'User session not available'
+                }), 500
+            
+            message = await User.get_messages(channel_id, message_id)
+            
+            if not message:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Message not found'
+                }), 404
+            
+            # Delete existing record
+            await files_col.delete_one({
+                'channel_id': channel_id,
+                'message_id': message_id
+            })
+            
+            # Remove from duplicate prevention
+            existing = await files_col.find_one({
+                'channel_id': channel_id,
+                'message_id': message_id
+            }, {'file_hash': 1, 'normalized_title': 1})
+            
+            if existing:
+                await duplicate_prevention.remove_file_hash(
+                    existing.get('file_hash'),
+                    existing.get('normalized_title')
+                )
+            
+            # Re-index
+            success = await index_single_file_smart(message)
+            
+            if success:
+                return jsonify({
+                    'status': 'success',
+                    'message': 'File re-indexed successfully',
+                    'channel_id': channel_id,
+                    'message_id': message_id,
+                    'timestamp': datetime.now().isoformat()
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Failed to re-index file',
+                    'channel_id': channel_id,
+                    'message_id': message_id
+                }), 500
+                
+        except Exception as e:
+            logger.error(f"Re-index error: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Re-index API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -2411,10 +3279,12 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    logger.info("🛑 Shutting down SK4FiLM v8.2...")
+    logger.info("🛑 Shutting down SK4FiLM v8.3...")
     
     shutdown_tasks = []
     
+    # Stop auto indexing
+    await auto_indexing_manager.stop_auto_indexing()
     await channel_sync_manager.stop_sync_monitoring()
     
     # Close poster fetcher session
@@ -2468,7 +3338,10 @@ if __name__ == "__main__":
     config.http2 = True
     config.keep_alive_timeout = 30
     
-    logger.info(f"🌐 Starting SK4FiLM v8.2 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 Features: Complete Integrated System with VIDEO THUMBNAIL EXTRACTION")
+    logger.info(f"🌐 Starting SK4FiLM v8.3 on port {Config.WEB_SERVER_PORT}...")
+    logger.info("🎯 Features: AUTO INDEXING WITH DUPLICATE PREVENTION")
+    logger.info(f"   • Auto Index Interval: {Config.AUTO_INDEX_INTERVAL}s")
+    logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
+    logger.info(f"   • Max Index Limit: {Config.MAX_INDEX_LIMIT}")
     
     asyncio.run(serve(app, config))
