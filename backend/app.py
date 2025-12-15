@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.2 - COMPLETE INTEGRATED SYSTEM
+# 🚀 SK4FiLM v8.2 - COMPLETE INTEGRATED SYSTEM WITH FIXED INDEXING
 # ============================================================================
 
 import asyncio
@@ -911,7 +911,7 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ SYSTEM COMPONENTS INITIALIZATION
+# ✅ FILE INDEXING FUNCTIONS - FIXED
 # ============================================================================
 
 async def generate_file_hash(message):
@@ -948,13 +948,14 @@ async def generate_file_hash(message):
         return None
 
 async def index_single_file_smart(message):
-    """Index single file using BOT session"""
+    """Index single file using BOT session - FIXED"""
     try:
         if files_col is None or Bot is None or not bot_session_ready:
             logger.error("❌ Bot session not ready for indexing")
             return False
         
         if not message or (not message.document and not message.video):
+            logger.debug(f"❌ Not a file message: {message.id}")
             return False
         
         # Check if already exists
@@ -1046,11 +1047,11 @@ async def index_single_file_smart(message):
                 return False
         
     except Exception as e:
-        logger.error(f"❌ Indexing error: {e}")
+        logger.error(f"❌ Indexing error for message {message.id if message else 'unknown'}: {e}")
         return False
 
 async def index_files_background_smart():
-    """Background indexing - Use USER session to fetch, BOT for file ops"""
+    """Background indexing - Use USER session to fetch, BOT for file ops - FIXED"""
     if User is None or files_col is None or not user_session_ready:
         logger.warning("⚠️ User session not ready for indexing")
         return
@@ -1066,12 +1067,19 @@ async def index_files_background_smart():
                     unique=True,
                     name="channel_message_unique"
                 )
+                logger.info("✅ Created unique index on channel_id + message_id")
+            except Exception as e:
+                logger.warning(f"⚠️ Index creation error (might already exist): {e}")
+            
+            try:
                 await files_col.create_index(
                     [("normalized_title", "text")],
-                    name="text_search_index"
+                    name="text_search_index",
+                    default_language="english"
                 )
-            except:
-                pass
+                logger.info("✅ Created text search index")
+            except Exception as e:
+                logger.warning(f"⚠️ Text index creation error: {e}")
         
         # Get last indexed message
         last_indexed = await files_col.find_one(
@@ -1083,33 +1091,57 @@ async def index_files_background_smart():
         last_message_id = last_indexed['message_id'] if last_indexed else 0
         
         logger.info(f"🔄 Starting from message ID: {last_message_id}")
+        logger.info(f"📡 Fetching messages from FILE channel: {Config.FILE_CHANNEL_ID}")
         
         # ✅ USE USER SESSION to fetch FILE channel history
         total_indexed = 0
         messages = []
+        fetched_count = 0
         
-        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=50):
-            if msg.id <= last_message_id:
-                break
-            
-            if msg is not None and (msg.document or msg.video):
-                messages.append(msg)
+        try:
+            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=100):
+                fetched_count += 1
+                if msg.id <= last_message_id:
+                    logger.info(f"Reached last indexed message {last_message_id}, stopping")
+                    break
+                
+                if msg is not None and (msg.document or msg.video):
+                    messages.append(msg)
+                    logger.debug(f"📥 Found file: {msg.id} - {'Document' if msg.document else 'Video'}")
+        except Exception as e:
+            logger.error(f"❌ Error fetching chat history: {e}")
+            return
         
+        logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages)} new files to index")
+        
+        # Process messages in reverse order (oldest first)
         messages.reverse()
-        logger.info(f"📥 Found {len(messages)} new files to index")
         
         for msg in messages:
             try:
                 success = await index_single_file_smart(msg)
                 if success:
                     total_indexed += 1
-                await asyncio.sleep(0.3)  # Rate limiting
+                # Small delay to avoid rate limiting
+                await asyncio.sleep(0.1)
             except Exception as e:
-                logger.error(f"❌ Error processing {msg.id}: {e}")
+                logger.error(f"❌ Error processing message {msg.id}: {e}")
                 continue
         
         if total_indexed > 0:
-            logger.info(f"✅ Hybrid indexing complete: {total_indexed} new files")
+            logger.info(f"✅ Hybrid indexing complete: {total_indexed} new files indexed")
+            
+            # Get total count after indexing
+            total_files = await files_col.count_documents({})
+            video_files = await files_col.count_documents({'is_video_file': True})
+            file_channel_files = await files_col.count_documents({
+                "channel_id": Config.FILE_CHANNEL_ID
+            })
+            
+            logger.info(f"📊 Database Stats:")
+            logger.info(f"   • Total files: {total_files}")
+            logger.info(f"   • Video files: {video_files}")
+            logger.info(f"   • FILE channel files: {file_channel_files}")
         else:
             logger.info("✅ No new files to index")
         
@@ -1814,6 +1846,78 @@ async def api_stats():
         })
     except Exception as e:
         logger.error(f"Stats API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/admin/index', methods=['POST'])
+async def api_admin_index():
+    """Manual indexing endpoint (admin only)"""
+    try:
+        # Check admin
+        auth_token = request.headers.get('Authorization')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_2024'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+        
+        # Start indexing in background
+        asyncio.create_task(index_files_background_smart())
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Indexing started in background',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Admin index API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/admin/index_status', methods=['GET'])
+async def api_admin_index_status():
+    """Get indexing status"""
+    try:
+        if files_col is not None:
+            total_files = await files_col.count_documents({})
+            video_files = await files_col.count_documents({'is_video_file': True})
+            file_channel_files = await files_col.count_documents({
+                "channel_id": Config.FILE_CHANNEL_ID
+            })
+            
+            # Get latest indexed file
+            latest_file = await files_col.find_one(
+                {"channel_id": Config.FILE_CHANNEL_ID},
+                sort=[('message_id', -1)],
+                projection={'title': 1, 'message_id': 1, 'indexed_at': 1}
+            )
+        else:
+            total_files = 0
+            video_files = 0
+            file_channel_files = 0
+            latest_file = None
+        
+        return jsonify({
+            'status': 'success',
+            'indexing': {
+                'total_files': total_files,
+                'video_files': video_files,
+                'file_channel_files': file_channel_files,
+                'latest_file': latest_file,
+                'sync_monitoring': channel_sync_manager.is_monitoring,
+                'user_session_ready': user_session_ready,
+                'bot_session_ready': bot_session_ready,
+                'file_channel_id': Config.FILE_CHANNEL_ID,
+                'last_update': datetime.now().isoformat()
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Index status API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
