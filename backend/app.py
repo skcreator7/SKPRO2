@@ -25,28 +25,10 @@ from hypercorn.config import Config as HyperConfig
 from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
 
-# ✅ IMPORT ALL MODULES
-try:
-    from cache import CacheManager
-    from verification import VerificationSystem
-    from premium import PremiumSystem, PremiumTier
-    from poster_fetching import PosterFetcher, PosterSource
-    from utils import (
-        normalize_title,
-        extract_title_smart,
-        extract_title_from_file,
-        format_size,
-        detect_quality,
-        is_video_file,
-        format_post,
-        is_new
-    )
-    MODULES_AVAILABLE = True
-except ImportError as e:
-    logger.error(f"❌ Module import error: {e}")
-    MODULES_AVAILABLE = False
+# ✅ IMPORT ALL MODULES WITH PROPER ERROR HANDLING
+# ============================================================================
 
-# ✅ LOGGING SETUP
+# First, set up logger before any imports
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -60,6 +42,64 @@ logging.getLogger('pyrogram').setLevel(logging.WARNING)
 logging.getLogger('hypercorn').setLevel(logging.WARNING)
 logging.getLogger('motor').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+# Now import modules with try/except
+try:
+    from cache import CacheManager
+    logger.debug("✅ Cache module imported")
+except ImportError as e:
+    logger.error(f"❌ Cache module import error: {e}")
+    CacheManager = None
+
+try:
+    from verification import VerificationSystem
+    logger.debug("✅ Verification module imported")
+except ImportError as e:
+    logger.error(f"❌ Verification module import error: {e}")
+    VerificationSystem = None
+
+try:
+    from premium import PremiumSystem, PremiumTier
+    logger.debug("✅ Premium module imported")
+except ImportError as e:
+    logger.error(f"❌ Premium module import error: {e}")
+    PremiumSystem = None
+    PremiumTier = None
+
+try:
+    from poster_fetching import PosterFetcher, PosterSource
+    logger.debug("✅ Poster fetching module imported")
+except ImportError as e:
+    logger.error(f"❌ Poster fetching module import error: {e}")
+    PosterFetcher = None
+    PosterSource = None
+
+try:
+    from utils import (
+        normalize_title,
+        extract_title_smart,
+        extract_title_from_file,
+        format_size,
+        detect_quality,
+        is_video_file,
+        format_post,
+        is_new
+    )
+    logger.debug("✅ Utils module imported")
+except ImportError as e:
+    logger.error(f"❌ Utils module import error: {e}")
+    # Define fallback functions
+    def normalize_title(title): return title.lower().strip() if title else ""
+    def extract_title_smart(text): return text[:50] if text else ""
+    def extract_title_from_file(filename, caption=None): return filename or "Unknown"
+    def format_size(size): return f"{size/1024/1024:.1f} MB" if size else "Unknown"
+    def detect_quality(filename): return "480p"
+    def is_video_file(filename): return bool(filename)
+    def format_post(text, max_length=None): 
+        if max_length and text and len(text) > max_length:
+            text = text[:max_length] + "..."
+        return text or ""
+    def is_new(date): return False
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -621,7 +661,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
     if poster_fetcher is None:
         return {
             'poster_url': Config.FALLBACK_POSTER,
-            'source': PosterSource.CUSTOM.value,
+            'source': 'custom' if PosterSource is None else PosterSource.CUSTOM.value,
             'rating': '0.0',
             'year': year,
             'title': title,
@@ -653,7 +693,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
             # Return fallback
             return {
                 'poster_url': Config.FALLBACK_POSTER,
-                'source': PosterSource.CUSTOM.value,
+                'source': 'custom' if PosterSource is None else PosterSource.CUSTOM.value,
                 'rating': '0.0',
                 'year': year,
                 'title': title,
@@ -665,7 +705,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         # Always return fallback
         return {
             'poster_url': Config.FALLBACK_POSTER,
-            'source': PosterSource.CUSTOM.value,
+            'source': 'custom' if PosterSource is None else PosterSource.CUSTOM.value,
             'rating': '0.0',
             'year': year,
             'title': title,
@@ -713,7 +753,7 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
             movie_with_fallback = movie.copy()
             movie_with_fallback.update({
                 'poster_url': Config.FALLBACK_POSTER,
-                'poster_source': PosterSource.CUSTOM.value,
+                'poster_source': 'fallback',
                 'poster_rating': '0.0',
                 'thumbnail': Config.FALLBACK_POSTER,
                 'thumbnail_source': 'fallback',
@@ -1472,16 +1512,28 @@ async def init_system():
             await cache_manager.start_cleanup_task()
         
         # Initialize Verification System
-        verification_system = VerificationSystem(Config, mongo_client)
-        logger.info("✅ Verification System initialized")
+        if VerificationSystem is not None:
+            verification_system = VerificationSystem(Config, mongo_client)
+            logger.info("✅ Verification System initialized")
+        else:
+            verification_system = None
+            logger.warning("⚠️ Verification System not available")
         
         # Initialize Premium System
-        premium_system = PremiumSystem(Config, mongo_client)
-        logger.info("✅ Premium System initialized")
+        if PremiumSystem is not None:
+            premium_system = PremiumSystem(Config, mongo_client)
+            logger.info("✅ Premium System initialized")
+        else:
+            premium_system = None
+            logger.warning("⚠️ Premium System not available")
         
         # Initialize Poster Fetcher
-        poster_fetcher = PosterFetcher(Config, cache_manager)
-        logger.info("✅ Poster Fetcher initialized")
+        if PosterFetcher is not None:
+            poster_fetcher = PosterFetcher(Config, cache_manager)
+            logger.info("✅ Poster Fetcher initialized")
+        else:
+            poster_fetcher = None
+            logger.warning("⚠️ Poster Fetcher not available")
         
         # Initialize Telegram DUAL Sessions
         if PYROGRAM_AVAILABLE:
@@ -1503,9 +1555,9 @@ async def init_system():
         
         logger.info("🔧 INTEGRATED FEATURES:")
         logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
-        logger.info(f"   • Verification: {'✅ ENABLED'}")
-        logger.info(f"   • Premium System: {'✅ ENABLED'}")
-        logger.info(f"   • Poster Fetcher: {'✅ ENABLED'}")
+        logger.info(f"   • Verification: {'✅ ENABLED' if verification_system else '❌ DISABLED'}")
+        logger.info(f"   • Premium System: {'✅ ENABLED' if premium_system else '❌ DISABLED'}")
+        logger.info(f"   • Poster Fetcher: {'✅ ENABLED' if poster_fetcher else '❌ DISABLED'}")
         logger.info(f"   • Quality Merging: ✅ ENABLED")
         logger.info(f"   • Dual Sessions: {'✅ ENABLED' if user_session_ready or bot_session_ready else '❌ DISABLED'}")
         
@@ -1785,24 +1837,37 @@ async def shutdown():
     
     await channel_sync_manager.stop_sync_monitoring()
     
+    # Close poster fetcher session
+    if poster_fetcher is not None and hasattr(poster_fetcher, 'close'):
+        try:
+            await poster_fetcher.close()
+        except:
+            pass
+    
+    # Close Telegram sessions
     if User is not None:
         shutdown_tasks.append(User.stop())
     
     if Bot is not None:
         shutdown_tasks.append(Bot.stop())
     
+    # Close cache manager
     if cache_manager is not None:
         shutdown_tasks.append(cache_manager.stop())
     
+    # Close verification system
     if verification_system is not None:
         shutdown_tasks.append(verification_system.stop())
     
+    # Close premium system
     if premium_system is not None and hasattr(premium_system, 'stop_cleanup_task'):
         shutdown_tasks.append(premium_system.stop_cleanup_task())
     
+    # Execute all shutdown tasks
     if shutdown_tasks:
         await asyncio.gather(*shutdown_tasks, return_exceptions=True)
     
+    # Close MongoDB
     if mongo_client is not None:
         mongo_client.close()
     
