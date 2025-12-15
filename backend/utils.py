@@ -142,10 +142,15 @@ def is_video_file(file_name: Optional[str]) -> bool:
     file_name_lower = file_name.lower()
     return any(file_name_lower.endswith(ext) for ext in video_extensions)
 
-def format_post(text: str) -> str:
+def format_post(text: str, max_length: Optional[int] = None) -> str:
     """Format post text for HTML display"""
     if not text:
         return ""
+    
+    # Truncate if max_length is specified
+    if max_length and len(text) > max_length:
+        text = text[:max_length] + "..."
+    
     text = html.escape(text)
     text = re.sub(r'(https?://[^\s]+)', r'<a href="\1" target="_blank" style="color:#00ccff">\1</a>', text)
     return text.replace('\n', '<br>')
