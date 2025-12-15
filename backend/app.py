@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.4 - SUPABASE THUMBNAIL STORAGE & UNLIMITED AUTO INDEXING
+# 🚀 SK4FiLM v8.5 - OPTIMIZED WITH BOT HANDLER & INSTANT AUTO INDEX
 # ============================================================================
 
 import asyncio
@@ -24,7 +24,6 @@ from hypercorn.asyncio import serve
 from hypercorn.config import Config as HyperConfig
 from motor.motor_asyncio import AsyncIOMotorClient
 import redis.asyncio as redis
-from supabase import create_client, Client
 
 # ✅ IMPORT ALL MODULES WITH PROPER ERROR HANDLING
 # ============================================================================
@@ -176,11 +175,6 @@ class Config:
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
     
-    # Supabase Configuration
-    SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-    SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-    SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "sk4film-thumbnails")
-    
     # Channel Configuration - DUAL SESSION
     MAIN_CHANNEL_ID = -1001891090100          # ✅ User Session
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # ✅ User Session
@@ -236,16 +230,12 @@ class Config:
     THUMBNAIL_EXTRACT_TIMEOUT = 10  # seconds
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60  # 24 hours
     
-    # Auto Indexing Settings - UNLIMITED
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "1800"))  # 30 minutes
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))  # Messages per batch
+    # Auto Indexing Settings - INSTANT START
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "600"))  # 10 minutes
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "100"))  # Messages per batch
     MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))  # 0 = Unlimited
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"
-    
-    # Supabase Settings
-    SUPABASE_ENABLED = os.environ.get("SUPABASE_ENABLED", "true").lower() == "true"
-    THUMBNAIL_COMPRESSION_QUALITY = int(os.environ.get("THUMBNAIL_COMPRESSION_QUALITY", "80"))
-    THUMBNAIL_MAX_SIZE = int(os.environ.get("THUMBNAIL_MAX_SIZE", "500"))  # KB
+    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "false").lower() == "true"  # Disabled by default
+    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"  # Start immediately
 
 # ============================================================================
 # ✅ FAST INITIALIZATION
@@ -261,7 +251,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.4-SUPABASE-UNLIMITED-INDEXING'
+    response.headers['X-SK4FiLM-Version'] = '8.5-OPTIMIZED-INSTANT-INDEX'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -274,11 +264,6 @@ mongo_client = None
 db = None
 files_col = None
 verification_col = None
-indexing_col = None
-
-# Supabase
-supabase_client: Optional[Client] = None
-supabase_bucket = None
 
 # Telegram Sessions
 try:
@@ -299,12 +284,213 @@ cache_manager = None
 verification_system = None
 premium_system = None
 poster_fetcher = None
+bot_handler = None
 
 # Indexing State
 is_indexing = False
 last_index_time = None
 indexing_task = None
-is_full_history_indexing = False
+
+# ============================================================================
+# ✅ BOT HANDLER MODULE
+# ============================================================================
+
+class BotHandler:
+    """Bot handler for Telegram bot operations"""
+    
+    def __init__(self, bot_token=None, api_id=None, api_hash=None):
+        self.bot_token = bot_token or Config.BOT_TOKEN
+        self.api_id = api_id or Config.API_ID
+        self.api_hash = api_hash or Config.API_HASH
+        self.bot = None
+        self.initialized = False
+        self.last_update = None
+        
+    async def initialize(self):
+        """Initialize bot handler"""
+        if not self.bot_token or not self.api_id or not self.api_hash:
+            logger.error("❌ Bot token or API credentials not configured")
+            return False
+        
+        try:
+            self.bot = Client(
+                "sk4film_bot_handler",
+                api_id=self.api_id,
+                api_hash=self.api_hash,
+                bot_token=self.bot_token,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await self.bot.start()
+            bot_info = await self.bot.get_me()
+            logger.info(f"✅ Bot Handler Ready: @{bot_info.username}")
+            self.initialized = True
+            self.last_update = datetime.now()
+            
+            # Start periodic tasks
+            asyncio.create_task(self._periodic_tasks())
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Bot handler initialization error: {e}")
+            return False
+    
+    async def _periodic_tasks(self):
+        """Run periodic tasks for bot"""
+        while self.initialized:
+            try:
+                # Update last update time
+                self.last_update = datetime.now()
+                
+                # Check if bot is still running
+                try:
+                    await self.bot.get_me()
+                except:
+                    logger.warning("⚠️ Bot session disconnected, reconnecting...")
+                    await self.bot.stop()
+                    await asyncio.sleep(5)
+                    await self.bot.start()
+                
+                # Sleep for 5 minutes
+                await asyncio.sleep(300)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"❌ Bot handler periodic task error: {e}")
+                await asyncio.sleep(60)
+    
+    async def get_file_info(self, channel_id, message_id):
+        """Get file information from message"""
+        if not self.initialized:
+            return None
+        
+        try:
+            message = await self.bot.get_messages(channel_id, message_id)
+            if not message:
+                return None
+            
+            file_info = {
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'has_file': False,
+                'file_type': None,
+                'file_size': 0,
+                'file_name': '',
+                'caption': message.caption or ''
+            }
+            
+            if message.document:
+                file_info.update({
+                    'has_file': True,
+                    'file_type': 'document',
+                    'file_size': message.document.file_size or 0,
+                    'file_name': message.document.file_name or '',
+                    'mime_type': message.document.mime_type or '',
+                    'file_id': message.document.file_id
+                })
+            elif message.video:
+                file_info.update({
+                    'has_file': True,
+                    'file_type': 'video',
+                    'file_size': message.video.file_size or 0,
+                    'file_name': message.video.file_name or 'video.mp4',
+                    'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
+                    'width': message.video.width if hasattr(message.video, 'width') else 0,
+                    'height': message.video.height if hasattr(message.video, 'height') else 0,
+                    'file_id': message.video.file_id
+                })
+            
+            return file_info
+            
+        except Exception as e:
+            logger.error(f"❌ Get file info error: {e}")
+            return None
+    
+    async def extract_thumbnail(self, channel_id, message_id):
+        """Extract thumbnail from video file"""
+        if not self.initialized:
+            return None
+        
+        try:
+            message = await self.bot.get_messages(channel_id, message_id)
+            if not message:
+                return None
+            
+            # Check if message has video or video document
+            thumbnail_data = None
+            
+            if message.video:
+                # Video messages have thumbnails
+                if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
+                    thumbnail_file_id = message.video.thumbnail.file_id
+                    thumbnail_data = await self._download_file(thumbnail_file_id)
+            
+            elif message.document and is_video_file(message.document.file_name or ''):
+                # Video document - try to get thumbnail
+                if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
+                    thumbnail_file_id = message.document.thumbnail.file_id
+                    thumbnail_data = await self._download_file(thumbnail_file_id)
+            
+            if thumbnail_data:
+                # Convert to base64
+                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                return f"data:image/jpeg;base64,{base64_data}"
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Extract thumbnail error: {e}")
+            return None
+    
+    async def _download_file(self, file_id):
+        """Download file from Telegram"""
+        try:
+            download_path = await self.bot.download_media(file_id, in_memory=True)
+            
+            if not download_path:
+                return None
+            
+            if isinstance(download_path, bytes):
+                return download_path
+            else:
+                with open(download_path, 'rb') as f:
+                    return f.read()
+                    
+        except Exception as e:
+            logger.error(f"❌ Download file error: {e}")
+            return None
+    
+    async def check_message_exists(self, channel_id, message_id):
+        """Check if message exists in channel"""
+        if not self.initialized:
+            return False
+        
+        try:
+            message = await self.bot.get_messages(channel_id, message_id)
+            return message is not None
+        except:
+            return False
+    
+    async def get_bot_status(self):
+        """Get bot handler status"""
+        return {
+            'initialized': self.initialized,
+            'last_update': self.last_update.isoformat() if self.last_update else None,
+            'bot_username': (await self.bot.get_me()).username if self.initialized else None
+        }
+    
+    async def shutdown(self):
+        """Shutdown bot handler"""
+        if self.bot:
+            await self.bot.stop()
+        self.initialized = False
+
+# Initialize bot handler
+bot_handler = BotHandler()
 
 # ============================================================================
 # ✅ ASYNC CACHE DECORATOR
@@ -399,447 +585,173 @@ def extract_quality_info(filename):
     }
 
 # ============================================================================
-# ✅ SUPABASE THUMBNAIL MANAGER
+# ✅ QUALITY MERGER
 # ============================================================================
 
-class SupabaseThumbnailManager:
-    """Manage thumbnails in Supabase Storage"""
+class QualityMerger:
+    """Merge multiple qualities for same title"""
     
-    def __init__(self):
-        self.client = None
-        self.bucket = None
-        self.initialized = False
-    
-    async def initialize(self):
-        """Initialize Supabase client"""
-        if not Config.SUPABASE_ENABLED:
-            logger.warning("⚠️ Supabase is disabled in config")
-            return False
+    @staticmethod
+    def merge_quality_options(quality_options_dict):
+        """Merge quality options from multiple sources"""
+        if not quality_options_dict:
+            return {}
         
-        if not Config.SUPABASE_URL or not Config.SUPABASE_KEY:
-            logger.error("❌ Supabase URL or Key not configured")
-            return False
+        merged = {}
         
-        try:
-            from supabase import create_client
-            self.client = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+        # Sort by priority
+        for quality, option in quality_options_dict.items():
+            base_quality = quality.replace(' HEVC', '')
             
-            # Check if bucket exists, create if not
-            try:
-                buckets = self.client.storage.list_buckets()
-                bucket_names = [bucket.name for bucket in buckets]
+            if base_quality not in merged:
+                merged[base_quality] = {
+                    'qualities': [],
+                    'best_option': None,
+                    'total_size': 0,
+                    'file_count': 0
+                }
+            
+            # Add quality variant
+            merged[base_quality]['qualities'].append({
+                'full_quality': quality,
+                'is_hevc': 'HEVC' in quality,
+                'file_id': option.get('file_id'),
+                'file_size': option.get('file_size', 0),
+                'file_name': option.get('file_name', ''),
+                'is_video': option.get('is_video', False),
+                'channel_id': option.get('channel_id'),
+                'message_id': option.get('message_id'),
+                'thumbnail_url': option.get('thumbnail_url')
+            })
+            
+            merged[base_quality]['total_size'] += option.get('file_size', 0)
+            merged[base_quality]['file_count'] += 1
+            
+            # Set best option (highest quality, smallest size)
+            if merged[base_quality]['best_option'] is None:
+                merged[base_quality]['best_option'] = quality
+            else:
+                current_priority = Config.QUALITY_PRIORITY.index(base_quality) if base_quality in Config.QUALITY_PRIORITY else 999
+                best_base = merged[base_quality]['best_option'].replace(' HEVC', '')
+                best_priority = Config.QUALITY_PRIORITY.index(best_base) if best_base in Config.QUALITY_PRIORITY else 999
                 
-                if Config.SUPABASE_BUCKET not in bucket_names:
-                    logger.info(f"📦 Creating Supabase bucket: {Config.SUPABASE_BUCKET}")
-                    self.client.storage.create_bucket(
-                        Config.SUPABASE_BUCKET,
-                        options={
-                            'public': True,
-                            'allowed_mime_types': ['image/jpeg', 'image/png', 'image/webp'],
-                            'file_size_limit': 5 * 1024 * 1024  # 5MB
-                        }
-                    )
-                
-                self.bucket = Config.SUPABASE_BUCKET
-                self.initialized = True
-                logger.info(f"✅ Supabase initialized with bucket: {self.bucket}")
-                return True
-                
-            except Exception as e:
-                logger.error(f"❌ Supabase bucket error: {e}")
-                return False
-                
-        except ImportError:
-            logger.error("❌ Supabase client not installed. Run: pip install supabase")
-            return False
-        except Exception as e:
-            logger.error(f"❌ Supabase initialization error: {e}")
-            return False
-    
-    async def upload_thumbnail(self, image_data: bytes, file_hash: str, file_name: str = "") -> Optional[str]:
-        """Upload thumbnail to Supabase and return URL"""
-        if not self.initialized or not self.client:
-            logger.error("❌ Supabase not initialized")
-            return None
+                if current_priority < best_priority:
+                    merged[base_quality]['best_option'] = quality
         
-        try:
-            # Generate filename
-            if not file_hash:
-                file_hash = hashlib.md5(image_data).hexdigest()
-            
-            # Clean filename
-            clean_name = re.sub(r'[^\w\-\.]', '_', file_name[:50]) if file_name else "thumbnail"
-            extension = "jpg"  # Default to jpg
-            if len(image_data) > 10:
-                # Detect image type from magic bytes
-                if image_data.startswith(b'\xff\xd8\xff'):
-                    extension = "jpg"
-                elif image_data.startswith(b'\x89PNG\r\n\x1a\n'):
-                    extension = "png"
-                elif image_data.startswith(b'RIFF') and image_data[8:12] == b'WEBP':
-                    extension = "webp"
-            
-            filename = f"{file_hash[:16]}_{clean_name}.{extension}"
-            filepath = f"thumbnails/{filename}"
-            
-            # Compress image if too large
-            if len(image_data) > Config.THUMBNAIL_MAX_SIZE * 1024:
-                image_data = await self._compress_image(image_data)
-            
-            # Upload to Supabase
-            result = self.client.storage.from_(self.bucket).upload(
-                filepath,
-                image_data,
-                {"content-type": f"image/{extension}"}
-            )
-            
-            if result:
-                # Get public URL
-                public_url = self.client.storage.from_(self.bucket).get_public_url(filepath)
-                logger.info(f"✅ Thumbnail uploaded to Supabase: {filename}")
-                return public_url
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Supabase upload error: {e}")
-            return None
-    
-    async def _compress_image(self, image_data: bytes) -> bytes:
-        """Compress image to reduce size"""
-        try:
-            from PIL import Image
-            import io
-            
-            # Open image
-            image = Image.open(io.BytesIO(image_data))
-            
-            # Convert to RGB if needed
-            if image.mode in ('RGBA', 'LA', 'P'):
-                background = Image.new('RGB', image.size, (255, 255, 255))
-                background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
-                image = background
-            
-            # Compress
-            output = io.BytesIO()
-            image.save(
-                output,
-                format='JPEG',
-                quality=Config.THUMBNAIL_COMPRESSION_QUALITY,
-                optimize=True
-            )
-            
-            compressed_data = output.getvalue()
-            
-            # Log compression results
-            original_size = len(image_data) / 1024
-            compressed_size = len(compressed_data) / 1024
-            reduction = ((original_size - compressed_size) / original_size) * 100
-            
-            logger.info(f"📊 Image compressed: {original_size:.1f}KB → {compressed_size:.1f}KB ({reduction:.1f}% reduction)")
-            
-            return compressed_data
-            
-        except ImportError:
-            logger.warning("⚠️ PIL not installed, skipping compression")
-            return image_data
-        except Exception as e:
-            logger.error(f"❌ Image compression error: {e}")
-            return image_data
-    
-    async def get_thumbnail_url(self, file_hash: str, file_name: str = "") -> Optional[str]:
-        """Get thumbnail URL from Supabase"""
-        if not self.initialized:
-            return None
+        # Sort by quality priority
+        sorted_merged = {}
+        for quality in Config.QUALITY_PRIORITY:
+            if quality in merged:
+                sorted_merged[quality] = merged[quality]
         
-        try:
-            # Generate expected filename
-            clean_name = re.sub(r'[^\w\-\.]', '_', file_name[:50]) if file_name else "thumbnail"
-            filename = f"{file_hash[:16]}_{clean_name}.jpg"
-            filepath = f"thumbnails/{filename}"
-            
-            # Check if file exists
-            files = self.client.storage.from_(self.bucket).list("thumbnails")
-            
-            for file in files:
-                if file['name'] == filename:
-                    public_url = self.client.storage.from_(self.bucket).get_public_url(filepath)
-                    return public_url
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Supabase get URL error: {e}")
-            return None
-    
-    async def delete_thumbnail(self, file_hash: str, file_name: str = "") -> bool:
-        """Delete thumbnail from Supabase"""
-        if not self.initialized:
-            return False
+        # Add any remaining qualities
+        for quality in merged:
+            if quality not in sorted_merged:
+                sorted_merged[quality] = merged[quality]
         
-        try:
-            clean_name = re.sub(r'[^\w\-\.]', '_', file_name[:50]) if file_name else "thumbnail"
-            filename = f"{file_hash[:16]}_{clean_name}.jpg"
-            filepath = f"thumbnails/{filename}"
-            
-            self.client.storage.from_(self.bucket).remove([filepath])
-            logger.info(f"🗑️ Thumbnail deleted from Supabase: {filename}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Supabase delete error: {e}")
-            return False
+        return sorted_merged
     
-    async def get_stats(self) -> Dict[str, Any]:
-        """Get Supabase storage statistics"""
-        if not self.initialized:
-            return {"enabled": False}
+    @staticmethod
+    def get_quality_summary(merged_options):
+        """Get summary of available qualities"""
+        if not merged_options:
+            return "No files"
         
-        try:
-            # List files in thumbnails folder
-            files = self.client.storage.from_(self.bucket).list("thumbnails")
-            
-            total_size = 0
-            for file in files:
-                total_size += file.get('metadata', {}).get('size', 0)
-            
-            return {
-                "enabled": True,
-                "bucket": self.bucket,
-                "total_files": len(files),
-                "total_size_mb": total_size / (1024 * 1024),
-                "compression_quality": Config.THUMBNAIL_COMPRESSION_QUALITY,
-                "max_size_kb": Config.THUMBNAIL_MAX_SIZE
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ Supabase stats error: {e}")
-            return {"enabled": False, "error": str(e)}
-
-# Initialize Supabase manager
-supabase_manager = SupabaseThumbnailManager()
+        qualities = list(merged_options.keys())
+        
+        # Sort by priority
+        sorted_qualities = []
+        for quality in Config.QUALITY_PRIORITY:
+            if quality in qualities:
+                sorted_qualities.append(quality)
+                qualities.remove(quality)
+        
+        # Add remaining qualities
+        sorted_qualities.extend(sorted(qualities))
+        
+        # Create summary
+        summary_parts = []
+        for quality in sorted_qualities[:3]:  # Show top 3 qualities
+            data = merged_options[quality]
+            count = data['file_count']
+            if count > 1:
+                summary_parts.append(f"{quality} ({count} files)")
+            else:
+                summary_parts.append(quality)
+        
+        if len(sorted_qualities) > 3:
+            summary_parts.append(f"+{len(sorted_qualities) - 3} more")
+        
+        return " • ".join(summary_parts)
 
 # ============================================================================
-# ✅ VIDEO THUMBNAIL EXTRACTOR WITH SUPABASE STORAGE
+# ✅ VIDEO THUMBNAIL EXTRACTOR
 # ============================================================================
 
 class VideoThumbnailExtractor:
-    """Extract thumbnails and store in Supabase"""
+    """Extract thumbnails from video files"""
     
     def __init__(self):
         self.extraction_lock = asyncio.Lock()
-        self.supabase_manager = supabase_manager
     
-    async def extract_and_store_thumbnail(self, channel_id: int, message_id: int, file_hash: str, file_name: str = "") -> Optional[str]:
+    async def extract_thumbnail(self, channel_id: int, message_id: int) -> Optional[str]:
         """
-        Extract thumbnail and store in Supabase
-        Returns Supabase URL or None
+        Extract thumbnail from video file
+        Returns base64 data URL or None
         """
         try:
-            if Bot is None or not bot_session_ready:
-                logger.warning("❌ Bot session not ready for thumbnail extraction")
-                return None
+            # Use bot handler to extract thumbnail
+            if bot_handler and bot_handler.initialized:
+                thumbnail_url = await bot_handler.extract_thumbnail(channel_id, message_id)
+                if thumbnail_url:
+                    logger.debug(f"✅ Thumbnail extracted via bot handler: {channel_id}/{message_id}")
+                    return thumbnail_url
             
-            # Check if already exists in Supabase
-            if self.supabase_manager.initialized and file_hash:
-                existing_url = await self.supabase_manager.get_thumbnail_url(file_hash, file_name)
-                if existing_url:
-                    logger.debug(f"✅ Thumbnail exists in Supabase: {file_hash[:16]}")
-                    return existing_url
+            # Fallback to Bot session if available
+            if Bot is not None and bot_session_ready:
+                try:
+                    message = await Bot.get_messages(channel_id, message_id)
+                    if not message:
+                        return None
+                    
+                    thumbnail_data = None
+                    
+                    if message.video:
+                        if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
+                            thumbnail_file_id = message.video.thumbnail.file_id
+                            download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
+                            
+                            if download_path:
+                                if isinstance(download_path, bytes):
+                                    thumbnail_data = download_path
+                                else:
+                                    with open(download_path, 'rb') as f:
+                                        thumbnail_data = f.read()
+                    
+                    elif message.document and is_video_file(message.document.file_name or ''):
+                        if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
+                            thumbnail_file_id = message.document.thumbnail.file_id
+                            download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
+                            
+                            if download_path:
+                                if isinstance(download_path, bytes):
+                                    thumbnail_data = download_path
+                                else:
+                                    with open(download_path, 'rb') as f:
+                                        thumbnail_data = f.read()
+                    
+                    if thumbnail_data:
+                        base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                        return f"data:image/jpeg;base64,{base64_data}"
+                    
+                except Exception as e:
+                    logger.error(f"❌ Bot session thumbnail extraction error: {e}")
             
-            logger.info(f"🔍 Extracting thumbnail from: {channel_id}/{message_id}")
+            return None
             
-            # Get message using BOT session
-            try:
-                message = await Bot.get_messages(channel_id, message_id)
-                
-                if not message:
-                    logger.warning(f"❌ Message not found: {channel_id}/{message_id}")
-                    return None
-                
-                # Extract thumbnail data
-                thumbnail_data = None
-                
-                if message.video:
-                    # Try to get thumbnail from video
-                    if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
-                        thumbnail_data = await self._download_thumbnail(message.video.thumbnail.file_id)
-                    
-                    # If no thumbnail, extract frame
-                    if not thumbnail_data:
-                        thumbnail_data = await self._extract_frame_from_video(message.video.file_id)
-                
-                elif message.document and is_video_file(message.document.file_name or ''):
-                    # Try to get thumbnail from document
-                    if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
-                        thumbnail_data = await self._download_thumbnail(message.document.thumbnail.file_id)
-                    
-                    # If no thumbnail, extract frame
-                    if not thumbnail_data:
-                        thumbnail_data = await self._extract_frame_from_video(message.document.file_id)
-                
-                if not thumbnail_data:
-                    logger.warning(f"⚠️ No thumbnail extracted for: {channel_id}/{message_id}")
-                    return None
-                
-                # Upload to Supabase
-                if self.supabase_manager.initialized:
-                    supabase_url = await self.supabase_manager.upload_thumbnail(
-                        thumbnail_data, file_hash, file_name
-                    )
-                    
-                    if supabase_url:
-                        logger.info(f"✅ Thumbnail stored in Supabase: {supabase_url}")
-                        return supabase_url
-                
-                # Fallback: Convert to base64
-                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
-                return f"data:image/jpeg;base64,{base64_data}"
-                
-            except Exception as e:
-                logger.error(f"❌ Error extracting thumbnail: {e}")
-                return None
-                
         except Exception as e:
             logger.error(f"❌ Thumbnail extraction failed: {e}")
             return None
-    
-    async def _download_thumbnail(self, file_id: str) -> Optional[bytes]:
-        """Download thumbnail from Telegram"""
-        try:
-            # Download using Bot session
-            download_path = await Bot.download_media(file_id, in_memory=True)
-            
-            if not download_path:
-                return None
-            
-            if isinstance(download_path, bytes):
-                return download_path
-            else:
-                with open(download_path, 'rb') as f:
-                    return f.read()
-                    
-        except Exception as e:
-            logger.error(f"❌ Thumbnail download error: {e}")
-            return None
-    
-    async def _extract_frame_from_video(self, file_id: str, time_offset: int = 5) -> Optional[bytes]:
-        """Extract a frame from video file"""
-        try:
-            # Download video file temporarily
-            temp_path = f"temp_{file_id}_{int(time.time())}.mp4"
-            
-            # Download using Bot session
-            download_path = await Bot.download_media(
-                file_id,
-                file_name=temp_path
-            )
-            
-            if not download_path:
-                return None
-            
-            # Use ffmpeg to extract frame
-            import subprocess
-            import tempfile
-            
-            # Create temporary file for thumbnail
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-                thumbnail_path = temp_file.name
-            
-            # Extract frame using ffmpeg
-            ffmpeg_cmd = [
-                'ffmpeg',
-                '-i', download_path,
-                '-ss', str(time_offset),
-                '-vframes', '1',
-                '-q:v', '2',
-                '-y',
-                thumbnail_path
-            ]
-            
-            try:
-                # Run ffmpeg
-                result = subprocess.run(
-                    ffmpeg_cmd,
-                    capture_output=True,
-                    timeout=Config.THUMBNAIL_EXTRACT_TIMEOUT
-                )
-                
-                if result.returncode == 0 and os.path.exists(thumbnail_path):
-                    # Read thumbnail
-                    with open(thumbnail_path, 'rb') as f:
-                        thumbnail_data = f.read()
-                    
-                    # Cleanup
-                    try:
-                        os.remove(download_path)
-                        os.remove(thumbnail_path)
-                    except:
-                        pass
-                    
-                    return thumbnail_data
-                else:
-                    logger.error(f"❌ FFmpeg failed: {result.stderr}")
-                    
-            except subprocess.TimeoutExpired:
-                logger.error("❌ FFmpeg timeout")
-            
-            # Cleanup on error
-            try:
-                if os.path.exists(download_path):
-                    os.remove(download_path)
-                if os.path.exists(thumbnail_path):
-                    os.remove(thumbnail_path)
-            except:
-                pass
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Frame extraction error: {e}")
-            return None
-    
-    async def batch_extract_thumbnails(self, file_entries: List[Dict]) -> Dict[str, str]:
-        """Extract thumbnails for multiple files in batch"""
-        results = {}
-        
-        extraction_tasks = []
-        
-        for entry in file_entries:
-            channel_id = entry.get('channel_id')
-            message_id = entry.get('message_id')
-            file_hash = entry.get('file_hash')
-            file_name = entry.get('file_name', '')
-            
-            if channel_id and message_id and file_hash:
-                task = self.extract_and_store_thumbnail(channel_id, message_id, file_hash, file_name)
-                extraction_tasks.append((f"{channel_id}_{message_id}", task))
-        
-        # Process with concurrency limit
-        semaphore = asyncio.Semaphore(3)  # Limit concurrent extractions
-        
-        async def process_with_semaphore(key, task):
-            async with semaphore:
-                thumbnail_url = await task
-                return key, thumbnail_url
-        
-        # Create tasks with semaphore
-        tasks_with_semaphore = [
-            process_with_semaphore(key, task) 
-            for key, task in extraction_tasks
-        ]
-        
-        # Execute all tasks
-        for key, task in tasks_with_semaphore:
-            try:
-                thumbnail_url = await task
-                if thumbnail_url:
-                    results[key] = thumbnail_url
-            except Exception as e:
-                logger.error(f"❌ Batch thumbnail error for {key}: {e}")
-                continue
-        
-        return results
 
 # Initialize thumbnail extractor
 thumbnail_extractor = VideoThumbnailExtractor()
@@ -955,30 +867,19 @@ class DuplicatePreventionSystem:
 duplicate_prevention = DuplicatePreventionSystem()
 
 # ============================================================================
-# ✅ UNLIMITED AUTO INDEXING MANAGER
+# ✅ INSTANT AUTO INDEXING MANAGER
 # ============================================================================
 
-class UnlimitedAutoIndexingManager:
-    """Automatic batch indexing with NO LIMITS and duplicate prevention"""
+class InstantAutoIndexingManager:
+    """Instant auto indexing manager - starts immediately"""
     
     def __init__(self):
         self.is_running = False
         self.indexing_task = None
-        self.full_history_task = None
         self.last_run = None
         self.next_run = None
         self.total_indexed = 0
         self.total_duplicates = 0
-        self.is_full_history_running = False
-        self.full_history_progress = {
-            'total_messages': 0,
-            'processed': 0,
-            'indexed': 0,
-            'duplicates': 0,
-            'errors': 0,
-            'started_at': None,
-            'last_message_id': 0
-        }
         
         self.indexing_stats = {
             'total_runs': 0,
@@ -986,34 +887,30 @@ class UnlimitedAutoIndexingManager:
             'total_indexed': 0,
             'total_duplicates': 0,
             'total_errors': 0,
-            'last_success': None,
-            'full_history_completed': False
+            'last_success': None
         }
     
-    async def start_auto_indexing(self):
-        """Start automatic indexing"""
+    async def start_instant_indexing(self):
+        """Start instant auto indexing - begins immediately"""
         if self.is_running:
             logger.warning("⚠️ Auto indexing already running")
             return
         
-        logger.info("🚀 Starting UNLIMITED AUTO INDEXING system...")
+        logger.info("🚀 Starting INSTANT AUTO INDEXING system...")
         self.is_running = True
         
         # Initialize duplicate prevention
         await duplicate_prevention.initialize_from_database()
         
-        # Start full history indexing if enabled
-        if Config.INDEX_ALL_HISTORY and not self.indexing_stats.get('full_history_completed'):
-            asyncio.create_task(self._index_full_history())
+        # Run immediate indexing cycle
+        asyncio.create_task(self._run_immediate_index())
         
-        # Start the main loop
+        # Start the periodic loop
         self.indexing_task = asyncio.create_task(self._indexing_loop())
     
     async def stop_auto_indexing(self):
-        """Stop automatic indexing"""
+        """Stop auto indexing"""
         self.is_running = False
-        self.is_full_history_running = False
-        
         if self.indexing_task:
             self.indexing_task.cancel()
             try:
@@ -1021,17 +918,15 @@ class UnlimitedAutoIndexingManager:
             except asyncio.CancelledError:
                 pass
         
-        if self.full_history_task:
-            self.full_history_task.cancel()
-            try:
-                await self.full_history_task
-            except asyncio.CancelledError:
-                pass
-        
         logger.info("🛑 Auto indexing stopped")
     
+    async def _run_immediate_index(self):
+        """Run immediate indexing without waiting"""
+        logger.info("⚡ Running IMMEDIATE indexing cycle...")
+        await self._run_indexing_cycle()
+    
     async def _indexing_loop(self):
-        """Main indexing loop - checks for new messages"""
+        """Main indexing loop"""
         while self.is_running:
             try:
                 # Wait for next run
@@ -1058,140 +953,11 @@ class UnlimitedAutoIndexingManager:
                 logger.error(f"❌ Indexing loop error: {e}")
                 await asyncio.sleep(60)
     
-    async def _index_full_history(self):
-        """Index entire channel history - NO LIMITS"""
-        if self.is_full_history_running:
-            logger.warning("⚠️ Full history indexing already running")
-            return
-        
-        logger.info("=" * 70)
-        logger.info("📚 STARTING FULL HISTORY INDEXING (NO LIMITS)")
-        logger.info("=" * 70)
-        
-        self.is_full_history_running = True
-        self.full_history_progress = {
-            'total_messages': 0,
-            'processed': 0,
-            'indexed': 0,
-            'duplicates': 0,
-            'errors': 0,
-            'started_at': datetime.now(),
-            'last_message_id': 0,
-            'current_batch': 0
-        }
-        
-        try:
-            # Get the oldest message ID
-            oldest_message = await files_col.find_one(
-                {"channel_id": Config.FILE_CHANNEL_ID},
-                sort=[('message_id', 1)],
-                projection={'message_id': 1}
-            )
-            
-            start_from_id = oldest_message['message_id'] - 1 if oldest_message else 0
-            
-            logger.info(f"📖 Starting full history indexing from message ID: {start_from_id}")
-            
-            # Get total count for progress tracking
-            total_messages = 0
-            async for _ in User.get_chat_history(Config.FILE_CHANNEL_ID):
-                total_messages += 1
-            
-            self.full_history_progress['total_messages'] = total_messages
-            logger.info(f"📊 Total messages in channel: {total_messages}")
-            
-            # Index in reverse chronological order (newest to oldest)
-            batch_size = Config.BATCH_INDEX_SIZE
-            current_batch = 0
-            offset_id = 0
-            
-            while self.is_full_history_running:
-                try:
-                    messages = []
-                    count = 0
-                    
-                    # Fetch batch of messages
-                    async for msg in User.get_chat_history(
-                        Config.FILE_CHANNEL_ID,
-                        limit=batch_size,
-                        offset_id=offset_id
-                    ):
-                        if msg.id <= start_from_id:
-                            break
-                        
-                        if msg and (msg.document or msg.video):
-                            messages.append(msg)
-                        
-                        count += 1
-                        offset_id = msg.id
-                    
-                    if not messages:
-                        logger.info("✅ Reached the beginning of channel history")
-                        break
-                    
-                    # Process batch
-                    current_batch += 1
-                    self.full_history_progress['current_batch'] = current_batch
-                    
-                    batch_stats = await self._process_indexing_batch(messages)
-                    
-                    # Update progress
-                    self.full_history_progress['processed'] += batch_stats['processed']
-                    self.full_history_progress['indexed'] += batch_stats['indexed']
-                    self.full_history_progress['duplicates'] += batch_stats['duplicates']
-                    self.full_history_progress['errors'] += batch_stats['errors']
-                    self.full_history_progress['last_message_id'] = offset_id
-                    
-                    # Log progress
-                    progress_percent = (self.full_history_progress['processed'] / total_messages * 100) if total_messages > 0 else 0
-                    
-                    logger.info(f"📦 Full History Batch {current_batch}:")
-                    logger.info(f"   📊 Progress: {self.full_history_progress['processed']}/{total_messages} ({progress_percent:.1f}%)")
-                    logger.info(f"   ✅ Indexed: {batch_stats['indexed']}")
-                    logger.info(f"   🔄 Duplicates: {batch_stats['duplicates']}")
-                    logger.info(f"   ❌ Errors: {batch_stats['errors']}")
-                    logger.info(f"   ⏭️ Next offset: {offset_id}")
-                    
-                    # Update global stats
-                    self.indexing_stats['total_files_processed'] += batch_stats['processed']
-                    self.indexing_stats['total_indexed'] += batch_stats['indexed']
-                    self.indexing_stats['total_duplicates'] += batch_stats['duplicates']
-                    self.indexing_stats['total_errors'] += batch_stats['errors']
-                    
-                    # Small delay to avoid rate limiting
-                    await asyncio.sleep(2)
-                    
-                except Exception as e:
-                    logger.error(f"❌ Full history batch error: {e}")
-                    self.full_history_progress['errors'] += 1
-                    await asyncio.sleep(5)
-                    continue
-            
-            # Mark full history as completed
-            self.indexing_stats['full_history_completed'] = True
-            self.is_full_history_running = False
-            
-            elapsed = (datetime.now() - self.full_history_progress['started_at']).total_seconds()
-            
-            logger.info("=" * 70)
-            logger.info("🎉 FULL HISTORY INDEXING COMPLETE!")
-            logger.info("=" * 70)
-            logger.info(f"⏱️  Total time: {elapsed:.0f}s")
-            logger.info(f"📊 Total processed: {self.full_history_progress['processed']}")
-            logger.info(f"✅ Total indexed: {self.full_history_progress['indexed']}")
-            logger.info(f"🔄 Total duplicates: {self.full_history_progress['duplicates']}")
-            logger.info(f"❌ Total errors: {self.full_history_progress['errors']}")
-            logger.info("=" * 70)
-            
-        except Exception as e:
-            logger.error(f"❌ Full history indexing failed: {e}")
-            self.is_full_history_running = False
-    
     async def _run_indexing_cycle(self):
-        """Run one indexing cycle for new messages"""
-        logger.info("=" * 60)
-        logger.info("🔄 STARTING AUTO INDEXING CYCLE (NEW MESSAGES)")
-        logger.info("=" * 60)
+        """Run one indexing cycle"""
+        logger.info("=" * 50)
+        logger.info("🔄 STARTING AUTO INDEXING CYCLE")
+        logger.info("=" * 50)
         
         start_time = time.time()
         cycle_stats = {
@@ -1216,20 +982,28 @@ class UnlimitedAutoIndexingManager:
             
             # Fetch new messages
             messages_to_index = []
+            fetched_count = 0
             
-            async for msg in User.get_chat_history(
-                Config.FILE_CHANNEL_ID, 
-                limit=Config.BATCH_INDEX_SIZE * 2  # Get more to account for non-file messages
-            ):
-                # Stop if we reach already indexed messages
-                if msg.id <= last_message_id:
-                    break
+            try:
+                # Fetch messages with reasonable limit
+                limit = min(Config.BATCH_INDEX_SIZE * 2, 200)  # Max 200 messages per cycle
                 
-                # Only index file messages
-                if msg and (msg.document or msg.video):
-                    messages_to_index.append(msg)
-            
-            logger.info(f"📥 Found {len(messages_to_index)} new files to index")
+                async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=limit):
+                    fetched_count += 1
+                    
+                    # Stop if we reach already indexed messages
+                    if msg.id <= last_message_id:
+                        break
+                    
+                    # Only index file messages
+                    if msg and (msg.document or msg.video):
+                        messages_to_index.append(msg)
+                
+                logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages_to_index)} new files")
+                
+            except Exception as e:
+                logger.error(f"❌ Error fetching messages: {e}")
+                return
             
             # Process messages
             if messages_to_index:
@@ -1246,15 +1020,16 @@ class UnlimitedAutoIndexingManager:
             
             elapsed = time.time() - start_time
             
-            logger.info("=" * 60)
+            logger.info("=" * 50)
             logger.info("📊 INDEXING CYCLE COMPLETE")
-            logger.info("=" * 60)
+            logger.info("=" * 50)
             logger.info(f"⏱️  Time: {elapsed:.2f}s")
+            logger.info(f"📥 Fetched: {fetched_count} messages")
             logger.info(f"📄 Processed: {cycle_stats['processed']} files")
             logger.info(f"✅ Indexed: {cycle_stats['indexed']} new files")
             logger.info(f"🔄 Duplicates: {cycle_stats['duplicates']} skipped")
             logger.info(f"❌ Errors: {cycle_stats['errors']}")
-            logger.info("=" * 60)
+            logger.info("=" * 50)
             
             # Update global counts
             self.total_indexed += cycle_stats['indexed']
@@ -1287,7 +1062,7 @@ class UnlimitedAutoIndexingManager:
                     continue
                 
                 # Index the file
-                success = await self._index_single_file_with_duplicate_check(msg)
+                success = await index_single_file_smart(msg)
                 
                 if success:
                     batch_stats['indexed'] += 1
@@ -1302,215 +1077,19 @@ class UnlimitedAutoIndexingManager:
         logger.info(f"📦 Batch processed: {batch_stats}")
         return batch_stats
     
-    async def _index_single_file_with_duplicate_check(self, message):
-        """Index single file with duplicate check and Supabase thumbnail"""
-        try:
-            if not message or (not message.document and not message.video):
-                return False
-            
-            # Generate file hash for duplicate detection
-            file_hash = await generate_file_hash(message)
-            
-            # Extract title for duplicate check
-            caption = message.caption if hasattr(message, 'caption') else None
-            file_name = None
-            
-            if message.document:
-                file_name = message.document.file_name
-            elif message.video:
-                file_name = message.video.file_name
-            
-            title = extract_title_from_file(file_name, caption)
-            if not title:
-                logger.debug(f"📝 Skipping - No title: {message.id}")
-                return False
-            
-            normalized_title = normalize_title(title)
-            
-            # Check for duplicates
-            if file_hash:
-                is_duplicate, reason = await duplicate_prevention.is_duplicate_file(
-                    file_hash, normalized_title
-                )
-                
-                if is_duplicate:
-                    logger.info(f"🔄 DUPLICATE SKIPPED: {title} - Reason: {reason}")
-                    
-                    # Add duplicate record for tracking
-                    await self._add_duplicate_record(message, title, normalized_title, file_hash, reason)
-                    return False
-            
-            # Extract thumbnail and store in Supabase
-            thumbnail_url = None
-            is_video = False
-            
-            if message.video or (message.document and is_video_file(file_name or '')):
-                is_video = True
-                
-                # Extract and store thumbnail in Supabase
-                if file_hash:
-                    thumbnail_url = await thumbnail_extractor.extract_and_store_thumbnail(
-                        Config.FILE_CHANNEL_ID,
-                        message.id,
-                        file_hash,
-                        file_name or title
-                    )
-                    
-                    if thumbnail_url:
-                        logger.debug(f"✅ Thumbnail stored in Supabase for: {title}")
-            
-            # Create document
-            doc = {
-                'channel_id': Config.FILE_CHANNEL_ID,
-                'message_id': message.id,
-                'title': title,
-                'normalized_title': normalized_title,
-                'date': message.date,
-                'indexed_at': datetime.now(),
-                'last_checked': datetime.now(),
-                'is_video_file': is_video,
-                'file_id': None,
-                'file_size': 0,
-                'file_hash': file_hash,
-                'thumbnail_url': thumbnail_url,
-                'thumbnail_source': 'supabase' if thumbnail_url and 'supabase' in thumbnail_url else 'telegram',
-                'thumbnail_extracted': thumbnail_url is not None,
-                'status': 'active',
-                'is_duplicate': False,
-                'duplicate_reason': None,
-                'storage_type': 'supabase' if thumbnail_url and 'supabase' in thumbnail_url else 'local'
-            }
-            
-            # Add file-specific data
-            if message.document:
-                doc.update({
-                    'file_name': message.document.file_name or '',
-                    'quality': detect_quality_enhanced(message.document.file_name or ''),
-                    'is_video_file': is_video_file(message.document.file_name or ''),
-                    'caption': caption or '',
-                    'mime_type': message.document.mime_type or '',
-                    'file_id': message.document.file_id,
-                    'file_size': message.document.file_size or 0
-                })
-            elif message.video:
-                doc.update({
-                    'file_name': message.video.file_name or 'video.mp4',
-                    'quality': detect_quality_enhanced(message.video.file_name or ''),
-                    'is_video_file': True,
-                    'caption': caption or '',
-                    'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
-                    'width': message.video.width if hasattr(message.video, 'width') else 0,
-                    'height': message.video.height if hasattr(message.video, 'height') else 0,
-                    'file_id': message.video.file_id,
-                    'file_size': message.video.file_size or 0
-                })
-            else:
-                return False
-            
-            # Insert into MongoDB
-            try:
-                await files_col.insert_one(doc)
-                
-                # Add to duplicate prevention system
-                if file_hash:
-                    await duplicate_prevention.add_file_hash(file_hash, normalized_title)
-                
-                # Log success
-                file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
-                size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
-                thumbnail_status = "✅ Supabase" if 'supabase' in str(thumbnail_url) else "✅ Local" if thumbnail_url else "❌"
-                
-                logger.info(f"✅ {file_type} AUTO-INDEXED: {title}")
-                logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
-                logger.info(f"   🖼️ Thumbnail: {thumbnail_status}")
-                logger.info(f"   🔑 Hash: {file_hash[:20] if file_hash else 'None'}")
-                
-                return True
-                
-            except Exception as e:
-                if "duplicate key error" in str(e).lower():
-                    logger.debug(f"📝 Duplicate key error: {message.id}")
-                    return False
-                else:
-                    logger.error(f"❌ Insert error: {e}")
-                    return False
-        
-        except Exception as e:
-            logger.error(f"❌ Indexing error for message {message.id if message else 'unknown'}: {e}")
-            return False
-    
-    async def _add_duplicate_record(self, message, title, normalized_title, file_hash, reason):
-        """Add duplicate record to database for tracking"""
-        try:
-            duplicate_doc = {
-                'channel_id': Config.FILE_CHANNEL_ID,
-                'message_id': message.id,
-                'title': title,
-                'normalized_title': normalized_title,
-                'date': message.date,
-                'detected_at': datetime.now(),
-                'file_hash': file_hash,
-                'duplicate_reason': reason,
-                'status': 'duplicate'
-            }
-            
-            # Store in separate duplicates collection
-            await db.duplicates.insert_one(duplicate_doc)
-            
-        except Exception as e:
-            logger.error(f"❌ Error adding duplicate record: {e}")
-    
     async def get_indexing_status(self):
         """Get current indexing status"""
         return {
             'is_running': self.is_running,
-            'is_full_history_running': self.is_full_history_running,
             'last_run': self.last_run.isoformat() if self.last_run else None,
             'next_run': self.next_run.isoformat() if self.next_run else None,
             'total_indexed': self.total_indexed,
             'total_duplicates': self.total_duplicates,
-            'full_history_progress': self.full_history_progress,
-            'stats': self.indexing_stats,
-            'config': {
-                'auto_index_interval': Config.AUTO_INDEX_INTERVAL,
-                'batch_index_size': Config.BATCH_INDEX_SIZE,
-                'index_all_history': Config.INDEX_ALL_HISTORY,
-                'max_index_limit': Config.MAX_INDEX_LIMIT
-            }
+            'stats': self.indexing_stats
         }
-    
-    async def run_manual_index(self, limit=100, full_history=False):
-        """Run manual indexing"""
-        logger.info(f"🔧 Running MANUAL indexing (limit: {limit}, full_history: {full_history})...")
-        
-        try:
-            if full_history:
-                # Start full history indexing
-                asyncio.create_task(self._index_full_history())
-                return {"status": "started", "type": "full_history"}
-            
-            # Fetch messages
-            messages_to_index = []
-            
-            async for msg in User.get_chat_history(
-                Config.FILE_CHANNEL_ID, 
-                limit=limit
-            ):
-                if msg and (msg.document or msg.video):
-                    messages_to_index.append(msg)
-            
-            # Process batch
-            stats = await self._process_indexing_batch(messages_to_index)
-            
-            logger.info(f"✅ Manual indexing complete: {stats}")
-            return {"status": "completed", "stats": stats}
-            
-        except Exception as e:
-            logger.error(f"❌ Manual indexing error: {e}")
-            return None
 
 # Initialize auto indexing manager
-auto_indexing_manager = UnlimitedAutoIndexingManager()
+auto_indexing_manager = InstantAutoIndexingManager()
 
 # ============================================================================
 # ✅ SYNC MANAGEMENT
@@ -1524,15 +1103,11 @@ class ChannelSyncManager:
         self.last_sync = time.time()
     
     async def start_sync_monitoring(self):
-        """Start sync monitoring using BOT session"""
-        if Bot is None or not bot_session_ready:
-            logger.warning("⚠️ Bot session not ready for sync")
-            return
-        
+        """Start sync monitoring"""
         if self.is_monitoring:
             return
         
-        logger.info("👁️ Starting sync monitoring via BOT...")
+        logger.info("👁️ Starting sync monitoring...")
         self.is_monitoring = True
         self.monitoring_task = asyncio.create_task(self.monitor_channel_sync())
     
@@ -1558,9 +1133,9 @@ class ChannelSyncManager:
                 await asyncio.sleep(60)
     
     async def sync_deletions_from_telegram(self):
-        """Sync deletions using BOT session"""
+        """Sync deletions from Telegram"""
         try:
-            if files_col is None or Bot is None:
+            if files_col is None:
                 return
             
             current_time = time.time()
@@ -1572,7 +1147,7 @@ class ChannelSyncManager:
             # Get message IDs from MongoDB
             cursor = files_col.find(
                 {"channel_id": Config.FILE_CHANNEL_ID},
-                {"message_id": 1, "_id": 0, "file_hash": 1, "normalized_title": 1, "thumbnail_url": 1}
+                {"message_id": 1, "_id": 0, "file_hash": 1, "normalized_title": 1}
             )
             
             message_data = []
@@ -1582,8 +1157,7 @@ class ChannelSyncManager:
                     message_data.append({
                         'message_id': msg_id,
                         'file_hash': doc.get('file_hash'),
-                        'normalized_title': doc.get('normalized_title'),
-                        'thumbnail_url': doc.get('thumbnail_url')
+                        'normalized_title': doc.get('normalized_title')
                     })
             
             if not message_data:
@@ -1597,8 +1171,8 @@ class ChannelSyncManager:
                 message_ids = [item['message_id'] for item in batch]
                 
                 try:
-                    # Check if messages exist using BOT
-                    messages = await Bot.get_messages(Config.FILE_CHANNEL_ID, message_ids)
+                    # Check if messages exist using User session
+                    messages = await User.get_messages(Config.FILE_CHANNEL_ID, message_ids)
                     
                     existing_ids = set()
                     if isinstance(messages, list):
@@ -1624,16 +1198,6 @@ class ChannelSyncManager:
                                     item.get('normalized_title')
                                 )
                             
-                            # Delete thumbnail from Supabase if exists
-                            thumbnail_url = item.get('thumbnail_url')
-                            file_hash = item.get('file_hash')
-                            
-                            if thumbnail_url and 'supabase' in thumbnail_url and file_hash:
-                                await supabase_manager.delete_thumbnail(
-                                    file_hash,
-                                    item.get('normalized_title', '')
-                                )
-                            
                             deleted_count += 1
                             self.deleted_count += 1
                 
@@ -1642,31 +1206,26 @@ class ChannelSyncManager:
                     continue
             
             if deleted_count > 0:
-                logger.info(f"✅ Sync: {deleted_count} files deleted (thumbnails cleaned)")
+                logger.info(f"✅ Sync: {deleted_count} files deleted")
             
         except Exception as e:
             logger.error(f"❌ Sync deletions error: {e}")
-    
-    async def manual_sync(self):
-        await self.sync_deletions_from_telegram()
 
 channel_sync_manager = ChannelSyncManager()
 
 # ============================================================================
-# ✅ FILE INDEXING FUNCTIONS - UPDATED WITH SUPABASE
+# ✅ FILE INDEXING FUNCTIONS
 # ============================================================================
 
 async def generate_file_hash(message):
-    """Generate unique hash for file to detect duplicates - ENHANCED"""
+    """Generate unique hash for file to detect duplicates"""
     try:
         hash_parts = []
         
         if message.document:
             file_attrs = message.document
-            # Use file_unique_id for better duplicate detection
-            unique_id = getattr(file_attrs, 'file_unique_id', file_attrs.file_id)
-            hash_parts.append(f"doc_{unique_id}")
-            
+            # Use file_id for hash
+            hash_parts.append(f"doc_{file_attrs.file_id}")
             if file_attrs.file_name:
                 name_hash = hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:16]
                 hash_parts.append(f"name_{name_hash}")
@@ -1674,9 +1233,7 @@ async def generate_file_hash(message):
                 hash_parts.append(f"size_{file_attrs.file_size}")
         elif message.video:
             file_attrs = message.video
-            unique_id = getattr(file_attrs, 'file_unique_id', file_attrs.file_id)
-            hash_parts.append(f"vid_{unique_id}")
-            
+            hash_parts.append(f"vid_{file_attrs.file_id}")
             if file_attrs.file_name:
                 name_hash = hashlib.md5(file_attrs.file_name.encode()).hexdigest()[:16]
                 hash_parts.append(f"name_{name_hash}")
@@ -1701,10 +1258,10 @@ async def generate_file_hash(message):
         return None
 
 async def index_single_file_smart(message):
-    """Index single file with Supabase thumbnail storage"""
+    """Index single file with duplicate prevention"""
     try:
-        if files_col is None or Bot is None or not bot_session_ready:
-            logger.error("❌ Bot session not ready for indexing")
+        if files_col is None:
+            logger.error("❌ Database not ready for indexing")
             return False
         
         if not message or (not message.document and not message.video):
@@ -1718,8 +1275,8 @@ async def index_single_file_smart(message):
         }, {'_id': 1})
         
         if existing_by_id:
-            logger.debug(f"📝 Already indexed: {message.id}")
-            return True
+            logger.debug(f"📝 Already indexed by message ID: {message.id}")
+            return False
         
         # Generate file hash for duplicate detection
         file_hash = await generate_file_hash(message)
@@ -1748,38 +1305,22 @@ async def index_single_file_smart(message):
             
             if is_duplicate:
                 logger.info(f"🔄 DUPLICATE DETECTED: {title} - Reason: {reason}")
-                
-                # Add duplicate record for tracking
-                await db.duplicates.insert_one({
-                    'channel_id': Config.FILE_CHANNEL_ID,
-                    'message_id': message.id,
-                    'title': title,
-                    'normalized_title': normalized_title,
-                    'file_hash': file_hash,
-                    'duplicate_reason': reason,
-                    'detected_at': datetime.now(),
-                    'status': 'duplicate'
-                })
-                
                 return False
         
-        # Extract thumbnail and store in Supabase
+        # Extract thumbnail if video file
         thumbnail_url = None
         is_video = False
         
         if message.video or (message.document and is_video_file(file_name or '')):
             is_video = True
-            # Extract and store thumbnail in Supabase
-            if file_hash:
-                thumbnail_url = await thumbnail_extractor.extract_and_store_thumbnail(
-                    Config.FILE_CHANNEL_ID,
-                    message.id,
-                    file_hash,
-                    file_name or title
-                )
-                
-                if thumbnail_url:
-                    logger.debug(f"✅ Thumbnail stored in Supabase for: {title}")
+            # Extract thumbnail
+            thumbnail_url = await thumbnail_extractor.extract_thumbnail(
+                Config.FILE_CHANNEL_ID,
+                message.id
+            )
+            
+            if thumbnail_url:
+                logger.debug(f"✅ Thumbnail extracted for: {title}")
         
         # Create document
         doc = {
@@ -1795,12 +1336,9 @@ async def index_single_file_smart(message):
             'file_size': 0,
             'file_hash': file_hash,
             'thumbnail_url': thumbnail_url,
-            'thumbnail_source': 'supabase' if thumbnail_url and 'supabase' in thumbnail_url else 'telegram',
             'thumbnail_extracted': thumbnail_url is not None,
             'status': 'active',
-            'is_duplicate': False,
-            'duplicate_reason': None,
-            'storage_type': 'supabase' if thumbnail_url and 'supabase' in thumbnail_url else 'local'
+            'is_duplicate': False
         }
         
         # Add file-specific data
@@ -1840,19 +1378,18 @@ async def index_single_file_smart(message):
             # Log success
             file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
             size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
-            thumbnail_status = "✅ Supabase" if 'supabase' in str(thumbnail_url) else "✅ Local" if thumbnail_url else "❌"
+            thumbnail_status = "✅" if thumbnail_url else "❌"
             
             logger.info(f"✅ {file_type} indexed: {title}")
             logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
             logger.info(f"   🖼️ Thumbnail: {thumbnail_status}")
-            logger.info(f"   🔑 Hash: {file_hash[:20] if file_hash else 'None'}")
             
             return True
             
         except Exception as e:
             if "duplicate key error" in str(e).lower():
                 logger.debug(f"📝 Duplicate key error: {message.id}")
-                return True  # Already exists
+                return False
             else:
                 logger.error(f"❌ Insert error: {e}")
                 return False
@@ -1861,13 +1398,13 @@ async def index_single_file_smart(message):
         logger.error(f"❌ Indexing error for message {message.id if message else 'unknown'}: {e}")
         return False
 
-async def index_files_background_smart():
-    """Background indexing with duplicate prevention and Supabase"""
+async def initial_indexing():
+    """Initial indexing on startup"""
     if User is None or files_col is None or not user_session_ready:
-        logger.warning("⚠️ User session not ready for indexing")
+        logger.warning("⚠️ User session not ready for initial indexing")
         return
     
-    logger.info("📁 Starting smart indexing with Supabase thumbnail storage...")
+    logger.info("📁 Starting initial indexing...")
     
     try:
         # Setup indexes
@@ -1885,83 +1422,62 @@ async def index_files_background_smart():
         
         last_message_id = last_indexed['message_id'] if last_indexed else 0
         
-        logger.info(f"🔄 Starting from message ID: {last_message_id}")
-        logger.info(f"📡 Fetching messages from FILE channel: {Config.FILE_CHANNEL_ID}")
+        logger.info(f"📊 Last indexed message ID: {last_message_id}")
+        logger.info(f"📡 Fetching recent messages...")
         
-        # Fetch messages
+        # Fetch recent messages only (100 latest)
         messages = []
-        fetched_count = 0
         
         try:
-            # If MAX_INDEX_LIMIT is 0, fetch unlimited (use large number)
-            limit = Config.MAX_INDEX_LIMIT if Config.MAX_INDEX_LIMIT > 0 else 5000
-            
-            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=limit):
-                fetched_count += 1
+            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=100):
                 if msg.id <= last_message_id:
-                    logger.info(f"✅ Reached last indexed message {last_message_id}")
                     break
                 
                 if msg is not None and (msg.document or msg.video):
                     messages.append(msg)
-                    logger.debug(f"📥 Found file: {msg.id}")
         except Exception as e:
             logger.error(f"❌ Error fetching chat history: {e}")
             return
         
-        logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages)} new files to index")
+        logger.info(f"📥 Found {len(messages)} new files to index")
         
-        # Process messages in reverse order (oldest first)
-        messages.reverse()
-        
-        # Process in batches
-        batch_size = 20
+        # Process messages
         total_indexed = 0
         total_duplicates = 0
         
-        for i in range(0, len(messages), batch_size):
-            batch = messages[i:i + batch_size]
-            logger.info(f"📦 Processing batch {i//batch_size + 1}/{(len(messages)-1)//batch_size + 1}")
-            
-            for msg in batch:
-                try:
-                    success = await index_single_file_smart(msg)
-                    if success:
-                        total_indexed += 1
-                    else:
-                        total_duplicates += 1
-                    
-                    # Small delay to avoid rate limiting
-                    await asyncio.sleep(0.2)
-                    
-                except Exception as e:
-                    logger.error(f"❌ Error processing message {msg.id}: {e}")
-                    continue
-            
-            # Delay between batches
-            await asyncio.sleep(2)
+        for msg in messages:
+            try:
+                success = await index_single_file_smart(msg)
+                if success:
+                    total_indexed += 1
+                else:
+                    total_duplicates += 1
+                
+                # Small delay to avoid rate limiting
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"❌ Error processing message {msg.id}: {e}")
+                continue
         
         if total_indexed > 0 or total_duplicates > 0:
-            logger.info(f"✅ Smart indexing complete:")
+            logger.info(f"✅ Initial indexing complete:")
             logger.info(f"   ✅ Indexed: {total_indexed} new files")
             logger.info(f"   🔄 Skipped: {total_duplicates} duplicates")
-            
-            # Get stats
-            await log_database_stats()
         else:
             logger.info("✅ No new files to index")
         
         # Start auto indexing
-        await auto_indexing_manager.start_auto_indexing()
-        logger.info("✅ Started AUTO indexing system")
+        if Config.INSTANT_AUTO_INDEX:
+            await auto_indexing_manager.start_instant_indexing()
+            logger.info("✅ Started INSTANT auto indexing")
         
         # Start sync monitoring
-        if bot_session_ready:
-            await channel_sync_manager.start_sync_monitoring()
-            logger.info("✅ Started BOT sync monitoring")
+        await channel_sync_manager.start_sync_monitoring()
+        logger.info("✅ Started sync monitoring")
         
     except Exception as e:
-        logger.error(f"❌ Background indexing error: {e}")
+        logger.error(f"❌ Initial indexing error: {e}")
 
 async def setup_database_indexes():
     """Setup all required database indexes"""
@@ -1978,19 +1494,7 @@ async def setup_database_indexes():
         )
         logger.info("✅ Created unique index on channel_id + message_id")
     except Exception as e:
-        logger.warning(f"⚠️ Index creation error (might already exist): {e}")
-    
-    try:
-        # Text search index
-        await files_col.create_index(
-            [("normalized_title", "text"), ("title", "text")],
-            name="text_search_index",
-            default_language="english",
-            background=True
-        )
-        logger.info("✅ Created text search index")
-    except Exception as e:
-        logger.warning(f"⚠️ Text index creation error: {e}")
+        logger.warning(f"⚠️ Index creation error: {e}")
     
     try:
         # File hash index for duplicate detection
@@ -2003,54 +1507,6 @@ async def setup_database_indexes():
         logger.info("✅ Created file_hash index")
     except Exception as e:
         logger.warning(f"⚠️ File hash index creation error: {e}")
-    
-    try:
-        # Thumbnail source index
-        await files_col.create_index(
-            [("thumbnail_source", 1)],
-            name="thumbnail_source_index",
-            background=True
-        )
-        logger.info("✅ Created thumbnail_source index")
-    except Exception as e:
-        logger.warning(f"⚠️ Thumbnail source index creation error: {e}")
-
-async def log_database_stats():
-    """Log database statistics"""
-    if files_col is None:
-        return
-    
-    try:
-        total_files = await files_col.count_documents({})
-        video_files = await files_col.count_documents({'is_video_file': True})
-        file_channel_files = await files_col.count_documents({
-            "channel_id": Config.FILE_CHANNEL_ID
-        })
-        
-        # Count thumbnails by source
-        supabase_thumbnails = await files_col.count_documents({
-            'thumbnail_source': 'supabase',
-            'thumbnail_extracted': True
-        })
-        local_thumbnails = await files_col.count_documents({
-            'thumbnail_source': {'$ne': 'supabase'},
-            'thumbnail_extracted': True
-        })
-        
-        # Count duplicates
-        total_duplicates = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
-        
-        logger.info("📊 DATABASE STATISTICS:")
-        logger.info(f"   • Total files: {total_files}")
-        logger.info(f"   • Video files: {video_files}")
-        logger.info(f"   • FILE channel files: {file_channel_files}")
-        logger.info(f"   • Supabase thumbnails: {supabase_thumbnails}")
-        logger.info(f"   • Local thumbnails: {local_thumbnails}")
-        logger.info(f"   • Total thumbnails: {supabase_thumbnails + local_thumbnails}")
-        logger.info(f"   • Tracked duplicates: {total_duplicates}")
-        
-    except Exception as e:
-        logger.error(f"❌ Error getting database stats: {e}")
 
 # ============================================================================
 # ✅ POSTER FETCHING FUNCTIONS
@@ -2178,9 +1634,9 @@ async def init_telegram_sessions():
     """Initialize DUAL sessions: User for text, Bot for files"""
     global User, Bot, user_session_ready, bot_session_ready
     
-    logger.info("=" * 60)
-    logger.info("🚀 DUAL SESSION INITIALIZATION")
-    logger.info("=" * 60)
+    logger.info("=" * 50)
+    logger.info("🚀 TELEGRAM SESSION INITIALIZATION")
+    logger.info("=" * 50)
     
     if not PYROGRAM_AVAILABLE:
         logger.error("❌ Pyrogram not installed!")
@@ -2190,7 +1646,7 @@ async def init_telegram_sessions():
     # ✅ 1. INITIALIZE USER SESSION (for TEXT channels)
     # ============================================================================
     if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
-        logger.info("\n👤 Initializing USER Session for TEXT channels...")
+        logger.info("\n👤 Initializing USER Session...")
         try:
             User = Client(
                 "sk4film_user",
@@ -2206,13 +1662,13 @@ async def init_telegram_sessions():
             me = await User.get_me()
             logger.info(f"✅ USER Session Ready: {me.first_name}")
             
-            # Test TEXT channel access
+            # Test channel access
             try:
                 chat = await User.get_chat(Config.MAIN_CHANNEL_ID)
-                logger.info(f"✅ TEXT Channel Access: {chat.title}")
+                logger.info(f"✅ Channel Access: {chat.title}")
                 user_session_ready = True
             except Exception as e:
-                logger.error(f"❌ TEXT Channel access failed: {e}")
+                logger.error(f"❌ Channel access failed: {e}")
                 user_session_ready = False
                 
         except Exception as e:
@@ -2226,10 +1682,10 @@ async def init_telegram_sessions():
             User = None
     
     # ============================================================================
-    # ✅ 2. INITIALIZE BOT SESSION (for FILE channel)
+    # ✅ 2. INITIALIZE BOT SESSION (optional for file operations)
     # ============================================================================
     if Config.BOT_TOKEN:
-        logger.info("\n🤖 Initializing BOT Session for FILE channel...")
+        logger.info("\n🤖 Initializing BOT Session...")
         try:
             Bot = Client(
                 "sk4film_bot",
@@ -2244,15 +1700,7 @@ async def init_telegram_sessions():
             await Bot.start()
             bot_info = await Bot.get_me()
             logger.info(f"✅ BOT Session Ready: @{bot_info.username}")
-            
-            # Test FILE channel access
-            try:
-                chat = await Bot.get_chat(Config.FILE_CHANNEL_ID)
-                logger.info(f"✅ FILE Channel Access: {chat.title}")
-                bot_session_ready = True
-            except Exception as e:
-                logger.error(f"❌ FILE Channel access failed: {e}")
-                bot_session_ready = False
+            bot_session_ready = True
                 
         except Exception as e:
             logger.error(f"❌ BOT Session failed: {e}")
@@ -2267,13 +1715,12 @@ async def init_telegram_sessions():
     # ============================================================================
     # ✅ 3. SUMMARY
     # ============================================================================
-    logger.info("\n" + "=" * 60)
+    logger.info("\n" + "=" * 50)
     logger.info("📊 SESSION SUMMARY")
-    logger.info("=" * 60)
-    logger.info(f"USER Session (TEXT): {'✅ READY' if user_session_ready else '❌ NOT READY'}")
-    logger.info(f"BOT Session (FILE): {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
-    logger.info(f"TEXT Channels: {Config.TEXT_CHANNEL_IDS}")
-    logger.info(f"FILE Channel: {Config.FILE_CHANNEL_ID}")
+    logger.info("=" * 50)
+    logger.info(f"USER Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
+    logger.info(f"BOT Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
+    logger.info(f"Bot Handler: {'✅ INITIALIZED' if bot_handler.initialized else '❌ NOT READY'}")
     
     return user_session_ready or bot_session_ready
 
@@ -2305,14 +1752,6 @@ async def init_mongodb():
         files_col = db.files
         verification_col = db.verifications
         
-        # Create duplicates collection if not exists
-        if 'duplicates' not in await db.list_collection_names():
-            await db.create_collection('duplicates')
-        
-        # Create indexing_stats collection
-        if 'indexing_stats' not in await db.list_collection_names():
-            await db.create_collection('indexing_stats')
-        
         logger.info("✅ MongoDB OK")
         return True
         
@@ -2324,13 +1763,13 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ COMBINED SEARCH WITH QUALITY MERGING (WITH SUPABASE THUMBNAILS)
+# ✅ COMBINED SEARCH WITH QUALITY MERGING
 # ============================================================================
 
 @performance_monitor.measure("multi_channel_search_merged")
 @async_cache_with_ttl(maxsize=500, ttl=300)
 async def search_movies_multi_channel_merged(query, limit=12, page=1):
-    """COMBINED search with QUALITY MERGING and SUPABASE THUMBNAILS"""
+    """COMBINED search with QUALITY MERGING"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -2345,7 +1784,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     
     query_lower = query.lower()
     posts_dict = {}    # From USER session (text channels) 
-    files_dict = {}    # From BOT session (file channel)
+    files_dict = {}    # From FILE channel
     
     # ============================================================================
     # ✅ 1. SEARCH TEXT CHANNELS (USER SESSION)
@@ -2397,7 +1836,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 posts_dict.update(result)
     
     # ============================================================================
-    # ✅ 2. SEARCH FILE CHANNEL (BOT SESSION) - WITH QUALITY DETECTION & SUPABASE THUMBNAILS
+    # ✅ 2. SEARCH FILE CHANNEL - WITH QUALITY DETECTION
     # ============================================================================
     if files_col is not None:
         try:
@@ -2426,7 +1865,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'caption': 1,
                     'file_id': 1,
                     'thumbnail_url': 1,
-                    'thumbnail_source': 1,
                     'thumbnail_extracted': 1,
                     '_id': 0
                 }
@@ -2440,7 +1878,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     
                     # Get thumbnail URL
                     thumbnail_url = doc.get('thumbnail_url')
-                    thumbnail_source = doc.get('thumbnail_source', 'none')
                     
                     # Quality option
                     quality_option = {
@@ -2452,7 +1889,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                         'message_id': doc.get('message_id'),
                         'quality_info': quality_info,
                         'thumbnail_url': thumbnail_url,
-                        'thumbnail_source': thumbnail_source,
                         'has_thumbnail': thumbnail_url is not None
                     }
                     
@@ -2479,7 +1915,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             'year': year,
                             'quality': quality,
                             'has_thumbnail': thumbnail_url is not None,
-                            'thumbnail_source': thumbnail_source,
                             'thumbnail_url': thumbnail_url
                         }
                         
@@ -2493,7 +1928,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                         # Update thumbnail if this quality has one and we don't have one yet
                         if thumbnail_url and not files_dict[norm_title].get('has_thumbnail'):
                             files_dict[norm_title]['thumbnail'] = thumbnail_url
-                            files_dict[norm_title]['thumbnail_source'] = thumbnail_source
                             files_dict[norm_title]['has_thumbnail'] = True
                         
                 except Exception as e:
@@ -2545,7 +1979,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             # Use thumbnail if available
             if file_data.get('has_thumbnail') and file_data.get('thumbnail'):
                 result['thumbnail'] = file_data['thumbnail']
-                result['thumbnail_source'] = file_data['thumbnail_source']
                 result['has_thumbnail'] = True
                 result['thumbnail_url'] = file_data['thumbnail_url']
         
@@ -2591,11 +2024,10 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     for movie in all_movies:
         norm_title = movie.get('normalized_title', normalize_title(movie['title']))
         if norm_title in merged:
-            # If movie has thumbnail (from Supabase), keep it
+            # If movie has thumbnail, keep it
             if movie.get('has_thumbnail'):
                 merged[norm_title].update({
                     'thumbnail': movie['thumbnail'],
-                    'thumbnail_source': movie['thumbnail_source'],
                     'has_thumbnail': True,
                     'thumbnail_url': movie.get('thumbnail_url'),
                     # Still get poster for UI
@@ -2638,8 +2070,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
         'with_posts': sum(1 for r in results_list if r.get('has_post', False)),
         'both': sum(1 for r in results_list if r.get('has_file', False) and r.get('has_post', False)),
         'video_files': sum(1 for r in results_list if r.get('is_video_file', False)),
-        'with_thumbnails': sum(1 for r in results_list if r.get('has_thumbnail', False)),
-        'supabase_thumbnails': sum(1 for r in results_list if r.get('thumbnail_source') == 'supabase')
+        'with_thumbnails': sum(1 for r in results_list if r.get('has_thumbnail', False))
     }
     
     # Final data structure
@@ -2657,12 +2088,9 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             'query': query,
             'stats': stats,
             'quality_merging': True,
-            'thumbnail_storage': 'supabase',
-            'supabase_enabled': Config.SUPABASE_ENABLED,
+            'duplicate_prevention': True,
             'poster_fetcher': poster_fetcher is not None,
             'user_session_used': user_session_ready,
-            'bot_session_used': bot_session_ready,
-            'duplicate_prevention': True,
             'cache_hit': False
         }
     }
@@ -2673,7 +2101,6 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     
     logger.info(f"✅ QUALITY-MERGED search complete: {len(paginated)} results")
     logger.info(f"   📊 Stats: {stats}")
-    logger.info(f"   🖼️ Supabase thumbnails: {stats['supabase_thumbnails']}")
     
     return result_data
 
@@ -2752,203 +2179,6 @@ async def get_home_movies(limit=6):
         return []
 
 # ============================================================================
-# ✅ THUMBNAIL API ENDPOINTS
-# ============================================================================
-
-@app.route('/api/thumbnail/extract', methods=['GET'])
-async def api_extract_thumbnail():
-    """Extract thumbnail from specific video file and store in Supabase"""
-    try:
-        channel_id = int(request.args.get('channel_id', 0))
-        message_id = int(request.args.get('message_id', 0))
-        file_hash = request.args.get('file_hash', '')
-        file_name = request.args.get('file_name', '')
-        
-        if not channel_id or not message_id:
-            return jsonify({
-                'status': 'error',
-                'message': 'channel_id and message_id required'
-            }), 400
-        
-        # Extract and store thumbnail in Supabase
-        thumbnail_url = await thumbnail_extractor.extract_and_store_thumbnail(
-            channel_id, message_id, file_hash, file_name
-        )
-        
-        if thumbnail_url:
-            return jsonify({
-                'status': 'success',
-                'thumbnail_url': thumbnail_url,
-                'channel_id': channel_id,
-                'message_id': message_id,
-                'file_hash': file_hash,
-                'storage': 'supabase' if 'supabase' in thumbnail_url else 'local',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Failed to extract thumbnail',
-                'channel_id': channel_id,
-                'message_id': message_id
-            }), 404
-            
-    except Exception as e:
-        logger.error(f"Thumbnail extraction API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/thumbnail/stats', methods=['GET'])
-async def api_thumbnail_stats():
-    """Get thumbnail extraction statistics"""
-    try:
-        if files_col is None:
-            return jsonify({
-                'status': 'error',
-                'message': 'Database not available'
-            }), 500
-        
-        total_videos = await files_col.count_documents({'is_video_file': True})
-        thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
-        
-        # Get Supabase stats
-        supabase_stats = await supabase_manager.get_stats()
-        
-        # Get thumbnail sources
-        supabase_thumbnails = await files_col.count_documents({
-            'thumbnail_source': 'supabase',
-            'thumbnail_extracted': True
-        })
-        local_thumbnails = await files_col.count_documents({
-            'thumbnail_source': {'$ne': 'supabase'},
-            'thumbnail_extracted': True
-        })
-        
-        return jsonify({
-            'status': 'success',
-            'stats': {
-                'total_video_files': total_videos,
-                'thumbnails_extracted': thumbnails_extracted,
-                'extraction_rate': f"{(thumbnails_extracted/total_videos*100):.1f}%" if total_videos > 0 else "0%",
-                'supabase_thumbnails': supabase_thumbnails,
-                'local_thumbnails': local_thumbnails,
-                'supabase_enabled': Config.SUPABASE_ENABLED,
-                'thumbnail_extractor_ready': True
-            },
-            'supabase': supabase_stats,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Thumbnail stats API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/thumbnail/migrate_to_supabase', methods=['POST'])
-async def api_migrate_to_supabase():
-    """Migrate local thumbnails to Supabase"""
-    try:
-        # Check admin
-        auth_token = request.headers.get('Authorization')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_2024'):
-            return jsonify({
-                'status': 'error',
-                'message': 'Unauthorized'
-            }), 401
-        
-        if not supabase_manager.initialized:
-            return jsonify({
-                'status': 'error',
-                'message': 'Supabase not initialized'
-            }), 500
-        
-        # Get files with local thumbnails
-        cursor = files_col.find({
-            'thumbnail_extracted': True,
-            'thumbnail_source': {'$ne': 'supabase'},
-            'file_hash': {'$ne': None},
-            'is_video_file': True
-        }, {
-            'channel_id': 1,
-            'message_id': 1,
-            'file_hash': 1,
-            'file_name': 1,
-            'title': 1,
-            'thumbnail_url': 1,
-            '_id': 0
-        }).limit(50)  # Process in batches
-        
-        files_to_migrate = []
-        async for doc in cursor:
-            files_to_migrate.append(doc)
-        
-        if not files_to_migrate:
-            return jsonify({
-                'status': 'success',
-                'message': 'No files to migrate',
-                'migrated': 0
-            })
-        
-        migrated_count = 0
-        failed_count = 0
-        
-        for file_info in files_to_migrate:
-            try:
-                channel_id = file_info['channel_id']
-                message_id = file_info['message_id']
-                file_hash = file_info['file_hash']
-                file_name = file_info.get('file_name', file_info['title'])
-                
-                # Extract and store in Supabase
-                thumbnail_url = await thumbnail_extractor.extract_and_store_thumbnail(
-                    channel_id, message_id, file_hash, file_name
-                )
-                
-                if thumbnail_url and 'supabase' in thumbnail_url:
-                    # Update database
-                    await files_col.update_one(
-                        {
-                            'channel_id': channel_id,
-                            'message_id': message_id
-                        },
-                        {
-                            '$set': {
-                                'thumbnail_url': thumbnail_url,
-                                'thumbnail_source': 'supabase',
-                                'storage_type': 'supabase'
-                            }
-                        }
-                    )
-                    migrated_count += 1
-                else:
-                    failed_count += 1
-                    
-            except Exception as e:
-                logger.error(f"Migration error for {file_info.get('title')}: {e}")
-                failed_count += 1
-                continue
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'Migration completed: {migrated_count} migrated, {failed_count} failed',
-            'migrated': migrated_count,
-            'failed': failed_count,
-            'total': len(files_to_migrate),
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Migration API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-# ============================================================================
 # ✅ MAIN INITIALIZATION
 # ============================================================================
 
@@ -2957,19 +2187,19 @@ async def init_system():
     start_time = time.time()
     
     try:
-        logger.info("🚀 Starting SK4FiLM v8.4 - SUPABASE & UNLIMITED AUTO INDEXING...")
+        logger.info("🚀 Starting SK4FiLM v8.5 - OPTIMIZED & INSTANT AUTO INDEX...")
         
         # Initialize MongoDB
         mongo_ok = await init_mongodb()
         if not mongo_ok:
             logger.warning("⚠️ MongoDB connection failed")
         
-        # Initialize Supabase
-        supabase_ok = await supabase_manager.initialize()
-        if supabase_ok:
-            logger.info("✅ Supabase initialized for thumbnail storage")
+        # Initialize Bot Handler
+        bot_handler_ok = await bot_handler.initialize()
+        if bot_handler_ok:
+            logger.info("✅ Bot Handler initialized")
         else:
-            logger.warning("⚠️ Supabase initialization failed")
+            logger.warning("⚠️ Bot Handler initialization failed")
         
         # Initialize Cache Manager
         global cache_manager, verification_system, premium_system, poster_fetcher
@@ -3003,7 +2233,7 @@ async def init_system():
             poster_fetcher = None
             logger.warning("⚠️ Poster Fetcher not available")
         
-        # Initialize Telegram DUAL Sessions
+        # Initialize Telegram Sessions
         if PYROGRAM_AVAILABLE:
             telegram_ok = await init_telegram_sessions()
             if not telegram_ok:
@@ -3011,25 +2241,25 @@ async def init_system():
         else:
             logger.warning("⚠️ Pyrogram not available")
         
-        # Start background indexing
+        # Start initial indexing
         if user_session_ready and files_col is not None:
-            asyncio.create_task(index_files_background_smart())
-            logger.info("✅ Started UNLIMITED AUTO indexing with Supabase thumbnail storage")
+            asyncio.create_task(initial_indexing())
+            logger.info("✅ Started INSTANT auto indexing")
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         
         logger.info("🔧 INTEGRATED FEATURES:")
-        logger.info(f"   • Supabase Thumbnail Storage: {'✅ ENABLED' if supabase_ok else '❌ DISABLED'}")
-        logger.info(f"   • Unlimited Auto Indexing: ✅ ENABLED")
-        logger.info(f"   • Full History Indexing: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
+        logger.info(f"   • Bot Handler: {'✅ ENABLED' if bot_handler_ok else '❌ DISABLED'}")
+        logger.info(f"   • Instant Auto Indexing: {'✅ ENABLED' if Config.INSTANT_AUTO_INDEX else '❌ DISABLED'}")
         logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
         logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
         logger.info(f"   • Verification: {'✅ ENABLED' if verification_system else '❌ DISABLED'}")
         logger.info(f"   • Premium System: {'✅ ENABLED' if premium_system else '❌ DISABLED'}")
         logger.info(f"   • Poster Fetcher: {'✅ ENABLED' if poster_fetcher else '❌ DISABLED'}")
         logger.info(f"   • Quality Merging: ✅ ENABLED")
-        logger.info(f"   • Dual Sessions: {'✅ ENABLED' if user_session_ready or bot_session_ready else '❌ DISABLED'}")
+        logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
+        logger.info(f"   • Bot Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
         
         return True
         
@@ -3038,7 +2268,7 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ API ROUTES
+# ✅ API ROUTES - OPTIMIZED (REMOVED UNUSED APIs)
 # ============================================================================
 
 @app.route('/')
@@ -3048,31 +2278,23 @@ async def root():
     if files_col is not None:
         tf = await files_col.count_documents({})
         video_files = await files_col.count_documents({'is_video_file': True})
-        supabase_thumbnails = await files_col.count_documents({
-            'thumbnail_source': 'supabase',
-            'thumbnail_extracted': True
-        })
-        local_thumbnails = await files_col.count_documents({
-            'thumbnail_source': {'$ne': 'supabase'},
-            'thumbnail_extracted': True
-        })
-        duplicates_count = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
+        thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
+        duplicates_count = 0
     else:
         tf = 0
         video_files = 0
-        supabase_thumbnails = 0
-        local_thumbnails = 0
+        thumbnails_extracted = 0
         duplicates_count = 0
     
     # Get indexing status
     indexing_status = await auto_indexing_manager.get_indexing_status()
     
-    # Get Supabase stats
-    supabase_stats = await supabase_manager.get_stats()
+    # Get bot handler status
+    bot_status = await bot_handler.get_bot_status() if bot_handler else None
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.4 - SUPABASE THUMBNAILS & UNLIMITED INDEXING',
+        'service': 'SK4FiLM v8.5 - OPTIMIZED & INSTANT AUTO INDEX',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -3081,32 +2303,31 @@ async def root():
             'bot_session': {
                 'ready': bot_session_ready,
                 'channel': Config.FILE_CHANNEL_ID
-            }
+            },
+            'bot_handler': bot_status
         },
-        'storage': {
-            'mongodb': files_col is not None,
-            'supabase': supabase_stats.get('enabled', False),
-            'redis': cache_manager.redis_enabled if cache_manager else False
+        'components': {
+            'cache': cache_manager is not None,
+            'verification': verification_system is not None,
+            'premium': premium_system is not None,
+            'poster_fetcher': poster_fetcher is not None,
+            'database': files_col is not None,
+            'bot_handler': bot_handler is not None and bot_handler.initialized
         },
         'features': {
-            'unlimited_auto_indexing': True,
-            'full_history_indexing': Config.INDEX_ALL_HISTORY,
-            'supabase_thumbnail_storage': Config.SUPABASE_ENABLED,
+            'instant_auto_indexing': Config.INSTANT_AUTO_INDEX,
             'duplicate_prevention': True,
             'quality_merging': True,
             'home_movies_6_6': True,
-            'hevc_support': True
+            'thumbnail_extraction': True
         },
         'stats': {
             'total_files': tf,
             'video_files': video_files,
-            'supabase_thumbnails': supabase_thumbnails,
-            'local_thumbnails': local_thumbnails,
-            'total_thumbnails': supabase_thumbnails + local_thumbnails,
-            'duplicates_tracked': duplicates_count
+            'thumbnails_extracted': thumbnails_extracted,
+            'duplicates_prevented': duplicates_count
         },
         'indexing': indexing_status,
-        'supabase': supabase_stats,
         'response_time': f"{time.perf_counter():.3f}s"
     })
 
@@ -3114,22 +2335,17 @@ async def root():
 @performance_monitor.measure("health_endpoint")
 async def health():
     indexing_status = await auto_indexing_manager.get_indexing_status()
-    supabase_stats = await supabase_manager.get_stats()
+    bot_status = await bot_handler.get_bot_status() if bot_handler else None
     
     return jsonify({
         'status': 'ok',
         'sessions': {
             'user': user_session_ready,
-            'bot': bot_session_ready
-        },
-        'storage': {
-            'mongodb': files_col is not None,
-            'supabase': supabase_stats.get('enabled', False),
-            'redis': cache_manager.redis_enabled if cache_manager else False
+            'bot': bot_session_ready,
+            'bot_handler': bot_status.get('initialized') if bot_status else False
         },
         'indexing': {
             'running': indexing_status['is_running'],
-            'full_history_running': indexing_status['is_full_history_running'],
             'last_run': indexing_status['last_run']
         },
         'timestamp': datetime.now().isoformat()
@@ -3149,7 +2365,6 @@ async def api_movies():
             'limit': 6,
             'source': 'telegram',
             'poster_fetcher': poster_fetcher is not None,
-            'thumbnail_storage': 'supabase',
             'session_used': 'user',
             'channel_id': Config.MAIN_CHANNEL_ID,
             'timestamp': datetime.now().isoformat(),
@@ -3189,8 +2404,7 @@ async def api_search():
                 **result_data.get('search_metadata', {}),
                 'feature': 'quality_merged_search',
                 'quality_priority': Config.QUALITY_PRIORITY,
-                'thumbnail_storage': 'supabase',
-                'unlimited_indexing': True
+                'instant_indexing': Config.INSTANT_AUTO_INDEX
             },
             'timestamp': datetime.now().isoformat()
         })
@@ -3231,6 +2445,77 @@ async def api_poster():
             'message': str(e)
         }), 500
 
+@app.route('/api/verification/status', methods=['GET'])
+async def api_verification_status():
+    try:
+        user_id = int(request.args.get('user_id', 0))
+        
+        if user_id <= 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'Valid user_id required'
+            }), 400
+        
+        if verification_system:
+            is_verified, message = await verification_system.check_user_verified(user_id, premium_system)
+            info = await verification_system.get_user_verification_info(user_id)
+            
+            return jsonify({
+                'status': 'success',
+                'user_id': user_id,
+                'is_verified': is_verified,
+                'message': message,
+                'info': info,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Verification system not available'
+            }), 500
+    except Exception as e:
+        logger.error(f"Verification status API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/premium/status', methods=['GET'])
+async def api_premium_status():
+    try:
+        user_id = int(request.args.get('user_id', 0))
+        
+        if user_id <= 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'Valid user_id required'
+            }), 400
+        
+        if premium_system:
+            is_premium = await premium_system.is_premium_user(user_id)
+            tier = await premium_system.get_user_tier(user_id)
+            details = await premium_system.get_subscription_details(user_id)
+            
+            return jsonify({
+                'status': 'success',
+                'user_id': user_id,
+                'is_premium': is_premium,
+                'tier': tier.value if hasattr(tier, 'value') else tier,
+                'details': details,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Premium system not available'
+            }), 500
+    except Exception as e:
+        logger.error(f"Premium status API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 @app.route('/api/stats', methods=['GET'])
 async def api_stats():
     """Get performance statistics"""
@@ -3246,33 +2531,22 @@ async def api_stats():
         if files_col is not None:
             total_files = await files_col.count_documents({})
             video_files = await files_col.count_documents({'is_video_file': True})
-            supabase_thumbnails = await files_col.count_documents({
-                'thumbnail_source': 'supabase',
-                'thumbnail_extracted': True
-            })
-            local_thumbnails = await files_col.count_documents({
-                'thumbnail_source': {'$ne': 'supabase'},
-                'thumbnail_extracted': True
-            })
-            duplicates_count = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
+            thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
             
             # Get indexing stats
             indexing_status = await auto_indexing_manager.get_indexing_status()
             
             # Get duplicate stats
             duplicate_stats = await duplicate_prevention.get_duplicate_stats()
-            
-            # Get Supabase stats
-            supabase_stats = await supabase_manager.get_stats()
         else:
             total_files = 0
             video_files = 0
-            supabase_thumbnails = 0
-            local_thumbnails = 0
-            duplicates_count = 0
+            thumbnails_extracted = 0
             indexing_status = {}
             duplicate_stats = {}
-            supabase_stats = {}
+        
+        # Get bot handler status
+        bot_status = await bot_handler.get_bot_status() if bot_handler else None
         
         return jsonify({
             'status': 'success',
@@ -3281,15 +2555,12 @@ async def api_stats():
             'database_stats': {
                 'total_files': total_files,
                 'video_files': video_files,
-                'supabase_thumbnails': supabase_thumbnails,
-                'local_thumbnails': local_thumbnails,
-                'total_thumbnails': supabase_thumbnails + local_thumbnails,
-                'duplicates_tracked': duplicates_count,
-                'extraction_rate': f"{(supabase_thumbnails + local_thumbnails)/video_files*100:.1f}%" if video_files > 0 else "0%"
+                'thumbnails_extracted': thumbnails_extracted,
+                'extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%"
             },
             'indexing_stats': indexing_status,
             'duplicate_stats': duplicate_stats,
-            'supabase_stats': supabase_stats,
+            'bot_handler': bot_status,
             'cache': {
                 'redis_enabled': cache_manager.redis_enabled if cache_manager else False
             },
@@ -3297,182 +2568,6 @@ async def api_stats():
         })
     except Exception as e:
         logger.error(f"Stats API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/admin/index', methods=['POST'])
-async def api_admin_index():
-    """Manual indexing endpoint (admin only)"""
-    try:
-        # Check admin
-        auth_token = request.headers.get('Authorization')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_2024'):
-            return jsonify({
-                'status': 'error',
-                'message': 'Unauthorized'
-            }), 401
-        
-        data = await request.get_json() or {}
-        limit = data.get('limit', 100)
-        full_history = data.get('full_history', False)
-        
-        # Run manual indexing
-        result = await auto_indexing_manager.run_manual_index(limit, full_history)
-        
-        if result:
-            return jsonify({
-                'status': 'success',
-                'message': 'Manual indexing completed' if result.get('status') == 'completed' else 'Full history indexing started',
-                'result': result,
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Manual indexing failed',
-                'timestamp': datetime.now().isoformat()
-            }), 500
-    except Exception as e:
-        logger.error(f"Admin index API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/admin/index_status', methods=['GET'])
-async def api_admin_index_status():
-    """Get indexing status"""
-    try:
-        if files_col is not None:
-            total_files = await files_col.count_documents({})
-            video_files = await files_col.count_documents({'is_video_file': True})
-            file_channel_files = await files_col.count_documents({
-                "channel_id": Config.FILE_CHANNEL_ID
-            })
-            supabase_thumbnails = await files_col.count_documents({
-                'thumbnail_source': 'supabase',
-                'thumbnail_extracted': True
-            })
-            local_thumbnails = await files_col.count_documents({
-                'thumbnail_source': {'$ne': 'supabase'},
-                'thumbnail_extracted': True
-            })
-            duplicates_count = await db.duplicates.count_documents({}) if hasattr(db, 'duplicates') else 0
-            
-            # Get latest indexed file
-            latest_file = await files_col.find_one(
-                {"channel_id": Config.FILE_CHANNEL_ID},
-                sort=[('message_id', -1)],
-                projection={'title': 1, 'message_id': 1, 'indexed_at': 1, 'thumbnail_source': 1, 'file_hash': 1}
-            )
-        else:
-            total_files = 0
-            video_files = 0
-            file_channel_files = 0
-            supabase_thumbnails = 0
-            local_thumbnails = 0
-            duplicates_count = 0
-            latest_file = None
-        
-        # Get indexing status
-        indexing_status = await auto_indexing_manager.get_indexing_status()
-        
-        # Get Supabase stats
-        supabase_stats = await supabase_manager.get_stats()
-        
-        return jsonify({
-            'status': 'success',
-            'indexing': {
-                'total_files': total_files,
-                'video_files': video_files,
-                'file_channel_files': file_channel_files,
-                'supabase_thumbnails': supabase_thumbnails,
-                'local_thumbnails': local_thumbnails,
-                'total_thumbnails': supabase_thumbnails + local_thumbnails,
-                'duplicates_tracked': duplicates_count,
-                'thumbnail_extraction_rate': f"{(supabase_thumbnails + local_thumbnails)/video_files*100:.1f}%" if video_files > 0 else "0%",
-                'latest_file': latest_file,
-                'auto_indexing_running': indexing_status['is_running'],
-                'full_history_running': indexing_status['is_full_history_running'],
-                'auto_indexing_last_run': indexing_status['last_run'],
-                'auto_indexing_next_run': indexing_status['next_run'],
-                'auto_indexing_stats': indexing_status['stats'],
-                'full_history_progress': indexing_status['full_history_progress'],
-                'user_session_ready': user_session_ready,
-                'bot_session_ready': bot_session_ready,
-                'file_channel_id': Config.FILE_CHANNEL_ID,
-                'last_update': datetime.now().isoformat()
-            },
-            'supabase': supabase_stats,
-            'config': {
-                'auto_index_interval': Config.AUTO_INDEX_INTERVAL,
-                'batch_index_size': Config.BATCH_INDEX_SIZE,
-                'index_all_history': Config.INDEX_ALL_HISTORY,
-                'max_index_limit': Config.MAX_INDEX_LIMIT,
-                'supabase_enabled': Config.SUPABASE_ENABLED
-            },
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Index status API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/admin/duplicates', methods=['GET'])
-async def api_admin_duplicates():
-    """Get duplicate files information"""
-    try:
-        # Check admin
-        auth_token = request.headers.get('Authorization')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_2024'):
-            return jsonify({
-                'status': 'error',
-                'message': 'Unauthorized'
-            }), 401
-        
-        page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 20))
-        offset = (page - 1) * limit
-        
-        # Get duplicates from database
-        cursor = db.duplicates.find(
-            {},
-            {
-                'channel_id': 1,
-                'message_id': 1,
-                'title': 1,
-                'normalized_title': 1,
-                'file_hash': 1,
-                'duplicate_reason': 1,
-                'detected_at': 1,
-                '_id': 0
-            }
-        ).sort('detected_at', -1).skip(offset).limit(limit)
-        
-        duplicates = []
-        async for doc in cursor:
-            duplicates.append(doc)
-        
-        total_duplicates = await db.duplicates.count_documents({})
-        
-        return jsonify({
-            'status': 'success',
-            'duplicates': duplicates,
-            'pagination': {
-                'current_page': page,
-                'total_pages': math.ceil(total_duplicates / limit) if total_duplicates > 0 else 1,
-                'total_results': total_duplicates,
-                'per_page': limit
-            },
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Duplicates API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -3490,13 +2585,17 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    logger.info("🛑 Shutting down SK4FiLM v8.4...")
+    logger.info("🛑 Shutting down SK4FiLM v8.5...")
     
     shutdown_tasks = []
     
     # Stop auto indexing
     await auto_indexing_manager.stop_auto_indexing()
     await channel_sync_manager.stop_sync_monitoring()
+    
+    # Shutdown bot handler
+    if bot_handler:
+        await bot_handler.shutdown()
     
     # Close poster fetcher session
     if poster_fetcher is not None and hasattr(poster_fetcher, 'close'):
@@ -3549,13 +2648,13 @@ if __name__ == "__main__":
     config.http2 = True
     config.keep_alive_timeout = 30
     
-    logger.info(f"🌐 Starting SK4FiLM v8.4 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: SUPABASE THUMBNAIL STORAGE & UNLIMITED AUTO INDEXING")
+    logger.info(f"🌐 Starting SK4FiLM v8.5 on port {Config.WEB_SERVER_PORT}...")
+    logger.info("🎯 FEATURES: OPTIMIZED WITH INSTANT AUTO INDEXING")
     logger.info(f"   • Auto Index Interval: {Config.AUTO_INDEX_INTERVAL}s")
     logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
-    logger.info(f"   • Max Index Limit: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
+    logger.info(f"   • Instant Auto Index: {'✅ ENABLED' if Config.INSTANT_AUTO_INDEX else '❌ DISABLED'}")
     logger.info(f"   • Full History Indexing: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
-    logger.info(f"   • Supabase Storage: {'✅ ENABLED' if Config.SUPABASE_ENABLED else '❌ DISABLED'}")
     logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
+    logger.info(f"   • Bot Handler: ✅ INITIALIZED")
     
     asyncio.run(serve(app, config))
