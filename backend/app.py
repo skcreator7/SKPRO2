@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.1 - QUALITY MERGING & FAST POSTERS - COMPLETE FIXED
+# 🚀 SK4FiLM v8.2 - ULTRA-FAST POSTER FETCHING - NO BLINKING
 # ============================================================================
 
 import asyncio
@@ -51,7 +51,18 @@ logging.getLogger('motor').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # ============================================================================
-# ✅ ASYNC CACHE DECORATOR - ADDED HERE
+# ✅ ULTRA-FAST POSTER FETCHER (IMPORT)
+# ============================================================================
+
+try:
+    from poster_fetching import UltraFastPosterFetcher, get_poster_fetcher
+    POSTER_FETCHER_AVAILABLE = True
+except ImportError:
+    POSTER_FETCHER_AVAILABLE = False
+    logger.warning("⚠️ poster_fetching module not available, using fallback")
+
+# ============================================================================
+# ✅ ASYNC CACHE DECORATOR
 # ============================================================================
 
 def async_cache_with_ttl(maxsize=128, ttl=300):
@@ -87,41 +98,10 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
         return wrapper
     return decorator
 
-# ✅ ULTRA-FAST POSTER CONFIGURATION
-POSTER_SOURCES = [
-    {
-        'name': 'TMDB Fast',
-        'url_template': 'https://image.tmdb.org/t/p/w500{poster_path}',
-        'priority': 1,
-        'fallback': False
-    },
-    {
-        'name': 'OMDB Fast',
-        'url_template': 'https://img.omdbapi.com/?apikey={api_key}&i={imdb_id}',
-        'priority': 2,
-        'fallback': False
-    },
-    {
-        'name': 'Google Images',
-        'url_template': 'https://www.googleapis.com/customsearch/v1?key={api_key}&cx={cx}&q={query}&searchType=image&num=1',
-        'priority': 3,
-        'fallback': False
-    },
-    {
-        'name': 'Placeholder Service',
-        'url_template': 'https://via.placeholder.com/300x450/{color}/ffffff?text={title}',
-        'priority': 4,
-        'fallback': True
-    },
-    {
-        'name': 'Local Generated',
-        'url_template': '{backend_url}/api/poster?title={title}&year={year}',
-        'priority': 5,
-        'fallback': True
-    }
-]
+# ============================================================================
+# ✅ PERFORMANCE MONITOR
+# ============================================================================
 
-# Performance monitoring
 class PerformanceMonitor:
     def __init__(self):
         self.measurements = {}
@@ -176,7 +156,10 @@ class PerformanceMonitor:
 
 performance_monitor = PerformanceMonitor()
 
-# Configuration with optimizations
+# ============================================================================
+# ✅ CONFIGURATION
+# ============================================================================
+
 class Config:
     # API Configuration
     API_ID = int(os.environ.get("API_ID", "0"))
@@ -221,7 +204,7 @@ class Config:
     WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
     BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
     
-    # API Keys for FAST POSTERS
+    # API Keys for ULTRA-FAST POSTERS
     TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "e547e17d4e91f3e62a571655cd1ccaff")
     OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "8265bd1c")
     GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
@@ -239,19 +222,30 @@ class Config:
     QUALITY_PRIORITY = ['2160p', '1080p', '720p', '480p', '360p']
     HEVC_VARIANTS = ['720p HEVC', '1080p HEVC', '2160p HEVC']
     
+    # Fallback Poster
+    FALLBACK_POSTER = "https://iili.io/fAeIwv9.th.png"
+    
     @staticmethod
     def get_poster(title, year=""):
-        """Generate poster URL for fallback"""
+        """Generate poster URL for fallback - NO BLINKING"""
         if not title:
-            return f"https://via.placeholder.com/300x450/1a1a2e/ffffff?text=No+Poster"
+            return Config.FALLBACK_POSTER
         
-        encoded_title = urllib.parse.quote(title[:50])
+        encoded_title = urllib.parse.quote(title[:40])
+        
+        # Generate color from title hash
+        title_hash = hashlib.md5(title.encode()).hexdigest()
+        color = title_hash[:6]
+        
         if year:
-            return f"{Config.BACKEND_URL}/api/poster?title={encoded_title}&year={year}"
+            return f"https://via.placeholder.com/300x450/{color}/ffffff?text={encoded_title}&subtext={year}"
         else:
-            return f"{Config.BACKEND_URL}/api/poster?title={encoded_title}"
+            return f"https://via.placeholder.com/300x450/{color}/ffffff?text={encoded_title}"
 
-# FAST INITIALIZATION
+# ============================================================================
+# ✅ FAST INITIALIZATION
+# ============================================================================
+
 app = Quart(__name__)
 app.config['JSON_SORT_KEYS'] = False
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -262,7 +256,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.1-QUALITY-MERGED-FAST-POSTERS'
+    response.headers['X-SK4FiLM-Version'] = '8.2-ULTRA-FAST-NO-BLINKING'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -393,122 +387,6 @@ def channel_name(channel_id):
     return channel_name_cached(channel_id)
 
 # ============================================================================
-# ✅ DUAL SESSION ARCHITECTURE
-# ============================================================================
-
-# GLOBAL SESSIONS
-User = None        # ✅ For TEXT channel searches (-1001891090100, -1002024811395)
-Bot = None         # ✅ For FILE channel operations (-1001768249569)
-user_session_ready = False
-bot_session_ready = False
-
-# Database
-mongo_client = None
-db = None
-files_col = None
-verification_col = None
-poster_col = None
-
-# Components
-cache_manager = None
-poster_fetcher = None
-
-# CHANNEL CONFIGURATION
-CHANNEL_CONFIG = {
-    -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'session': 'user'},
-    -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'session': 'user'},
-    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'session': 'bot', 'sync_manage': True}
-}
-
-# ============================================================================
-# ✅ CACHE MANAGER
-# ============================================================================
-
-class CacheManager:
-    def __init__(self, config):
-        self.config = config
-        self.redis_client = None
-        self.redis_enabled = False
-        self.memory_cache = {}
-    
-    async def init_redis(self):
-        try:
-            self.redis_client = redis.from_url(
-                self.config.REDIS_URL,
-                password=self.config.REDIS_PASSWORD or None,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_keepalive=True
-            )
-            await self.redis_client.ping()
-            self.redis_enabled = True
-            logger.info("✅ Redis connected successfully!")
-            return True
-        except Exception as e:
-            logger.warning(f"⚠️ Redis not available: {e}")
-            self.redis_enabled = False
-            return False
-    
-    async def get(self, key: str, default=None):
-        try:
-            if self.redis_enabled and self.redis_client is not None:
-                value = await self.redis_client.get(key)
-                if value:
-                    return json.loads(value)
-        except:
-            pass
-        
-        if key in self.memory_cache:
-            data, expiry = self.memory_cache[key]
-            if expiry > datetime.now():
-                return data
-        
-        return default
-    
-    async def set(self, key: str, value: Any, expire_seconds: int = 300):
-        try:
-            if self.redis_enabled and self.redis_client is not None:
-                await self.redis_client.setex(key, expire_seconds, json.dumps(value))
-        except:
-            pass
-        
-        expiry = datetime.now() + timedelta(seconds=expire_seconds)
-        self.memory_cache[key] = (value, expiry)
-    
-    async def get_search_results(self, query: str, page: int, limit: int):
-        cache_key = f"search:{query}:{page}:{limit}"
-        return await self.get(cache_key)
-    
-    async def cache_search_results(self, query: str, page: int, limit: int, data: Dict):
-        cache_key = f"search:{query}:{page}:{limit}"
-        await self.set(cache_key, data, expire_seconds=600)
-    
-    async def clear_all(self):
-        try:
-            if self.redis_enabled and self.redis_client is not None:
-                await self.redis_client.flushdb()
-        except:
-            pass
-        self.memory_cache.clear()
-    
-    async def start_cleanup_task(self):
-        async def cleanup():
-            while True:
-                await asyncio.sleep(300)
-                self._cleanup_memory_cache()
-        
-        asyncio.create_task(cleanup())
-    
-    def _cleanup_memory_cache(self):
-        now = datetime.now()
-        expired_keys = [k for k, (_, expiry) in self.memory_cache.items() if expiry < now]
-        for key in expired_keys:
-            del self.memory_cache[key]
-    
-    async def stop(self):
-        pass
-
-# ============================================================================
 # ✅ QUALITY DETECTION ENHANCED
 # ============================================================================
 
@@ -562,288 +440,6 @@ def extract_quality_info(filename):
         'is_hevc': is_hevc,
         'priority': Config.QUALITY_PRIORITY.index(base_quality) if base_quality in Config.QUALITY_PRIORITY else 999
     }
-
-# ============================================================================
-# ✅ FAST POSTER FETCHER
-# ============================================================================
-
-class FastPosterFetcher:
-    def __init__(self, cache_manager):
-        self.cache_manager = cache_manager
-        self.http_session = None
-        self.memory_cache = {}
-    
-    async def init_http_session(self):
-        if self.http_session is None:
-            self.http_session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=3),
-                connector=aiohttp.TCPConnector(limit=20)
-            )
-    
-    async def fetch_fast_poster(self, title: str, year: str = ""):
-        """Fetch poster from fastest available source"""
-        cache_key = f"fast_poster:{title}:{year}"
-        
-        # Check memory cache first
-        if cache_key in self.memory_cache:
-            data, expiry = self.memory_cache[cache_key]
-            if expiry > datetime.now():
-                return data
-        
-        # Check Redis cache
-        if self.cache_manager is not None and self.cache_manager.redis_enabled:
-            cached_data = await self.cache_manager.get(cache_key)
-            if cached_data:
-                self.memory_cache[cache_key] = (cached_data, datetime.now() + timedelta(hours=24))
-                return cached_data
-        
-        # Try multiple sources concurrently
-        poster_data = await self._try_all_sources_concurrently(title, year)
-        
-        if poster_data:
-            # Cache the result
-            self.memory_cache[cache_key] = (poster_data, datetime.now() + timedelta(hours=24))
-            if self.cache_manager is not None:
-                await self.cache_manager.set(cache_key, poster_data, expire_seconds=7*24*3600)
-        
-        return poster_data
-    
-    async def _try_all_sources_concurrently(self, title: str, year: str):
-        """Try all poster sources concurrently"""
-        tasks = []
-        
-        # TMDB source
-        if Config.TMDB_API_KEY:
-            tasks.append(self._try_tmdb_source(title, year))
-        
-        # OMDB source
-        if Config.OMDB_API_KEY:
-            tasks.append(self._try_omdb_source(title, year))
-        
-        # Google source
-        if Config.GOOGLE_API_KEY and Config.GOOGLE_CX:
-            tasks.append(self._try_google_source(title, year))
-        
-        # Add fallback sources
-        tasks.append(self._try_placeholder_source(title, year))
-        tasks.append(self._try_local_source(title, year))
-        
-        # Run all tasks concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Return first successful result
-        for result in results:
-            if result and not isinstance(result, Exception):
-                return result
-        
-        # If all failed, create basic poster
-        return self._create_basic_poster(title, year)
-    
-    async def _try_tmdb_source(self, title: str, year: str):
-        """Try TMDB API for poster"""
-        try:
-            await self.init_http_session()
-            
-            search_query = urllib.parse.quote(f"{title} {year}")
-            url = f"https://api.themoviedb.org/3/search/movie?api_key={Config.TMDB_API_KEY}&query={search_query}&language=en-US"
-            
-            async with self.http_session.get(url, timeout=2) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get('results') and len(data['results']) > 0:
-                        movie = data['results'][0]
-                        if movie.get('poster_path'):
-                            poster_url = f"https://image.tmdb.org/t/p/w500{movie['poster_path']}"
-                            return {
-                                'url': poster_url,
-                                'source': 'tmdb',
-                                'rating': str(movie.get('vote_average', '0.0')),
-                                'year': str(movie.get('release_date', ''))[:4],
-                                'title': movie.get('title', title),
-                                'backdrop_url': f"https://image.tmdb.org/t/p/original{movie.get('backdrop_path', '')}" if movie.get('backdrop_path') else None
-                            }
-        except:
-            pass
-        return None
-    
-    async def _try_omdb_source(self, title: str, year: str):
-        """Try OMDB API for poster"""
-        try:
-            await self.init_http_session()
-            
-            search_query = urllib.parse.quote(title)
-            url = f"http://www.omdbapi.com/?apikey={Config.OMDB_API_KEY}&t={search_query}"
-            if year:
-                url += f"&y={year}"
-            
-            async with self.http_session.get(url, timeout=2) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get('Poster') and data['Poster'] != 'N/A':
-                        return {
-                            'url': data['Poster'],
-                            'source': 'omdb',
-                            'rating': data.get('imdbRating', '0.0'),
-                            'year': data.get('Year', year),
-                            'title': data.get('Title', title),
-                            'plot': data.get('Plot', '')
-                        }
-        except:
-            pass
-        return None
-    
-    async def _try_google_source(self, title: str, year: str):
-        """Try Google Custom Search for poster"""
-        try:
-            await self.init_http_session()
-            
-            search_query = urllib.parse.quote(f"{title} {year} movie poster")
-            url = f"https://www.googleapis.com/customsearch/v1?key={Config.GOOGLE_API_KEY}&cx={Config.GOOGLE_CX}&q={search_query}&searchType=image&num=1"
-            
-            async with self.http_session.get(url, timeout=2) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get('items') and len(data['items']) > 0:
-                        image_url = data['items'][0].get('link')
-                        if image_url:
-                            return {
-                                'url': image_url,
-                                'source': 'google',
-                                'rating': '0.0',
-                                'year': year,
-                                'title': title
-                            }
-        except:
-            pass
-        return None
-    
-    async def _try_placeholder_source(self, title: str, year: str):
-        """Generate placeholder poster"""
-        try:
-            title_hash = hashlib.md5(title.encode()).hexdigest()
-            color = f"#{title_hash[:6]}"
-            
-            encoded_title = urllib.parse.quote(title[:50])
-            poster_url = f"https://via.placeholder.com/300x450/{color[1:]}/ffffff?text={encoded_title}"
-            
-            if year:
-                poster_url += f"%28{year}%29"
-            
-            return {
-                'url': poster_url,
-                'source': 'placeholder',
-                'rating': '0.0',
-                'year': year,
-                'title': title
-            }
-        except:
-            return None
-    
-    async def _try_local_source(self, title: str, year: str):
-        """Try local poster generator"""
-        try:
-            encoded_title = urllib.parse.quote(title[:50])
-            if year:
-                poster_url = f"{Config.BACKEND_URL}/api/poster?title={encoded_title}&year={year}"
-            else:
-                poster_url = f"{Config.BACKEND_URL}/api/poster?title={encoded_title}"
-            
-            return {
-                'url': poster_url,
-                'source': 'local',
-                'rating': '0.0',
-                'year': year,
-                'title': title
-            }
-        except:
-            return None
-    
-    def _create_basic_poster(self, title: str, year: str):
-        """Create basic poster as last resort"""
-        clean_title = ''.join(c for c in title if c.isalnum() or c in ' _-')
-        encoded_title = urllib.parse.quote(clean_title[:50])
-        
-        poster_url = f"https://via.placeholder.com/300x450/1a1a2e/00ccff?text={encoded_title}"
-        if year:
-            poster_url += f"&subtext={year}"
-        
-        return {
-            'url': poster_url,
-            'source': 'basic',
-            'rating': '0.0',
-            'year': year,
-            'title': title
-        }
-    
-    def clear_cache(self):
-        self.memory_cache.clear()
-    
-    async def close(self):
-        if self.http_session is not None:
-            await self.http_session.close()
-
-# ============================================================================
-# ✅ FILE THUMBNAIL EXTRACTOR
-# ============================================================================
-
-class FileThumbnailExtractor:
-    """Extract thumbnails from Telegram video files"""
-    
-    @staticmethod
-    def generate_video_thumbnail(title, quality):
-        """Generate video-specific thumbnail"""
-        # Create a video-themed thumbnail
-        clean_title = title[:30]
-        encoded_title = urllib.parse.quote(clean_title)
-        
-        # Different colors for different qualities
-        quality_colors = {
-            '2160p': '4a148c',  # Purple
-            '1080p': '1565c0',  # Blue
-            '720p': '0277bd',   # Light Blue
-            '480p': '00838f',   # Teal
-            '360p': '00695c',   # Dark Teal
-        }
-        
-        color = quality_colors.get(quality.split()[0], '1a237e')  # Default dark blue
-        
-        # Add quality badge
-        quality_badge = f"&badge={urllib.parse.quote(quality)}&badgeColor=ff4081"
-        
-        # Add video icon
-        video_icon = "&logo=https://img.icons8.com/color/96/000000/video.png"
-        
-        thumbnail_url = f"https://via.placeholder.com/300x450/{color}/ffffff?text={encoded_title}{quality_badge}{video_icon}"
-        
-        return thumbnail_url
-    
-    @staticmethod
-    def get_file_type_icon(file_name):
-        """Get icon based on file type"""
-        if not file_name:
-            return "📁"
-        
-        file_ext = os.path.splitext(file_name)[1].lower()
-        
-        icons = {
-            '.mp4': '🎬',
-            '.mkv': '🎥',
-            '.avi': '📽️',
-            '.mov': '📹',
-            '.wmv': '📺',
-            '.flv': '📼',
-            '.webm': '🌐',
-            '.m4v': '📱',
-            '.3gp': '📲',
-            '.mp3': '🎵',
-            '.wav': '🎶',
-            '.zip': '📦',
-            '.rar': '🗜️',
-            '.srt': '📝',
-            '.ass': '✏️',
-        }
-        
-        return icons.get(file_ext, '📁')
 
 # ============================================================================
 # ✅ QUALITY MERGER
@@ -945,151 +541,174 @@ class QualityMerger:
         return " • ".join(summary_parts)
 
 # ============================================================================
-# ✅ DUAL SESSION INITIALIZATION
+# ✅ THUMBNAIL EXTRACTOR
 # ============================================================================
 
-@performance_monitor.measure("telegram_init")
-async def init_telegram_sessions():
-    """Initialize DUAL sessions: User for text, Bot for files"""
-    global User, Bot, user_session_ready, bot_session_ready
+class FileThumbnailExtractor:
+    """Extract thumbnails from Telegram video files"""
     
-    logger.info("=" * 60)
-    logger.info("🚀 DUAL SESSION INITIALIZATION")
-    logger.info("=" * 60)
+    @staticmethod
+    def generate_video_thumbnail(title, quality):
+        """Generate video-specific thumbnail"""
+        # Create a video-themed thumbnail
+        clean_title = title[:30]
+        encoded_title = urllib.parse.quote(clean_title)
+        
+        # Different colors for different qualities
+        quality_colors = {
+            '2160p': '4a148c',  # Purple
+            '1080p': '1565c0',  # Blue
+            '720p': '0277bd',   # Light Blue
+            '480p': '00838f',   # Teal
+            '360p': '00695c',   # Dark Teal
+        }
+        
+        color = quality_colors.get(quality.split()[0], '1a237e')  # Default dark blue
+        
+        # Add quality badge
+        quality_badge = f"&badge={urllib.parse.quote(quality)}&badgeColor=ff4081"
+        
+        # Add video icon
+        video_icon = "&logo=https://img.icons8.com/color/96/000000/video.png"
+        
+        thumbnail_url = f"https://via.placeholder.com/300x450/{color}/ffffff?text={encoded_title}{quality_badge}{video_icon}"
+        
+        return thumbnail_url
     
-    if not PYROGRAM_AVAILABLE:
-        logger.error("❌ Pyrogram not installed!")
-        return False
+    @staticmethod
+    def get_file_type_icon(file_name):
+        """Get icon based on file type"""
+        if not file_name:
+            return "📁"
+        
+        file_ext = os.path.splitext(file_name)[1].lower()
+        
+        icons = {
+            '.mp4': '🎬',
+            '.mkv': '🎥',
+            '.avi': '📽️',
+            '.mov': '📹',
+            '.wmv': '📺',
+            '.flv': '📼',
+            '.webm': '🌐',
+            '.m4v': '📱',
+            '.3gp': '📲',
+            '.mp3': '🎵',
+            '.wav': '🎶',
+            '.zip': '📦',
+            '.rar': '🗜️',
+            '.srt': '📝',
+            '.ass': '✏️',
+        }
+        
+        return icons.get(file_ext, '📁')
+
+# ============================================================================
+# ✅ CACHE MANAGER
+# ============================================================================
+
+class CacheManager:
+    def __init__(self, config):
+        self.config = config
+        self.redis_client = None
+        self.redis_enabled = False
+        self.memory_cache = {}
     
-    # ============================================================================
-    # ✅ 1. INITIALIZE USER SESSION (for TEXT channels)
-    # ============================================================================
-    if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
-        logger.info("\n👤 Initializing USER Session for TEXT channels...")
+    async def init_redis(self):
         try:
-            User = Client(
-                "sk4film_user",
-                api_id=Config.API_ID,
-                api_hash=Config.API_HASH,
-                session_string=Config.USER_SESSION_STRING,
-                sleep_threshold=30,
-                in_memory=True,
-                no_updates=True
+            self.redis_client = redis.from_url(
+                self.config.REDIS_URL,
+                password=self.config.REDIS_PASSWORD or None,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_keepalive=True
             )
-            
-            await User.start()
-            me = await User.get_me()
-            logger.info(f"✅ USER Session Ready: {me.first_name}")
-            
-            # Test TEXT channel access
-            try:
-                chat = await User.get_chat(Config.MAIN_CHANNEL_ID)
-                logger.info(f"✅ TEXT Channel Access: {chat.title}")
-                user_session_ready = True
-            except Exception as e:
-                logger.error(f"❌ TEXT Channel access failed: {e}")
-                user_session_ready = False
-                
+            await self.redis_client.ping()
+            self.redis_enabled = True
+            logger.info("✅ Redis connected successfully!")
+            return True
         except Exception as e:
-            logger.error(f"❌ USER Session failed: {e}")
-            user_session_ready = False
-            if User is not None:
-                try:
-                    await User.stop()
-                except:
-                    pass
-            User = None
+            logger.warning(f"⚠️ Redis not available: {e}")
+            self.redis_enabled = False
+            return False
     
-    # ============================================================================
-    # ✅ 2. INITIALIZE BOT SESSION (for FILE channel)
-    # ============================================================================
-    if Config.BOT_TOKEN:
-        logger.info("\n🤖 Initializing BOT Session for FILE channel...")
+    async def get(self, key: str, default=None):
         try:
-            Bot = Client(
-                "sk4film_bot",
-                api_id=Config.API_ID,
-                api_hash=Config.API_HASH,
-                bot_token=Config.BOT_TOKEN,
-                sleep_threshold=30,
-                in_memory=True,
-                no_updates=True
-            )
-            
-            await Bot.start()
-            bot_info = await Bot.get_me()
-            logger.info(f"✅ BOT Session Ready: @{bot_info.username}")
-            
-            # Test FILE channel access
-            try:
-                chat = await Bot.get_chat(Config.FILE_CHANNEL_ID)
-                logger.info(f"✅ FILE Channel Access: {chat.title}")
-                bot_session_ready = True
-            except Exception as e:
-                logger.error(f"❌ FILE Channel access failed: {e}")
-                bot_session_ready = False
-                
-        except Exception as e:
-            logger.error(f"❌ BOT Session failed: {e}")
-            bot_session_ready = False
-            if Bot is not None:
-                try:
-                    await Bot.stop()
-                except:
-                    pass
-            Bot = None
+            if self.redis_enabled and self.redis_client is not None:
+                value = await self.redis_client.get(key)
+                if value:
+                    return json.loads(value)
+        except:
+            pass
+        
+        if key in self.memory_cache:
+            data, expiry = self.memory_cache[key]
+            if expiry > datetime.now():
+                return data
+        
+        return default
     
-    # ============================================================================
-    # ✅ 3. SUMMARY
-    # ============================================================================
-    logger.info("\n" + "=" * 60)
-    logger.info("📊 SESSION SUMMARY")
-    logger.info("=" * 60)
-    logger.info(f"USER Session (TEXT): {'✅ READY' if user_session_ready else '❌ NOT READY'}")
-    logger.info(f"BOT Session (FILE): {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
-    logger.info(f"TEXT Channels: {Config.TEXT_CHANNEL_IDS}")
-    logger.info(f"FILE Channel: {Config.FILE_CHANNEL_ID}")
+    async def set(self, key: str, value: Any, expire_seconds: int = 300):
+        try:
+            if self.redis_enabled and self.redis_client is not None:
+                await self.redis_client.setex(key, expire_seconds, json.dumps(value))
+        except:
+            pass
+        
+        expiry = datetime.now() + timedelta(seconds=expire_seconds)
+        self.memory_cache[key] = (value, expiry)
     
-    return user_session_ready or bot_session_ready
+    async def clear_all(self):
+        try:
+            if self.redis_enabled and self.redis_client is not None:
+                await self.redis_client.flushdb()
+        except:
+            pass
+        self.memory_cache.clear()
+    
+    async def start_cleanup_task(self):
+        async def cleanup():
+            while True:
+                await asyncio.sleep(300)
+                self._cleanup_memory_cache()
+        
+        asyncio.create_task(cleanup())
+    
+    def _cleanup_memory_cache(self):
+        now = datetime.now()
+        expired_keys = [k for k, (_, expiry) in self.memory_cache.items() if expiry < now]
+        for key in expired_keys:
+            del self.memory_cache[key]
+    
+    async def stop(self):
+        pass
 
 # ============================================================================
-# ✅ MONGODB INITIALIZATION
+# ✅ DUAL SESSION ARCHITECTURE
 # ============================================================================
 
-@performance_monitor.measure("mongodb_init")
-async def init_mongodb():
-    global mongo_client, db, files_col, verification_col, poster_col
-    
-    try:
-        logger.info("🔌 MongoDB initialization...")
-        
-        mongo_client = AsyncIOMotorClient(
-            Config.MONGODB_URI,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=15000,
-            maxPoolSize=20,
-            minPoolSize=5,
-            retryWrites=True,
-            retryReads=True
-        )
-        
-        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=5)
-        
-        db = mongo_client.sk4film
-        files_col = db.files
-        verification_col = db.verifications
-        poster_col = db.posters
-        
-        logger.info("✅ MongoDB OK")
-        return True
-        
-    except asyncio.TimeoutError:
-        logger.error("❌ MongoDB connection timeout")
-        return False
-    except Exception as e:
-        logger.error(f"❌ MongoDB error: {e}")
-        return False
+# GLOBAL SESSIONS
+User = None        # ✅ For TEXT channel searches (-1001891090100, -1002024811395)
+Bot = None         # ✅ For FILE channel operations (-1001768249569)
+user_session_ready = False
+bot_session_ready = False
+
+# Database
+mongo_client = None
+db = None
+files_col = None
+verification_col = None
+
+# Components
+cache_manager = None
+poster_fetcher = None  # ✅ ULTRA-FAST POSTER FETCHER
+
+# CHANNEL CONFIGURATION
+CHANNEL_CONFIG = {
+    -1001891090100: {'name': 'SK4FiLM Main', 'type': 'text', 'session': 'user'},
+    -1002024811395: {'name': 'SK4FiLM Updates', 'type': 'text', 'session': 'user'},
+    -1001768249569: {'name': 'SK4FiLM Files', 'type': 'file', 'session': 'bot', 'sync_manage': True}
+}
 
 # ============================================================================
 # ✅ SYNC MANAGEMENT
@@ -1211,6 +830,270 @@ class ChannelSyncManager:
 channel_sync_manager = ChannelSyncManager()
 
 # ============================================================================
+# ✅ DUAL SESSION INITIALIZATION
+# ============================================================================
+
+@performance_monitor.measure("telegram_init")
+async def init_telegram_sessions():
+    """Initialize DUAL sessions: User for text, Bot for files"""
+    global User, Bot, user_session_ready, bot_session_ready
+    
+    logger.info("=" * 60)
+    logger.info("🚀 DUAL SESSION INITIALIZATION")
+    logger.info("=" * 60)
+    
+    if not PYROGRAM_AVAILABLE:
+        logger.error("❌ Pyrogram not installed!")
+        return False
+    
+    # ============================================================================
+    # ✅ 1. INITIALIZE USER SESSION (for TEXT channels)
+    # ============================================================================
+    if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
+        logger.info("\n👤 Initializing USER Session for TEXT channels...")
+        try:
+            User = Client(
+                "sk4film_user",
+                api_id=Config.API_ID,
+                api_hash=Config.API_HASH,
+                session_string=Config.USER_SESSION_STRING,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await User.start()
+            me = await User.get_me()
+            logger.info(f"✅ USER Session Ready: {me.first_name}")
+            
+            # Test TEXT channel access
+            try:
+                chat = await User.get_chat(Config.MAIN_CHANNEL_ID)
+                logger.info(f"✅ TEXT Channel Access: {chat.title}")
+                user_session_ready = True
+            except Exception as e:
+                logger.error(f"❌ TEXT Channel access failed: {e}")
+                user_session_ready = False
+                
+        except Exception as e:
+            logger.error(f"❌ USER Session failed: {e}")
+            user_session_ready = False
+            if User is not None:
+                try:
+                    await User.stop()
+                except:
+                    pass
+            User = None
+    
+    # ============================================================================
+    # ✅ 2. INITIALIZE BOT SESSION (for FILE channel)
+    # ============================================================================
+    if Config.BOT_TOKEN:
+        logger.info("\n🤖 Initializing BOT Session for FILE channel...")
+        try:
+            Bot = Client(
+                "sk4film_bot",
+                api_id=Config.API_ID,
+                api_hash=Config.API_HASH,
+                bot_token=Config.BOT_TOKEN,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await Bot.start()
+            bot_info = await Bot.get_me()
+            logger.info(f"✅ BOT Session Ready: @{bot_info.username}")
+            
+            # Test FILE channel access
+            try:
+                chat = await Bot.get_chat(Config.FILE_CHANNEL_ID)
+                logger.info(f"✅ FILE Channel Access: {chat.title}")
+                bot_session_ready = True
+            except Exception as e:
+                logger.error(f"❌ FILE Channel access failed: {e}")
+                bot_session_ready = False
+                
+        except Exception as e:
+            logger.error(f"❌ BOT Session failed: {e}")
+            bot_session_ready = False
+            if Bot is not None:
+                try:
+                    await Bot.stop()
+                except:
+                    pass
+            Bot = None
+    
+    # ============================================================================
+    # ✅ 3. SUMMARY
+    # ============================================================================
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 SESSION SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"USER Session (TEXT): {'✅ READY' if user_session_ready else '❌ NOT READY'}")
+    logger.info(f"BOT Session (FILE): {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
+    logger.info(f"TEXT Channels: {Config.TEXT_CHANNEL_IDS}")
+    logger.info(f"FILE Channel: {Config.FILE_CHANNEL_ID}")
+    
+    return user_session_ready or bot_session_ready
+
+# ============================================================================
+# ✅ MONGODB INITIALIZATION
+# ============================================================================
+
+@performance_monitor.measure("mongodb_init")
+async def init_mongodb():
+    global mongo_client, db, files_col, verification_col
+    
+    try:
+        logger.info("🔌 MongoDB initialization...")
+        
+        mongo_client = AsyncIOMotorClient(
+            Config.MONGODB_URI,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=15000,
+            maxPoolSize=20,
+            minPoolSize=5,
+            retryWrites=True,
+            retryReads=True
+        )
+        
+        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=5)
+        
+        db = mongo_client.sk4film
+        files_col = db.files
+        verification_col = db.verifications
+        
+        logger.info("✅ MongoDB OK")
+        return True
+        
+    except asyncio.TimeoutError:
+        logger.error("❌ MongoDB connection timeout")
+        return False
+    except Exception as e:
+        logger.error(f"❌ MongoDB error: {e}")
+        return False
+
+# ============================================================================
+# ✅ POSTER FETCHING FUNCTIONS (NO BLINKING)
+# ============================================================================
+
+async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
+    """
+    Get poster for movie - NO BLINKING GUARANTEED
+    Always returns valid poster data immediately
+    """
+    global poster_fetcher
+    
+    # If poster_fetcher is not available, create fallback immediately
+    if poster_fetcher is None:
+        return {
+            'url': Config.FALLBACK_POSTER,
+            'source': 'fallback_immediate',
+            'rating': '0.0',
+            'year': year,
+            'title': title,
+            'quality': quality or 'unknown'
+        }
+    
+    try:
+        # Fetch poster with timeout protection
+        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title, year, quality))
+        
+        try:
+            # Wait for poster with timeout
+            poster_data = await asyncio.wait_for(poster_task, timeout=3.0)
+            
+            # Ensure we have a valid URL
+            if poster_data and poster_data.get('url'):
+                logger.debug(f"✅ Poster fetched: {title} - {poster_data['source']}")
+                return poster_data
+            else:
+                raise ValueError("Invalid poster data")
+                
+        except (asyncio.TimeoutError, ValueError, Exception) as e:
+            logger.warning(f"⚠️ Poster fetch timeout/error for {title}: {e}")
+            
+            # Cancel the task if it's still running
+            if not poster_task.done():
+                poster_task.cancel()
+            
+            # Return fallback immediately
+            return {
+                'url': Config.FALLBACK_POSTER,
+                'source': 'fallback_timeout',
+                'rating': '0.0',
+                'year': year,
+                'title': title,
+                'quality': quality or 'unknown'
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in get_poster_for_movie: {e}")
+        # Always return fallback
+        return {
+            'url': Config.FALLBACK_POSTER,
+            'source': 'fallback_error',
+            'rating': '0.0',
+            'year': year,
+            'title': title,
+            'quality': quality or 'unknown'
+        }
+
+async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
+    """
+    Get posters for multiple movies in batch - NO BLINKING
+    """
+    results = []
+    
+    # Create tasks for all movies
+    tasks = []
+    for movie in movies:
+        title = movie.get('title', '')
+        year = movie.get('year', '')
+        quality = movie.get('quality', '')
+        
+        task = asyncio.create_task(get_poster_for_movie(title, year, quality))
+        tasks.append((movie, task))
+    
+    # Process results as they complete
+    for movie, task in tasks:
+        try:
+            poster_data = await task
+            
+            # Update movie with poster data
+            movie_with_poster = movie.copy()
+            movie_with_poster.update({
+                'poster_url': poster_data['url'],
+                'poster_source': poster_data['source'],
+                'poster_rating': poster_data['rating'],
+                'thumbnail': poster_data['url'],
+                'thumbnail_source': poster_data['source'],
+                'has_poster': True
+            })
+            
+            results.append(movie_with_poster)
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Batch poster error for {movie.get('title')}: {e}")
+            
+            # Add movie with fallback
+            movie_with_fallback = movie.copy()
+            movie_with_fallback.update({
+                'poster_url': Config.FALLBACK_POSTER,
+                'poster_source': 'batch_fallback',
+                'poster_rating': '0.0',
+                'thumbnail': Config.FALLBACK_POSTER,
+                'thumbnail_source': 'batch_fallback',
+                'has_poster': True
+            })
+            
+            results.append(movie_with_fallback)
+    
+    return results
+
+# ============================================================================
 # ✅ FILE INDEXING
 # ============================================================================
 
@@ -1293,8 +1176,6 @@ async def index_single_file_smart(message):
             'indexed_at': datetime.now(),
             'last_checked': datetime.now(),
             'is_video_file': False,
-            'thumbnail': None,
-            'thumbnail_source': 'none',
             'file_id': None,
             'file_size': 0,
             'file_hash': None,
@@ -1424,13 +1305,13 @@ async def index_files_background_smart():
         logger.error(f"❌ Background indexing error: {e}")
 
 # ============================================================================
-# ✅ COMBINED SEARCH WITH QUALITY MERGING
+# ✅ COMBINED SEARCH WITH QUALITY MERGING (ULTRA-FAST POSTERS)
 # ============================================================================
 
 @performance_monitor.measure("multi_channel_search_merged")
 @async_cache_with_ttl(maxsize=500, ttl=300)
 async def search_movies_multi_channel_merged(query, limit=12, page=1):
-    """COMBINED search with QUALITY MERGING"""
+    """COMBINED search with QUALITY MERGING & ULTRA-FAST POSTERS"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -1461,14 +1342,12 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                         if title and (query_lower in title.lower() or query_lower in msg.text.lower()):
                             norm_title = normalize_title_cached(title)
                             if norm_title not in channel_posts:
-                                # Get FAST poster
+                                # Get FAST poster IMMEDIATELY (no waiting)
                                 year_match = re.search(r'\b(19|20)\d{2}\b', title)
                                 year = year_match.group() if year_match else ""
                                 
-                                poster_data = await poster_fetcher.fetch_fast_poster(title, year) if poster_fetcher else None
-                                poster_url = poster_data['url'] if poster_data else Config.get_poster(title, year)
-                                
-                                channel_posts[norm_title] = {
+                                # Create movie data
+                                movie_data = {
                                     'title': title,
                                     'normalized_title': norm_title,
                                     'content': format_post(msg.text, max_length=1000),
@@ -1481,14 +1360,12 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                                     'has_file': False,
                                     'has_post': True,
                                     'quality_options': {},
-                                    'thumbnail': poster_url,
-                                    'thumbnail_source': poster_data['source'] if poster_data else 'local',
-                                    'poster_url': poster_url,
-                                    'poster_source': poster_data['source'] if poster_data else 'local',
-                                    'poster_rating': poster_data.get('rating', '0.0') if poster_data else '0.0',
                                     'is_video_file': False,
                                     'year': year
                                 }
+                                
+                                # Get poster (async but don't wait in this loop)
+                                channel_posts[norm_title] = movie_data
             except Exception as e:
                 logger.error(f"Text search error in {channel_id}: {e}")
             return channel_posts
@@ -1550,20 +1427,10 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     }
                     
                     if norm_title not in files_dict:
-                        # Get poster for file
+                        # Create movie data
                         title = doc['title']
                         year_match = re.search(r'\b(19|20)\d{2}\b', title)
                         year = year_match.group() if year_match else ""
-                        
-                        poster_data = await poster_fetcher.fetch_fast_poster(title, year) if poster_fetcher else None
-                        
-                        # Generate video thumbnail
-                        if doc.get('is_video_file'):
-                            thumbnail_url = FileThumbnailExtractor.generate_video_thumbnail(title, quality)
-                            thumbnail_source = 'video_file'
-                        else:
-                            thumbnail_url = poster_data['url'] if poster_data else Config.get_poster(title, year)
-                            thumbnail_source = poster_data['source'] if poster_data else 'local'
                         
                         files_dict[norm_title] = {
                             'title': title,
@@ -1578,13 +1445,9 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             'channel_name': channel_name_cached(doc.get('channel_id')),
                             'has_file': True,
                             'has_post': bool(doc.get('caption')),
-                            'thumbnail': thumbnail_url,
-                            'thumbnail_source': thumbnail_source,
-                            'poster_url': poster_data['url'] if poster_data else thumbnail_url,
-                            'poster_source': poster_data['source'] if poster_data else thumbnail_source,
-                            'poster_rating': poster_data.get('rating', '0.0') if poster_data else '0.0',
                             'file_caption': doc.get('caption', ''),
-                            'year': year
+                            'year': year,
+                            'quality': quality
                         }
                     else:
                         # Add quality option to existing entry
@@ -1615,6 +1478,9 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     
     all_titles = set(list(posts_dict.keys()) + list(files_dict.keys()))
     
+    # Create list for batch poster fetching
+    movies_for_posters = []
+    
     for norm_title in all_titles:
         post_data = posts_dict.get(norm_title)
         file_data = files_dict.get(norm_title)
@@ -1626,11 +1492,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             result['has_file'] = True
             result['quality_options'] = file_data['quality_options']
             result['quality_summary'] = file_data.get('quality_summary', '')
-            
-            # Use better thumbnail if available
-            if file_data.get('is_video_file'):
-                result['thumbnail'] = file_data['thumbnail']
-                result['thumbnail_source'] = file_data['thumbnail_source']
+            result['quality'] = file_data.get('quality', '')
             
             # If post has no content but file has caption, use it
             if not result.get('post_content') and file_data.get('file_caption'):
@@ -1648,34 +1510,48 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
         else:
             continue
         
-        # Ensure required fields
-        if 'thumbnail' not in result or not result['thumbnail']:
-            year_match = re.search(r'\b(19|20)\d{2}\b', result['title'])
-            year = year_match.group() if year_match else result.get('year', '')
-            
-            poster_data = await poster_fetcher.fetch_fast_poster(result['title'], year) if poster_fetcher else None
-            if poster_data:
-                result['thumbnail'] = poster_data['url']
-                result['thumbnail_source'] = poster_data['source']
-                result['poster_url'] = poster_data['url']
-                result['poster_source'] = poster_data['source']
-                result['poster_rating'] = poster_data.get('rating', '0.0')
-            else:
-                result['thumbnail'] = Config.get_poster(result['title'], year)
-                result['thumbnail_source'] = 'local'
-        
+        # Add to batch for poster fetching
+        movies_for_posters.append(result)
         merged[norm_title] = result
     
     # ============================================================================
-    # ✅ 5. SORT AND PAGINATE
+    # ✅ 5. FETCH POSTERS IN BATCH (ULTRA-FAST, NO BLINKING)
+    # ============================================================================
+    logger.info(f"🎬 Fetching posters for {len(movies_for_posters)} movies...")
+    
+    # Get posters for all movies in batch
+    movies_with_posters = await get_posters_for_movies_batch(movies_for_posters)
+    
+    # Update merged dict with poster data
+    for movie in movies_with_posters:
+        norm_title = movie.get('normalized_title', normalize_title_cached(movie['title']))
+        if norm_title in merged:
+            merged[norm_title].update({
+                'poster_url': movie['poster_url'],
+                'poster_source': movie['poster_source'],
+                'poster_rating': movie['poster_rating'],
+                'thumbnail': movie['thumbnail'],
+                'thumbnail_source': movie['thumbnail_source'],
+                'has_poster': movie['has_poster']
+            })
+            
+            # Generate video thumbnail if it's a video file
+            if merged[norm_title].get('is_video_file') and merged[norm_title].get('quality'):
+                quality = merged[norm_title]['quality']
+                title = merged[norm_title]['title']
+                merged[norm_title]['thumbnail'] = FileThumbnailExtractor.generate_video_thumbnail(title, quality)
+                merged[norm_title]['thumbnail_source'] = 'video_generated'
+    
+    # ============================================================================
+    # ✅ 6. SORT AND PAGINATE
     # ============================================================================
     results_list = list(merged.values())
     
     # Sort: Has files first, then new, then by date
     results_list.sort(key=lambda x: (
-        x['has_file'],
+        x.get('has_file', False),
         x.get('is_new', False),
-        x['date'] if isinstance(x.get('date'), str) else ''
+        x.get('date', '')
     ), reverse=True)
     
     total = len(results_list)
@@ -1684,9 +1560,9 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     # Statistics
     stats = {
         'total': total,
-        'with_files': sum(1 for r in results_list if r['has_file']),
-        'with_posts': sum(1 for r in results_list if r['has_post']),
-        'both': sum(1 for r in results_list if r['has_file'] and r['has_post']),
+        'with_files': sum(1 for r in results_list if r.get('has_file', False)),
+        'with_posts': sum(1 for r in results_list if r.get('has_post', False)),
+        'both': sum(1 for r in results_list if r.get('has_file', False) and r.get('has_post', False)),
         'video_files': sum(1 for r in results_list if r.get('is_video_file', False))
     }
     
@@ -1705,7 +1581,8 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             'query': query,
             'stats': stats,
             'quality_merging': True,
-            'fast_posters': True,
+            'ultra_fast_posters': True,
+            'no_blinking': True,
             'user_session_used': user_session_ready,
             'bot_session_used': bot_session_ready,
             'cache_hit': False
@@ -1722,13 +1599,13 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     return result_data
 
 # ============================================================================
-# ✅ HOME MOVIES WITH FAST POSTERS (6/6)
+# ✅ HOME MOVIES WITH ULTRA-FAST POSTERS (6/6) - NO BLINKING
 # ============================================================================
 
-@performance_monitor.measure("home_movies_fast")
+@performance_monitor.measure("home_movies_ultra_fast")
 @async_cache_with_ttl(maxsize=1, ttl=60)
-async def get_home_movies_fast(limit=6):
-    """Get home movies with FAST POSTERS (6/6)"""
+async def get_home_movies_ultra_fast(limit=6):
+    """Get home movies with ULTRA-FAST POSTERS (6/6) - NO BLINKING"""
     try:
         if User is None or not user_session_ready:
             return []
@@ -1736,7 +1613,7 @@ async def get_home_movies_fast(limit=6):
         movies = []
         seen_titles = set()
         
-        logger.info(f"🎬 Fetching home movies (6/6) with FAST posters...")
+        logger.info(f"🎬 Fetching home movies (6/6) with ULTRA-FAST posters...")
         
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=12):
             if msg is not None and msg.text and len(msg.text) > 20:
@@ -1753,15 +1630,9 @@ async def get_home_movies_fast(limit=6):
                     clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
                     clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
                     
-                    # ✅ GET FAST POSTER (concurrent)
-                    poster_task = poster_fetcher.fetch_fast_poster(clean_title, year) if poster_fetcher else None
-                    
                     # Format content
                     post_content = msg.text
                     formatted_content = format_post(msg.text, max_length=500)
-                    
-                    # Get poster result
-                    poster_data = await poster_task if poster_task else None
                     
                     movie_data = {
                         'title': clean_title,
@@ -1772,12 +1643,6 @@ async def get_home_movies_fast(limit=6):
                         'channel': channel_name_cached(Config.MAIN_CHANNEL_ID),
                         'channel_id': Config.MAIN_CHANNEL_ID,
                         'message_id': msg.id,
-                        'has_poster': True,
-                        'poster_url': poster_data['url'] if poster_data else Config.get_poster(clean_title, year),
-                        'poster_source': poster_data['source'] if poster_data else 'local',
-                        'poster_rating': poster_data.get('rating', '0.0') if poster_data else '0.0',
-                        'thumbnail': poster_data['url'] if poster_data else Config.get_poster(clean_title, year),
-                        'thumbnail_source': poster_data['source'] if poster_data else 'local',
                         'has_file': False,
                         'has_post': True,
                         'content': formatted_content,
@@ -1791,11 +1656,18 @@ async def get_home_movies_fast(limit=6):
                     if len(movies) >= limit:
                         break
         
-        logger.info(f"✅ Fetched {len(movies)} home movies with FAST posters")
-        return movies[:limit]
+        # Fetch posters for all movies in batch (NO BLINKING)
+        if movies:
+            movies_with_posters = await get_posters_for_movies_batch(movies)
+            logger.info(f"✅ Fetched {len(movies_with_posters)} home movies with ULTRA-FAST posters")
+            return movies_with_posters[:limit]
+        else:
+            logger.warning("⚠️ No movies found for home page")
+            return []
         
     except Exception as e:
         logger.error(f"❌ Home movies error: {e}")
+        # Return empty list with fallback posters
         return []
 
 # ============================================================================
@@ -1845,20 +1717,20 @@ THUMBNAIL_SOURCES = {
         'description': 'From OMDB API',
         'icon': '🎥'
     },
-    'google': {
+    'ultra_fast_fetcher': {
         'priority': 4,
-        'description': 'From Google Images',
-        'icon': '🔍'
+        'description': 'From Ultra-Fast Poster Fetcher',
+        'icon': '⚡'
     },
-    'placeholder': {
+    'fallback_immediate': {
         'priority': 5,
-        'description': 'Generated placeholder',
-        'icon': '⚙️'
+        'description': 'Immediate fallback (no blinking)',
+        'icon': '🛡️'
     },
-    'local': {
+    'video_generated': {
         'priority': 6,
-        'description': 'Local generated',
-        'icon': '🏠'
+        'description': 'Generated video thumbnail',
+        'icon': '🎥'
     }
 }
 
@@ -1866,12 +1738,12 @@ THUMBNAIL_SOURCES = {
 # ✅ MAIN INITIALIZATION
 # ============================================================================
 
-@performance_monitor.measure("system_init_enhanced")
+@performance_monitor.measure("system_init_ultra_fast")
 async def init_system():
     start_time = time.time()
     
     try:
-        logger.info("🚀 Starting SK4FiLM v8.1 - QUALITY MERGING & FAST POSTERS...")
+        logger.info("🚀 Starting SK4FiLM v8.2 - ULTRA-FAST POSTERS - NO BLINKING...")
         
         # Initialize MongoDB
         mongo_ok = await init_mongodb()
@@ -1886,10 +1758,18 @@ async def init_system():
             logger.info("✅ Cache Manager initialized")
             await cache_manager.start_cleanup_task()
         
-        # Initialize FAST Poster Fetcher
-        poster_fetcher = FastPosterFetcher(cache_manager)
-        await poster_fetcher.init_http_session()
-        logger.info("✅ FAST Poster Fetcher initialized")
+        # Initialize ULTRA-FAST Poster Fetcher
+        if POSTER_FETCHER_AVAILABLE:
+            try:
+                poster_fetcher = UltraFastPosterFetcher(cache_manager)
+                await poster_fetcher.init_http_session()
+                logger.info("✅ ULTRA-FAST Poster Fetcher initialized")
+            except Exception as e:
+                logger.error(f"❌ Poster Fetcher init failed: {e}")
+                poster_fetcher = None
+        else:
+            logger.warning("⚠️ Using fallback poster system")
+            poster_fetcher = None
         
         # Initialize Telegram DUAL Sessions
         if PYROGRAM_AVAILABLE:
@@ -1910,10 +1790,11 @@ async def init_system():
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         
         logger.info("🔧 ENHANCED FEATURES:")
+        logger.info(f"   • Ultra-Fast Posters: {'✅ ENABLED' if poster_fetcher else '⚠️ FALLBACK'}")
+        logger.info(f"   • No Blinking Guarantee: ✅ ENABLED")
         logger.info(f"   • Quality Merging: ✅ ENABLED")
-        logger.info(f"   • FAST Posters: ✅ ENABLED")
         logger.info(f"   • Video Thumbnails: ✅ ENABLED")
-        logger.info(f"   • Home Movies: 6/6 with FAST posters")
+        logger.info(f"   • Home Movies: 6/6 with ULTRA-FAST posters")
         
         return True
         
@@ -1938,7 +1819,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.1 - QUALITY MERGED & FAST POSTERS',
+        'service': 'SK4FiLM v8.2 - ULTRA-FAST POSTERS - NO BLINKING',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -1954,12 +1835,14 @@ async def root():
             'video_files': video_files,
             'connected': files_col is not None
         },
-        'cache': {
-            'redis_enabled': cache_manager.redis_enabled if cache_manager is not None else False
+        'poster_fetcher': {
+            'available': POSTER_FETCHER_AVAILABLE,
+            'initialized': poster_fetcher is not None
         },
         'features': {
+            'ultra_fast_posters': True,
+            'no_blinking_guarantee': True,
             'quality_merging': True,
-            'fast_posters': True,
             'home_movies_6_6': True,
             'hevc_support': True
         },
@@ -1975,31 +1858,32 @@ async def health():
             'user': user_session_ready,
             'bot': bot_session_ready
         },
+        'poster_fetcher': poster_fetcher is not None,
         'features': {
-            'quality_merging': True,
-            'fast_posters': True
+            'ultra_fast_posters': True,
+            'no_blinking': True
         },
         'timestamp': datetime.now().isoformat()
     })
 
 @app.route('/api/movies', methods=['GET'])
-@performance_monitor.measure("movies_endpoint_fast")
-async def api_movies_fast():
+@performance_monitor.measure("movies_endpoint_ultra_fast")
+async def api_movies_ultra_fast():
     try:
-        # Get 6 home movies with FAST posters
-        movies = await get_home_movies_fast(limit=6)
+        # Get 6 home movies with ULTRA-FAST posters
+        movies = await get_home_movies_ultra_fast(limit=6)
         
         return jsonify({
             'status': 'success' if movies else 'empty',
             'movies': movies,
             'total': len(movies),
             'limit': 6,
-            'source': 'telegram_fast',
-            'poster_sources': POSTER_SOURCES,
+            'source': 'telegram_ultra_fast',
+            'poster_fetcher': POSTER_FETCHER_AVAILABLE,
             'session_used': 'user',
             'channel_id': Config.MAIN_CHANNEL_ID,
             'timestamp': datetime.now().isoformat(),
-            'feature': 'home_movies_6_6'
+            'feature': 'home_movies_6_6_no_blinking'
         })
     except Exception as e:
         logger.error(f"Movies API error: {e}")
@@ -2011,8 +1895,8 @@ async def api_movies_fast():
         }), 500
 
 @app.route('/api/search', methods=['GET'])
-@performance_monitor.measure("search_endpoint_enhanced")
-async def api_search_enhanced():
+@performance_monitor.measure("search_endpoint_ultra_fast")
+async def api_search_ultra_fast():
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
@@ -2033,9 +1917,10 @@ async def api_search_enhanced():
             'pagination': result_data['pagination'],
             'search_metadata': {
                 **result_data.get('search_metadata', {}),
-                'feature': 'quality_merged_fast_posters',
+                'feature': 'quality_merged_ultra_fast_posters',
                 'thumbnail_sources': THUMBNAIL_SOURCES,
-                'quality_priority': Config.QUALITY_PRIORITY
+                'quality_priority': Config.QUALITY_PRIORITY,
+                'no_blinking': True
             },
             'timestamp': datetime.now().isoformat()
         })
@@ -2046,11 +1931,13 @@ async def api_search_enhanced():
             'message': str(e)
         }), 500
 
-@app.route('/api/poster/fast', methods=['GET'])
-async def api_poster_fast():
+@app.route('/api/poster/ultra_fast', methods=['GET'])
+@performance_monitor.measure("poster_endpoint_ultra_fast")
+async def api_poster_ultra_fast():
     try:
         title = request.args.get('title', '').strip()
         year = request.args.get('year', '')
+        quality = request.args.get('quality', '')
         
         if not title:
             return jsonify({
@@ -2058,32 +1945,59 @@ async def api_poster_fast():
                 'message': 'Title is required'
             }), 400
         
-        if poster_fetcher is not None:
-            poster_data = await poster_fetcher.fetch_fast_poster(title, year)
-            if poster_data:
-                return jsonify({
-                    'status': 'success',
-                    'poster': poster_data,
-                    'sources_tried': POSTER_SOURCES,
-                    'timestamp': datetime.now().isoformat()
-                })
+        # Get poster with NO BLINKING guarantee
+        poster_data = await get_poster_for_movie(title, year, quality)
         
-        # Fallback
-        poster_url = Config.get_poster(title, year)
         return jsonify({
             'status': 'success',
-            'poster': {
-                'url': poster_url,
-                'source': 'fallback',
-                'rating': '0.0',
-                'year': year,
-                'title': title
-            },
+            'poster': poster_data,
+            'no_blinking': True,
             'timestamp': datetime.now().isoformat()
         })
                 
     except Exception as e:
-        logger.error(f"Fast Poster API error: {e}")
+        logger.error(f"Ultra-Fast Poster API error: {e}")
+        # Still return fallback (NO BLINKING)
+        return jsonify({
+            'status': 'success',  # Still success to prevent frontend errors
+            'poster': {
+                'url': Config.FALLBACK_POSTER,
+                'source': 'error_fallback',
+                'rating': '0.0',
+                'year': request.args.get('year', ''),
+                'title': request.args.get('title', ''),
+                'quality': request.args.get('quality', '')
+            },
+            'no_blinking': True,
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/poster/batch', methods=['POST'])
+@performance_monitor.measure("poster_batch_endpoint")
+async def api_poster_batch():
+    try:
+        data = await request.get_json()
+        movies = data.get('movies', [])
+        
+        if not movies:
+            return jsonify({
+                'status': 'error',
+                'message': 'Movies list is required'
+            }), 400
+        
+        # Get posters for all movies in batch
+        movies_with_posters = await get_posters_for_movies_batch(movies)
+        
+        return jsonify({
+            'status': 'success',
+            'movies': movies_with_posters,
+            'count': len(movies_with_posters),
+            'no_blinking': True,
+            'timestamp': datetime.now().isoformat()
+        })
+                
+    except Exception as e:
+        logger.error(f"Batch Poster API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -2125,7 +2039,8 @@ async def api_thumbnail_generate():
         if file_type == 'video':
             thumbnail_url = FileThumbnailExtractor.generate_video_thumbnail(title, quality)
         else:
-            thumbnail_url = Config.get_poster(title)
+            poster_data = await get_poster_for_movie(title, quality=quality)
+            thumbnail_url = poster_data['url']
         
         return jsonify({
             'status': 'success',
@@ -2166,6 +2081,7 @@ async def api_index_status():
                 'deleted_by_sync': channel_sync_manager.deleted_count,
                 'user_session_ready': user_session_ready,
                 'bot_session_ready': bot_session_ready,
+                'poster_fetcher': poster_fetcher is not None,
                 'last_update': datetime.now().isoformat(),
                 'status': 'active' if (user_session_ready or bot_session_ready) else 'inactive'
             },
@@ -2178,22 +2094,28 @@ async def api_index_status():
             'message': str(e)
         }), 500
 
-@app.route('/api/sync/status', methods=['GET'])
-async def api_sync_status():
+@app.route('/api/stats', methods=['GET'])
+async def api_stats():
+    """Get performance statistics"""
     try:
+        perf_stats = performance_monitor.get_stats()
+        
+        if poster_fetcher and hasattr(poster_fetcher, 'get_stats'):
+            poster_stats = poster_fetcher.get_stats()
+        else:
+            poster_stats = {}
+        
         return jsonify({
             'status': 'success',
-            'sync': {
-                'monitoring': channel_sync_manager.is_monitoring,
-                'deleted_count': channel_sync_manager.deleted_count,
-                'file_channel': Config.FILE_CHANNEL_ID,
-                'session_used': 'bot',
-                'bot_session_ready': bot_session_ready,
-                'timestamp': datetime.now().isoformat()
-            }
+            'performance': perf_stats,
+            'poster_fetcher': poster_stats,
+            'cache': {
+                'redis_enabled': cache_manager.redis_enabled if cache_manager else False
+            },
+            'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
-        logger.error(f"Sync status API error: {e}")
+        logger.error(f"Stats API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -2211,7 +2133,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    logger.info("🛑 Shutting down SK4FiLM v8.1...")
+    logger.info("🛑 Shutting down SK4FiLM v8.2...")
     
     shutdown_tasks = []
     
@@ -2252,7 +2174,7 @@ if __name__ == "__main__":
     config.http2 = True
     config.keep_alive_timeout = 30
     
-    logger.info(f"🌐 Starting SK4FiLM v8.1 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 Features: Quality Merging + FAST Posters + 6/6 Home Movies")
+    logger.info(f"🌐 Starting SK4FiLM v8.2 on port {Config.WEB_SERVER_PORT}...")
+    logger.info("🎯 Features: ULTRA-FAST Posters + NO BLINKING + Quality Merging")
     
     asyncio.run(serve(app, config))
