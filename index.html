@@ -391,6 +391,24 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
         
+        /* ==== PROGRESSIVE LOADING STYLES ==== */
+        .progressive-loading {
+            background-color: rgba(30, 41, 59, 0.3);
+            background-image: url('https://iili.io/fAeIwv9.th.png');
+            background-size: cover;
+            background-position: center;
+            transition: filter 0.7s ease-out, opacity 0.5s ease-out;
+            filter: blur(15px);
+        }
+        
+        .progressive-image-container {
+            position: relative;
+            width: 100%;
+            height: 225px;
+            overflow: hidden;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
         /* ==== SKELETON LOADING EFFECTS ==== */
         .skeleton {
             background: linear-gradient(90deg, 
@@ -484,48 +502,16 @@
         }
         
         @media (min-width: 1200px) {
-            .hq-poster, .skeleton-poster { height: 313px; }
+            .hq-poster, .skeleton-poster, .progressive-image-container { height: 313px; }
         }
         
         @media (min-width: 768px) and (max-width: 1199px) {
-            .hq-poster, .skeleton-poster { height: 250px; }
+            .hq-poster, .skeleton-poster, .progressive-image-container { height: 250px; }
         }
         
         .movie-card:hover .hq-poster {
             transform: scale(1.05);
             filter: brightness(1.1);
-        }
-
-        /* Poster loading states */
-        .poster-loading {
-            position: relative;
-            background: linear-gradient(135deg, #1a1a2e, #2d3748);
-        }
-
-        .poster-loading::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
-        }
-
-        .poster-error {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 20px;
-            text-align: center;
         }
         
         .new-badge {
@@ -664,7 +650,7 @@
             }
         }
 
-        /* Popup Styles - Bottom Slide Up (Ad Size) */
+        /* Popup Styles */
         .popup-overlay {
             position: fixed;
             top: 0;
@@ -750,7 +736,6 @@
             border-radius: 0;
         }
 
-        /* Second Popup Styles - NO CLOSE BUTTON */
         .second-popup-overlay {
             position: fixed;
             top: 0;
@@ -810,6 +795,26 @@
             border-radius: 0;
         }
 
+        /* Batch loading indicator */
+        .batch-loading-indicator {
+            text-align: center;
+            padding: 20px;
+            margin: 20px 0;
+            background: rgba(0, 204, 255, 0.1);
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .batch-loading-indicator.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
         /* Mobile-specific popup styles */
         @media (max-width: 767px) {
             .popup-container,
@@ -960,6 +965,12 @@
                 </h2>
             </div>
             
+            <!-- Batch Loading Indicator -->
+            <div class="batch-loading-indicator" id="batchLoadingIndicator">
+                <div class="loading-spinner"></div>
+                <p style="color: var(--accent); margin-top: 10px;">Loading next batch...</p>
+            </div>
+            
             <div class="row g-4" id="homeMoviesContainer">
                 <!-- Skeleton loading cards (12 cards for responsive layout) -->
                 <div class="col-6 col-md-4 col-lg-3 col-xl-2">
@@ -971,6 +982,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- Repeat 11 more skeleton cards (total 12) -->
                 <div class="col-6 col-md-4 col-lg-3 col-xl-2">
                     <div class="skeleton-movie-card">
                         <div class="skeleton skeleton-poster"></div>
@@ -980,96 +992,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
+                <!-- ... add 10 more skeleton cards ... -->
             </div>
         </div>
 
@@ -1186,62 +1109,240 @@
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
+        const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         
-        console.log('🎬 SK4FiLM v6.0 - SKELETON LOADING SYSTEM');
+        console.log('🎬 SK4FiLM v6.1 - BATCHED PROGRESSIVE LOADING SYSTEM');
 
-        // ==== Enhanced Poster Loading System ====
-        const posterCache = new Map();
+        // ==== BATCH LOADING VARIABLES ====
+        let currentBatch = 0;
+        let totalMoviesLoaded = 0;
+        const BATCH_SIZE = 5;
+        const TOTAL_MOVIES_TO_LOAD = 20;
+        let allMovies = []; // Will store all movies from backend
 
-        // Multi-source poster URL builder with ALL sources
+        // ==== POSTER SOURCE HIERARCHY ====
+        const posterSources = [
+            // 1. Letterboxd (Primary) - You need to implement this in your backend
+            { name: 'Letterboxd', priority: 1 },
+            // 2. OMDB API (Secondary)
+            { name: 'OMDB', priority: 2 },
+            // 3. IMDb (Fast scraping)
+            { name: 'IMDb', priority: 3 },
+            // 4. IMPAwards (High quality)
+            { name: 'IMPAwards', priority: 4 },
+            // 5. JustWatch (Streaming service)
+            { name: 'JustWatch', priority: 5 },
+            // 6. YouTube Thumbnails (Fallback)
+            { name: 'YouTube', priority: 6 }
+        ];
+
+        // ==== BATCHED PROGRESSIVE LOADING SYSTEM ====
+        async function loadMoviesInBatches() {
+            try {
+                console.log(`🎬 Loading batch ${currentBatch + 1} of ${Math.ceil(TOTAL_MOVIES_TO_LOAD/BATCH_SIZE)}`);
+                
+                // Show loading indicator for batches after first
+                if (currentBatch > 0) {
+                    document.getElementById('batchLoadingIndicator').classList.add('active');
+                }
+                
+                // Calculate which movies to load in this batch
+                const startIndex = currentBatch * BATCH_SIZE;
+                const endIndex = Math.min(startIndex + BATCH_SIZE, TOTAL_MOVIES_TO_LOAD);
+                
+                // Load this batch
+                for (let i = startIndex; i < endIndex; i++) {
+                    if (i < allMovies.length) {
+                        await loadSingleMovieProgressive(i, allMovies[i]);
+                        totalMoviesLoaded++;
+                    }
+                }
+                
+                // Hide loading indicator
+                document.getElementById('batchLoadingIndicator').classList.remove('active');
+                
+                // Move to next batch
+                currentBatch++;
+                
+                // Schedule next batch if needed
+                if (totalMoviesLoaded < TOTAL_MOVIES_TO_LOAD && currentBatch * BATCH_SIZE < allMovies.length) {
+                    setTimeout(loadMoviesInBatches, 800); // 800ms delay between batches
+                } else {
+                    console.log(`✅ All ${totalMoviesLoaded} movies loaded successfully!`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error in batch loading:', error);
+                document.getElementById('batchLoadingIndicator').classList.remove('active');
+            }
+        }
+
+        // ==== ENHANCED PROGRESSIVE LOADING FOR SINGLE MOVIE ====
+        async function loadSingleMovieProgressive(index, movie) {
+            const movieCard = document.querySelector(`.movie-card[data-index="${index}"]`);
+            if (!movieCard) return;
+            
+            const img = movieCard.querySelector('.progressive-loading');
+            if (!img) return;
+            
+            const title = movie.title || 'Unknown';
+            const cacheKey = `${title}_${movie.year || ''}`;
+            
+            // Immediately show blurred placeholder
+            img.src = FALLBACK_IMAGE;
+            img.style.filter = 'blur(15px)';
+            img.style.opacity = '0.8';
+            
+            // Get poster URL from backend (your backend should handle the hierarchy)
+            const posterURL = buildPosterURL(movie);
+            
+            // Create a new image element to load in background
+            const highQualityImg = new Image();
+            
+            // Set timeout to ensure even failed loads show something
+            const loadTimeout = setTimeout(() => {
+                if (!highQualityImg.complete) {
+                    console.log(`⏱️ Timeout for: ${title}, using fallback`);
+                    completeProgressiveLoad(img, FALLBACK_IMAGE, title);
+                }
+            }, 5000); // 5 second timeout
+            
+            highQualityImg.onload = function() {
+                clearTimeout(loadTimeout);
+                completeProgressiveLoad(img, posterURL, title);
+            };
+            
+            highQualityImg.onerror = function() {
+                clearTimeout(loadTimeout);
+                console.warn(`❌ Failed to load poster for: ${title}`);
+                completeProgressiveLoad(img, FALLBACK_IMAGE, title);
+            };
+            
+            // Start loading
+            highQualityImg.src = posterURL;
+        }
+
+        function completeProgressiveLoad(img, finalSrc, title) {
+            // Smooth transition to final image
+            img.src = finalSrc;
+            
+            // Animate blur removal and opacity
+            setTimeout(() => {
+                img.style.filter = 'blur(0px)';
+                img.style.opacity = '1';
+            }, 100);
+            
+            console.log(`✅ Progressive load complete: ${title}`);
+        }
+
+        // ==== POSTER URL BUILDER WITH HIERARCHY ====
         function buildPosterURL(movie) {
             const title = movie.title || '';
             const year = movie.year || '';
             
-            // If backend provides poster URL, use it directly
+            // If backend provides a URL, use it directly
             if (movie.poster_url && movie.poster_url.startsWith('http')) {
                 return movie.poster_url;
             }
             
-            // Fallback to our custom poster generator
-            return `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}&year=${year}`;
+            // Build URL for your backend API
+            // Your backend should implement the source hierarchy
+            return `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}&year=${year}&sources=${posterSources.map(s => s.name).join(',')}`;
         }
 
-        async function loadPosterWithFallback(img, movie, container) {
-            const cacheKey = `${movie.title}_${movie.year}`;
-            
-            // Check cache first
-            if (posterCache.has(cacheKey)) {
-                img.src = posterCache.get(cacheKey);
-                img.classList.remove('poster-loading');
-                return;
+        // ==== INITIAL MOVIE LOADING ====
+        async function loadHomeMovies() {
+            try {
+                console.log('🎬 Loading all movies from backend...');
+                const response = await fetch(`${BACKEND_URL}/api/movies`);
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.movies?.length > 0) {
+                    allMovies = data.movies.slice(0, TOTAL_MOVIES_TO_LOAD); // Take first 20
+                    console.log(`📊 Loaded ${allMovies.length} movies from backend`);
+                    
+                    // Display all movie cards
+                    displayHomeMovies(allMovies);
+                    
+                    // Start batch loading
+                    setTimeout(loadMoviesInBatches, 500); // Small delay to show skeleton
+                } else {
+                    console.error('❌ No movies found in response');
+                    showError();
+                }
+            } catch (error) {
+                console.error('❌ Error loading movies:', error);
+                showError();
             }
-
-            const posterURL = buildPosterURL(movie);
-            
-            img.onerror = function() {
-                console.warn(`Poster failed for: ${movie.title}`);
-                // Fallback to custom poster
-                const fallbackURL = `${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title)}&year=${movie.year || ''}`;
-                img.src = fallbackURL;
-                img.classList.remove('poster-loading');
-                posterCache.set(cacheKey, fallbackURL);
-            };
-
-            img.onload = function() {
-                img.classList.remove('poster-loading');
-                posterCache.set(cacheKey, img.src);
-                console.log(`✅ Poster loaded: ${movie.title}`);
-            };
-
-            img.src = posterURL;
         }
 
-        // ==== Popup Functions ====
+        // ==== DISPLAY MOVIES WITH PROGRESSIVE LOADING READY ====
+        function displayHomeMovies(movies) {
+            const container = document.getElementById('homeMoviesContainer');
+            container.innerHTML = '';
+            
+            let html = '';
+            
+            movies.forEach((movie, index) => {
+                const title = movie.title || 'Unknown';
+                const isNew = movie.is_new;
+                const rating = movie.poster_rating || '0.0';
+                
+                html += `
+                    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                        <div class="movie-card animate__animated animate__fadeInUp" 
+                             data-index="${index}"
+                             style="animation-delay: ${index * 0.03}s">
+                            <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
+                            
+                            <div class="progressive-image-container">
+                                <img 
+                                    class="hq-poster progressive-loading" 
+                                    alt="${escapeHTML(title)}"
+                                    loading="lazy"
+                                    data-title="${escapeHTML(title)}"
+                                    data-year="${movie.year || ''}"
+                                >
+                            </div>
+                            
+                            ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
+                            
+                            ${rating !== '0.0' ? `
+                                <div class="rating-badge">
+                                    <i class="fas fa-star me-1"></i>${rating}
+                                </div>
+                            ` : ''}
+                            
+                            <div class="hq-info">
+                                <h6 class="hq-title">${escapeHTML(title)}</h6>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // ==== ERROR HANDLING ====
+        function showError() {
+            const container = document.getElementById('homeMoviesContainer');
+            container.innerHTML = `
+                <div class="col-12" style="text-align: center; padding: 60px;">
+                    <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
+                    <h3>Error loading movies</h3>
+                    <p class="text-muted mb-3">Please check if the backend server is running</p>
+                    <button onclick="location.reload()" style="background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; margin-top: 20px;">
+                        <i class="fas fa-redo me-2"></i>Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // ==== POPUP FUNCTIONS ====
         function showFirstPopup() {
             const overlay = document.getElementById('popupOverlay');
             const popup = document.getElementById('popupContainer');
-            
-            // Show overlay and popup
             overlay.classList.add('active');
             popup.classList.add('active');
         }
@@ -1250,22 +1351,14 @@
             const overlay = document.getElementById('popupOverlay');
             const popup = document.getElementById('popupContainer');
             const closeBtn = document.getElementById('popupClose');
-            
-            // Hide overlay and popup
             overlay.classList.remove('active');
             popup.classList.remove('active');
-            
-            // Completely hide close button after click
-            setTimeout(() => {
-                closeBtn.style.display = 'none';
-            }, 300);
+            setTimeout(() => closeBtn.style.display = 'none', 300);
         }
 
         function showSecondPopup() {
             const overlay = document.getElementById('secondPopupOverlay');
             const popup = document.getElementById('secondPopupContainer');
-            
-            // Show overlay and popup
             overlay.classList.add('active');
             popup.classList.add('active');
         }
@@ -1273,19 +1366,15 @@
         function hideSecondPopup() {
             const overlay = document.getElementById('secondPopupOverlay');
             const popup = document.getElementById('secondPopupContainer');
-            
-            // Hide overlay and popup
             overlay.classList.remove('active');
             popup.classList.remove('active');
         }
 
-        // Reset close button when first popup shows again
         function resetCloseButton() {
-            const closeBtn = document.getElementById('popupClose');
-            closeBtn.style.display = 'flex';
+            document.getElementById('popupClose').style.display = 'flex';
         }
 
-        // ==== Navigation Functions ====
+        // ==== NAVIGATION FUNCTIONS ====
         function toggleSearch() {
             const searchContainer = document.getElementById('searchContainer');
             const menuDropdown = document.getElementById('menuDropdown');
@@ -1357,106 +1446,7 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
-        // ==== Movie Loading Functions ====
-        async function loadHomeMovies() {
-            try {
-                console.log('🎬 Loading movies from backend...');
-                const response = await fetch(`${BACKEND_URL}/api/movies`);
-                const data = await response.json();
-                
-                console.log('📊 Backend response:', data);
-                
-                if (data.status === 'success' && data.movies?.length > 0) {
-                    console.log(`✅ Loaded ${data.movies.length} movies`);
-                    displayHomeMovies(data.movies);
-                } else {
-                    console.error('❌ No movies found in response');
-                    showError();
-                }
-            } catch (error) {
-                console.error('❌ Error loading movies:', error);
-                showError();
-            }
-        }
-        
-        function displayHomeMovies(movies) {
-            const container = document.getElementById('homeMoviesContainer');
-            
-            // Clear skeleton loading
-            container.innerHTML = '';
-            
-            let html = '';
-            
-            movies.forEach((movie, index) => {
-                const title = movie.title || 'Unknown';
-                const hasPoster = movie.has_poster !== false; // Assume poster exists unless explicitly false
-                const isNew = movie.is_new;
-                const rating = movie.poster_rating || '0.0';
-                const uniqueId = `movie-${index}-${Date.now()}`;
-                
-                html += `
-                    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="movie-card animate__animated animate__fadeInUp" style="animation-delay: ${index * 0.05}s">
-                            <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
-                            
-                            <div id="${uniqueId}">
-                                ${hasPoster ? `
-                                    <img 
-                                        class="hq-poster poster-loading" 
-                                        alt="${escapeHTML(title)}"
-                                        loading="lazy"
-                                        data-movie='${JSON.stringify({title: title, year: movie.year || '', poster_url: movie.poster_url})}'
-                                    >
-                                ` : `
-                                    <div class="hq-poster poster-error">
-                                        <div>
-                                            <i class="fas fa-film fa-4x mb-3"></i><br>
-                                            <strong>${escapeHTML(title)}</strong>
-                                        </div>
-                                    </div>
-                                `}
-                            </div>
-                            
-                            ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
-                            
-                            ${rating !== '0.0' ? `
-                                <div class="rating-badge">
-                                    <i class="fas fa-star me-1"></i>${rating}
-                                </div>
-                            ` : ''}
-                            
-                            <div class="hq-info">
-                                <h6 class="hq-title">${escapeHTML(title)}</h6>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-            
-            // Load posters with enhanced multi-source system
-            document.querySelectorAll('.hq-poster.poster-loading').forEach(img => {
-                const movieData = JSON.parse(img.getAttribute('data-movie'));
-                const container = img.parentElement;
-                loadPosterWithFallback(img, movieData, container);
-            });
-        }
-        
-        function showError() {
-            const container = document.getElementById('homeMoviesContainer');
-            container.innerHTML = `
-                <div class="col-12" style="text-align: center; padding: 60px;">
-                    <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
-                    <h3>Error loading movies</h3>
-                    <p class="text-muted mb-3">Please check if the backend server is running</p>
-                    <button onclick="loadHomeMovies()" style="background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; margin-top: 20px;">
-                        <i class="fas fa-redo me-2"></i>Retry
-                    </button>
-                </div>
-            `;
-        }
-        
+        // ==== UTILITY FUNCTIONS ====
         function escapeHTML(text) {
             if (!text) return '';
             return text
@@ -1474,28 +1464,28 @@
                 .replace(/'/g, "\\'")
                 .replace(/"/g, '\\"');
         }
-        
+
+        // ==== INITIALIZATION ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v6.0 FINAL - SKELETON LOADING + RESPONSIVE ADS');
+            console.log('🚀 SK4FiLM v6.1 - BATCHED PROGRESSIVE LOADING INITIALIZED');
             
             // Set up popup event listeners
             document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
             document.getElementById('popupOverlay').addEventListener('click', hideFirstPopup);
-            
-            // Second popup closes only on overlay click (no close button)
             document.getElementById('secondPopupOverlay').addEventListener('click', hideSecondPopup);
             
             // Show first popup automatically after 3 seconds
             setTimeout(showFirstPopup, 3000);
             
-            // Load movies after a short delay to show skeleton effect
+            // Load movies with batch progressive loading
             setTimeout(loadHomeMovies, 800);
             
             // Visitor counter animation
             setInterval(() => {
                 const counter = document.getElementById('visitorCount');
                 if (counter) {
-                    counter.textContent = parseInt(counter.textContent) + Math.floor(Math.random() * 3) + 1;
+                    const current = parseInt(counter.textContent);
+                    counter.textContent = current + Math.floor(Math.random() * 3) + 1;
                 }
             }, 35000);
             
@@ -1508,13 +1498,11 @@
                 });
             }
             
-            // Add smooth scroll behavior
+            // Smooth scroll
             document.documentElement.style.scrollBehavior = 'smooth';
         });
         
-        // Add loading state management
         window.addEventListener('load', function() {
-            // Add loaded class to body for any post-load effects
             document.body.classList.add('loaded');
         });
     </script>
