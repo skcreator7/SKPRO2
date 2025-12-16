@@ -231,10 +231,10 @@ class Config:
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60  # 24 hours
     
     # Auto Indexing Settings - INSTANT START
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "600"))  # 10 minutes
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "100"))  # Messages per batch
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "150"))  # 10 minutes
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))  # Messages per batch
     MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))  # 0 = Unlimited
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "false").lower() == "true"  # Disabled by default
+    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"  # Disabled by default
     INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"  # Start immediately
 
 # ============================================================================
@@ -2124,7 +2124,7 @@ async def get_home_movies(limit=20):
         
         logger.info(f"🎬 Fetching home movies (20)...")
         
-        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=12):
+        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=30):
             if msg is not None and msg.text and len(msg.text) > 20:
                 title = extract_title_smart(msg.text)
                 
@@ -2356,7 +2356,7 @@ async def health():
 async def api_movies():
     try:
         # Get 6 home movies
-        movies = await get_home_movies(limit=6)
+        movies = await get_home_movies(limit=20)
         
         return jsonify({
             'status': 'success' if movies else 'empty',
