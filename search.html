@@ -1190,6 +1190,7 @@ function toggleQuality(index) {
     arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
 }
 
+// FIXED: generateQualityOptions function - now handles undefined file_id properly
 function generateQualityOptions(qualityOptions) {
     if (!qualityOptions || Object.keys(qualityOptions).length === 0) return '<p class="text-center text-muted mb-0">No files available</p>';
     
@@ -1197,19 +1198,47 @@ function generateQualityOptions(qualityOptions) {
     ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'].forEach(quality => {
         if (qualityOptions[quality]) {
             const f = qualityOptions[quality];
-            const fileId = f.file_id;
+            
+            // FIX: Use file_id if available, otherwise create custom format
+            let fileId;
+            
+            if (f.file_id && f.file_id !== 'undefined') {
+                fileId = f.file_id;
+            } else if (f.message_id) {
+                // Create custom file ID format: chatId_messageId_quality
+                const chatId = "-1001768249569";
+                const messageId = f.message_id;
+                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                fileId = `${chatId}_${messageId}_${qualityCode}`;
+            } else {
+                // Generate a unique ID using timestamp
+                const timestamp = Date.now();
+                const randomNum = Math.floor(Math.random() * 1000);
+                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                fileId = `temp_${timestamp}_${randomNum}_${qualityCode}`;
+            }
+            
             const fileSize = formatSize(f.file_size);
             const isVideo = f.is_video === true;
             
             const videoBadge = isVideo ? ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : '';
             
-            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option">
-                <i class="fas fa-download me-1"></i>${quality}${videoBadge}
-                <small>${fileSize}</small>
-            </a>`;
+            // Only create link if we have a valid fileId
+            if (fileId && fileId !== 'undefined') {
+                html += `<a href="https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(fileId)}" target="_blank" class="quality-option">
+                    <i class="fas fa-download me-1"></i>${quality}${videoBadge}
+                    <small>${fileSize}</small>
+                </a>`;
+            }
         }
     });
     html += '</div>';
+    
+    // If no valid links were created, show message
+    if (html === '<div class="quality-buttons-row"></div>') {
+        return '<p class="text-center text-muted mb-0">Download links temporarily unavailable</p>';
+    }
+    
     return html;
 }
 
