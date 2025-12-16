@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.5 - COMPLETE FILE CHANNEL INDEXING FIX
+# 🚀 SK4FiLM v8.5 - COMPLETE FILE CHANNEL INDEXING FIX WITH REAL MESSAGE IDS
 # ============================================================================
 
 import asyncio
@@ -380,7 +380,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.5-FILE-CHANNEL-FIX'
+    response.headers['X-SK4FiLM-Version'] = '8.5-REAL-MESSAGE-IDS'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -414,7 +414,7 @@ verification_system = None
 premium_system = None
 poster_fetcher = None
 bot_handler = None
-telegram_bot = None  # ✅ New: Telegram bot instance
+telegram_bot = None
 
 # Indexing State
 is_indexing = False
@@ -1469,7 +1469,7 @@ class ChannelSyncManager:
 channel_sync_manager = ChannelSyncManager()
 
 # ============================================================================
-# ✅ FILE INDEXING FUNCTIONS - IMPROVED
+# ✅ FILE INDEXING FUNCTIONS - IMPROVED WITH REAL MESSAGE IDS
 # ============================================================================
 
 async def generate_file_hash(message):
@@ -1573,7 +1573,7 @@ async def extract_title_improved(filename, caption):
     return "Unknown File"
 
 async def index_single_file_smart(message):
-    """Index single file with improved logic"""
+    """Index single file with improved logic and REAL MESSAGE IDS"""
     try:
         if files_col is None:
             logger.error("❌ Database not ready for indexing")
@@ -1647,10 +1647,11 @@ async def index_single_file_smart(message):
         # Extract quality
         quality = detect_quality_enhanced(file_name or "")
         
-        # Create document
+        # Create document with REAL MESSAGE ID
         doc = {
             'channel_id': Config.FILE_CHANNEL_ID,
-            'message_id': message.id,
+            'message_id': message.id,  # 🔥 REAL MESSAGE ID
+            'real_message_id': message.id,  # 🔥 Store separately for consistency
             'title': title,
             'normalized_title': normalized_title,
             'date': message.date,
@@ -1676,6 +1677,7 @@ async def index_single_file_smart(message):
                 'caption': caption or '',
                 'mime_type': message.document.mime_type or '',
                 'file_id': message.document.file_id,
+                'telegram_file_id': message.document.file_id,  # 🔥 Store Telegram file_id
                 'file_size': message.document.file_size or 0
             })
         elif message.video:
@@ -1687,6 +1689,7 @@ async def index_single_file_smart(message):
                 'width': message.video.width if hasattr(message.video, 'width') else 0,
                 'height': message.video.height if hasattr(message.video, 'height') else 0,
                 'file_id': message.video.file_id,
+                'telegram_file_id': message.video.file_id,  # 🔥 Store Telegram file_id
                 'file_size': message.video.file_size or 0
             })
         else:
@@ -1705,7 +1708,7 @@ async def index_single_file_smart(message):
             size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
             
             logger.info(f"✅ INDEXED: {title[:60]}...")
-            logger.info(f"   📊 ID: {message.id} | Size: {size_str} | Quality: {quality}")
+            logger.info(f"   📊 Real Message ID: {message.id} | Size: {size_str} | Quality: {quality}")
             
             return True
             
@@ -1728,7 +1731,7 @@ async def initial_indexing():
         return
     
     logger.info("=" * 60)
-    logger.info("🚀 STARTING FILE CHANNEL INDEXING")
+    logger.info("🚀 STARTING FILE CHANNEL INDEXING WITH REAL MESSAGE IDS")
     logger.info("=" * 60)
     
     try:
@@ -1776,6 +1779,13 @@ async def setup_database_indexes():
         await files_col.create_index(
             [("date", -1)],
             name="date_index",
+            background=True
+        )
+        
+        # Real message ID index
+        await files_col.create_index(
+            [("real_message_id", 1)],
+            name="real_message_id_index",
             background=True
         )
         
@@ -2034,7 +2044,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v8.5 - FILE CHANNEL INDEXING FIX")
+        logger.info("🚀 SK4FiLM v8.5 - REAL MESSAGE IDS FIX")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2092,7 +2102,7 @@ async def init_system():
         
         # Start initial indexing
         if user_session_ready and files_col is not None:
-            logger.info("🔄 Starting file channel indexing...")
+            logger.info("🔄 Starting file channel indexing with REAL MESSAGE IDS...")
             asyncio.create_task(initial_indexing())
         
         init_time = time.time() - start_time
@@ -2100,6 +2110,7 @@ async def init_system():
         logger.info("=" * 60)
         
         logger.info("🔧 INTEGRATED FEATURES:")
+        logger.info(f"   • Real Message IDs: ✅ ENABLED")
         logger.info(f"   • File Channel Indexing: ✅ ENABLED")
         logger.info(f"   • Complete History: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
         logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
@@ -2117,7 +2128,7 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ SEARCH FUNCTION - FIXED FOR FILE CHANNEL
+# ✅ SEARCH FUNCTION - FIXED FOR FILE CHANNEL WITH REAL MESSAGE IDS
 # ============================================================================
 
 def channel_name_cached(cid):
@@ -2126,7 +2137,7 @@ def channel_name_cached(cid):
 @performance_monitor.measure("multi_channel_search_merged")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_multi_channel_merged(query, limit=12, page=1):
-    """COMBINED search with FILE CHANNEL FIX"""
+    """COMBINED search with FILE CHANNEL FIX and REAL MESSAGE IDS"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -2193,7 +2204,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 posts_dict.update(result)
     
     # ============================================================================
-    # ✅ 2. SEARCH FILE CHANNEL DATABASE - FIXED
+    # ✅ 2. SEARCH FILE CHANNEL DATABASE - FIXED WITH REAL MESSAGE IDS
     # ============================================================================
     if files_col is not None:
         try:
@@ -2211,7 +2222,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 "is_duplicate": False
             }
             
-            # Execute search
+            # Execute search with REAL MESSAGE IDS
             cursor = files_col.find(
                 search_query,
                 {
@@ -2222,10 +2233,12 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'file_name': 1,
                     'is_video_file': 1,
                     'channel_id': 1,
-                    'message_id': 1,
+                    'message_id': 1,  # 🔥 REAL MESSAGE ID
+                    'real_message_id': 1,  # 🔥 ALTERNATE REAL MESSAGE ID
                     'date': 1,
                     'caption': 1,
                     'file_id': 1,
+                    'telegram_file_id': 1,
                     'thumbnail_url': 1,
                     'thumbnail_extracted': 1,
                     'year': 1,
@@ -2244,14 +2257,18 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     # Get thumbnail URL
                     thumbnail_url = doc.get('thumbnail_url')
                     
-                    # Quality option
+                    # 🔥 USE REAL MESSAGE ID - Priority: real_message_id > message_id
+                    real_msg_id = doc.get('real_message_id') or doc.get('message_id')
+                    
+                    # Quality option with REAL MESSAGE ID
                     quality_option = {
-                        'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                        # 🔥 CORRECT FILE ID FORMAT: channelId_realMessageId_quality
+                        'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{real_msg_id}_{quality}",
                         'file_size': doc.get('file_size', 0),
                         'file_name': doc.get('file_name', ''),
                         'is_video': doc.get('is_video_file', False),
                         'channel_id': doc.get('channel_id'),
-                        'message_id': doc.get('message_id'),
+                        'message_id': real_msg_id,  # 🔥 REAL MESSAGE ID
                         'quality_info': quality_info,
                         'thumbnail_url': thumbnail_url,
                         'has_thumbnail': thumbnail_url is not None
@@ -2279,7 +2296,8 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             'year': year,
                             'quality': quality,
                             'has_thumbnail': thumbnail_url is not None,
-                            'thumbnail_url': thumbnail_url
+                            'thumbnail_url': thumbnail_url,
+                            'real_message_id': real_msg_id  # 🔥 Store for frontend
                         }
                         
                         # If we have thumbnail, use it
@@ -2337,6 +2355,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             result['quality_options'] = file_data['quality_options']
             result['quality_summary'] = file_data.get('quality_summary', '')
             result['quality'] = file_data.get('quality', '')
+            result['real_message_id'] = file_data.get('real_message_id')  # 🔥 Add real message ID
             
             # If post has no content but file has caption, use it
             if not result.get('post_content') and file_data.get('file_caption'):
@@ -2438,7 +2457,8 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
         'with_posts': sum(1 for r in results_list if r.get('has_post', False)),
         'both': sum(1 for r in results_list if r.get('has_file', False) and r.get('has_post', False)),
         'video_files': sum(1 for r in results_list if r.get('is_video_file', False)),
-        'with_thumbnails': sum(1 for r in results_list if r.get('has_thumbnail', False))
+        'with_thumbnails': sum(1 for r in results_list if r.get('has_thumbnail', False)),
+        'real_message_ids': sum(1 for r in results_list if r.get('real_message_id'))  # 🔥 Track real IDs
     }
     
     # Final data structure
@@ -2459,8 +2479,10 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             'duplicate_prevention': True,
             'poster_fetcher': poster_fetcher is not None,
             'user_session_used': user_session_ready,
-            'cache_hit': False
-        }
+            'cache_hit': False,
+            'real_message_ids': True  # 🔥 Indicate real IDs are used
+        },
+        'bot_username': Config.BOT_USERNAME  # 🔥 Include bot username
     }
     
     # Cache results
@@ -2570,7 +2592,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.5 - FILE CHANNEL FIX',
+        'service': 'SK4FiLM v8.5 - REAL MESSAGE IDS',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2596,6 +2618,7 @@ async def root():
             'telegram_bot': telegram_bot is not None
         },
         'features': {
+            'real_message_ids': True,  # 🔥
             'file_channel_indexing': True,
             'complete_history': Config.INDEX_ALL_HISTORY,
             'instant_indexing': Config.INSTANT_AUTO_INDEX,
@@ -2686,8 +2709,10 @@ async def api_search():
             'search_metadata': {
                 **result_data.get('search_metadata', {}),
                 'feature': 'file_channel_search',
-                'quality_priority': Config.QUALITY_PRIORITY
+                'quality_priority': Config.QUALITY_PRIORITY,
+                'real_message_ids': True  # 🔥
             },
+            'bot_username': Config.BOT_USERNAME,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2749,6 +2774,7 @@ async def api_stats():
                 'running': bot_running,
                 'initialized': telegram_bot is not None
             },
+            'real_message_ids': True,  # 🔥
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2846,8 +2872,14 @@ async def api_admin_db_stats():
         # Get total count
         total = await files_col.count_documents({})
         
-        # Get sample documents
-        sample = await files_col.find({}, {'title': 1, 'message_id': 1, 'quality': 1, '_id': 0}).limit(5).to_list(length=5)
+        # Get sample documents with REAL MESSAGE IDS
+        sample = await files_col.find({}, {
+            'title': 1, 
+            'message_id': 1, 
+            'real_message_id': 1,  # 🔥
+            'quality': 1, 
+            '_id': 0
+        }).limit(5).to_list(length=5)
         
         # Get quality distribution
         pipeline = [
@@ -2857,7 +2889,12 @@ async def api_admin_db_stats():
         quality_dist = await files_col.aggregate(pipeline).to_list(length=10)
         
         # Get recent files
-        recent = await files_col.find({}, {'title': 1, 'date': 1, '_id': 0}).sort('date', -1).limit(5).to_list(length=5)
+        recent = await files_col.find({}, {
+            'title': 1, 
+            'date': 1, 
+            'real_message_id': 1,  # 🔥
+            '_id': 0
+        }).sort('date', -1).limit(5).to_list(length=5)
         
         return jsonify({
             'status': 'success',
@@ -2984,13 +3021,14 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v8.5 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: COMPLETE FILE CHANNEL INDEXING")
+    logger.info("🎯 FEATURES: REAL MESSAGE IDS FIX")
     logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"   • Real Message IDs: ✅ ENABLED")
+    logger.info(f"   • File ID Format: channelId_realMessageId_quality")
     logger.info(f"   • Complete History: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
     logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
     logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
     logger.info(f"   • Search Cache TTL: {Config.SEARCH_CACHE_TTL}s")
-    logger.info(f"   • Improved Title Extraction: ✅ ENABLED")
     logger.info(f"   • Telegram Bot: ✅ ENABLED")
     logger.info(f"   • Bot Token Configured: {'✅ YES' if Config.BOT_TOKEN else '❌ NO'}")
     
