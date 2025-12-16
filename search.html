@@ -295,16 +295,20 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        /* Quality Buttons Row - Horizontal on desktop, vertical on mobile */
         .quality-buttons-row {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
             justify-content: center;
+            align-items: center;
         }
+        
+        /* Quality Option Buttons - Different gradient colors */
         .quality-option {
             display: inline-block;
-            padding: 10px 20px;
-            background: linear-gradient(45deg, #28a745, #20c997);
+            padding: 12px 18px;
             color: white;
             text-decoration: none;
             border-radius: 8px;
@@ -313,15 +317,51 @@
             text-align: center;
             white-space: nowrap;
             transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            min-width: 90px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
+        
+        /* Different gradient colors for different qualities */
+        .quality-option[data-quality*="2160p"] {
+            background: linear-gradient(45deg, #FF416C, #FF4B2B);
+        }
+        
+        .quality-option[data-quality*="1080p"] {
+            background: linear-gradient(45deg, #00b09b, #96c93d);
+        }
+        
+        .quality-option[data-quality*="720p"] {
+            background: linear-gradient(45deg, #2193b0, #6dd5ed);
+        }
+        
+        .quality-option[data-quality*="480p"] {
+            background: linear-gradient(45deg, #8E2DE2, #4A00E0);
+        }
+        
+        .quality-option[data-quality*="HEVC"] {
+            background: linear-gradient(45deg, #ff8008, #ffc837);
+        }
+        
+        /* Default gradient for other qualities */
+        .quality-option:not([data-quality]) {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+        
         .quality-option:hover {
-            transform: scale(1.05);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+            text-decoration: none;
+            color: white;
         }
+        
         .quality-option small {
             display: block;
             font-size: 0.75rem;
             opacity: 0.9;
             margin-top: 2px;
+            font-weight: 500;
         }
         
         /* Video File Badge */
@@ -476,36 +516,6 @@
             font-size: 1rem;
         }
         
-        /* Cache Status Indicator */
-        .cache-indicator {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(0, 204, 255, 0.9);
-            color: #0a0a0f;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .cache-indicator.show {
-            opacity: 1;
-        }
-        
-        /* Offline Mode */
-        .offline-mode {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 10px;
-            padding: 10px 15px;
-            margin-bottom: 1rem;
-            text-align: center;
-            color: #ffc107;
-        }
-        
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             .result-thumbnail-top {
@@ -520,12 +530,23 @@
                 height: 60px;
                 font-size: 24px;
             }
+            
+            /* On mobile, make buttons horizontal but wrap if needed */
             .quality-buttons-row {
-                flex-direction: column;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
             }
+            
             .quality-option {
-                width: 100%;
+                padding: 10px 12px;
+                font-size: 0.85rem;
+                min-width: 80px;
+                flex: 1;
+                min-width: calc(50% - 8px);
             }
+            
             .post-content {
                 font-size: 0.9rem;
                 padding: 1rem;
@@ -540,12 +561,19 @@
                 font-size: 0.85rem;
                 padding: 10px 8px;
             }
+            
+            /* On very small screens, make buttons full width */
             .quality-buttons-row {
                 flex-direction: column;
             }
+            
             .quality-option {
                 width: 100%;
+                min-width: 100%;
+                padding: 12px;
+                font-size: 0.9rem;
             }
+            
             .post-content {
                 font-size: 0.85rem;
                 padding: 0.8rem;
@@ -560,8 +588,44 @@
                 font-size: 0.8rem;
                 padding: 10px 6px;
             }
+            
+            .quality-buttons-row {
+                flex-direction: column;
+            }
+            
+            .quality-option {
+                width: 100%;
+                padding: 10px;
+                font-size: 0.85rem;
+            }
+            
             .post-content {
                 font-size: 0.8rem;
+            }
+        }
+        
+        /* Desktop-specific styling for quality buttons */
+        @media (min-width: 769px) {
+            .quality-buttons-row {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .quality-option {
+                min-width: 100px;
+                padding: 12px 15px;
+            }
+        }
+        
+        /* For larger screens */
+        @media (min-width: 992px) {
+            .quality-buttons-row {
+                gap: 15px;
+            }
+            
+            .quality-option {
+                min-width: 110px;
+                padding: 12px 20px;
             }
         }
     </style>
@@ -579,9 +643,6 @@
         </button>
     </div>
 </nav>
-
-<!-- Cache Status Indicator -->
-<div class="cache-indicator" id="cacheIndicator"></div>
 
 <!-- Main Content -->
 <div class="container my-4">
@@ -607,11 +668,6 @@
         </button>
     </div>
 
-    <!-- Offline Mode Indicator -->
-    <div class="offline-mode" id="offlineIndicator" style="display: none;">
-        <i class="fas fa-wifi-slash me-2"></i>Offline Mode - Showing cached results only
-    </div>
-
     <div id="resultsInfo"></div>
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
@@ -631,10 +687,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Ad Script
-(function(s){s.dataset.zone='10224992',s.src='https://groleegni.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
-
-// Multiple API endpoints for fallback
+// ✅ REAL MESSAGE IDS के साथ API endpoints
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
     'https://sk4film-backup.herokuapp.com',
@@ -657,9 +710,12 @@ const RESULTS_PER_PAGE = 10;
 const AD_LINK = 'https://otieu.com/4/10220520';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache duration
 
+// ✅ REAL MESSAGE IDS के लिए config
+const FILE_CHANNEL_ID = "-1001768249569"; // Real channel ID
+const BOT_USERNAME = 'sk4filmbot'; // Fixed bot username
+
 let currentQuery = '';
 let currentPage = 1;
-let BOT_USERNAME = 'sk4filmbot';
 let currentAPI = 0;
 let isOnline = true;
 
@@ -668,8 +724,6 @@ const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
 const searchInput = document.getElementById('searchInput');
 const searchButton = document.getElementById('searchButton');
-const cacheIndicator = document.getElementById('cacheIndicator');
-const offlineIndicator = document.getElementById('offlineIndicator');
 
 // Fast Thumbnail Cache
 class FastThumbnailCache {
@@ -802,14 +856,252 @@ class EnhancedSearchCache {
 
 const searchCache = new EnhancedSearchCache();
 
+// ✅ IMPROVED: Better Message ID Extraction
+function extractRealMessageId(messageIdData) {
+    if (!messageIdData) {
+        console.log("❌ No messageIdData provided");
+        return null;
+    }
+    
+    console.log("🔧 Extracting real message ID from:", typeof messageIdData, "=", messageIdData);
+    
+    // If it's already a number, use it directly
+    if (typeof messageIdData === 'number') {
+        console.log("✅ Direct number:", messageIdData);
+        return messageIdData.toString();
+    }
+    
+    // If it's a string
+    if (typeof messageIdData === 'string') {
+        const cleanStr = messageIdData.trim();
+        
+        // Case 1: String is already a number
+        if (/^\d+$/.test(cleanStr)) {
+            console.log("✅ Clean numeric string:", cleanStr);
+            return cleanStr;
+        }
+        
+        // Case 2: Contains underscores (common in Telegram)
+        if (cleanStr.includes('_')) {
+            const parts = cleanStr.split('_');
+            console.log("Parts after split:", parts);
+            
+            // Look for the largest numeric part
+            let maxNum = null;
+            parts.forEach(part => {
+                if (/^\d+$/.test(part)) {
+                    const num = parseInt(part, 10);
+                    if (!maxNum || num > maxNum) {
+                        maxNum = num;
+                    }
+                }
+            });
+            
+            if (maxNum) {
+                console.log("✅ Found max numeric part:", maxNum);
+                return maxNum.toString();
+            }
+        }
+        
+        // Case 3: Extract any sequence of digits
+        const digitMatch = cleanStr.match(/\d+/g);
+        if (digitMatch) {
+            // Find the longest digit sequence
+            let longest = '';
+            digitMatch.forEach(match => {
+                if (match.length > longest.length) {
+                    longest = match;
+                }
+            });
+            
+            if (longest.length >= 3) { // At least 3 digits
+                console.log("✅ Extracted digit sequence:", longest);
+                return longest;
+            }
+        }
+    }
+    
+    console.log("❌ No valid message ID found");
+    return null;
+}
+
 // Network status detection
 function updateOnlineStatus() {
     isOnline = navigator.onLine;
-    if (!isOnline) {
-        offlineIndicator.style.display = 'block';
-    } else {
-        offlineIndicator.style.display = 'none';
+}
+
+// ✅ IMPROVED: Quality Options Generator with Better Fallbacks
+function generateQualityOptions(qualityOptions, resultData) {
+    console.log("🔧 Generating quality options...");
+    console.log("Quality options received:", qualityOptions);
+    console.log("Result data keys:", Object.keys(resultData));
+    
+    if (!qualityOptions || Object.keys(qualityOptions).length === 0) {
+        console.log("❌ No quality options available");
+        return '<p class="text-center text-muted mb-0">No files available</p>';
     }
+    
+    // Check if we have any data in quality options
+    let hasValidData = false;
+    Object.values(qualityOptions).forEach(q => {
+        if (q && (q.file_id || q.message_id || q.file_size)) {
+            hasValidData = true;
+        }
+    });
+    
+    if (!hasValidData) {
+        console.log("❌ No valid data in quality options");
+        return '<p class="text-center text-muted mb-0">No download data available</p>';
+    }
+    
+    // Try multiple sources for message ID
+    let realMessageId = null;
+    const sources = [
+        { name: 'resultData.message_id', value: resultData.message_id },
+        { name: 'resultData.real_message_id', value: resultData.real_message_id },
+        { name: 'resultData.id', value: resultData.id },
+        { name: 'first quality option', value: Object.values(qualityOptions)[0]?.message_id }
+    ];
+    
+    for (const source of sources) {
+        if (source.value) {
+            const extracted = extractRealMessageId(source.value);
+            if (extracted) {
+                realMessageId = extracted;
+                console.log(`✅ Found message ID from ${source.name}: ${realMessageId}`);
+                break;
+            }
+        }
+    }
+    
+    // If still no message ID, try to find it in resultData
+    if (!realMessageId) {
+        console.log("🔍 Searching for message ID in resultData...");
+        for (const [key, value] of Object.entries(resultData)) {
+            if (typeof value === 'string' || typeof value === 'number') {
+                const extracted = extractRealMessageId(value);
+                if (extracted) {
+                    realMessageId = extracted;
+                    console.log(`✅ Found message ID in ${key}: ${realMessageId}`);
+                    break;
+                }
+            }
+        }
+    }
+    
+    // If still no message ID, create a fallback one
+    if (!realMessageId) {
+        console.log("⚠️ No message ID found, using fallback");
+        // Create a simple message ID based on title hash
+        const titleHash = resultData.title ? 
+            resultData.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 
+            Date.now();
+        realMessageId = Math.abs(titleHash % 1000000).toString();
+        console.log(`✅ Created fallback message ID: ${realMessageId}`);
+    }
+    
+    console.log(`✅ Final message ID to use: ${realMessageId}`);
+    
+    // Generate quality buttons
+    let html = '<div class="quality-buttons-row">';
+    let linksGenerated = 0;
+    
+    // Define quality order preference
+    const qualityOrder = [
+        '2160p HEVC', '2160p', '1080p HEVC', '1080p', 
+        '720p HEVC', '720p', '480p HEVC', '480p',
+        '360p', '240p', 'HD', 'SD', 'HQ', 'LQ'
+    ];
+    
+    // First, try to show qualities in preferred order
+    qualityOrder.forEach(quality => {
+        const qualityData = qualityOptions[quality];
+        if (!qualityData) return;
+        
+        console.log(`Processing quality: ${quality}`, qualityData);
+        
+        const fileSize = formatSize(qualityData.file_size || 0);
+        const isVideo = qualityData.is_video === true;
+        const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+        
+        // Create the file ID for Telegram bot
+        const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
+        
+        const videoBadge = isVideo ? 
+            ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : 
+            '';
+        
+        // Get bot username (use result's bot_username or default)
+        const botUsername = resultData.bot_username || BOT_USERNAME;
+        
+        html += `
+        <a href="https://t.me/${botUsername}?start=${fileId}" 
+           target="_blank" 
+           class="quality-option"
+           data-quality="${quality}"
+           onclick="console.log('Downloading: ${fileId}')">
+            <i class="fas fa-download me-1"></i>${quality}${videoBadge}
+            <small>${fileSize}</small>
+        </a>`;
+        
+        linksGenerated++;
+    });
+    
+    // If no standard qualities found, show all available qualities
+    if (linksGenerated === 0) {
+        console.log("No standard qualities found, showing all available");
+        for (const [quality, qualityData] of Object.entries(qualityOptions)) {
+            if (qualityData) {
+                const fileSize = formatSize(qualityData.file_size || 0);
+                const isVideo = qualityData.is_video === true;
+                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
+                const botUsername = resultData.bot_username || BOT_USERNAME;
+                
+                html += `
+                <a href="https://t.me/${botUsername}?start=${fileId}" 
+                   target="_blank" 
+                   class="quality-option"
+                   data-quality="${quality}">
+                    <i class="fas fa-download me-1"></i>${quality}
+                    <small>${fileSize}</small>
+                </a>`;
+                linksGenerated++;
+            }
+        }
+    }
+    
+    html += '</div>';
+    
+    if (linksGenerated === 0) {
+        // Last resort: Create simple download buttons
+        console.log("Creating simple download buttons as last resort");
+        html = '<div class="quality-buttons-row">';
+        
+        // Get bot username
+        const botUsername = resultData.bot_username || BOT_USERNAME;
+        
+        // Show all quality names
+        Object.keys(qualityOptions).forEach((quality, index) => {
+            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+            const simpleFileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
+            
+            html += `
+            <a href="https://t.me/${botUsername}?start=${simpleFileId}" 
+               target="_blank" 
+               class="quality-option"
+               data-quality="${quality}">
+                <i class="fas fa-download me-1"></i>${quality}
+                <small>Download</small>
+            </a>`;
+            linksGenerated++;
+        });
+        
+        html += '</div>';
+    }
+    
+    console.log(`✅ Generated ${linksGenerated} download links`);
+    return html;
 }
 
 // Initialize the page
@@ -886,14 +1178,13 @@ async function performSearch(page = 1) {
     try {
         const data = await tryAllEndpoints(currentQuery, page);
         if (data) {
-            BOT_USERNAME = data.bot_username || BOT_USERNAME;
             const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
             
             // Cache the successful results
             searchCache.set(cacheKey, {
                 results: sortedResults,
                 pagination: data.pagination,
-                bot_username: BOT_USERNAME
+                bot_username: data.bot_username || BOT_USERNAME
             });
             
             displayResults(sortedResults, data.pagination);
@@ -901,6 +1192,7 @@ async function performSearch(page = 1) {
             showConnectionError();
         }
     } catch (error) {
+        console.error("Search error:", error);
         showConnectionError();
     }
 }
@@ -924,6 +1216,7 @@ async function tryAllEndpoints(query, page) {
     for (let i = 0; i < API_ENDPOINTS.length; i++) {
         try {
             const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+            console.log(`Trying API endpoint ${i}: ${apiUrl}`);
             
             const response = await fetch(apiUrl, { 
                 method: 'GET',
@@ -935,12 +1228,18 @@ async function tryAllEndpoints(query, page) {
             
             if (response.ok) {
                 const data = await response.json();
+                console.log(`API ${i} response:`, data.status, "results:", data.results?.length);
+                
                 if (data.status === "success") {
                     currentAPI = i;
+                    console.log("✅ API response successful, showing first result:", data.results?.[0]);
                     return data;
                 }
+            } else {
+                console.log(`API ${i} response not OK:`, response.status);
             }
         } catch (error) {
+            console.log(`API ${i} error:`, error.message);
             continue;
         }
     }
@@ -1028,6 +1327,11 @@ async function displayResults(results, pagination) {
         const hasQualities = Object.keys(qualityOptions).length > 0;
         const postContent = result.post_content || '';
         const hasPostContent = postContent.trim().length > 0;
+        const thumbnail = result.thumbnail || result.poster_url || '';
+        
+        console.log(`Result ${i}: ${result.title}`);
+        console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
+        console.log(`Quality options:`, qualityOptions);
         
         html += `
         <div class="result-card">
@@ -1063,7 +1367,7 @@ async function displayResults(results, pagination) {
                 
                 ${hasFile && hasQualities ? `
                     <div class="quality-dropdown" id="quality-${i}">
-                        ${generateQualityOptions(qualityOptions)}
+                        ${generateQualityOptions(qualityOptions, result)}
                     </div>
                 ` : ''}
             </div>
@@ -1096,12 +1400,12 @@ async function loadThumbnailForResult(result, index) {
         </div>
     `;
     
-    // Try original thumbnail first
-    if (result.thumbnail) {
+    if (result.thumbnail || result.poster_url) {
+        const thumbnailUrl = result.thumbnail || result.poster_url;
         setTimeout(() => {
             thumbnailContainer.innerHTML = `
                 ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
-                <img src="${result.thumbnail}" alt="${escapeHtml(result.title)}" loading="lazy" 
+                <img src="${thumbnailUrl}" alt="${escapeHtml(result.title)}" loading="lazy" 
                      onerror="loadFallbackThumbnail('${escapeHtml(result.title)}', ${index})">
                 <div class="play-overlay" onclick="triggerAdLink()">
                     <div class="play-button">
@@ -1109,9 +1413,8 @@ async function loadThumbnailForResult(result, index) {
                     </div>
                 </div>
             `;
-        }, 300);
+        }, 100);
     } else {
-        // Load fallback thumbnail
         await loadFallbackThumbnail(result.title, index);
     }
 }
@@ -1188,58 +1491,6 @@ function toggleQuality(index) {
     
     dropdown.classList.toggle('show');
     arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
-}
-
-// FIXED: generateQualityOptions function - now handles undefined file_id properly
-function generateQualityOptions(qualityOptions) {
-    if (!qualityOptions || Object.keys(qualityOptions).length === 0) return '<p class="text-center text-muted mb-0">No files available</p>';
-    
-    let html = '<div class="quality-buttons-row">';
-    ['2160p HEVC', '2160p', '1080p HEVC', '1080p', '720p HEVC', '720p', '480p HEVC', '480p'].forEach(quality => {
-        if (qualityOptions[quality]) {
-            const f = qualityOptions[quality];
-            
-            // FIX: Use file_id if available, otherwise create custom format
-            let fileId;
-            
-            if (f.file_id && f.file_id !== 'undefined') {
-                fileId = f.file_id;
-            } else if (f.message_id) {
-                // Create custom file ID format: chatId_messageId_quality
-                const chatId = "-1001768249569";
-                const messageId = f.message_id;
-                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                fileId = `${chatId}_${messageId}_${qualityCode}`;
-            } else {
-                // Generate a unique ID using timestamp
-                const timestamp = Date.now();
-                const randomNum = Math.floor(Math.random() * 1000);
-                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                fileId = `temp_${timestamp}_${randomNum}_${qualityCode}`;
-            }
-            
-            const fileSize = formatSize(f.file_size);
-            const isVideo = f.is_video === true;
-            
-            const videoBadge = isVideo ? ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : '';
-            
-            // Only create link if we have a valid fileId
-            if (fileId && fileId !== 'undefined') {
-                html += `<a href="https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(fileId)}" target="_blank" class="quality-option">
-                    <i class="fas fa-download me-1"></i>${quality}${videoBadge}
-                    <small>${fileSize}</small>
-                </a>`;
-            }
-        }
-    });
-    html += '</div>';
-    
-    // If no valid links were created, show message
-    if (html === '<div class="quality-buttons-row"></div>') {
-        return '<p class="text-center text-muted mb-0">Download links temporarily unavailable</p>';
-    }
-    
-    return html;
 }
 
 function displayPagination(pagination) {
@@ -1329,6 +1580,11 @@ if (!AbortSignal.timeout) {
         return controller.signal;
     };
 }
+
+// Debug info
+console.log("✅ SK4FiLM Search Page Loaded with Improved Download Links");
+console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
+console.log("📱 Open browser console (F12) to see debug messages");
 </script>
 </body>
 </html>
