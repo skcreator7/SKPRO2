@@ -414,63 +414,11 @@ verification_system = None
 premium_system = None
 poster_fetcher = None
 bot_handler = None
-telegram_bot = None  # ✅ New: Telegram bot instance
 
 # Indexing State
 is_indexing = False
 last_index_time = None
 indexing_task = None
-
-# ============================================================================
-# ✅ BOT INITIALIZATION FUNCTION
-# ============================================================================
-
-async def start_telegram_bot():
-    """Start Telegram bot with handlers"""
-    try:
-        if not PYROGRAM_AVAILABLE:
-            logger.warning("❌ Pyrogram not available, bot won't start")
-            return None
-        
-        # Check if bot token is available
-        if not Config.BOT_TOKEN:
-            logger.warning("❌ Bot token not configured, bot won't start")
-            return None
-        
-        logger.info("🤖 Starting SK4FiLM Telegram Bot...")
-        
-        # Import bot handler
-        try:
-            from bot_handlers import SK4FiLMBot
-            logger.info("✅ Bot handler module imported")
-        except ImportError as e:
-            logger.error(f"❌ Bot handler import error: {e}")
-            # Create fallback bot
-            class FallbackBot:
-                def __init__(self):
-                    self.bot_started = False
-                async def initialize(self): 
-                    logger.warning("⚠️ Using fallback bot")
-                    return False
-                async def shutdown(self): pass
-            return FallbackBot()
-        
-        # Initialize bot
-        bot_instance = SK4FiLMBot(Config, db_manager=None)
-        
-        # Start bot
-        bot_started = await bot_instance.initialize()
-        
-        if bot_started:
-            logger.info("✅ Telegram Bot started successfully!")
-            return bot_instance
-        else:
-            logger.error("❌ Failed to start Telegram Bot")
-            return None
-            
-    except Exception as e:
-        logger.error(f"❌ Bot startup error: {e}")
-        return None
 
 # ============================================================================
 # ✅ BOT HANDLER MODULE
@@ -2025,98 +1973,6 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ MAIN INITIALIZATION - UPDATED WITH BOT START
-# ============================================================================
-
-@performance_monitor.measure("system_init")
-async def init_system():
-    start_time = time.time()
-    
-    try:
-        logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v8.5 - FILE CHANNEL INDEXING FIX")
-        logger.info("=" * 60)
-        
-        # Initialize MongoDB
-        mongo_ok = await init_mongodb()
-        if not mongo_ok:
-            logger.error("❌ MongoDB connection failed")
-            return False
-        
-        # Get current file count
-        if files_col is not None:
-            file_count = await files_col.count_documents({})
-            logger.info(f"📊 Current files in database: {file_count}")
-        
-        # Initialize Bot Handler
-        bot_handler_ok = await bot_handler.initialize()
-        if bot_handler_ok:
-            logger.info("✅ Bot Handler initialized")
-        
-        # ✅ START TELEGRAM BOT (NEW)
-        global telegram_bot
-        telegram_bot = await start_telegram_bot()
-        if telegram_bot:
-            logger.info("✅ Telegram Bot started successfully")
-        else:
-            logger.warning("⚠️ Telegram Bot failed to start")
-        
-        # Initialize Cache Manager
-        global cache_manager, verification_system, premium_system, poster_fetcher
-        cache_manager = CacheManager(Config)
-        redis_ok = await cache_manager.init_redis()
-        if redis_ok:
-            logger.info("✅ Cache Manager initialized")
-            await cache_manager.start_cleanup_task()
-        
-        # Initialize Verification System
-        if VerificationSystem is not None:
-            verification_system = VerificationSystem(Config, mongo_client)
-            logger.info("✅ Verification System initialized")
-        
-        # Initialize Premium System
-        if PremiumSystem is not None:
-            premium_system = PremiumSystem(Config, mongo_client)
-            logger.info("✅ Premium System initialized")
-        
-        # Initialize Poster Fetcher
-        if PosterFetcher is not None:
-            poster_fetcher = PosterFetcher(Config, cache_manager)
-            logger.info("✅ Poster Fetcher initialized")
-        
-        # Initialize Telegram Sessions
-        if PYROGRAM_AVAILABLE:
-            telegram_ok = await init_telegram_sessions()
-            if not telegram_ok:
-                logger.warning("⚠️ Telegram sessions failed")
-        
-        # Start initial indexing
-        if user_session_ready and files_col is not None:
-            logger.info("🔄 Starting file channel indexing...")
-            asyncio.create_task(initial_indexing())
-        
-        init_time = time.time() - start_time
-        logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
-        logger.info("=" * 60)
-        
-        logger.info("🔧 INTEGRATED FEATURES:")
-        logger.info(f"   • File Channel Indexing: ✅ ENABLED")
-        logger.info(f"   • Complete History: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
-        logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
-        logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
-        logger.info(f"   • Poster Fetcher: {'✅ ENABLED' if poster_fetcher else '❌ DISABLED'}")
-        logger.info(f"   • Quality Merging: ✅ ENABLED")
-        logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
-        logger.info(f"   • Bot Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
-        logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ System initialization failed: {e}")
-        return False
-
-# ============================================================================
 # ✅ SEARCH FUNCTION - FIXED FOR FILE CHANNEL
 # ============================================================================
 
@@ -2238,23 +2094,21 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 file_count += 1
                 try:
                     norm_title = doc.get('normalized_title', normalize_title(doc['title']))
-                    quality_info = extract_quality_info(doc.get('file_name', ''))
-                    quality = quality_info['full']
+                    quality = doc.get('quality', '480p')
                     
                     # Get thumbnail URL
                     thumbnail_url = doc.get('thumbnail_url')
                     
-                    # Quality option
+                    # Create file_id in format: channel_id_message_id
+                    channel_id = doc.get('channel_id', Config.FILE_CHANNEL_ID)
+                    message_id = doc.get('message_id')
+                    file_id = f"{channel_id}_{message_id}"
+                    
+                    # Create quality option in the format you want
                     quality_option = {
-                        'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{doc.get('message_id')}_{quality}",
+                        'file_id': file_id,  # Format: "-1001768249569_16066"
                         'file_size': doc.get('file_size', 0),
-                        'file_name': doc.get('file_name', ''),
-                        'is_video': doc.get('is_video_file', False),
-                        'channel_id': doc.get('channel_id'),
-                        'message_id': doc.get('message_id'),
-                        'quality_info': quality_info,
-                        'thumbnail_url': thumbnail_url,
-                        'has_thumbnail': thumbnail_url is not None
+                        'is_video': doc.get('is_video_file', False)
                     }
                     
                     if norm_title not in files_dict:
@@ -2267,12 +2121,12 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             'normalized_title': norm_title,
                             'content': format_post(doc.get('caption', ''), max_length=500),
                             'post_content': doc.get('caption', ''),
-                            'quality_options': {quality: quality_option},
+                            'quality_options': {quality: quality_option},  # Single quality option
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
                             'is_new': is_new(doc['date']) if doc.get('date') else False,
                             'is_video_file': doc.get('is_video_file', False),
-                            'channel_id': doc.get('channel_id'),
-                            'channel_name': channel_name_cached(doc.get('channel_id')),
+                            'channel_id': channel_id,
+                            'channel_name': channel_name_cached(channel_id),
                             'has_file': True,
                             'has_post': bool(doc.get('caption')),
                             'file_caption': doc.get('caption', ''),
@@ -2287,6 +2141,14 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             files_dict[norm_title]['thumbnail'] = thumbnail_url
                     else:
                         # Add quality option to existing entry
+                        # Create file_id for this quality
+                        file_id = f"{channel_id}_{message_id}"
+                        quality_option = {
+                            'file_id': file_id,
+                            'file_size': doc.get('file_size', 0),
+                            'is_video': doc.get('is_video_file', False)
+                        }
+                        
                         files_dict[norm_title]['quality_options'][quality] = quality_option
                         
                         # Update thumbnail
@@ -2544,6 +2406,89 @@ async def get_home_movies(limit=20):
         return []
 
 # ============================================================================
+# ✅ MAIN INITIALIZATION
+# ============================================================================
+
+@performance_monitor.measure("system_init")
+async def init_system():
+    start_time = time.time()
+    
+    try:
+        logger.info("=" * 60)
+        logger.info("🚀 SK4FiLM v8.5 - FILE CHANNEL INDEXING FIX")
+        logger.info("=" * 60)
+        
+        # Initialize MongoDB
+        mongo_ok = await init_mongodb()
+        if not mongo_ok:
+            logger.error("❌ MongoDB connection failed")
+            return False
+        
+        # Get current file count
+        if files_col is not None:
+            file_count = await files_col.count_documents({})
+            logger.info(f"📊 Current files in database: {file_count}")
+        
+        # Initialize Bot Handler
+        bot_handler_ok = await bot_handler.initialize()
+        if bot_handler_ok:
+            logger.info("✅ Bot Handler initialized")
+        
+        # Initialize Cache Manager
+        global cache_manager, verification_system, premium_system, poster_fetcher
+        cache_manager = CacheManager(Config)
+        redis_ok = await cache_manager.init_redis()
+        if redis_ok:
+            logger.info("✅ Cache Manager initialized")
+            await cache_manager.start_cleanup_task()
+        
+        # Initialize Verification System
+        if VerificationSystem is not None:
+            verification_system = VerificationSystem(Config, mongo_client)
+            logger.info("✅ Verification System initialized")
+        
+        # Initialize Premium System
+        if PremiumSystem is not None:
+            premium_system = PremiumSystem(Config, mongo_client)
+            logger.info("✅ Premium System initialized")
+        
+        # Initialize Poster Fetcher
+        if PosterFetcher is not None:
+            poster_fetcher = PosterFetcher(Config, cache_manager)
+            logger.info("✅ Poster Fetcher initialized")
+        
+        # Initialize Telegram Sessions
+        if PYROGRAM_AVAILABLE:
+            telegram_ok = await init_telegram_sessions()
+            if not telegram_ok:
+                logger.warning("⚠️ Telegram sessions failed")
+        
+        # Start initial indexing
+        if user_session_ready and files_col is not None:
+            logger.info("🔄 Starting file channel indexing...")
+            asyncio.create_task(initial_indexing())
+        
+        init_time = time.time() - start_time
+        logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
+        logger.info("=" * 60)
+        
+        logger.info("🔧 INTEGRATED FEATURES:")
+        logger.info(f"   • File Channel Indexing: ✅ ENABLED")
+        logger.info(f"   • Complete History: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
+        logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
+        logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
+        logger.info(f"   • Poster Fetcher: {'✅ ENABLED' if poster_fetcher else '❌ DISABLED'}")
+        logger.info(f"   • Quality Merging: ✅ ENABLED")
+        logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
+        logger.info(f"   • Bot Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ System initialization failed: {e}")
+        return False
+
+# ============================================================================
 # ✅ API ROUTES - WITH ADMIN ENDPOINTS
 # ============================================================================
 
@@ -2565,9 +2510,6 @@ async def root():
     # Get bot handler status
     bot_status = await bot_handler.get_bot_status() if bot_handler else None
     
-    # Get Telegram bot status
-    bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-    
     return jsonify({
         'status': 'healthy',
         'service': 'SK4FiLM v8.5 - FILE CHANNEL FIX',
@@ -2580,11 +2522,7 @@ async def root():
                 'ready': bot_session_ready,
                 'channel': Config.FILE_CHANNEL_ID
             },
-            'bot_handler': bot_status,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None
-            }
+            'bot_handler': bot_status
         },
         'components': {
             'cache': cache_manager is not None,
@@ -2592,8 +2530,7 @@ async def root():
             'premium': premium_system is not None,
             'poster_fetcher': poster_fetcher is not None,
             'database': files_col is not None,
-            'bot_handler': bot_handler is not None and bot_handler.initialized,
-            'telegram_bot': telegram_bot is not None
+            'bot_handler': bot_handler is not None and bot_handler.initialized
         },
         'features': {
             'file_channel_indexing': True,
@@ -2601,8 +2538,7 @@ async def root():
             'instant_indexing': Config.INSTANT_AUTO_INDEX,
             'duplicate_prevention': True,
             'quality_merging': True,
-            'thumbnail_extraction': True,
-            'telegram_bot': True
+            'thumbnail_extraction': True
         },
         'stats': {
             'total_files': tf,
@@ -2624,8 +2560,7 @@ async def health():
         'sessions': {
             'user': user_session_ready,
             'bot': bot_session_ready,
-            'bot_handler': bot_status.get('initialized') if bot_status else False,
-            'telegram_bot': telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
+            'bot_handler': bot_status.get('initialized') if bot_status else False
         },
         'indexing': {
             'running': indexing_status['is_running'],
@@ -2678,18 +2613,26 @@ async def api_search():
         
         result_data = await search_movies_multi_channel_merged(query, limit, page)
         
+        # Transform results to match your expected format
+        transformed_results = []
+        for movie in result_data['results']:
+            # Extract only the necessary fields
+            transformed_movie = {
+                'title': movie.get('title', ''),
+                'quality_options': movie.get('quality_options', {})
+            }
+            
+            # If you want to include additional fields from your example:
+            # transformed_movie['normalized_title'] = movie.get('normalized_title', '')
+            # transformed_movie['has_file'] = movie.get('has_file', False)
+            
+            transformed_results.append(transformed_movie)
+        
         return jsonify({
             'status': 'success',
-            'query': query,
-            'results': result_data['results'],
-            'pagination': result_data['pagination'],
-            'search_metadata': {
-                **result_data.get('search_metadata', {}),
-                'feature': 'file_channel_search',
-                'quality_priority': Config.QUALITY_PRIORITY
-            },
-            'timestamp': datetime.now().isoformat()
+            'results': transformed_results
         })
+        
     except Exception as e:
         logger.error(f"Search API error: {e}")
         return jsonify({
@@ -2729,9 +2672,6 @@ async def api_stats():
         # Get bot handler status
         bot_status = await bot_handler.get_bot_status() if bot_handler else None
         
-        # Get Telegram bot status
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
         return jsonify({
             'status': 'success',
             'performance': perf_stats,
@@ -2745,10 +2685,6 @@ async def api_stats():
             'indexing_stats': indexing_status,
             'duplicate_stats': duplicate_stats,
             'bot_handler': bot_status,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None
-            },
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2871,35 +2807,6 @@ async def api_admin_db_stats():
         logger.error(f"❌ DB stats error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/admin/bot-status', methods=['GET'])
-async def api_admin_bot_status():
-    """Get Telegram bot status"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
-        return jsonify({
-            'status': 'success',
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None,
-                'started': telegram_bot.bot_started if telegram_bot and hasattr(telegram_bot, 'bot_started') else False
-            },
-            'config': {
-                'bot_token_configured': bool(Config.BOT_TOKEN),
-                'api_id_configured': bool(Config.API_ID),
-                'api_hash_configured': bool(Config.API_HASH),
-                'admin_ids': Config.ADMIN_IDS
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Bot status error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 # ============================================================================
 # ✅ STARTUP AND SHUTDOWN
 # ============================================================================
@@ -2915,14 +2822,6 @@ async def shutdown():
     logger.info("🛑 Shutting down SK4FiLM v8.5...")
     
     shutdown_tasks = []
-    
-    # Stop Telegram bot
-    if telegram_bot:
-        try:
-            await telegram_bot.shutdown()
-            logger.info("✅ Telegram Bot stopped")
-        except Exception as e:
-            logger.error(f"❌ Telegram Bot shutdown error: {e}")
     
     # Stop indexing
     await file_indexing_manager.stop_indexing()
@@ -2991,7 +2890,5 @@ if __name__ == "__main__":
     logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
     logger.info(f"   • Search Cache TTL: {Config.SEARCH_CACHE_TTL}s")
     logger.info(f"   • Improved Title Extraction: ✅ ENABLED")
-    logger.info(f"   • Telegram Bot: ✅ ENABLED")
-    logger.info(f"   • Bot Token Configured: {'✅ YES' if Config.BOT_TOKEN else '❌ NO'}")
     
     asyncio.run(serve(app, config))
