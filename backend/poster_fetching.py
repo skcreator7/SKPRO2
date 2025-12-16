@@ -28,7 +28,7 @@ class PosterSource(Enum):
 class PosterFetcher:
     def __init__(self, config, redis=None):
         self.config = config
-        self.redis = redis  # redis.asyncio.Redis or None
+        self.redis = redis
 
         self.tmdb_keys = getattr(config, "TMDB_KEYS", [])
         self.omdb_keys = getattr(config, "OMDB_KEYS", [])
@@ -83,6 +83,18 @@ class PosterFetcher:
             pass
 
     # -------------------------------------------------
+    # NORMALIZER (🔥 IMPORTANT)
+    # -------------------------------------------------
+    def normalize_poster(self, poster: Dict[str, Any], title: str) -> Dict[str, Any]:
+        return {
+            "poster_url": poster.get("poster_url", CUSTOM_POSTER_URL),
+            "source": poster.get("source", PosterSource.CUSTOM.value),
+            "title": poster.get("title", title),
+            "year": poster.get("year", ""),
+            "rating": poster.get("rating", "0.0"),
+        }
+
+    # -------------------------------------------------
     # TMDB (TOP PRIORITY)
     # -------------------------------------------------
     async def fetch_from_tmdb(self, title: str):
@@ -130,6 +142,7 @@ class PosterFetcher:
                         return {
                             "poster_url": poster,
                             "source": PosterSource.OMDB.value,
+                            "rating": data.get("imdbRating", "0.0"),
                             "year": data.get("Year", ""),
                             "title": data.get("Title", title),
                         }
@@ -142,6 +155,8 @@ class PosterFetcher:
         session = await self.get_http_session()
         try:
             clean = re.sub(r"[^\w\s]", "", title).strip()
+            if not clean:
+                return None
             url = f"https://v2.sg.media-imdb.com/suggestion/{clean[0].lower()}/{urllib.parse.quote(clean.replace(' ', '_'))}.json"
             async with session.get(url) as r:
                 data = await r.json()
@@ -163,6 +178,7 @@ class PosterFetcher:
                             "source": PosterSource.IMDB.value,
                             "year": str(item.get("yr", "")),
                             "title": item.get("l", title),
+                            "rating": "0.0",
                         }
         except Exception:
             pass
@@ -182,6 +198,7 @@ class PosterFetcher:
                         "poster_url": m.group(1),
                         "source": PosterSource.LETTERBOXD.value,
                         "title": title,
+                        "rating": "0.0",
                     }
         except Exception:
             pass
@@ -201,6 +218,7 @@ class PosterFetcher:
                         "poster_url": m.group(1),
                         "source": PosterSource.JUSTWATCH.value,
                         "title": title,
+                        "rating": "0.0",
                     }
         except Exception:
             pass
@@ -222,6 +240,8 @@ class PosterFetcher:
                         "poster_url": url,
                         "source": PosterSource.IMPAWARDS.value,
                         "title": title,
+                        "year": year.group(),
+                        "rating": "0.0",
                     }
         except Exception:
             pass
@@ -234,18 +254,18 @@ class PosterFetcher:
             "poster_url": CUSTOM_POSTER_URL,
             "source": PosterSource.CUSTOM.value,
             "title": title,
+            "year": "",
+            "rating": "0.0",
         }
 
     # -------------------------------------------------
     async def fetch_poster(self, title: str) -> Dict[str, Any]:
         key = f"poster:{title.lower().strip()}"
 
-        # 🔥 Redis cache
         cached = await self.redis_get(key)
         if cached:
             return cached
 
-        # Local memory cache
         if key in self.poster_cache:
             data, ts = self.poster_cache[key]
             if (datetime.now() - ts).seconds < CACHE_TTL:
@@ -265,17 +285,18 @@ class PosterFetcher:
 
         for r in results:
             if isinstance(r, dict) and r.get("poster_url", "").startswith("http"):
-                self.poster_cache[key] = (r, datetime.now())
-                await self.redis_set(key, r)
-                return r
+                normalized = self.normalize_poster(r, title)
+                self.poster_cache[key] = (normalized, datetime.now())
+                await self.redis_set(key, normalized)
+                return normalized
 
         custom = await self.create_custom_poster(title)
-        self.poster_cache[key] = (custom, datetime.now())
-        await self.redis_set(key, custom)
-        return custom
+        normalized = self.normalize_poster(custom, title)
+        self.poster_cache[key] = (normalized, datetime.now())
+        await self.redis_set(key, normalized)
+        return normalized
 
     # -------------------------------------------------
     async def fetch_batch_posters(self, titles: List[str]) -> Dict[str, Dict]:
         posters = await asyncio.gather(*(self.fetch_poster(t) for t in titles))
         return dict(zip(titles, posters))
-
