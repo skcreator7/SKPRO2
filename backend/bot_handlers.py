@@ -984,28 +984,34 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Stats command error: {e}")
             await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
     
-    # ✅ START COMMAND HANDLER - FIXED VERSION
+    # ✅ START COMMAND HANDLER - FIXED VERSION FOR /start -1001768249569_16066_480p
     @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
         """Handle /start command - FIXED to properly handle parameters"""
         user_name = message.from_user.first_name or "User"
         user_id = message.from_user.id
         
-        # Check if there's additional text (file request)
-        # FIX: Properly get the text after /start
-        if message.text and len(message.text.strip()) > 7:  # "/start " is 7 characters
-            # Get everything after "/start "
-            file_text = message.text[7:].strip()  # Remove "/start "
+        # FIX: PROPERLY HANDLE /start -1001768249569_16066_480p
+        # The issue was that Pyrogram's message.command doesn't handle negative numbers well
+        # when they come as parameters
+        
+        # Get the full message text
+        full_text = message.text or ""
+        
+        # Check if there's a parameter after /start
+        if len(full_text) > 7:  # "/start " is 7 characters
+            # Extract everything after "/start "
+            param_text = full_text[7:].strip()
             
-            # Also handle the case where it might come as command parameters
-            if not file_text and len(message.command) > 1:
-                file_text = ' '.join(message.command[1:])
+            # Debug log
+            logger.info(f"📥 /start command received: user={user_id}, full_text='{full_text}', param_text='{param_text}'")
             
-            if file_text and file_text.strip():
-                await handle_file_request(client, message, file_text, bot_instance)
+            # Check if it looks like a file request (format: -1001768249569_16066_480p)
+            if param_text and re.match(r'^-?\d+_\d+(_\w+)?$', param_text):
+                await handle_file_request(client, message, param_text, bot_instance)
                 return
         
-        # SIMPLE WELCOME MESSAGE - No status checks to reduce API calls
+        # If no valid parameter, show welcome message
         welcome_text = (
             f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
             f"🌐 **Visit:** {config.WEBSITE_URL}\n\n"
@@ -1029,6 +1035,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
     async def handle_direct_file_request(client, message):
         """Handle direct file format messages"""
         file_text = message.text.strip()
+        logger.info(f"📥 Direct file request: user={message.from_user.id}, text='{file_text}'")
         await handle_file_request(client, message, file_text, bot_instance)
     
     # ✅ GET VERIFIED CALLBACK - SIMPLIFIED
