@@ -1,6 +1,6 @@
 """
 premium.py - Premium subscription system with 4 tiers
-COMPLETE: Added user commands, admin commands, and all functionality
+UPDATED: Added missing methods for bot_handlers.py compatibility
 """
 import asyncio
 import secrets
@@ -45,9 +45,10 @@ class PremiumPlan:
     icon: str
 
 class PremiumSystem:
-    def __init__(self, config, db_client=None):
+    def __init__(self, config, db_manager=None):
         self.config = config
-        self.db_client = db_client
+        self.db_manager = db_manager
+        self.logger = logger
         
         # Define premium plans with UPI IDs
         self.plans = {
@@ -259,19 +260,24 @@ class PremiumSystem:
         plan = self.plans[tier]
         sub_data = self.user_subscriptions.get(user_id, {})
         
+        days_left = 0
+        expires_at = sub_data.get('expires_at')
+        if expires_at:
+            days_left = max(0, (expires_at - datetime.now()).days)
+        
         return {
             'user_id': user_id,
             'tier': tier.value,
             'tier_name': plan.name,
             'tier_icon': plan.icon,
             'status': sub_data.get('status', PremiumStatus.ACTIVE.value),
-            'expires_at': sub_data.get('expires_at'),
+            'expires_at': expires_at,
             'purchased_at': sub_data.get('purchased_at'),
             'payment_id': sub_data.get('payment_id'),
             'features': plan.features,
             'limits': plan.limits,
             'is_active': sub_data.get('status') == PremiumStatus.ACTIVE.value,
-            'days_remaining': self._calculate_days_remaining(sub_data.get('expires_at')),
+            'days_remaining': days_left,
             'total_downloads': self.user_usage.get(user_id, {}).get('total_downloads', 0),
             'verification_required': False,  # Premium users don't need verification
             'color_code': plan.color_code
@@ -1190,7 +1196,7 @@ class PremiumSystem:
     
     async def save_to_db(self):
         """Save system state to database"""
-        if self.db_client:
+        if self.db_manager:
             try:
                 state = self.to_dict()
                 # Implement your DB save logic here
@@ -1200,12 +1206,246 @@ class PremiumSystem:
     
     async def load_from_db(self):
         """Load system state from database"""
-        if self.db_client:
+        if self.db_manager:
             try:
                 # Implement your DB load logic here
                 logger.info("📥 Premium system state loaded from DB")
             except Exception as e:
                 logger.error(f"DB load error: {e}")
+    
+    # ✅ NEW METHODS ADDED FOR bot_handlers.py COMPATIBILITY
+    
+    async def get_all_users(self):
+        """Get all registered users from database"""
+        try:
+            # Agar database nahi hai toh cache se users list return karein
+            users = []
+            
+            # Combine cache users
+            all_user_ids = set(list(self.user_subscriptions.keys()) + list(self.user_usage.keys()))
+            
+            for user_id in all_user_ids:
+                user_info = {
+                    'user_id': user_id,
+                    'premium': '❌ Free'
+                }
+                
+                # Check if premium
+                if user_id in self.user_subscriptions:
+                    sub_data = self.user_subscriptions[user_id]
+                    if sub_data.get('status') == PremiumStatus.ACTIVE.value:
+                        expiry = sub_data.get('expires_at')
+                        if expiry and datetime.now() < expiry:
+                            user_info['premium'] = '✅ Premium'
+                            user_info['plan'] = sub_data.get('tier_name', 'Unknown')
+                            user_info['expires'] = expiry.strftime('%Y-%m-%d') if expiry else 'Unknown'
+                
+                # Add usage info
+                if user_id in self.user_usage:
+                    usage = self.user_usage[user_id]
+                    user_info['total_downloads'] = usage.get('total_downloads', 0)
+                    user_info['last_active'] = usage.get('last_reset', 'Unknown')
+                
+                users.append(user_info)
+            
+            # Sort by premium status and downloads
+            users.sort(key=lambda x: (
+                x.get('premium') != '✅ Premium',  # Premium first
+                -x.get('total_downloads', 0)  # Most downloads first
+            ))
+            
+            return users
+            
+        except Exception as e:
+            self.logger.error(f"Error getting all users: {e}")
+            return []
+
+    async def get_user_info_for_admin(self, user_id: int) -> Dict[str, Any]:
+        """Get detailed user info for admin panel"""
+        try:
+            details = await self.get_subscription_details(user_id)
+            
+            # Add usage stats
+            usage = await self.get_user_usage(user_id)
+            details['usage'] = usage
+            
+            # Add payment history if available
+            payment_history = []
+            for payment_id, payment in self.pending_payments.items():
+                if payment.get('user_id') == user_id:
+                    payment_history.append({
+                        'payment_id': payment_id,
+                        'amount': payment.get('amount'),
+                        'status': payment.get('status'),
+                        'created_at': payment.get('created_at'),
+                        'screenshot_sent': payment.get('screenshot_sent', False)
+                    })
+            
+            details['payment_history'] = payment_history
+            
+            return details
+            
+        except Exception as e:
+            self.logger.error(f"Error getting user info for admin: {e}")
+            return {}
+
+    async def record_download_stats(self, user_id: int, file_size: int, quality: str):
+        """Record download statistics"""
+        try:
+            await self.record_download(user_id, file_size, quality)
+        except Exception as e:
+            self.logger.error(f"Error recording download stats: {e}")
+
+    async def get_user_download_stats(self, user_id: int) -> Dict[str, Any]:
+        """Get user download statistics"""
+        try:
+            usage = await self.get_user_usage(user_id)
+            
+            return {
+                'daily_downloads': usage.get('daily_downloads', 0),
+                'monthly_downloads': usage.get('monthly_downloads', 0),
+                'total_downloads': usage.get('total_downloads', 0),
+                'quality_stats': usage.get('quality_stats', {}),
+                'premium_status': await self.get_user_tier(user_id),
+                'download_limit': 'Unlimited' if await self.get_user_tier(user_id) == PremiumTier.FREE else 'Unlimited'
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting download stats: {e}")
+            return {}
+
+    async def get_bot_statistics(self) -> Dict[str, Any]:
+        """Get bot statistics for admin panel"""
+        try:
+            return await self.get_statistics()
+        except Exception as e:
+            self.logger.error(f"Error getting bot statistics: {e}")
+            return {}
+
+    async def create_payment(self, user_id: int, amount: int, plan_type: str) -> str:
+        """Create payment entry for user"""
+        try:
+            # Find the tier
+            tier = None
+            for t_enum, plan in self.plans.items():
+                if plan.price == amount and plan_type.lower() in plan.name.lower():
+                    tier = t_enum
+                    break
+            
+            if not tier:
+                raise ValueError(f"No plan found for amount {amount} and type {plan_type}")
+            
+            # Initiate purchase
+            payment_data = await self.initiate_purchase(user_id, tier)
+            return payment_data['payment_id']
+            
+        except Exception as e:
+            self.logger.error(f"Error creating payment: {e}")
+            return None
+
+    async def get_payment_info(self, payment_id: str) -> Dict[str, Any]:
+        """Get payment information"""
+        try:
+            if payment_id in self.pending_payments:
+                return self.pending_payments[payment_id]
+            
+            # Check in user subscriptions
+            for user_id, sub_data in self.user_subscriptions.items():
+                if sub_data.get('payment_id') == payment_id:
+                    return sub_data
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error getting payment info: {e}")
+            return None
+
+    async def add_premium_subscription_admin(self, user_id: int, tier_name: str, days_valid: int, 
+                                           payment_method: str, payment_id: str) -> bool:
+        """Add premium subscription for admin commands"""
+        try:
+            # Find tier
+            tier = None
+            for t_enum, plan in self.plans.items():
+                if tier_name.lower() in plan.name.lower():
+                    tier = t_enum
+                    break
+            
+            if not tier:
+                # Try to match by tier name
+                try:
+                    tier = PremiumTier(tier_name.lower())
+                except ValueError:
+                    return False
+            
+            # Add subscription
+            sub_data = await self.add_premium_subscription(
+                admin_id=0,  # System admin
+                user_id=user_id,
+                tier=tier,
+                days=days_valid,
+                reason=f"admin_command_{payment_method}"
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Admin add premium error: {e}")
+            return False
+
+    async def get_active_subscriptions_count(self) -> int:
+        """Get count of active premium subscriptions"""
+        try:
+            count = 0
+            for user_id, sub_data in self.user_subscriptions.items():
+                if sub_data.get('status') == PremiumStatus.ACTIVE.value:
+                    expiry = sub_data.get('expires_at')
+                    if expiry and datetime.now() < expiry:
+                        count += 1
+            return count
+        except Exception as e:
+            logger.error(f"Error getting active subscriptions count: {e}")
+            return 0
+
+    async def get_revenue_stats(self) -> Dict[str, Any]:
+        """Get revenue statistics"""
+        try:
+            return {
+                'total_revenue': self.statistics['total_revenue'],
+                'premium_sales': self.statistics['total_premium_sales'],
+                'pending_revenue': sum(payment.get('amount', 0) for payment in self.pending_payments.values() if payment.get('status') == 'pending'),
+                'average_sale': self.statistics['total_revenue'] / self.statistics['total_premium_sales'] if self.statistics['total_premium_sales'] > 0 else 0
+            }
+        except Exception as e:
+            logger.error(f"Error getting revenue stats: {e}")
+            return {}
+
+    async def backup_database(self):
+        """Create backup of database"""
+        try:
+            from datetime import datetime
+            import shutil
+            
+            # Create backup directory if not exists
+            backup_dir = "backups"
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+            
+            backup_file = os.path.join(backup_dir, f"premium_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+            
+            # Export current state
+            state = self.to_dict()
+            
+            # Save to file
+            with open(backup_file, 'w', encoding='utf-8') as f:
+                json.dump(state, f, indent=2, default=str)
+            
+            logger.info(f"💾 Database backed up to {backup_file}")
+            return backup_file
+            
+        except Exception as e:
+            logger.error(f"Backup failed: {e}")
+            return None
 
 
 # Example usage
@@ -1228,6 +1468,11 @@ if __name__ == "__main__":
         await premium.add_premium_subscription(1, 12345, PremiumTier.PREMIUM, 30, "test")
         stats = await premium.get_statistics()
         print(f"Stats: {stats}")
+        
+        # Test new methods
+        print("\n=== NEW METHODS ===")
+        users = await premium.get_all_users()
+        print(f"Total users: {len(users)}")
         
         # Stop cleanup
         await premium.stop_cleanup_task()
