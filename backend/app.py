@@ -2128,7 +2128,7 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ SEARCH FUNCTION - FIXED FOR FILE CHANNEL WITH REAL MESSAGE IDS
+# ✅ SEARCH FUNCTION - FIXED WITH PROPER MERGING
 # ============================================================================
 
 def channel_name_cached(cid):
@@ -2137,7 +2137,7 @@ def channel_name_cached(cid):
 @performance_monitor.measure("multi_channel_search_merged")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_multi_channel_merged(query, limit=12, page=1):
-    """COMBINED search with FILE CHANNEL FIX and REAL MESSAGE IDS"""
+    """FIXED: Now properly merges all files with same title and shows all qualities"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -2155,7 +2155,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     files_dict = {}
     
     # ============================================================================
-    # ✅ 1. SEARCH TEXT CHANNELS
+    # ✅ 1. SEARCH TEXT CHANNELS (Posts/Messages)
     # ============================================================================
     if user_session_ready and User is not None:
         async def search_text_channel(channel_id):
@@ -2175,6 +2175,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                                 # Create movie data
                                 movie_data = {
                                     'title': title,
+                                    'original_title': title,
                                     'normalized_title': norm_title,
                                     'content': format_post(msg.text, max_length=1000),
                                     'post_content': msg.text,
@@ -2187,7 +2188,9 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                                     'has_post': True,
                                     'quality_options': {},
                                     'is_video_file': False,
-                                    'year': year
+                                    'year': year,
+                                    'search_score': 2 if query_lower in title.lower() else 1,
+                                    'result_type': 'post'
                                 }
                                 
                                 channel_posts[norm_title] = movie_data
@@ -2202,9 +2205,11 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
         for result in results:
             if isinstance(result, dict):
                 posts_dict.update(result)
+        
+        logger.info(f"📝 Found {len(posts_dict)} posts in text channels")
     
     # ============================================================================
-    # ✅ 2. SEARCH FILE CHANNEL DATABASE - FIXED WITH REAL MESSAGE IDS
+    # ✅ 2. SEARCH FILE CHANNEL DATABASE - IMPROVED MERGING
     # ============================================================================
     if files_col is not None:
         try:
@@ -2222,7 +2227,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 "is_duplicate": False
             }
             
-            # Execute search with REAL MESSAGE IDS
+            # Get ALL matching files, not limited
             cursor = files_col.find(
                 search_query,
                 {
@@ -2233,8 +2238,8 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'file_name': 1,
                     'is_video_file': 1,
                     'channel_id': 1,
-                    'message_id': 1,  # 🔥 REAL MESSAGE ID
-                    'real_message_id': 1,  # 🔥 ALTERNATE REAL MESSAGE ID
+                    'message_id': 1,
+                    'real_message_id': 1,
                     'date': 1,
                     'caption': 1,
                     'file_id': 1,
@@ -2244,47 +2249,66 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'year': 1,
                     '_id': 0
                 }
-            ).limit(limit * 3)
+            ).limit(1000)  # Increased limit to get all files
             
             file_count = 0
+            quality_counts = defaultdict(int)
+            
             async for doc in cursor:
                 file_count += 1
                 try:
-                    norm_title = doc.get('normalized_title', normalize_title(doc['title']))
+                    title = doc.get('title', 'Unknown')
+                    norm_title = normalize_title(title)
+                    
+                    # Debug: Log titles
+                    if file_count <= 5:
+                        logger.debug(f"📄 File {file_count}: '{title}' -> Norm: '{norm_title}'")
+                    
+                    # Extract quality info
                     quality_info = extract_quality_info(doc.get('file_name', ''))
                     quality = quality_info['full']
+                    base_quality = quality_info['base']
+                    
+                    # Count quality occurrences
+                    quality_counts[quality] += 1
                     
                     # Get thumbnail URL
                     thumbnail_url = doc.get('thumbnail_url')
                     
-                    # 🔥 USE REAL MESSAGE ID - Priority: real_message_id > message_id
+                    # Get REAL message ID
                     real_msg_id = doc.get('real_message_id') or doc.get('message_id')
                     
-                    # Quality option with REAL MESSAGE ID
+                    # Create quality option
                     quality_option = {
-                        # 🔥 CORRECT FILE ID FORMAT: channelId_realMessageId_quality
                         'file_id': f"{doc.get('channel_id', Config.FILE_CHANNEL_ID)}_{real_msg_id}_{quality}",
                         'file_size': doc.get('file_size', 0),
                         'file_name': doc.get('file_name', ''),
                         'is_video': doc.get('is_video_file', False),
                         'channel_id': doc.get('channel_id'),
-                        'message_id': real_msg_id,  # 🔥 REAL MESSAGE ID
-                        'quality_info': quality_info,
+                        'message_id': real_msg_id,
+                        'real_message_id': real_msg_id,
+                        'quality': quality,
+                        'base_quality': base_quality,
+                        'is_hevc': quality_info['is_hevc'],
+                        'priority': quality_info['priority'],
                         'thumbnail_url': thumbnail_url,
-                        'has_thumbnail': thumbnail_url is not None
+                        'has_thumbnail': thumbnail_url is not None,
+                        'date': doc.get('date'),
+                        'telegram_file_id': doc.get('telegram_file_id')
                     }
                     
+                    # If this normalized title doesn't exist in files_dict
                     if norm_title not in files_dict:
-                        # Create movie data
-                        title = doc['title']
                         year = doc.get('year', '')
                         
                         files_dict[norm_title] = {
                             'title': title,
+                            'original_title': title,
                             'normalized_title': norm_title,
                             'content': format_post(doc.get('caption', ''), max_length=500),
                             'post_content': doc.get('caption', ''),
-                            'quality_options': {quality: quality_option},
+                            'quality_options': {quality: quality_option},  # Start with first quality
+                            'quality_list': [quality],  # Track all qualities
                             'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
                             'is_new': is_new(doc['date']) if doc.get('date') else False,
                             'is_video_file': doc.get('is_video_file', False),
@@ -2297,154 +2321,210 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             'quality': quality,
                             'has_thumbnail': thumbnail_url is not None,
                             'thumbnail_url': thumbnail_url,
-                            'real_message_id': real_msg_id  # 🔥 Store for frontend
+                            'real_message_id': real_msg_id,
+                            'search_score': 3 if query_lower in title.lower() else 2,
+                            'result_type': 'file',
+                            'total_files': 1,
+                            'file_sizes': [doc.get('file_size', 0)]
                         }
                         
                         # If we have thumbnail, use it
                         if thumbnail_url:
                             files_dict[norm_title]['thumbnail'] = thumbnail_url
                     else:
-                        # Add quality option to existing entry
-                        files_dict[norm_title]['quality_options'][quality] = quality_option
+                        # MERGE: Same title, different file - add quality option
+                        existing = files_dict[norm_title]
                         
-                        # Update thumbnail
-                        if thumbnail_url and not files_dict[norm_title].get('has_thumbnail'):
-                            files_dict[norm_title]['thumbnail'] = thumbnail_url
-                            files_dict[norm_title]['has_thumbnail'] = True
+                        # Only add if this quality doesn't already exist
+                        if quality not in existing['quality_options']:
+                            existing['quality_options'][quality] = quality_option
+                            existing['quality_list'].append(quality)
+                            existing['total_files'] += 1
+                            existing['file_sizes'].append(doc.get('file_size', 0))
+                        
+                        # Update thumbnail if we have one and existing doesn't
+                        if thumbnail_url and not existing.get('has_thumbnail'):
+                            existing['thumbnail'] = thumbnail_url
+                            existing['thumbnail_url'] = thumbnail_url
+                            existing['has_thumbnail'] = True
+                        
+                        # Update date to latest
+                        new_date = doc.get('date')
+                        if new_date and isinstance(new_date, datetime):
+                            existing_date = existing.get('date')
+                            if isinstance(existing_date, str):
+                                try:
+                                    existing_date = datetime.fromisoformat(existing_date.replace('Z', '+00:00'))
+                                except:
+                                    existing_date = None
+                            
+                            if existing_date is None or new_date > existing_date:
+                                existing['date'] = new_date.isoformat() if isinstance(new_date, datetime) else new_date
+                                existing['is_new'] = is_new(new_date)
+                        
+                        # Update to reflect we have files
+                        existing['has_file'] = True
                         
                 except Exception as e:
                     logger.error(f"File processing error: {e}")
                     continue
             
             logger.info(f"✅ Found {file_count} files in database for query: {query}")
+            logger.info(f"📊 Quality distribution: {dict(quality_counts)}")
+            
+            # Now group files by normalized title to see merging
+            grouped_count = len(files_dict)
+            logger.info(f"📦 After merging: {grouped_count} unique titles (from {file_count} files)")
             
         except Exception as e:
             logger.error(f"❌ File search error: {e}")
     
     # ============================================================================
-    # ✅ 3. MERGE QUALITY OPTIONS
+    # ✅ 3. PROCESS QUALITY OPTIONS FOR EACH TITLE
     # ============================================================================
-    for norm_title in files_dict:
-        if files_dict[norm_title]['quality_options']:
-            files_dict[norm_title]['quality_options'] = QualityMerger.merge_quality_options(
-                files_dict[norm_title]['quality_options']
-            )
-            files_dict[norm_title]['quality_summary'] = QualityMerger.get_quality_summary(
-                files_dict[norm_title]['quality_options']
-            )
+    for norm_title, movie_data in files_dict.items():
+        if movie_data['quality_options']:
+            # Get all qualities sorted by priority
+            qualities = list(movie_data['quality_options'].keys())
+            
+            # Sort qualities by priority
+            def get_quality_priority(q):
+                base_q = q.replace(' HEVC', '')
+                if base_q in Config.QUALITY_PRIORITY:
+                    return Config.QUALITY_PRIORITY.index(base_q)
+                return 999
+            
+            qualities.sort(key=get_quality_priority)
+            
+            # Calculate total size
+            total_size = sum(movie_data['file_sizes'])
+            
+            # Determine best quality (highest priority)
+            best_quality = qualities[0] if qualities else ''
+            
+            # Create quality summary
+            quality_summary_parts = []
+            for q in qualities[:5]:  # Show up to 5 qualities
+                quality_summary_parts.append(q)
+            
+            if len(qualities) > 5:
+                quality_summary_parts.append(f"+{len(qualities) - 5} more")
+            
+            quality_summary = " • ".join(quality_summary_parts)
+            
+            # Update movie data with merged info
+            movie_data.update({
+                'quality': best_quality,
+                'quality_summary': quality_summary,
+                'all_qualities': qualities,
+                'available_qualities': qualities,
+                'quality_count': len(qualities),
+                'total_size': total_size,
+                'size_formatted': format_size(total_size),
+                'best_quality': best_quality
+            })
+            
+            logger.debug(f"📊 {norm_title}: {len(qualities)} qualities -> {quality_summary}")
     
     # ============================================================================
-    # ✅ 4. MERGE POSTS AND FILES
+    # ✅ 4. MERGE POSTS AND FILES - IMPROVED LOGIC
     # ============================================================================
     merged = {}
     
-    all_titles = set(list(posts_dict.keys()) + list(files_dict.keys()))
-    
-    # Create list for batch poster fetching
-    movies_for_posters = []
-    
-    for norm_title in all_titles:
-        post_data = posts_dict.get(norm_title)
-        file_data = files_dict.get(norm_title)
+    # First, handle all files
+    for norm_title, file_data in files_dict.items():
+        # Start with file data as base
+        merged[norm_title] = file_data.copy()
         
-        # If both post and file exist
-        if post_data and file_data:
-            # Merge: Use post data as base, add file data
-            result = post_data.copy()
-            result['has_file'] = True
-            result['quality_options'] = file_data['quality_options']
-            result['quality_summary'] = file_data.get('quality_summary', '')
-            result['quality'] = file_data.get('quality', '')
-            result['real_message_id'] = file_data.get('real_message_id')  # 🔥 Add real message ID
+        # If there's also a post with same title, merge post content
+        if norm_title in posts_dict:
+            post_data = posts_dict[norm_title]
             
-            # If post has no content but file has caption, use it
-            if not result.get('post_content') and file_data.get('file_caption'):
-                result['post_content'] = file_data['file_caption']
-                result['content'] = format_post(file_data['file_caption'], max_length=500)
+            # Add post content to file data
+            merged[norm_title].update({
+                'has_post': True,
+                'post_content': post_data.get('post_content', ''),
+                'content': post_data.get('content', '') or merged[norm_title].get('content', ''),
+                'search_score': max(merged[norm_title].get('search_score', 0), post_data.get('search_score', 0)),
+                'result_type': 'both'  # Has both file and post
+            })
             
-            # Use thumbnail if available
-            if file_data.get('has_thumbnail') and file_data.get('thumbnail'):
-                result['thumbnail'] = file_data['thumbnail']
-                result['has_thumbnail'] = True
-                result['thumbnail_url'] = file_data['thumbnail_url']
-        
-        # If only post exists
-        elif post_data:
-            result = post_data.copy()
-        
-        # If only file exists
-        elif file_data:
-            result = file_data.copy()
-        
-        else:
-            continue
-        
-        # Add to batch for poster fetching
-        movies_for_posters.append(result)
-        merged[norm_title] = result
+            # Remove from posts_dict to avoid duplication
+            del posts_dict[norm_title]
+    
+    # Second, add posts that don't have corresponding files
+    for norm_title, post_data in posts_dict.items():
+        merged[norm_title] = post_data.copy()
     
     # ============================================================================
     # ✅ 5. FETCH POSTERS IN BATCH
     # ============================================================================
-    if movies_for_posters:
-        logger.info(f"🎬 Fetching posters for {len(movies_for_posters)} movies...")
+    if merged:
+        logger.info(f"🎬 Fetching posters for {len(merged)} movies...")
         
-        # Separate movies with and without thumbnails
-        movies_without_thumbnails = []
-        movies_with_thumbnails = []
-        
-        for movie in movies_for_posters:
-            if movie.get('has_thumbnail'):
-                movies_with_thumbnails.append(movie)
-            else:
-                movies_without_thumbnails.append(movie)
+        # Prepare movies for poster fetching
+        movies_for_posters = []
+        for norm_title, movie_data in merged.items():
+            movies_for_posters.append(movie_data)
         
         # Get posters only for movies without thumbnails
+        movies_without_thumbnails = [m for m in movies_for_posters if not m.get('has_thumbnail')]
+        movies_with_thumbnails = [m for m in movies_for_posters if m.get('has_thumbnail')]
+        
         if movies_without_thumbnails:
             movies_with_posters = await get_posters_for_movies_batch(movies_without_thumbnails)
         else:
             movies_with_posters = []
         
         # Update merged dict with poster/thumbnail data
-        all_movies = movies_with_thumbnails + movies_with_posters
-        
-        for movie in all_movies:
+        poster_map = {}
+        for movie in movies_with_posters:
             norm_title = movie.get('normalized_title', normalize_title(movie['title']))
-            if norm_title in merged:
-                # If movie has thumbnail, keep it
-                if movie.get('has_thumbnail'):
-                    merged[norm_title].update({
-                        'thumbnail': movie['thumbnail'],
-                        'has_thumbnail': True,
-                        'thumbnail_url': movie.get('thumbnail_url'),
-                        # Still get poster for UI
-                        'poster_url': movie.get('poster_url', Config.FALLBACK_POSTER),
-                        'poster_source': movie.get('poster_source', 'fallback'),
-                        'poster_rating': movie.get('poster_rating', '0.0'),
-                        'has_poster': True
-                    })
-                else:
-                    # Use poster as thumbnail
-                    merged[norm_title].update({
-                        'poster_url': movie['poster_url'],
-                        'poster_source': movie['poster_source'],
-                        'poster_rating': movie['poster_rating'],
-                        'thumbnail': movie['thumbnail'],
-                        'thumbnail_source': movie['thumbnail_source'],
-                        'has_poster': True,
-                        'has_thumbnail': True
-                    })
+            poster_map[norm_title] = movie
+        
+        # Update merged with new poster data
+        for norm_title, movie_data in merged.items():
+            if norm_title in poster_map:
+                poster_data = poster_map[norm_title]
+                merged[norm_title].update({
+                    'poster_url': poster_data['poster_url'],
+                    'poster_source': poster_data['poster_source'],
+                    'poster_rating': poster_data['poster_rating'],
+                    'thumbnail': poster_data['thumbnail'],
+                    'thumbnail_source': poster_data['thumbnail_source'],
+                    'has_poster': True,
+                    'has_thumbnail': True
+                })
+            elif not movie_data.get('has_thumbnail'):
+                # Use fallback
+                merged[norm_title].update({
+                    'poster_url': Config.FALLBACK_POSTER,
+                    'poster_source': 'fallback',
+                    'poster_rating': '0.0',
+                    'thumbnail': Config.FALLBACK_POSTER,
+                    'thumbnail_source': 'fallback',
+                    'has_poster': True,
+                    'has_thumbnail': True
+                })
     
     # ============================================================================
     # ✅ 6. SORT AND PAGINATE
     # ============================================================================
     results_list = list(merged.values())
     
-    # Sort: Has files first, then new, then by date
+    # Enhanced sorting:
+    # 1. Results with files first
+    # 2. Results with multiple qualities first
+    # 3. Results with thumbnails first
+    # 4. New results first
+    # 5. Higher search score first
     results_list.sort(key=lambda x: (
-        x.get('has_file', False),
-        x.get('is_new', False),
-        x.get('date', '')
+        x.get('has_file', False),  # Files first
+        x.get('quality_count', 0),  # More qualities first
+        x.get('has_thumbnail', False),  # Thumbnails first
+        x.get('is_new', False),  # New first
+        x.get('search_score', 0),  # Higher search relevance
+        x.get('date', '') if isinstance(x.get('date'), str) else ''  # Recent first
     ), reverse=True)
     
     total = len(results_list)
@@ -2458,8 +2538,22 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
         'both': sum(1 for r in results_list if r.get('has_file', False) and r.get('has_post', False)),
         'video_files': sum(1 for r in results_list if r.get('is_video_file', False)),
         'with_thumbnails': sum(1 for r in results_list if r.get('has_thumbnail', False)),
-        'real_message_ids': sum(1 for r in results_list if r.get('real_message_id'))  # 🔥 Track real IDs
+        'multi_quality': sum(1 for r in results_list if r.get('quality_count', 0) > 1),
+        'avg_qualities_per_title': sum(r.get('quality_count', 0) for r in results_list) / total if total > 0 else 0,
+        'real_message_ids': sum(1 for r in results_list if r.get('real_message_id'))
     }
+    
+    # Log detailed merging info
+    logger.info(f"📊 FINAL MERGING STATS:")
+    logger.info(f"   • Total unique titles: {total}")
+    logger.info(f"   • Titles with files: {stats['with_files']}")
+    logger.info(f"   • Titles with multiple qualities: {stats['multi_quality']}")
+    logger.info(f"   • Average qualities per title: {stats['avg_qualities_per_title']:.1f}")
+    
+    # Show examples of merged titles
+    for i, result in enumerate(paginated[:3]):
+        if result.get('quality_count', 0) > 1:
+            logger.info(f"   📦 Example {i+1}: {result.get('title', '')[:40]}... - {result.get('quality_count')} qualities")
     
     # Final data structure
     result_data = {
@@ -2480,17 +2574,20 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             'poster_fetcher': poster_fetcher is not None,
             'user_session_used': user_session_ready,
             'cache_hit': False,
-            'real_message_ids': True  # 🔥 Indicate real IDs are used
+            'real_message_ids': True,
+            'merge_stats': {
+                'files_merged': file_count - grouped_count if 'file_count' in locals() else 0,
+                'unique_titles': grouped_count if 'grouped_count' in locals() else 0
+            }
         },
-        'bot_username': Config.BOT_USERNAME  # 🔥 Include bot username
+        'bot_username': Config.BOT_USERNAME
     }
     
     # Cache results
     if cache_manager is not None:
         await cache_manager.set(cache_key, result_data, expire_seconds=Config.SEARCH_CACHE_TTL)
     
-    logger.info(f"✅ Search complete: {len(paginated)} results")
-    logger.info(f"   📊 Stats: {stats}")
+    logger.info(f"✅ Search complete: {len(paginated)} results (showing page {page})")
     
     return result_data
 
@@ -2564,6 +2661,52 @@ async def get_home_movies(limit=20):
     except Exception as e:
         logger.error(f"❌ Home movies error: {e}")
         return []
+
+# ============================================================================
+# ✅ DEBUG FUNCTION FOR FILE GROUPING
+# ============================================================================
+
+async def debug_file_grouping(query):
+    """Debug function to see how files are being grouped"""
+    if files_col is None:
+        return {}
+    
+    # Get all files matching query
+    cursor = files_col.find(
+        {"normalized_title": {"$regex": query, "$options": "i"}},
+        {
+            'title': 1,
+            'normalized_title': 1,
+            'quality': 1,
+            'file_name': 1,
+            'message_id': 1,
+            '_id': 0
+        }
+    ).limit(50)
+    
+    files_by_title = defaultdict(list)
+    
+    async for doc in cursor:
+        title = doc.get('title', 'Unknown')
+        norm_title = normalize_title(title)
+        quality = doc.get('quality', 'Unknown')
+        
+        files_by_title[norm_title].append({
+            'title': title,
+            'quality': quality,
+            'file_name': doc.get('file_name', ''),
+            'message_id': doc.get('message_id')
+        })
+    
+    # Log grouping
+    logger.info(f"🔍 DEBUG Grouping for query: {query}")
+    for norm_title, files in files_by_title.items():
+        qualities = [f['quality'] for f in files]
+        logger.info(f"   📁 '{norm_title}': {len(files)} files")
+        for file in files:
+            logger.info(f"      • {file['quality']} - {file['file_name'][:30]}... (Msg ID: {file['message_id']})")
+    
+    return files_by_title
 
 # ============================================================================
 # ✅ API ROUTES - WITH ADMIN ENDPOINTS
@@ -2783,6 +2926,31 @@ async def api_stats():
             'status': 'error',
             'message': str(e)
         }), 500
+
+# ============================================================================
+# ✅ DEBUG ENDPOINT
+# ============================================================================
+
+@app.route('/api/debug/grouping', methods=['GET'])
+async def api_debug_grouping():
+    """Debug endpoint to see file grouping"""
+    try:
+        query = request.args.get('query', '').strip()
+        if not query:
+            return jsonify({'status': 'error', 'message': 'Query parameter required'}), 400
+        
+        grouped = await debug_file_grouping(query)
+        
+        return jsonify({
+            'status': 'success',
+            'query': query,
+            'grouped_files': grouped,
+            'total_groups': len(grouped),
+            'total_files': sum(len(files) for files in grouped.values())
+        })
+    except Exception as e:
+        logger.error(f"Debug grouping error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
 # ✅ ADMIN API ROUTES
@@ -3021,7 +3189,7 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v8.5 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: REAL MESSAGE IDS FIX")
+    logger.info("🎯 FEATURES: REAL MESSAGE IDS FIX WITH PROPER MERGING")
     logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
     logger.info(f"   • Real Message IDs: ✅ ENABLED")
     logger.info(f"   • File ID Format: channelId_realMessageId_quality")
@@ -3030,6 +3198,7 @@ if __name__ == "__main__":
     logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
     logger.info(f"   • Search Cache TTL: {Config.SEARCH_CACHE_TTL}s")
     logger.info(f"   • Telegram Bot: ✅ ENABLED")
-    logger.info(f"   • Bot Token Configured: {'✅ YES' if Config.BOT_TOKEN else '❌ NO'}")
+    logger.info(f"   • Multi-Quality Merging: ✅ FIXED")
+    logger.info(f"   • Single Title Results: ✅ ENABLED")
     
     asyncio.run(serve(app, config))
