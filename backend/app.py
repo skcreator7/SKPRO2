@@ -2113,7 +2113,7 @@ def channel_name_cached(cid):
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
-async def get_home_movies(limit=6):
+async def get_home_movies(limit=20):
     """Get home movies"""
     try:
         if User is None or not user_session_ready:
@@ -2122,7 +2122,7 @@ async def get_home_movies(limit=6):
         movies = []
         seen_titles = set()
         
-        logger.info(f"🎬 Fetching home movies (6/6)...")
+        logger.info(f"🎬 Fetching home movies (20)...")
         
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=12):
             if msg is not None and msg.text and len(msg.text) > 20:
@@ -2362,7 +2362,7 @@ async def api_movies():
             'status': 'success' if movies else 'empty',
             'movies': movies,
             'total': len(movies),
-            'limit': 6,
+            'limit': 20,
             'source': 'telegram',
             'poster_fetcher': poster_fetcher is not None,
             'session_used': 'user',
