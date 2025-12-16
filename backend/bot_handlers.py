@@ -984,30 +984,26 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Stats command error: {e}")
             await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
     
-    # ✅ START COMMAND HANDLER - FIXED VERSION FOR /start -1001768249569_16066_480p
+    # ✅ START COMMAND HANDLER - SIMPLIFIED BUT WORKING VERSION
     @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
-        """Handle /start command - FIXED to properly handle parameters"""
+        """Handle /start command - WORKING VERSION"""
         user_name = message.from_user.first_name or "User"
         user_id = message.from_user.id
         
-        # FIX: PROPERLY HANDLE /start -1001768249569_16066_480p
-        # The issue was that Pyrogram's message.command doesn't handle negative numbers well
-        # when they come as parameters
-        
-        # Get the full message text
+        # Get the full command text
         full_text = message.text or ""
+        logger.info(f"📥 /start command received from user {user_id}: '{full_text}'")
         
-        # Check if there's a parameter after /start
-        if len(full_text) > 7:  # "/start " is 7 characters
-            # Extract everything after "/start "
-            param_text = full_text[7:].strip()
+        # Check if there are parameters after /start
+        if len(message.command) > 1:
+            # Join all parts after the first one (which is "start")
+            param_text = ' '.join(message.command[1:])
+            logger.info(f"📥 Extracted parameter: '{param_text}'")
             
-            # Debug log
-            logger.info(f"📥 /start command received: user={user_id}, full_text='{full_text}', param_text='{param_text}'")
-            
-            # Check if it looks like a file request (format: -1001768249569_16066_480p)
-            if param_text and re.match(r'^-?\d+_\d+(_\w+)?$', param_text):
+            # Check if it's a file request format
+            if re.match(r'^-?\d+_\d+(_\w+)?$', param_text):
+                logger.info(f"📥 Recognized as file request: {param_text}")
                 await handle_file_request(client, message, param_text, bot_instance)
                 return
         
@@ -1029,13 +1025,14 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         ])
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+        logger.info(f"📥 Welcome message sent to user {user_id}")
     
     # ✅ Handle direct file format messages - IMPROVED REGEX
     @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
     async def handle_direct_file_request(client, message):
         """Handle direct file format messages"""
         file_text = message.text.strip()
-        logger.info(f"📥 Direct file request: user={message.from_user.id}, text='{file_text}'")
+        logger.info(f"📥 Direct file request from user {message.from_user.id}: '{file_text}'")
         await handle_file_request(client, message, file_text, bot_instance)
     
     # ✅ GET VERIFIED CALLBACK - SIMPLIFIED
