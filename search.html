@@ -129,15 +129,189 @@
             height: 250px;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         }
+        
+        /* IMPROVED: Post Content Styling */
         .result-post-content {
-            background: rgba(15, 23, 42, 0.5);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 1.2rem;
-            margin-bottom: 1rem;
-            font-size: 0.95rem;
-            line-height: 1.5;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.2rem;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
+        
+        /* Post Content Text Styling */
+        .post-content-text {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        /* Post Content Scrollbar */
+        .post-content-text::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .post-content-text::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+        
+        .post-content-text::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 3px;
+        }
+        
+        /* Post Content Links - IMPROVED */
+        .post-content-text a {
+            color: #00ccff;
+            text-decoration: none;
+            font-weight: 600;
+            background: rgba(0, 204, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 2px 0;
+        }
+        
+        .post-content-text a:hover {
+            background: rgba(0, 204, 255, 0.2);
+            color: #80e1ff;
+            text-decoration: none;
+            border-color: rgba(0, 204, 255, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0, 204, 255, 0.2);
+        }
+        
+        /* Telegram Links Styling */
+        .post-content-text a[href*="t.me"],
+        .post-content-text a[href*="telegram"] {
+            color: #0088cc;
+            background: rgba(0, 136, 204, 0.1);
+            border: 1px solid rgba(0, 136, 204, 0.3);
+        }
+        
+        .post-content-text a[href*="t.me"]:hover,
+        .post-content-text a[href*="telegram"]:hover {
+            background: rgba(0, 136, 204, 0.2);
+            color: #33aadd;
+            border-color: rgba(0, 136, 204, 0.5);
+        }
+        
+        /* Bold Text in Post Content */
+        .post-content-text strong,
+        .post-content-text b {
+            color: #ffffff;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        
+        /* Italic Text */
+        .post-content-text em,
+        .post-content-text i {
+            color: #cbd5e1;
+            font-style: italic;
+        }
+        
+        /* Headers in Post Content */
+        .post-content-text h1,
+        .post-content-text h2,
+        .post-content-text h3,
+        .post-content-text h4 {
+            color: var(--accent-color);
+            margin: 15px 0 10px 0;
+            font-weight: 700;
+        }
+        
+        /* Lists in Post Content */
+        .post-content-text ul,
+        .post-content-text ol {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        
+        .post-content-text li {
+            margin: 5px 0;
+        }
+        
+        /* Code/Pre tags */
+        .post-content-text pre,
+        .post-content-text code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-x: auto;
+        }
+        
+        /* Blockquotes */
+        .post-content-text blockquote {
+            border-left: 4px solid var(--accent-color);
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        
+        /* Horizontal Rule */
+        .post-content-text hr {
+            border: none;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 20px 0;
+        }
+        
+        /* Images in Post Content */
+        .post-content-text img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Video in Post Content */
+        .post-content-text video {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Tags/Hashtags */
+        .post-content-text .hashtag {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin: 0 2px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        /* Mentions */
+        .post-content-text .mention {
+            color: #ff6b9d;
+            background: rgba(255, 107, 157, 0.1);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin: 0 2px;
+            border: 1px solid rgba(255, 107, 157, 0.3);
+        }
+        
         .result-download-section {
             margin-top: 1rem;
         }
@@ -189,26 +363,6 @@
         .play-button:hover {
             transform: scale(1.1);
             background: var(--secondary-color);
-        }
-        
-        /* Post Content */
-        .post-content img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin: 8px 0;
-        }
-        .post-content video {
-            max-width: 100%;
-            border-radius: 8px;
-            margin: 8px 0;
-        }
-        .post-content a {
-            color: var(--accent-color);
-            text-decoration: none;
-        }
-        .post-content a:hover {
-            text-decoration: underline;
         }
         
         /* Thumbnail Loading States */
@@ -424,32 +578,6 @@
             transition: transform 0.1s ease;
         }
         
-        /* Glow effect on hover */
-        .quality-option:hover::after {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            border-radius: 14px;
-            z-index: -1;
-            opacity: 0.7;
-            filter: blur(10px);
-        }
-        
-        .quality-option[data-quality*="2160p"]:hover::after {
-            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
-        }
-        
-        .quality-option[data-quality*="1080p"]:hover::after {
-            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
-        }
-        
-        .quality-option[data-quality*="720p"]:hover::after {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
         /* Video File Badge */
         .video-file-badge {
             position: absolute;
@@ -628,9 +756,9 @@
                 flex: 0 0 auto;
             }
             
-            .post-content {
-                font-size: 0.9rem;
-                padding: 1rem;
+            .post-content-text {
+                font-size: 0.95rem;
+                max-height: 250px;
             }
         }
         
@@ -653,9 +781,13 @@
                 font-size: 0.85rem;
             }
             
-            .post-content {
-                font-size: 0.85rem;
-                padding: 0.8rem;
+            .post-content-text {
+                font-size: 0.9rem;
+                max-height: 200px;
+            }
+            
+            .result-post-content {
+                padding: 1rem;
             }
         }
         
@@ -678,8 +810,13 @@
                 font-size: 0.8rem;
             }
             
-            .post-content {
-                font-size: 0.8rem;
+            .post-content-text {
+                font-size: 0.85rem;
+                max-height: 180px;
+            }
+            
+            .result-post-content {
+                padding: 0.8rem;
             }
         }
         
@@ -1491,7 +1628,9 @@ async function displayResults(results, pagination) {
             <!-- 3. POST CONTENT - बीच में -->
             ${hasPostContent ? `
                 <div class="result-post-content">
-                    ${formatPostContent(postContent)}
+                    <div class="post-content-text">
+                        ${formatPostContent(postContent)}
+                    </div>
                 </div>
             ` : ''}
             
@@ -1621,15 +1760,62 @@ function showDefaultThumbnail(movieTitle, index) {
     `;
 }
 
+// ✅ IMPROVED: Post Content Formatting with Better Link Visibility
 function formatPostContent(content) {
     let formatted = escapeHtml(content);
+    
+    // Replace newlines with <br> tags
     formatted = formatted.replace(/\n/g, '<br>');
-    formatted = formatted.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-    formatted = formatted.replace(/(t\.me\/[^\s]+)/g, '<a href="https://$1" target="_blank">$1</a>');
-    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, '<a href="https://t.me/$1" target="_blank">@$1</a>');
-    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, '<span class="text-info">#$1</span>');
+    
+    // Detect and format URLs (http/https)
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        const lastChar = url.slice(-1);
+        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
+        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="post-link">${cleanUrl}</a>${punctuation}`;
+    });
+    
+    // Detect and format Telegram links (t.me)
+    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        const lastChar = url.slice(-1);
+        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
+        const fullUrl = 'https://' + cleanUrl;
+        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="telegram-link">${cleanUrl}</a>${punctuation}`;
+    });
+    
+    // Detect and format @mentions
+    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, function(mention) {
+        const username = mention.substring(1);
+        return `<a href="https://t.me/${username}" target="_blank" rel="noopener noreferrer" class="mention-link">${mention}</a>`;
+    });
+    
+    // Detect and format #hashtags
+    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, function(hashtag) {
+        return `<span class="hashtag-tag">${hashtag}</span>`;
+    });
+    
+    // Format bold text (**text**)
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Format italic text (*text*)
     formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Format underline text (__text__)
+    formatted = formatted.replace(/__(.*?)__/g, '<u>$1</u>');
+    
+    // Format strikethrough text (~~text~~)
+    formatted = formatted.replace(/~~(.*?)~~/g, '<del>$1</del>');
+    
+    // Format inline code (`code`)
+    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Format code blocks (```code```)
+    formatted = formatted.replace(/```([^`]+)```/g, '<pre>$1</pre>');
+    
+    // Format blockquotes (> text)
+    formatted = formatted.replace(/^&gt;\s*(.*)$/gm, '<blockquote>$1</blockquote>');
+    
     return formatted;
 }
 
@@ -1742,7 +1928,7 @@ if (!AbortSignal.timeout) {
 }
 
 // Debug info
-console.log("✅ SK4FiLM Search Page Loaded with Premium Horizontal Quality Buttons");
+console.log("✅ SK4FiLM Search Page Loaded with Premium Post Content Styling");
 console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
 console.log("📱 Open browser console (F12) to see debug messages");
 
