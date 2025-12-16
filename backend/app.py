@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.5 - COMPLETE FILE CHANNEL INDEXING FIX
+# 🚀 SK4FiLM v8.5 - FILE CHANNEL FIXED VERSION
 # ============================================================================
 
 import asyncio
@@ -284,7 +284,7 @@ class PerformanceMonitor:
 performance_monitor = PerformanceMonitor()
 
 # ============================================================================
-# ✅ CONFIGURATION - COMPLETE FILE INDEXING
+# ✅ CONFIGURATION
 # ============================================================================
 
 class Config:
@@ -355,16 +355,16 @@ class Config:
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
     
     # 🔥 FILE CHANNEL INDEXING SETTINGS
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))  # 2 minutes
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "500"))  # Large batches
-    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))  # 0 = Unlimited
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"  # ✅ All history
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "500"))
+    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))
+    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"
     INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"
     
-    # 🔥 SEARCH SETTINGS
+    # Search Settings
     SEARCH_MIN_QUERY_LENGTH = 2
     SEARCH_RESULTS_PER_PAGE = 12
-    SEARCH_CACHE_TTL = 600  # 10 minutes
+    SEARCH_CACHE_TTL = 600
 
 # ============================================================================
 # ✅ FAST INITIALIZATION
@@ -380,7 +380,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.5-FILE-CHANNEL-FIX'
+    response.headers['X-SK4FiLM-Version'] = '8.5-FILE-FIXED'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -1007,7 +1007,7 @@ duplicate_prevention = DuplicatePreventionSystem()
 # ============================================================================
 
 class FileChannelIndexingManager:
-    """File channel indexing manager - COMPLETE INDEXING"""
+    """File channel indexing manager"""
     
     def __init__(self):
         self.is_running = False
@@ -1417,7 +1417,7 @@ class ChannelSyncManager:
 channel_sync_manager = ChannelSyncManager()
 
 # ============================================================================
-# ✅ FILE INDEXING FUNCTIONS - IMPROVED
+# ✅ FILE INDEXING FUNCTIONS
 # ============================================================================
 
 async def generate_file_hash(message):
@@ -1504,15 +1504,15 @@ async def extract_title_improved(filename, caption):
             line = line.strip()
             if len(line) > 10 and not line.startswith('http'):
                 # Clean the line
-                line = re.sub(r'📥.*', '', line)  # Remove download indicators
-                line = re.sub(r'🎬.*', '', line)  # Remove movie indicators
-                line = re.sub(r'⚡.*', '', line)  # Remove speed indicators
-                line = re.sub(r'✅.*', '', line)  # Remove check indicators
-                line = re.sub(r'[⭐🌟]+', '', line)  # Remove stars
+                line = re.sub(r'📥.*', '', line)
+                line = re.sub(r'🎬.*', '', line)
+                line = re.sub(r'⚡.*', '', line)
+                line = re.sub(r'✅.*', '', line)
+                line = re.sub(r'[⭐🌟]+', '', line)
                 line = line.strip()
                 
                 if line and len(line) > 5:
-                    return line[:200]  # Limit length
+                    return line[:200]
     
     # Fallback to filename
     if filename:
@@ -1979,6 +1979,32 @@ async def init_mongodb():
 def channel_name_cached(cid):
     return f"Channel {cid}"
 
+def create_file_only_content(file_data):
+    """Create content for file-only entries (NO CAPTION, just title + quality + default text)"""
+    title = file_data.get('title', 'Movie')
+    quality = file_data.get('quality', '')
+    
+    # Clean quality string
+    if quality:
+        # Remove duplicates like "720p 720p"
+        quality = re.sub(r'(\b\w+\b)\s+\1', r'\1', quality)
+        # Remove "480p" if it's just default
+        if quality.lower() == '480p':
+            quality = ""
+    
+    # Build content - NO FILE CAPTION
+    if quality and quality.strip():
+        if file_data.get('quality_summary'):
+            # Use quality summary if available
+            base_text = f"{title} - {file_data['quality_summary']}"
+        else:
+            base_text = f"{title} - {quality}"
+    else:
+        base_text = title
+    
+    # Add download instruction
+    return f"{base_text}\n\n👇 Click Download Button to get File"
+
 @performance_monitor.measure("multi_channel_search_merged")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_multi_channel_merged(query, limit=12, page=1):
@@ -2135,7 +2161,8 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                             'year': year,
                             'quality': quality,
                             'has_thumbnail': thumbnail_url is not None,
-                            'thumbnail_url': thumbnail_url
+                            'thumbnail_url': thumbnail_url,
+                            'quality_summary': QualityMerger.get_quality_summary({quality: quality_option})
                         }
                         
                         # If we have thumbnail, use it
@@ -2144,6 +2171,11 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     else:
                         # Add quality option to existing entry
                         files_dict[norm_title]['quality_options'][quality] = quality_option
+                        
+                        # Update quality summary
+                        files_dict[norm_title]['quality_summary'] = QualityMerger.get_quality_summary(
+                            files_dict[norm_title]['quality_options']
+                        )
                         
                         # Update thumbnail
                         if thumbnail_url and not files_dict[norm_title].get('has_thumbnail'):
@@ -2172,7 +2204,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             )
     
     # ============================================================================
-    # ✅ 4. MERGE POSTS AND FILES
+    # ✅ 4. MERGE POSTS AND FILES - WITH FIXED FILE-ONLY CONTENT
     # ============================================================================
     merged = {}
     
@@ -2184,42 +2216,40 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     for norm_title in all_titles:
         post_data = posts_dict.get(norm_title)
         file_data = files_dict.get(norm_title)
-        
+
         # If both post and file exist
         if post_data and file_data:
-            # Merge: Use post data as base, add file data
             result = post_data.copy()
             result['has_file'] = True
             result['quality_options'] = file_data['quality_options']
             result['quality_summary'] = file_data.get('quality_summary', '')
             result['quality'] = file_data.get('quality', '')
-            
-            # If post has no content but file has caption, use it
-            if not result.get('post_content') and file_data.get('file_caption'):
-                result['post_content'] = file_data['file_caption']
-                result['content'] = format_post(file_data['file_caption'], max_length=500)
-            
-            # Use thumbnail if available
-            if file_data.get('has_thumbnail') and file_data.get('thumbnail'):
-                result['thumbnail'] = file_data['thumbnail']
-                result['has_thumbnail'] = True
-                result['thumbnail_url'] = file_data['thumbnail_url']
-        
+
         # If only post exists
         elif post_data:
             result = post_data.copy()
-        
-        # If only file exists
+
+        # ✅✅✅ FIXED: If only file exists - NO CAPTION, JUST TITLE + QUALITY + DEFAULT TEXT
         elif file_data:
             result = file_data.copy()
-        
+            
+            # IMPORTANT: Use our function that shows only title + quality + default text
+            # ❌ NO FILE CAPTION SHOWN
+            result['post_content'] = create_file_only_content(file_data)
+            result['content'] = format_post(result['post_content'], max_length=500)
+            
+            # Clear any file caption from result
+            result['file_caption'] = ""
+            result['has_post'] = False
+            
+            logger.debug(f"📦 File-only: {result.get('title', '')[:50]}... - Showing title+quality only")
+
         else:
             continue
-        
-        # Add to batch for poster fetching
+
         movies_for_posters.append(result)
         merged[norm_title] = result
-    
+
     # ============================================================================
     # ✅ 5. FETCH POSTERS IN BATCH
     # ============================================================================
@@ -2334,7 +2364,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
-async def get_home_movies(limit=20):
+async def get_home_movies(limit=24):
     """Get home movies"""
     try:
         if User is None or not user_session_ready:
@@ -2345,8 +2375,8 @@ async def get_home_movies(limit=20):
         
         logger.info(f"🎬 Fetching home movies ({limit})...")
         
-        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=12):
-            if msg is not None and msg.text and len(msg.text) > 20:
+        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=30):
+            if msg is not None and msg.text and len(msg.text) > 24:
                 title = extract_title_smart(msg.text)
                 
                 if title and title not in seen_titles:
@@ -2409,7 +2439,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v8.5 - FILE CHANNEL INDEXING FIX")
+        logger.info("🚀 SK4FiLM v8.5 - FILE CHANNEL FIXED")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2483,7 +2513,7 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ API ROUTES - WITH ADMIN ENDPOINTS
+# ✅ API ROUTES
 # ============================================================================
 
 @app.route('/')
@@ -2506,7 +2536,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.5 - FILE CHANNEL FIX',
+        'service': 'SK4FiLM v8.5 - FILE CHANNEL FIXED',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2728,71 +2758,6 @@ async def api_admin_indexing_status():
         logger.error(f"❌ Indexing status error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/admin/clear-cache', methods=['POST'])
-async def api_admin_clear_cache():
-    """Clear all cache"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if cache_manager and cache_manager.redis_enabled:
-            try:
-                # Clear all cache keys starting with "search_"
-                keys = await cache_manager.redis_client.keys("search_*")
-                if keys:
-                    await cache_manager.redis_client.delete(*keys)
-                    logger.info(f"✅ Cleared {len(keys)} search cache keys")
-            except Exception as e:
-                logger.error(f"❌ Cache clear error: {e}")
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Cache cleared successfully'
-        })
-    except Exception as e:
-        logger.error(f"❌ Clear cache error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/db-stats', methods=['GET'])
-async def api_admin_db_stats():
-    """Get detailed database stats"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if files_col is None:
-            return jsonify({'status': 'error', 'message': 'Database not connected'})
-        
-        # Get total count
-        total = await files_col.count_documents({})
-        
-        # Get sample documents
-        sample = await files_col.find({}, {'title': 1, 'message_id': 1, 'quality': 1, '_id': 0}).limit(5).to_list(length=5)
-        
-        # Get quality distribution
-        pipeline = [
-            {"$group": {"_id": "$quality", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}}
-        ]
-        quality_dist = await files_col.aggregate(pipeline).to_list(length=10)
-        
-        # Get recent files
-        recent = await files_col.find({}, {'title': 1, 'date': 1, '_id': 0}).sort('date', -1).limit(5).to_list(length=5)
-        
-        return jsonify({
-            'status': 'success',
-            'total_files': total,
-            'sample_files': sample,
-            'quality_distribution': quality_dist,
-            'recent_files': recent
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ DB stats error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 # ============================================================================
 # ✅ STARTUP AND SHUTDOWN
 # ============================================================================
@@ -2869,12 +2834,11 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v8.5 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: COMPLETE FILE CHANNEL INDEXING")
+    logger.info("🎯 FEATURES: FILE CHANNEL FIXED")
     logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
     logger.info(f"   • Complete History: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
     logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
     logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
-    logger.info(f"   • Search Cache TTL: {Config.SEARCH_CACHE_TTL}s")
-    logger.info(f"   • Improved Title Extraction: ✅ ENABLED")
+    logger.info(f"   • File-only entries: ✅ TITLE + QUALITY + DEFAULT TEXT (NO CAPTION)")
     
     asyncio.run(serve(app, config))
