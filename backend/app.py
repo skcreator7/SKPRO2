@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.5 - OPTIMIZED WITH BOT HANDLER & COMPLETE REINDEXING
+# 🚀 SK4FiLM v8.5 - COMPLETE FILE CHANNEL INDEXING FIX
 # ============================================================================
 
 import asyncio
@@ -158,13 +158,16 @@ except ImportError as e:
     
     def extract_title_from_file(filename, caption=None):
         if filename:
-            # Remove extension
+            # Remove extension and clean
             name = os.path.splitext(filename)[0]
-            # Clean up
+            # Remove quality indicators
             name = re.sub(r'[._]', ' ', name)
+            name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264)\b', '', name, flags=re.IGNORECASE)
             name = re.sub(r'\s+', ' ', name)
-            return name.strip()
-        elif caption:
+            name = name.strip()
+            if name:
+                return name
+        if caption:
             return extract_title_smart(caption)
         return "Unknown"
     
@@ -281,7 +284,7 @@ class PerformanceMonitor:
 performance_monitor = PerformanceMonitor()
 
 # ============================================================================
-# ✅ CONFIGURATION - REINDEXING MODE ENABLED
+# ✅ CONFIGURATION - COMPLETE FILE INDEXING
 # ============================================================================
 
 class Config:
@@ -296,10 +299,10 @@ class Config:
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
     
-    # Channel Configuration - DUAL SESSION
-    MAIN_CHANNEL_ID = -1001891090100          # ✅ User Session
-    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # ✅ User Session
-    FILE_CHANNEL_ID = -1001768249569          # ✅ Bot Session
+    # Channel Configuration
+    MAIN_CHANNEL_ID = -1001891090100
+    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
+    FILE_CHANNEL_ID = -1001768249569  # ✅ FILE CHANNEL
     
     # Links
     MAIN_CHANNEL_LINK = "https://t.me/sk4film"
@@ -348,15 +351,20 @@ class Config:
     FALLBACK_POSTER = "https://iili.io/fAeIwv9.th.png"
     
     # Thumbnail Settings
-    THUMBNAIL_EXTRACT_TIMEOUT = 10  # seconds
-    THUMBNAIL_CACHE_DURATION = 24 * 60 * 60  # 24 hours
+    THUMBNAIL_EXTRACT_TIMEOUT = 10
+    THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
     
-    # Auto Indexing Settings - COMPLETE REINDEXING MODE
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))  # 10 minutes
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))  # Increased for reindexing
-    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))  # 0 = Unlimited (सभी messages index करो)
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"  # ✅ सभी पुराने messages index करो
-    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"  # Start immediately
+    # 🔥 FILE CHANNEL INDEXING SETTINGS
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))  # 2 minutes
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "500"))  # Large batches
+    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))  # 0 = Unlimited
+    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"  # ✅ All history
+    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"
+    
+    # 🔥 SEARCH SETTINGS
+    SEARCH_MIN_QUERY_LENGTH = 2
+    SEARCH_RESULTS_PER_PAGE = 12
+    SEARCH_CACHE_TTL = 600  # 10 minutes
 
 # ============================================================================
 # ✅ FAST INITIALIZATION
@@ -372,7 +380,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.5-COMPLETE-REINDEXING'
+    response.headers['X-SK4FiLM-Version'] = '8.5-FILE-CHANNEL-FIX'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -391,8 +399,8 @@ try:
     from pyrogram import Client
     PYROGRAM_AVAILABLE = True
     
-    User = None        # ✅ For TEXT channel searches
-    Bot = None         # ✅ For FILE channel operations
+    User = None
+    Bot = None
     user_session_ready = False
     bot_session_ready = False
 except ImportError:
@@ -616,11 +624,10 @@ class BotHandler:
     
     async def shutdown(self):
         """Shutdown bot handler"""
-        if self.bot and not bot_session_ready:  # Only stop if we created our own session
+        if self.bot and not bot_session_ready:
             await self.bot.stop()
         self.initialized = False
 
-# Initialize bot handler
 bot_handler = BotHandler()
 
 # ============================================================================
@@ -802,7 +809,7 @@ class QualityMerger:
         
         # Create summary
         summary_parts = []
-        for quality in sorted_qualities[:3]:  # Show top 3 qualities
+        for quality in sorted_qualities[:3]:
             data = merged_options[quality]
             count = data['file_count']
             if count > 1:
@@ -884,7 +891,6 @@ class VideoThumbnailExtractor:
             logger.error(f"❌ Thumbnail extraction failed: {e}")
             return None
 
-# Initialize thumbnail extractor
 thumbnail_extractor = VideoThumbnailExtractor()
 
 # ============================================================================
@@ -994,15 +1000,14 @@ class DuplicatePreventionSystem:
                 }
             }
 
-# Initialize duplicate prevention
 duplicate_prevention = DuplicatePreventionSystem()
 
 # ============================================================================
-# ✅ INSTANT AUTO INDEXING MANAGER
+# ✅ FILE CHANNEL INDEXING MANAGER
 # ============================================================================
 
-class InstantAutoIndexingManager:
-    """Instant auto indexing manager - starts immediately"""
+class FileChannelIndexingManager:
+    """File channel indexing manager - COMPLETE INDEXING"""
     
     def __init__(self):
         self.is_running = False
@@ -1020,27 +1025,29 @@ class InstantAutoIndexingManager:
             'total_errors': 0,
             'last_success': None
         }
+        
+        self.is_first_run = True
     
-    async def start_instant_indexing(self):
-        """Start instant auto indexing - begins immediately"""
+    async def start_indexing(self):
+        """Start file channel indexing"""
         if self.is_running:
-            logger.warning("⚠️ Auto indexing already running")
+            logger.warning("⚠️ File indexing already running")
             return
         
-        logger.info("🚀 Starting INSTANT AUTO INDEXING system...")
+        logger.info("🚀 Starting FILE CHANNEL INDEXING...")
         self.is_running = True
         
         # Initialize duplicate prevention
         await duplicate_prevention.initialize_from_database()
         
-        # Run immediate indexing cycle
-        asyncio.create_task(self._run_immediate_index())
+        # Run immediate indexing
+        asyncio.create_task(self._run_complete_indexing())
         
-        # Start the periodic loop
+        # Start periodic loop
         self.indexing_task = asyncio.create_task(self._indexing_loop())
     
-    async def stop_auto_indexing(self):
-        """Stop auto indexing"""
+    async def stop_indexing(self):
+        """Stop indexing"""
         self.is_running = False
         if self.indexing_task:
             self.indexing_task.cancel()
@@ -1049,12 +1056,78 @@ class InstantAutoIndexingManager:
             except asyncio.CancelledError:
                 pass
         
-        logger.info("🛑 Auto indexing stopped")
+        logger.info("🛑 File indexing stopped")
     
-    async def _run_immediate_index(self):
-        """Run immediate indexing without waiting"""
-        logger.info("⚡ Running IMMEDIATE indexing cycle...")
-        await self._run_indexing_cycle()
+    async def _run_complete_indexing(self):
+        """Run complete indexing of file channel"""
+        logger.info("🔥 RUNNING COMPLETE FILE CHANNEL INDEXING...")
+        
+        try:
+            # Get all messages from file channel
+            all_messages = []
+            total_fetched = 0
+            
+            logger.info("📡 Fetching ALL messages from file channel...")
+            
+            # Fetch all messages
+            try:
+                async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID):
+                    total_fetched += 1
+                    
+                    if msg is not None and (msg.document or msg.video):
+                        all_messages.append(msg)
+                    
+                    # Progress logging
+                    if total_fetched % 100 == 0:
+                        logger.info(f"📥 Fetched {total_fetched} messages...")
+                    
+                    # Safety limit
+                    if Config.MAX_INDEX_LIMIT > 0 and total_fetched >= Config.MAX_INDEX_LIMIT:
+                        logger.info(f"⚠️ Reached max limit: {Config.MAX_INDEX_LIMIT}")
+                        break
+                
+                logger.info(f"✅ Total fetched: {total_fetched} messages, {len(all_messages)} files")
+                
+            except Exception as e:
+                logger.error(f"❌ Error fetching messages: {e}")
+                return
+            
+            # Process messages
+            if all_messages:
+                # Reverse to process from oldest to newest
+                all_messages.reverse()
+                
+                batch_size = 100
+                total_batches = math.ceil(len(all_messages) / batch_size)
+                
+                logger.info(f"🔧 Processing {len(all_messages)} files in {total_batches} batches...")
+                
+                for batch_num in range(total_batches):
+                    start_idx = batch_num * batch_size
+                    end_idx = min(start_idx + batch_size, len(all_messages))
+                    batch = all_messages[start_idx:end_idx]
+                    
+                    logger.info(f"📦 Processing batch {batch_num + 1}/{total_batches} ({len(batch)} files)...")
+                    
+                    batch_stats = await self._process_indexing_batch(batch)
+                    
+                    # Update stats
+                    self.indexing_stats['total_files_processed'] += batch_stats['processed']
+                    self.indexing_stats['total_indexed'] += batch_stats['indexed']
+                    self.indexing_stats['total_duplicates'] += batch_stats['duplicates']
+                    self.indexing_stats['total_errors'] += batch_stats['errors']
+                    
+                    # Small delay between batches
+                    if batch_num < total_batches - 1:
+                        await asyncio.sleep(2)
+                
+                logger.info("✅ COMPLETE INDEXING FINISHED!")
+                logger.info(f"📊 Stats: {self.indexing_stats}")
+            
+            self.is_first_run = False
+            
+        except Exception as e:
+            logger.error(f"❌ Complete indexing error: {e}")
     
     async def _indexing_loop(self):
         """Main indexing loop"""
@@ -1063,19 +1136,19 @@ class InstantAutoIndexingManager:
                 # Wait for next run
                 if self.next_run and self.next_run > datetime.now():
                     wait_seconds = (self.next_run - datetime.now()).total_seconds()
-                    if wait_seconds > 60:
-                        logger.info(f"⏰ Next auto index in {wait_seconds:.0f} seconds")
-                    await asyncio.sleep(min(wait_seconds, 60))
+                    if wait_seconds > 30:
+                        logger.info(f"⏰ Next index in {wait_seconds:.0f}s")
+                    await asyncio.sleep(min(wait_seconds, 30))
                     continue
                 
-                # Run indexing
+                # Run indexing cycle
                 await self._run_indexing_cycle()
                 
                 # Schedule next run
                 self.next_run = datetime.now() + timedelta(seconds=Config.AUTO_INDEX_INTERVAL)
                 self.last_run = datetime.now()
                 
-                # Sleep a bit before checking again
+                # Sleep before checking again
                 await asyncio.sleep(10)
                 
             except asyncio.CancelledError:
@@ -1085,9 +1158,9 @@ class InstantAutoIndexingManager:
                 await asyncio.sleep(60)
     
     async def _run_indexing_cycle(self):
-        """Run one indexing cycle - MODIFIED FOR REINDEXING"""
+        """Run one indexing cycle"""
         logger.info("=" * 50)
-        logger.info("🔄 AUTO INDEXING CYCLE")
+        logger.info("🔄 FILE INDEXING CYCLE")
         logger.info("=" * 50)
         
         start_time = time.time()
@@ -1099,44 +1172,35 @@ class InstantAutoIndexingManager:
         }
         
         try:
-            # During reindexing, always start from beginning
-            if self.indexing_stats['total_indexed'] == 0:
-                # First time - get all messages
-                last_message_id = 0
-                logger.info("🔄 REINDEXING MODE: Fetching all messages")
-            else:
-                # Normal mode - get last indexed message
-                last_indexed = await files_col.find_one(
-                    {"channel_id": Config.FILE_CHANNEL_ID}, 
-                    sort=[('message_id', -1)],
-                    projection={'message_id': 1}
-                )
-                
-                last_message_id = last_indexed['message_id'] if last_indexed else 0
-                logger.info(f"📊 Last indexed message ID: {last_message_id}")
+            # Get last indexed message
+            last_indexed = await files_col.find_one(
+                {"channel_id": Config.FILE_CHANNEL_ID}, 
+                sort=[('message_id', -1)],
+                projection={'message_id': 1}
+            )
             
-            # Fetch messages
+            last_message_id = last_indexed['message_id'] if last_indexed else 0
+            
+            logger.info(f"📊 Last indexed message ID: {last_message_id}")
+            
+            # Fetch new messages
             messages_to_index = []
             fetched_count = 0
             
             try:
-                # Fetch messages (more during initial reindexing)
-                limit = 500 if self.indexing_stats['total_indexed'] == 0 else Config.BATCH_INDEX_SIZE
-                
-                async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=limit):
+                # Fetch recent messages
+                async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=Config.BATCH_INDEX_SIZE):
                     fetched_count += 1
                     
-                    # Stop if we reach already indexed messages (except in full reindex mode)
-                    if msg.id <= last_message_id and last_message_id > 0:
-                        if fetched_count > 100:  # Check at least 100 messages
-                            break
-                        continue
+                    # Stop if we reach already indexed messages
+                    if msg.id <= last_message_id:
+                        break
                     
                     # Only index file messages
                     if msg and (msg.document or msg.video):
                         messages_to_index.append(msg)
                 
-                logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages_to_index)} files to index")
+                logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages_to_index)} new files")
                 
             except Exception as e:
                 logger.error(f"❌ Error fetching messages: {e}")
@@ -1147,7 +1211,7 @@ class InstantAutoIndexingManager:
                 batch_stats = await self._process_indexing_batch(messages_to_index)
                 cycle_stats.update(batch_stats)
             
-            # Update global stats
+            # Update stats
             self.indexing_stats['total_runs'] += 1
             self.indexing_stats['total_files_processed'] += cycle_stats['processed']
             self.indexing_stats['total_indexed'] += cycle_stats['indexed']
@@ -1169,7 +1233,7 @@ class InstantAutoIndexingManager:
             logger.info(f"📈 Total Indexed: {self.indexing_stats['total_indexed']}")
             logger.info("=" * 50)
             
-            # Update global counts
+            # Update counts
             self.total_indexed += cycle_stats['indexed']
             self.total_duplicates += cycle_stats['duplicates']
             
@@ -1195,7 +1259,7 @@ class InstantAutoIndexingManager:
                 }, {'_id': 1})
                 
                 if existing:
-                    logger.debug(f"📝 Already indexed by message ID: {msg.id}")
+                    logger.debug(f"📝 Already indexed: {msg.id}")
                     batch_stats['duplicates'] += 1
                     continue
                 
@@ -1212,13 +1276,14 @@ class InstantAutoIndexingManager:
                 batch_stats['errors'] += 1
                 continue
         
-        logger.info(f"📦 Batch processed: {batch_stats}")
+        logger.info(f"📦 Batch stats: {batch_stats}")
         return batch_stats
     
     async def get_indexing_status(self):
         """Get current indexing status"""
         return {
             'is_running': self.is_running,
+            'is_first_run': self.is_first_run,
             'last_run': self.last_run.isoformat() if self.last_run else None,
             'next_run': self.next_run.isoformat() if self.next_run else None,
             'total_indexed': self.total_indexed,
@@ -1226,8 +1291,8 @@ class InstantAutoIndexingManager:
             'stats': self.indexing_stats
         }
 
-# Initialize auto indexing manager
-auto_indexing_manager = InstantAutoIndexingManager()
+# Initialize file indexing manager
+file_indexing_manager = FileChannelIndexingManager()
 
 # ============================================================================
 # ✅ SYNC MANAGEMENT
@@ -1352,7 +1417,7 @@ class ChannelSyncManager:
 channel_sync_manager = ChannelSyncManager()
 
 # ============================================================================
-# ✅ FILE INDEXING FUNCTIONS
+# ✅ FILE INDEXING FUNCTIONS - IMPROVED
 # ============================================================================
 
 async def generate_file_hash(message):
@@ -1395,8 +1460,68 @@ async def generate_file_hash(message):
         logger.debug(f"Hash generation error: {e}")
         return None
 
+async def extract_title_improved(filename, caption):
+    """Improved title extraction"""
+    # Try filename first
+    if filename:
+        # Clean filename
+        name = os.path.splitext(filename)[0]
+        
+        # Remove common patterns
+        patterns_to_remove = [
+            r'\b(480p|720p|1080p|2160p|4k|uhd|hd|hevc|x265|x264|h264|h265)\b',
+            r'\b(web|webrip|webdl|bluray|brrip|dvdrip|hdtv)\b',
+            r'\b(hindi|english|tamil|telugu|malayalam|bengali)\b',
+            r'\b(dual|multi)\b',
+            r'\b(ac3|aac|dd5\.1|dts)\b',
+            r'\b(\d{3,4}p)\b',
+            r'[._]'
+        ]
+        
+        for pattern in patterns_to_remove:
+            name = re.sub(pattern, ' ', name, flags=re.IGNORECASE)
+        
+        # Clean up
+        name = re.sub(r'\s+', ' ', name)
+        name = name.strip()
+        
+        # Extract year if present
+        year_match = re.search(r'\b(19|20)\d{2}\b', name)
+        if year_match:
+            year = year_match.group()
+            # Remove year from name
+            name = re.sub(r'\s*\b(19|20)\d{2}\b', '', name)
+            name = f"{name.strip()} ({year})"
+        
+        if name and len(name) > 3:
+            return name
+    
+    # Try caption
+    if caption:
+        # Extract first meaningful line
+        lines = caption.split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) > 10 and not line.startswith('http'):
+                # Clean the line
+                line = re.sub(r'📥.*', '', line)  # Remove download indicators
+                line = re.sub(r'🎬.*', '', line)  # Remove movie indicators
+                line = re.sub(r'⚡.*', '', line)  # Remove speed indicators
+                line = re.sub(r'✅.*', '', line)  # Remove check indicators
+                line = re.sub(r'[⭐🌟]+', '', line)  # Remove stars
+                line = line.strip()
+                
+                if line and len(line) > 5:
+                    return line[:200]  # Limit length
+    
+    # Fallback to filename
+    if filename:
+        return os.path.splitext(filename)[0][:100]
+    
+    return "Unknown File"
+
 async def index_single_file_smart(message):
-    """Index single file with duplicate prevention - WITH BETTER LOGGING"""
+    """Index single file with improved logic"""
     try:
         if files_col is None:
             logger.error("❌ Database not ready for indexing")
@@ -1415,9 +1540,9 @@ async def index_single_file_smart(message):
         elif message.video:
             file_name = message.video.file_name
         
-        title = extract_title_from_file(file_name, caption)
-        if not title:
-            logger.debug(f"📝 Skipping - No title: {message.id}")
+        title = await extract_title_improved(file_name, caption)
+        if not title or title == "Unknown File":
+            logger.debug(f"📝 Skipping - No valid title: {message.id}")
             return False
         
         normalized_title = normalize_title(title)
@@ -1429,7 +1554,7 @@ async def index_single_file_smart(message):
         }, {'_id': 1})
         
         if existing_by_id:
-            logger.debug(f"📝 Already indexed: {title} (ID: {message.id})")
+            logger.debug(f"📝 Already indexed: {title[:50]}... (ID: {message.id})")
             return False
         
         # Generate file hash for duplicate detection
@@ -1442,7 +1567,7 @@ async def index_single_file_smart(message):
             )
             
             if is_duplicate:
-                logger.info(f"🔄 DUPLICATE: {title} - Reason: {reason}")
+                logger.info(f"🔄 DUPLICATE: {title[:50]}... - Reason: {reason}")
                 return False
         
         # Extract thumbnail if video file
@@ -1451,14 +1576,24 @@ async def index_single_file_smart(message):
         
         if message.video or (message.document and is_video_file(file_name or '')):
             is_video = True
-            # Extract thumbnail
-            thumbnail_url = await thumbnail_extractor.extract_thumbnail(
-                Config.FILE_CHANNEL_ID,
-                message.id
-            )
-            
-            if thumbnail_url:
-                logger.debug(f"✅ Thumbnail extracted for: {title}")
+            # Try to extract thumbnail
+            try:
+                thumbnail_url = await thumbnail_extractor.extract_thumbnail(
+                    Config.FILE_CHANNEL_ID,
+                    message.id
+                )
+                
+                if thumbnail_url:
+                    logger.debug(f"✅ Thumbnail extracted for: {title[:50]}...")
+            except Exception as e:
+                logger.debug(f"⚠️ Thumbnail extraction failed: {e}")
+        
+        # Extract year from title
+        year_match = re.search(r'\b(19|20)\d{2}\b', title)
+        year = year_match.group() if year_match else ""
+        
+        # Extract quality
+        quality = detect_quality_enhanced(file_name or "")
         
         # Create document
         doc = {
@@ -1476,14 +1611,15 @@ async def index_single_file_smart(message):
             'thumbnail_url': thumbnail_url,
             'thumbnail_extracted': thumbnail_url is not None,
             'status': 'active',
-            'is_duplicate': False
+            'is_duplicate': False,
+            'quality': quality,
+            'year': year
         }
         
         # Add file-specific data
         if message.document:
             doc.update({
                 'file_name': message.document.file_name or '',
-                'quality': detect_quality_enhanced(message.document.file_name or ''),
                 'is_video_file': is_video_file(message.document.file_name or ''),
                 'caption': caption or '',
                 'mime_type': message.document.mime_type or '',
@@ -1493,7 +1629,6 @@ async def index_single_file_smart(message):
         elif message.video:
             doc.update({
                 'file_name': message.video.file_name or 'video.mp4',
-                'quality': detect_quality_enhanced(message.video.file_name or ''),
                 'is_video_file': True,
                 'caption': caption or '',
                 'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
@@ -1516,11 +1651,9 @@ async def index_single_file_smart(message):
             # Log success
             file_type = "📹 Video" if doc['is_video_file'] else "📄 File"
             size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
-            thumbnail_status = "✅" if thumbnail_url else "❌"
             
-            logger.info(f"✅ INDEXED: {title} (ID: {message.id})")
-            logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
-            logger.info(f"   🖼️ Thumbnail: {thumbnail_status}")
+            logger.info(f"✅ INDEXED: {title[:60]}...")
+            logger.info(f"   📊 ID: {message.id} | Size: {size_str} | Quality: {quality}")
             
             return True
             
@@ -1533,116 +1666,28 @@ async def index_single_file_smart(message):
                 return False
         
     except Exception as e:
-        logger.error(f"❌ Indexing error for message {message.id if message else 'unknown'}: {e}")
+        logger.error(f"❌ Indexing error for message {message.id}: {e}")
         return False
 
 async def initial_indexing():
-    """Initial indexing on startup - COMPLETE REINDEXING MODE"""
+    """Initial indexing on startup"""
     if User is None or files_col is None or not user_session_ready:
         logger.warning("⚠️ User session not ready for initial indexing")
         return
     
     logger.info("=" * 60)
-    logger.info("🚀 STARTING COMPLETE REINDEXING OF ALL FILES")
+    logger.info("🚀 STARTING FILE CHANNEL INDEXING")
     logger.info("=" * 60)
     
     try:
         # Setup indexes
         await setup_database_indexes()
         
-        # Initialize duplicate prevention
-        await duplicate_prevention.initialize_from_database()
-        
-        # Get total message count estimate
-        total_processed = 0
-        total_indexed = 0
-        total_duplicates = 0
-        total_errors = 0
-        
-        logger.info("📡 Fetching ALL messages from file channel...")
-        
-        # Fetch ALL messages from beginning
-        all_messages = []
-        
-        try:
-            # Get ALL messages (no limit for reindexing)
-            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID):
-                if msg is not None and (msg.document or msg.video):
-                    all_messages.append(msg)
-                    total_processed += 1
-                    
-                    # Progress logging
-                    if total_processed % 100 == 0:
-                        logger.info(f"📥 Fetched {total_processed} file messages...")
-                    
-                    # Safety limit (optional)
-                    if Config.MAX_INDEX_LIMIT > 0 and total_processed >= Config.MAX_INDEX_LIMIT:
-                        logger.info(f"⚠️ Reached max limit: {Config.MAX_INDEX_LIMIT}")
-                        break
-        
-        except Exception as e:
-            logger.error(f"❌ Error fetching chat history: {e}")
-        
-        logger.info(f"✅ Total messages fetched: {total_processed}")
-        
-        # Process in batches
-        if all_messages:
-            # Reverse to process from oldest to newest
-            all_messages.reverse()
-            
-            logger.info(f"🔧 Processing {len(all_messages)} messages...")
-            
-            for i, msg in enumerate(all_messages):
-                try:
-                    # Check if already exists (just in case)
-                    existing = await files_col.find_one({
-                        'channel_id': Config.FILE_CHANNEL_ID,
-                        'message_id': msg.id
-                    }, {'_id': 1})
-                    
-                    if existing:
-                        logger.debug(f"📝 Already exists: {msg.id}")
-                        total_duplicates += 1
-                    else:
-                        # Index the file
-                        success = await index_single_file_smart(msg)
-                        
-                        if success:
-                            total_indexed += 1
-                        else:
-                            total_duplicates += 1
-                    
-                    # Progress update every 50 messages
-                    if (i + 1) % 50 == 0:
-                        progress_pct = ((i + 1) / len(all_messages)) * 100
-                        logger.info(f"📊 Progress: {i+1}/{len(all_messages)} ({progress_pct:.1f}%) | Indexed: {total_indexed}")
-                    
-                    # Small delay to avoid rate limiting
-                    await asyncio.sleep(0.05)
-                    
-                except Exception as e:
-                    logger.error(f"❌ Error processing message {msg.id}: {e}")
-                    total_errors += 1
-                    continue
-        
-        # Summary
-        logger.info("=" * 60)
-        logger.info("✅ COMPLETE REINDEXING FINISHED")
-        logger.info("=" * 60)
-        logger.info(f"📊 Total Processed: {total_processed}")
-        logger.info(f"✅ Newly Indexed: {total_indexed}")
-        logger.info(f"🔄 Duplicates Skipped: {total_duplicates}")
-        logger.info(f"❌ Errors: {total_errors}")
-        logger.info("=" * 60)
-        
-        # Start auto indexing for future messages
-        if Config.INSTANT_AUTO_INDEX:
-            await auto_indexing_manager.start_instant_indexing()
-            logger.info("✅ Started auto indexing for new messages")
+        # Start file indexing
+        await file_indexing_manager.start_indexing()
         
         # Start sync monitoring
         await channel_sync_manager.start_sync_monitoring()
-        logger.info("✅ Started sync monitoring")
         
     except Exception as e:
         logger.error(f"❌ Initial indexing error: {e}")
@@ -1660,48 +1705,46 @@ async def setup_database_indexes():
             name="channel_message_unique",
             background=True
         )
-        logger.info("✅ Created unique index on channel_id + message_id")
-    except Exception as e:
-        logger.warning(f"⚠️ Index creation error: {e}")
-    
-    try:
-        # File hash index for duplicate detection
+        
+        # Text search index
         await files_col.create_index(
-            [("file_hash", 1)],
-            name="file_hash_index",
-            background=True,
-            sparse=True
-        )
-        logger.info("✅ Created file_hash index")
-    except Exception as e:
-        logger.warning(f"⚠️ File hash index creation error: {e}")
-    
-    try:
-        # Text search index for titles
-        await files_col.create_index(
-            [("normalized_title", "text")],
-            name="title_text_index",
+            [("normalized_title", "text"), ("title", "text")],
+            name="title_text_search",
             background=True
         )
-        logger.info("✅ Created text index on normalized_title")
+        
+        # Quality index
+        await files_col.create_index(
+            [("quality", 1)],
+            name="quality_index",
+            background=True
+        )
+        
+        # Date index
+        await files_col.create_index(
+            [("date", -1)],
+            name="date_index",
+            background=True
+        )
+        
+        logger.info("✅ Created database indexes")
+        
     except Exception as e:
-        logger.warning(f"⚠️ Text index creation error: {e}")
+        logger.warning(f"⚠️ Index creation error: {e}")
 
 # ============================================================================
 # ✅ POSTER FETCHING FUNCTIONS
 # ============================================================================
 
 async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
-    """
-    Get poster for movie using PosterFetcher
-    """
+    """Get poster for movie"""
     global poster_fetcher
     
-    # If poster_fetcher is not available, create fallback immediately
+    # If poster_fetcher is not available, use fallback
     if poster_fetcher is None:
         return {
             'poster_url': Config.FALLBACK_POSTER,
-            'source': 'custom' if PosterSource is None else PosterSource.CUSTOM.value,
+            'source': 'custom',
             'rating': '0.0',
             'year': year,
             'title': title,
@@ -1709,14 +1752,12 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
     
     try:
-        # Fetch poster with timeout protection
+        # Fetch poster with timeout
         poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title))
         
         try:
-            # Wait for poster with timeout
             poster_data = await asyncio.wait_for(poster_task, timeout=3.0)
             
-            # Ensure we have valid data
             if poster_data and poster_data.get('poster_url'):
                 logger.debug(f"✅ Poster fetched: {title} - {poster_data['source']}")
                 return poster_data
@@ -1726,14 +1767,13 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         except (asyncio.TimeoutError, ValueError, Exception) as e:
             logger.warning(f"⚠️ Poster fetch timeout/error for {title}: {e}")
             
-            # Cancel the task if it's still running
             if not poster_task.done():
                 poster_task.cancel()
             
             # Return fallback
             return {
                 'poster_url': Config.FALLBACK_POSTER,
-                'source': 'custom' if PosterSource is None else PosterSource.CUSTOM.value,
+                'source': 'custom',
                 'rating': '0.0',
                 'year': year,
                 'title': title,
@@ -1742,10 +1782,9 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
             
     except Exception as e:
         logger.error(f"❌ Unexpected error in get_poster_for_movie: {e}")
-        # Always return fallback
         return {
             'poster_url': Config.FALLBACK_POSTER,
-            'source': 'custom' if PosterSource is None else PosterSource.CUSTOM.value,
+            'source': 'custom',
             'rating': '0.0',
             'year': year,
             'title': title,
@@ -1753,9 +1792,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
-    """
-    Get posters for multiple movies in batch
-    """
+    """Get posters for multiple movies in batch"""
     results = []
     
     # Create tasks for all movies
@@ -1768,7 +1805,7 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
         task = asyncio.create_task(get_poster_for_movie(title, year, quality))
         tasks.append((movie, task))
     
-    # Process results as they complete
+    # Process results
     for movie, task in tasks:
         try:
             poster_data = await task
@@ -1779,7 +1816,7 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
                 'poster_url': poster_data['poster_url'],
                 'poster_source': poster_data['source'],
                 'poster_rating': poster_data['rating'],
-                'thumbnail': poster_data['poster_url'],  # Default to poster
+                'thumbnail': poster_data['poster_url'],
                 'thumbnail_source': poster_data['source'],
                 'has_poster': True
             })
@@ -1810,7 +1847,7 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
 
 @performance_monitor.measure("telegram_init")
 async def init_telegram_sessions():
-    """Initialize DUAL sessions: User for text, Bot for files"""
+    """Initialize Telegram sessions"""
     global User, Bot, user_session_ready, bot_session_ready
     
     logger.info("=" * 50)
@@ -1821,9 +1858,7 @@ async def init_telegram_sessions():
         logger.error("❌ Pyrogram not installed!")
         return False
     
-    # ============================================================================
-    # ✅ 1. INITIALIZE USER SESSION (for TEXT channels)
-    # ============================================================================
+    # Initialize USER Session
     if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
         logger.info("\n👤 Initializing USER Session...")
         try:
@@ -1843,11 +1878,11 @@ async def init_telegram_sessions():
             
             # Test channel access
             try:
-                chat = await User.get_chat(Config.MAIN_CHANNEL_ID)
-                logger.info(f"✅ Channel Access: {chat.title}")
+                chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+                logger.info(f"✅ File Channel Access: {chat.title}")
                 user_session_ready = True
             except Exception as e:
-                logger.error(f"❌ Channel access failed: {e}")
+                logger.error(f"❌ File channel access failed: {e}")
                 user_session_ready = False
                 
         except Exception as e:
@@ -1860,9 +1895,7 @@ async def init_telegram_sessions():
                     pass
             User = None
     
-    # ============================================================================
-    # ✅ 2. INITIALIZE BOT SESSION (optional for file operations)
-    # ============================================================================
+    # Initialize BOT Session
     if Config.BOT_TOKEN:
         logger.info("\n🤖 Initializing BOT Session...")
         try:
@@ -1891,9 +1924,7 @@ async def init_telegram_sessions():
                     pass
             Bot = None
     
-    # ============================================================================
-    # ✅ 3. SUMMARY
-    # ============================================================================
+    # Summary
     logger.info("\n" + "=" * 50)
     logger.info("📊 SESSION SUMMARY")
     logger.info("=" * 50)
@@ -1942,13 +1973,16 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ COMBINED SEARCH WITH QUALITY MERGING
+# ✅ SEARCH FUNCTION - FIXED FOR FILE CHANNEL
 # ============================================================================
 
+def channel_name_cached(cid):
+    return f"Channel {cid}"
+
 @performance_monitor.measure("multi_channel_search_merged")
-@async_cache_with_ttl(maxsize=500, ttl=300)
+@async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_multi_channel_merged(query, limit=12, page=1):
-    """COMBINED search with QUALITY MERGING"""
+    """COMBINED search with FILE CHANNEL FIX"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -1959,14 +1993,14 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             logger.info(f"✅ Cache HIT for: {query}")
             return cached_data
     
-    logger.info(f"🔍 QUALITY-MERGED search for: {query}")
+    logger.info(f"🔍 SEARCHING for: {query}")
     
     query_lower = query.lower()
-    posts_dict = {}    # From USER session (text channels) 
-    files_dict = {}    # From FILE channel
+    posts_dict = {}
+    files_dict = {}
     
     # ============================================================================
-    # ✅ 1. SEARCH TEXT CHANNELS (USER SESSION)
+    # ✅ 1. SEARCH TEXT CHANNELS
     # ============================================================================
     if user_session_ready and User is not None:
         async def search_text_channel(channel_id):
@@ -1979,7 +2013,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                         if title and (query_lower in title.lower() or query_lower in msg.text.lower()):
                             norm_title = normalize_title(title)
                             if norm_title not in channel_posts:
-                                # Get poster
+                                # Get year
                                 year_match = re.search(r'\b(19|20)\d{2}\b', title)
                                 year = year_match.group() if year_match else ""
                                 
@@ -2006,7 +2040,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 logger.error(f"Text search error in {channel_id}: {e}")
             return channel_posts
         
-        # Search text channels concurrently
+        # Search text channels
         tasks = [search_text_channel(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
@@ -2015,22 +2049,27 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 posts_dict.update(result)
     
     # ============================================================================
-    # ✅ 2. SEARCH FILE CHANNEL - WITH QUALITY DETECTION
+    # ✅ 2. SEARCH FILE CHANNEL DATABASE - FIXED
     # ============================================================================
     if files_col is not None:
         try:
+            logger.info(f"🔍 Searching FILE CHANNEL database for: {query}")
+            
+            # Build search query
+            search_query = {
+                "$or": [
+                    {"title": {"$regex": query, "$options": "i"}},
+                    {"normalized_title": {"$regex": query, "$options": "i"}},
+                    {"file_name": {"$regex": query, "$options": "i"}},
+                    {"caption": {"$regex": query, "$options": "i"}}
+                ],
+                "status": "active",
+                "is_duplicate": False
+            }
+            
+            # Execute search
             cursor = files_col.find(
-                {
-                    "channel_id": Config.FILE_CHANNEL_ID,
-                    "$or": [
-                        {"title": {"$regex": query, "$options": "i"}},
-                        {"normalized_title": {"$regex": query, "$options": "i"}},
-                        {"file_name": {"$regex": query, "$options": "i"}},
-                        {"caption": {"$regex": query, "$options": "i"}}
-                    ],
-                    "status": "active",
-                    "is_duplicate": False  # Exclude duplicates
-                },
+                search_query,
                 {
                     'title': 1,
                     'normalized_title': 1,
@@ -2045,11 +2084,14 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     'file_id': 1,
                     'thumbnail_url': 1,
                     'thumbnail_extracted': 1,
+                    'year': 1,
                     '_id': 0
                 }
-            ).limit(limit * 3)  # Get more for quality merging
-        
+            ).limit(limit * 3)
+            
+            file_count = 0
             async for doc in cursor:
+                file_count += 1
                 try:
                     norm_title = doc.get('normalized_title', normalize_title(doc['title']))
                     quality_info = extract_quality_info(doc.get('file_name', ''))
@@ -2074,8 +2116,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                     if norm_title not in files_dict:
                         # Create movie data
                         title = doc['title']
-                        year_match = re.search(r'\b(19|20)\d{2}\b', title)
-                        year = year_match.group() if year_match else ""
+                        year = doc.get('year', '')
                         
                         files_dict[norm_title] = {
                             'title': title,
@@ -2104,7 +2145,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                         # Add quality option to existing entry
                         files_dict[norm_title]['quality_options'][quality] = quality_option
                         
-                        # Update thumbnail if this quality has one and we don't have one yet
+                        # Update thumbnail
                         if thumbnail_url and not files_dict[norm_title].get('has_thumbnail'):
                             files_dict[norm_title]['thumbnail'] = thumbnail_url
                             files_dict[norm_title]['has_thumbnail'] = True
@@ -2112,8 +2153,11 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
                 except Exception as e:
                     logger.error(f"File processing error: {e}")
                     continue
+            
+            logger.info(f"✅ Found {file_count} files in database for query: {query}")
+            
         except Exception as e:
-            logger.error(f"File search error: {e}")
+            logger.error(f"❌ File search error: {e}")
     
     # ============================================================================
     # ✅ 3. MERGE QUALITY OPTIONS
@@ -2128,7 +2172,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
             )
     
     # ============================================================================
-    # ✅ 4. MERGE POSTS AND FILES - SINGLE RESULT PER TITLE
+    # ✅ 4. MERGE POSTS AND FILES
     # ============================================================================
     merged = {}
     
@@ -2177,55 +2221,56 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
         merged[norm_title] = result
     
     # ============================================================================
-    # ✅ 5. FETCH POSTERS IN BATCH (Only for movies without thumbnails)
+    # ✅ 5. FETCH POSTERS IN BATCH
     # ============================================================================
-    logger.info(f"🎬 Fetching posters for {len(movies_for_posters)} movies...")
-    
-    # Separate movies with and without thumbnails
-    movies_without_thumbnails = []
-    movies_with_thumbnails = []
-    
-    for movie in movies_for_posters:
-        if movie.get('has_thumbnail'):
-            movies_with_thumbnails.append(movie)
-        else:
-            movies_without_thumbnails.append(movie)
-    
-    # Get posters only for movies without thumbnails
-    if movies_without_thumbnails:
-        movies_with_posters = await get_posters_for_movies_batch(movies_without_thumbnails)
-    else:
-        movies_with_posters = []
-    
-    # Update merged dict with poster/thumbnail data
-    all_movies = movies_with_thumbnails + movies_with_posters
-    
-    for movie in all_movies:
-        norm_title = movie.get('normalized_title', normalize_title(movie['title']))
-        if norm_title in merged:
-            # If movie has thumbnail, keep it
+    if movies_for_posters:
+        logger.info(f"🎬 Fetching posters for {len(movies_for_posters)} movies...")
+        
+        # Separate movies with and without thumbnails
+        movies_without_thumbnails = []
+        movies_with_thumbnails = []
+        
+        for movie in movies_for_posters:
             if movie.get('has_thumbnail'):
-                merged[norm_title].update({
-                    'thumbnail': movie['thumbnail'],
-                    'has_thumbnail': True,
-                    'thumbnail_url': movie.get('thumbnail_url'),
-                    # Still get poster for UI
-                    'poster_url': movie.get('poster_url', Config.FALLBACK_POSTER),
-                    'poster_source': movie.get('poster_source', 'fallback'),
-                    'poster_rating': movie.get('poster_rating', '0.0'),
-                    'has_poster': True
-                })
+                movies_with_thumbnails.append(movie)
             else:
-                # Use poster as thumbnail
-                merged[norm_title].update({
-                    'poster_url': movie['poster_url'],
-                    'poster_source': movie['poster_source'],
-                    'poster_rating': movie['poster_rating'],
-                    'thumbnail': movie['thumbnail'],
-                    'thumbnail_source': movie['thumbnail_source'],
-                    'has_poster': True,
-                    'has_thumbnail': True
-                })
+                movies_without_thumbnails.append(movie)
+        
+        # Get posters only for movies without thumbnails
+        if movies_without_thumbnails:
+            movies_with_posters = await get_posters_for_movies_batch(movies_without_thumbnails)
+        else:
+            movies_with_posters = []
+        
+        # Update merged dict with poster/thumbnail data
+        all_movies = movies_with_thumbnails + movies_with_posters
+        
+        for movie in all_movies:
+            norm_title = movie.get('normalized_title', normalize_title(movie['title']))
+            if norm_title in merged:
+                # If movie has thumbnail, keep it
+                if movie.get('has_thumbnail'):
+                    merged[norm_title].update({
+                        'thumbnail': movie['thumbnail'],
+                        'has_thumbnail': True,
+                        'thumbnail_url': movie.get('thumbnail_url'),
+                        # Still get poster for UI
+                        'poster_url': movie.get('poster_url', Config.FALLBACK_POSTER),
+                        'poster_source': movie.get('poster_source', 'fallback'),
+                        'poster_rating': movie.get('poster_rating', '0.0'),
+                        'has_poster': True
+                    })
+                else:
+                    # Use poster as thumbnail
+                    merged[norm_title].update({
+                        'poster_url': movie['poster_url'],
+                        'poster_source': movie['poster_source'],
+                        'poster_rating': movie['poster_rating'],
+                        'thumbnail': movie['thumbnail'],
+                        'thumbnail_source': movie['thumbnail_source'],
+                        'has_poster': True,
+                        'has_thumbnail': True
+                    })
     
     # ============================================================================
     # ✅ 6. SORT AND PAGINATE
@@ -2276,19 +2321,16 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
     
     # Cache results
     if cache_manager is not None:
-        await cache_manager.set(cache_key, result_data, expire_seconds=600)
+        await cache_manager.set(cache_key, result_data, expire_seconds=Config.SEARCH_CACHE_TTL)
     
-    logger.info(f"✅ QUALITY-MERGED search complete: {len(paginated)} results")
+    logger.info(f"✅ Search complete: {len(paginated)} results")
     logger.info(f"   📊 Stats: {stats}")
     
     return result_data
 
 # ============================================================================
-# ✅ HOME MOVIES (6/6)
+# ✅ HOME MOVIES
 # ============================================================================
-
-def channel_name_cached(cid):
-    return f"Channel {cid}"
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
@@ -2301,7 +2343,7 @@ async def get_home_movies(limit=20):
         movies = []
         seen_titles = set()
         
-        logger.info(f"🎬 Fetching home movies (20)...")
+        logger.info(f"🎬 Fetching home movies ({limit})...")
         
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=12):
             if msg is not None and msg.text and len(msg.text) > 20:
@@ -2367,7 +2409,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v8.5 - COMPLETE REINDEXING MODE")
+        logger.info("🚀 SK4FiLM v8.5 - FILE CHANNEL INDEXING FIX")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2380,18 +2422,11 @@ async def init_system():
         if files_col is not None:
             file_count = await files_col.count_documents({})
             logger.info(f"📊 Current files in database: {file_count}")
-            
-            if file_count == 0:
-                logger.warning("⚠️ DATABASE IS EMPTY - Starting complete reindexing")
-            else:
-                logger.info("✅ Database has existing files")
         
         # Initialize Bot Handler
         bot_handler_ok = await bot_handler.initialize()
         if bot_handler_ok:
             logger.info("✅ Bot Handler initialized")
-        else:
-            logger.warning("⚠️ Bot Handler initialization failed")
         
         # Initialize Cache Manager
         global cache_manager, verification_system, premium_system, poster_fetcher
@@ -2405,57 +2440,37 @@ async def init_system():
         if VerificationSystem is not None:
             verification_system = VerificationSystem(Config, mongo_client)
             logger.info("✅ Verification System initialized")
-        else:
-            verification_system = None
-            logger.warning("⚠️ Verification System not available")
         
         # Initialize Premium System
         if PremiumSystem is not None:
             premium_system = PremiumSystem(Config, mongo_client)
             logger.info("✅ Premium System initialized")
-        else:
-            premium_system = None
-            logger.warning("⚠️ Premium System not available")
         
         # Initialize Poster Fetcher
         if PosterFetcher is not None:
             poster_fetcher = PosterFetcher(Config, cache_manager)
             logger.info("✅ Poster Fetcher initialized")
-        else:
-            poster_fetcher = None
-            logger.warning("⚠️ Poster Fetcher not available")
         
         # Initialize Telegram Sessions
         if PYROGRAM_AVAILABLE:
             telegram_ok = await init_telegram_sessions()
             if not telegram_ok:
                 logger.warning("⚠️ Telegram sessions failed")
-        else:
-            logger.warning("⚠️ Pyrogram not available")
         
         # Start initial indexing
         if user_session_ready and files_col is not None:
-            # Check if database is empty
-            file_count = await files_col.count_documents({})
-            if file_count == 0:
-                logger.info("🔄 Starting COMPLETE REINDEXING (database is empty)")
-                asyncio.create_task(initial_indexing())
-            else:
-                logger.info("✅ Database has files, starting normal auto indexing")
-                if Config.INSTANT_AUTO_INDEX:
-                    await auto_indexing_manager.start_instant_indexing()
+            logger.info("🔄 Starting file channel indexing...")
+            asyncio.create_task(initial_indexing())
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
         
         logger.info("🔧 INTEGRATED FEATURES:")
-        logger.info(f"   • Bot Handler: {'✅ ENABLED' if bot_handler_ok else '❌ DISABLED'}")
-        logger.info(f"   • Complete Reindexing: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
+        logger.info(f"   • File Channel Indexing: ✅ ENABLED")
+        logger.info(f"   • Complete History: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
         logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
         logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
-        logger.info(f"   • Verification: {'✅ ENABLED' if verification_system else '❌ DISABLED'}")
-        logger.info(f"   • Premium System: {'✅ ENABLED' if premium_system else '❌ DISABLED'}")
         logger.info(f"   • Poster Fetcher: {'✅ ENABLED' if poster_fetcher else '❌ DISABLED'}")
         logger.info(f"   • Quality Merging: ✅ ENABLED")
         logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
@@ -2468,33 +2483,30 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ API ROUTES - OPTIMIZED WITH REINDEXING ENDPOINTS
+# ✅ API ROUTES - WITH ADMIN ENDPOINTS
 # ============================================================================
 
 @app.route('/')
 @performance_monitor.measure("root_endpoint")
 async def root():
-    # Check files_col is not None
     if files_col is not None:
         tf = await files_col.count_documents({})
         video_files = await files_col.count_documents({'is_video_file': True})
         thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
-        duplicates_count = 0
     else:
         tf = 0
         video_files = 0
         thumbnails_extracted = 0
-        duplicates_count = 0
     
     # Get indexing status
-    indexing_status = await auto_indexing_manager.get_indexing_status()
+    indexing_status = await file_indexing_manager.get_indexing_status()
     
     # Get bot handler status
     bot_status = await bot_handler.get_bot_status() if bot_handler else None
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.5 - COMPLETE REINDEXING MODE',
+        'service': 'SK4FiLM v8.5 - FILE CHANNEL FIX',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2515,18 +2527,17 @@ async def root():
             'bot_handler': bot_handler is not None and bot_handler.initialized
         },
         'features': {
-            'complete_reindexing': Config.INDEX_ALL_HISTORY,
-            'instant_auto_indexing': Config.INSTANT_AUTO_INDEX,
+            'file_channel_indexing': True,
+            'complete_history': Config.INDEX_ALL_HISTORY,
+            'instant_indexing': Config.INSTANT_AUTO_INDEX,
             'duplicate_prevention': True,
             'quality_merging': True,
-            'home_movies_6_6': True,
             'thumbnail_extraction': True
         },
         'stats': {
             'total_files': tf,
             'video_files': video_files,
-            'thumbnails_extracted': thumbnails_extracted,
-            'duplicates_prevented': duplicates_count
+            'thumbnails_extracted': thumbnails_extracted
         },
         'indexing': indexing_status,
         'response_time': f"{time.perf_counter():.3f}s"
@@ -2535,7 +2546,7 @@ async def root():
 @app.route('/health')
 @performance_monitor.measure("health_endpoint")
 async def health():
-    indexing_status = await auto_indexing_manager.get_indexing_status()
+    indexing_status = await file_indexing_manager.get_indexing_status()
     bot_status = await bot_handler.get_bot_status() if bot_handler else None
     
     return jsonify({
@@ -2547,6 +2558,7 @@ async def health():
         },
         'indexing': {
             'running': indexing_status['is_running'],
+            'is_first_run': indexing_status.get('is_first_run', False),
             'last_run': indexing_status['last_run']
         },
         'timestamp': datetime.now().isoformat()
@@ -2556,20 +2568,19 @@ async def health():
 @performance_monitor.measure("movies_endpoint")
 async def api_movies():
     try:
-        # Get 6 home movies
-        movies = await get_home_movies(limit=20)
+        # Get home movies
+        movies = await get_home_movies(limit=24)
         
         return jsonify({
             'status': 'success' if movies else 'empty',
             'movies': movies,
             'total': len(movies),
-            'limit': 20,
+            'limit': 24,
             'source': 'telegram',
             'poster_fetcher': poster_fetcher is not None,
             'session_used': 'user',
             'channel_id': Config.MAIN_CHANNEL_ID,
-            'timestamp': datetime.now().isoformat(),
-            'feature': 'home_movies_6_6'
+            'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
         logger.error(f"Movies API error: {e}")
@@ -2586,12 +2597,12 @@ async def api_search():
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 12))
+        limit = int(request.args.get('limit', Config.SEARCH_RESULTS_PER_PAGE))
         
-        if len(query) < 2:
+        if len(query) < Config.SEARCH_MIN_QUERY_LENGTH:
             return jsonify({
                 'status': 'error',
-                'message': 'Query must be at least 2 characters'
+                'message': f'Query must be at least {Config.SEARCH_MIN_QUERY_LENGTH} characters'
             }), 400
         
         result_data = await search_movies_multi_channel_merged(query, limit, page)
@@ -2603,115 +2614,13 @@ async def api_search():
             'pagination': result_data['pagination'],
             'search_metadata': {
                 **result_data.get('search_metadata', {}),
-                'feature': 'quality_merged_search',
-                'quality_priority': Config.QUALITY_PRIORITY,
-                'instant_indexing': Config.INSTANT_AUTO_INDEX
+                'feature': 'file_channel_search',
+                'quality_priority': Config.QUALITY_PRIORITY
             },
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
         logger.error(f"Search API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/poster', methods=['GET'])
-@performance_monitor.measure("poster_endpoint")
-async def api_poster():
-    try:
-        title = request.args.get('title', '').strip()
-        year = request.args.get('year', '')
-        quality = request.args.get('quality', '')
-        
-        if not title:
-            return jsonify({
-                'status': 'error',
-                'message': 'Title is required'
-            }), 400
-        
-        # Get poster
-        poster_data = await get_poster_for_movie(title, year, quality)
-        
-        return jsonify({
-            'status': 'success',
-            'poster': poster_data,
-            'timestamp': datetime.now().isoformat()
-        })
-                
-    except Exception as e:
-        logger.error(f"Poster API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/verification/status', methods=['GET'])
-async def api_verification_status():
-    try:
-        user_id = int(request.args.get('user_id', 0))
-        
-        if user_id <= 0:
-            return jsonify({
-                'status': 'error',
-                'message': 'Valid user_id required'
-            }), 400
-        
-        if verification_system:
-            is_verified, message = await verification_system.check_user_verified(user_id, premium_system)
-            info = await verification_system.get_user_verification_info(user_id)
-            
-            return jsonify({
-                'status': 'success',
-                'user_id': user_id,
-                'is_verified': is_verified,
-                'message': message,
-                'info': info,
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Verification system not available'
-            }), 500
-    except Exception as e:
-        logger.error(f"Verification status API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/premium/status', methods=['GET'])
-async def api_premium_status():
-    try:
-        user_id = int(request.args.get('user_id', 0))
-        
-        if user_id <= 0:
-            return jsonify({
-                'status': 'error',
-                'message': 'Valid user_id required'
-            }), 400
-        
-        if premium_system:
-            is_premium = await premium_system.is_premium_user(user_id)
-            tier = await premium_system.get_user_tier(user_id)
-            details = await premium_system.get_subscription_details(user_id)
-            
-            return jsonify({
-                'status': 'success',
-                'user_id': user_id,
-                'is_premium': is_premium,
-                'tier': tier.value if hasattr(tier, 'value') else tier,
-                'details': details,
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Premium system not available'
-            }), 500
-    except Exception as e:
-        logger.error(f"Premium status API error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -2735,7 +2644,7 @@ async def api_stats():
             thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
             
             # Get indexing stats
-            indexing_status = await auto_indexing_manager.get_indexing_status()
+            indexing_status = await file_indexing_manager.get_indexing_status()
             
             # Get duplicate stats
             duplicate_stats = await duplicate_prevention.get_duplicate_stats()
@@ -2762,9 +2671,6 @@ async def api_stats():
             'indexing_stats': indexing_status,
             'duplicate_stats': duplicate_stats,
             'bot_handler': bot_status,
-            'cache': {
-                'redis_enabled': cache_manager.redis_enabled if cache_manager else False
-            },
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2775,14 +2681,13 @@ async def api_stats():
         }), 500
 
 # ============================================================================
-# ✅ ADMIN API ROUTES FOR REINDEXING
+# ✅ ADMIN API ROUTES
 # ============================================================================
 
 @app.route('/api/admin/reindex', methods=['POST'])
 async def api_admin_reindex():
-    """Admin endpoint to trigger complete reindexing"""
+    """Admin endpoint to trigger reindexing"""
     try:
-        # Simple auth check
         auth_token = request.headers.get('X-Admin-Token')
         if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
             return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -2792,7 +2697,7 @@ async def api_admin_reindex():
         
         return jsonify({
             'status': 'success',
-            'message': 'Complete reindexing started',
+            'message': 'File channel reindexing started',
             'timestamp': datetime.now().isoformat()
         })
         
@@ -2804,7 +2709,7 @@ async def api_admin_reindex():
 async def api_admin_indexing_status():
     """Check indexing status"""
     try:
-        indexing_status = await auto_indexing_manager.get_indexing_status()
+        indexing_status = await file_indexing_manager.get_indexing_status()
         
         # Get database stats
         if files_col is not None:
@@ -2823,6 +2728,71 @@ async def api_admin_indexing_status():
         logger.error(f"❌ Indexing status error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/admin/clear-cache', methods=['POST'])
+async def api_admin_clear_cache():
+    """Clear all cache"""
+    try:
+        auth_token = request.headers.get('X-Admin-Token')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        if cache_manager and cache_manager.redis_enabled:
+            try:
+                # Clear all cache keys starting with "search_"
+                keys = await cache_manager.redis_client.keys("search_*")
+                if keys:
+                    await cache_manager.redis_client.delete(*keys)
+                    logger.info(f"✅ Cleared {len(keys)} search cache keys")
+            except Exception as e:
+                logger.error(f"❌ Cache clear error: {e}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Cache cleared successfully'
+        })
+    except Exception as e:
+        logger.error(f"❌ Clear cache error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/db-stats', methods=['GET'])
+async def api_admin_db_stats():
+    """Get detailed database stats"""
+    try:
+        auth_token = request.headers.get('X-Admin-Token')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        if files_col is None:
+            return jsonify({'status': 'error', 'message': 'Database not connected'})
+        
+        # Get total count
+        total = await files_col.count_documents({})
+        
+        # Get sample documents
+        sample = await files_col.find({}, {'title': 1, 'message_id': 1, 'quality': 1, '_id': 0}).limit(5).to_list(length=5)
+        
+        # Get quality distribution
+        pipeline = [
+            {"$group": {"_id": "$quality", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        quality_dist = await files_col.aggregate(pipeline).to_list(length=10)
+        
+        # Get recent files
+        recent = await files_col.find({}, {'title': 1, 'date': 1, '_id': 0}).sort('date', -1).limit(5).to_list(length=5)
+        
+        return jsonify({
+            'status': 'success',
+            'total_files': total,
+            'sample_files': sample,
+            'quality_distribution': quality_dist,
+            'recent_files': recent
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ DB stats error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 # ============================================================================
 # ✅ STARTUP AND SHUTDOWN
 # ============================================================================
@@ -2839,8 +2809,8 @@ async def shutdown():
     
     shutdown_tasks = []
     
-    # Stop auto indexing
-    await auto_indexing_manager.stop_auto_indexing()
+    # Stop indexing
+    await file_indexing_manager.stop_indexing()
     await channel_sync_manager.stop_sync_monitoring()
     
     # Shutdown bot handler
@@ -2899,13 +2869,12 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v8.5 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: COMPLETE REINDEXING MODE")
-    logger.info(f"   • Complete Reindexing: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
-    logger.info(f"   • Auto Index Interval: {Config.AUTO_INDEX_INTERVAL}s")
-    logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
+    logger.info("🎯 FEATURES: COMPLETE FILE CHANNEL INDEXING")
+    logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"   • Complete History: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
     logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
-    logger.info(f"   • Instant Auto Index: {'✅ ENABLED' if Config.INSTANT_AUTO_INDEX else '❌ DISABLED'}")
-    logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
-    logger.info(f"   • Bot Handler: ✅ INITIALIZED")
+    logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
+    logger.info(f"   • Search Cache TTL: {Config.SEARCH_CACHE_TTL}s")
+    logger.info(f"   • Improved Title Extraction: ✅ ENABLED")
     
     asyncio.run(serve(app, config))
