@@ -984,18 +984,26 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Stats command error: {e}")
             await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
     
-    # ✅ START COMMAND HANDLER - SIMPLIFIED
+    # ✅ START COMMAND HANDLER - FIXED VERSION
     @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
-        """Handle /start command - MINIMAL"""
+        """Handle /start command - FIXED to properly handle parameters"""
         user_name = message.from_user.first_name or "User"
         user_id = message.from_user.id
         
         # Check if there's additional text (file request)
-        if len(message.command) > 1:
-            file_text = ' '.join(message.command[1:])
-            await handle_file_request(client, message, file_text, bot_instance)
-            return
+        # FIX: Properly get the text after /start
+        if message.text and len(message.text.strip()) > 7:  # "/start " is 7 characters
+            # Get everything after "/start "
+            file_text = message.text[7:].strip()  # Remove "/start "
+            
+            # Also handle the case where it might come as command parameters
+            if not file_text and len(message.command) > 1:
+                file_text = ' '.join(message.command[1:])
+            
+            if file_text and file_text.strip():
+                await handle_file_request(client, message, file_text, bot_instance)
+                return
         
         # SIMPLE WELCOME MESSAGE - No status checks to reduce API calls
         welcome_text = (
@@ -1016,7 +1024,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    # ✅ Handle direct file format messages - SIMPLIFIED
+    # ✅ Handle direct file format messages - IMPROVED REGEX
     @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
     async def handle_direct_file_request(client, message):
         """Handle direct file format messages"""
