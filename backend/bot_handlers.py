@@ -984,26 +984,28 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Stats command error: {e}")
             await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
     
-    # ✅ START COMMAND HANDLER - SIMPLIFIED BUT WORKING VERSION
+    # ✅ START COMMAND HANDLER - SIMPLE DEBUG VERSION
     @bot.on_message(filters.command("start"))
     async def handle_start_command(client, message):
-        """Handle /start command - WORKING VERSION"""
+        """Handle /start command - SIMPLE DEBUG VERSION"""
         user_name = message.from_user.first_name or "User"
         user_id = message.from_user.id
         
-        # Get the full command text
-        full_text = message.text or ""
-        logger.info(f"📥 /start command received from user {user_id}: '{full_text}'")
+        # DEBUG: Log everything
+        logger.info(f"🚀 /start received from user {user_id}")
+        logger.info(f"📝 Message text: '{message.text}'")
+        logger.info(f"🔢 Command parts: {message.command}")
+        logger.info(f"📋 Command length: {len(message.command)}")
         
-        # Check if there are parameters after /start
-        if len(message.command) > 1:
-            # Join all parts after the first one (which is "start")
-            param_text = ' '.join(message.command[1:])
-            logger.info(f"📥 Extracted parameter: '{param_text}'")
+        # SIMPLE FIX: If message has more than 6 characters after "/start"
+        if message.text and len(message.text.strip()) > 7:
+            # Extract everything after "/start "
+            param_text = message.text.strip()[7:].strip()
+            logger.info(f"🔍 Extracted parameter: '{param_text}'")
             
-            # Check if it's a file request format
-            if re.match(r'^-?\d+_\d+(_\w+)?$', param_text):
-                logger.info(f"📥 Recognized as file request: {param_text}")
+            # If it looks like a file request (starts with - and has _)
+            if param_text and param_text.startswith('-') and '_' in param_text:
+                logger.info(f"📥 Recognizing as file request: {param_text}")
                 await handle_file_request(client, message, param_text, bot_instance)
                 return
         
@@ -1025,15 +1027,24 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         ])
         
         await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
-        logger.info(f"📥 Welcome message sent to user {user_id}")
+        logger.info(f"📨 Welcome message sent to user {user_id}")
     
-    # ✅ Handle direct file format messages - IMPROVED REGEX
-    @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
-    async def handle_direct_file_request(client, message):
-        """Handle direct file format messages"""
-        file_text = message.text.strip()
-        logger.info(f"📥 Direct file request from user {message.from_user.id}: '{file_text}'")
-        await handle_file_request(client, message, file_text, bot_instance)
+    # ✅ Handle direct file format messages - SIMPLE VERSION
+    @bot.on_message(filters.private & filters.text)
+    async def handle_all_text_messages(client, message):
+        """Handle all text messages and check if they're file requests"""
+        user_id = message.from_user.id
+        text = message.text.strip()
+        
+        # Skip if it's a command (starts with /)
+        if text.startswith('/'):
+            return
+        
+        # Check if it's a file request format
+        if re.match(r'^-?\d+_\d+(_\w+)?$', text):
+            logger.info(f"📥 Direct file request detected: '{text}'")
+            await handle_file_request(client, message, text, bot_instance)
+            return
     
     # ✅ GET VERIFIED CALLBACK - SIMPLIFIED
     @bot.on_callback_query(filters.regex(r"^get_verified$"))
