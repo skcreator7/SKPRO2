@@ -537,7 +537,19 @@ async def handle_file_request(client, message, file_text, bot_instance):
     try:
         config = bot_instance.config
         user_id = message.from_user.id
-        request_hash = f"{user_id}_{file_text}"
+        
+        # ✅ FIRST: Clean and validate the input
+        clean_text = file_text.strip()
+        logger.info(f"📥 Processing file request from user {user_id}: '{clean_text}'")
+        
+        # Check if input is valid
+        if clean_text.lower() == 'undefined' or not clean_text:
+            await message.reply_text(
+                "❌ **Invalid file request**\n\n"
+                "Please click the download button on the website again.\n"
+                "The link might have expired or been corrupted."
+            )
+            return
         
         # ✅ RATE LIMIT CHECK
         if not await bot_instance.check_rate_limit(user_id):
@@ -548,29 +560,41 @@ async def handle_file_request(client, message, file_text, bot_instance):
             return
         
         # ✅ DUPLICATE REQUEST CHECK
-        if await bot_instance.is_request_duplicate(user_id, file_text):
-            logger.warning(f"⚠️ Duplicate request ignored for user {user_id}: {file_text}")
+        request_hash = f"{user_id}_{clean_text}"
+        if await bot_instance.is_request_duplicate(user_id, clean_text):
+            logger.warning(f"⚠️ Duplicate request ignored for user {user_id}: {clean_text}")
             await message.reply_text(
                 "⏳ **Already Processing**\n\n"
                 "Your previous request is still being processed. Please wait..."
             )
             return
         
-        # Clean the text
-        clean_text = file_text.strip()
-        logger.info(f"📥 Processing file request from user {user_id}: {clean_text}")
-        
-        # Parse file request
-        # Remove /start if present
+        # ✅ Parse file request - MORE ROBUST PARSING
+        # Remove /start if present at the beginning
         if clean_text.startswith('/start'):
-            clean_text = clean_text.replace('/start', '').strip()
+            clean_text = clean_text[6:].strip()  # Remove '/start'
         
-        # Also handle /start with space
-        clean_text = re.sub(r'^/start\s+', '', clean_text)
+        # Also remove any leading command characters
+        clean_text = re.sub(r'^/\w+\s*', '', clean_text)
+        
+        # Trim whitespace
+        clean_text = clean_text.strip()
+        
+        # Check if text is empty after cleaning
+        if not clean_text:
+            await message.reply_text(
+                "❌ **Invalid request**\n\n"
+                "Please click the download button on website and try again."
+            )
+            await bot_instance.clear_processing_request(user_id, clean_text)
+            return
+        
+        # Log the cleaned text
+        logger.info(f"📥 Cleaned text: '{clean_text}'")
         
         # Extract file ID parts
         parts = clean_text.split('_')
-        logger.info(f"📥 Parts: {parts}")
+        logger.info(f"📥 Parsed parts: {parts}")
         
         if len(parts) < 2:
             await message.reply_text(
@@ -578,7 +602,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 "Correct format: `-1001768249569_16066_480p`\n"
                 "Please click download button on website again."
             )
-            await bot_instance.clear_processing_request(user_id, file_text)
+            await bot_instance.clear_processing_request(user_id, clean_text)
             return
         
         # Parse channel ID (could be negative)
@@ -586,31 +610,37 @@ async def handle_file_request(client, message, file_text, bot_instance):
         try:
             # Handle negative channel IDs
             if channel_str.startswith('--'):
-                # Double dash case
+                # Double dash case (sometimes happens)
                 channel_id = int(channel_str[1:])
-            else:
+            elif channel_str.startswith('-'):
+                # Normal negative ID
                 channel_id = int(channel_str)
-        except ValueError:
+            else:
+                # Positive ID
+                channel_id = int(channel_str)
+        except ValueError as e:
+            logger.error(f"❌ Invalid channel ID '{channel_str}': {e}")
             await message.reply_text(
                 "❌ **Invalid channel ID**\n\n"
                 f"Channel ID '{channel_str}' is not valid.\n"
                 "Please click download button on website again."
             )
-            await bot_instance.clear_processing_request(user_id, file_text)
+            await bot_instance.clear_processing_request(user_id, clean_text)
             return
         
         # Parse message ID
         try:
             message_id = int(parts[1].strip())
-        except ValueError:
+        except ValueError as e:
+            logger.error(f"❌ Invalid message ID '{parts[1]}': {e}")
             await message.reply_text(
                 "❌ **Invalid message ID**\n\n"
                 f"Message ID '{parts[1]}' is not valid."
             )
-            await bot_instance.clear_processing_request(user_id, file_text)
+            await bot_instance.clear_processing_request(user_id, clean_text)
             return
         
-        # Get quality
+        # Get quality (optional)
         quality = parts[2].strip() if len(parts) > 2 else "480p"
         
         logger.info(f"📥 Parsed: channel={channel_id}, message={message_id}, quality={quality}")
@@ -674,7 +704,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 )
             except:
                 pass
-            await bot_instance.clear_processing_request(user_id, file_text)
+            await bot_instance.clear_processing_request(user_id, clean_text)
             return
         
         if not file_message.document and not file_message.video:
@@ -685,7 +715,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 )
             except:
                 pass
-            await bot_instance.clear_processing_request(user_id, file_text)
+            await bot_instance.clear_processing_request(user_id, clean_text)
             return
         
         # ✅ Send file to user
@@ -727,7 +757,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 pass
         
         # Clear processing request
-        await bot_instance.clear_processing_request(user_id, file_text)
+        await bot_instance.clear_processing_request(user_id, clean_text)
         
     except Exception as e:
         logger.error(f"File request handling error: {e}")
@@ -738,7 +768,8 @@ async def handle_file_request(client, message, file_text, bot_instance):
             )
         except:
             pass
-        await bot_instance.clear_processing_request(user_id, file_text)
+        if 'clean_text' in locals():
+            await bot_instance.clear_processing_request(user_id, clean_text)
 
 async def setup_bot_handlers(bot: Client, bot_instance):
     """Setup bot commands and handlers - MINIMAL VERSION TO PREVENT FLOOD"""
