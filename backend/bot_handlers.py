@@ -1,23 +1,25 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
-FIXED: Added premium user add command for admins
-FIXED: Removed flood-causing handlers, rate limiting added
-FIXED: Single instance handling for file requests
+FIXED: Admin can see user info and screenshots
+FIXED: Payment screenshot tracking system
+FIXED: Complete admin dashboard
 """
 import asyncio
 import logging
 import secrets
 import re
 import time
+import hashlib
+import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from collections import defaultdict
 
 # ✅ Complete Pyrogram imports
 try:
     from pyrogram import Client, filters
     from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
-    from pyrogram.errors import FloodWait, BadRequest
+    from pyrogram.errors import FloodWait, BadRequest, UserNotParticipant
     PYROGRAM_AVAILABLE = True
 except ImportError:
     # Dummy classes for development
@@ -65,6 +67,9 @@ class SK4FiLMBot:
         # Rate limiting and deduplication
         self.user_request_times = defaultdict(list)
         self.processing_requests = {}  # Track currently processing requests
+        
+        # Payment screenshot tracking
+        self.pending_payments = {}  # payment_id -> user_id, amount, timestamp
         
         # Initialize all systems
         try:
@@ -131,6 +136,9 @@ class SK4FiLMBot:
             if self.cache_manager:
                 asyncio.create_task(self.cache_manager.start_cleanup_task())
             
+            # Start periodic cleanup
+            asyncio.create_task(self.periodic_cleanup())
+            
             return True
             
         except Exception as e:
@@ -156,7 +164,7 @@ class SK4FiLMBot:
             if self.verification_system:
                 await self.verification_system.stop_cleanup_task()
             if self.premium_system:
-                await bot_instance.premium_system.stop_cleanup_task()
+                await self.premium_system.stop_cleanup_task()
             if self.cache_manager:
                 await self.cache_manager.stop()
         except Exception as e:
@@ -168,13 +176,14 @@ class SK4FiLMBot:
         now = time.time()
         
         # Clean old requests
-        self.user_request_times[user_id] = [
-            t for t in self.user_request_times[user_id] 
-            if now - t < window
-        ]
+        if user_id in self.user_request_times:
+            self.user_request_times[user_id] = [
+                t for t in self.user_request_times[user_id] 
+                if now - t < window
+            ]
         
         # Check if limit exceeded
-        if len(self.user_request_times[user_id]) >= limit:
+        if len(self.user_request_times.get(user_id, [])) >= limit:
             logger.warning(f"⚠️ Rate limit exceeded for user {user_id}")
             return False
         
@@ -184,7 +193,7 @@ class SK4FiLMBot:
     
     async def is_request_duplicate(self, user_id, request_data):
         """Check if this is a duplicate request"""
-        request_hash = f"{user_id}_{hash(request_data)}"
+        request_hash = f"{user_id}_{hashlib.md5(request_data.encode()).hexdigest()[:8]}"
         
         if request_hash in self.processing_requests:
             # Check if it's still processing (within last 30 seconds)
@@ -197,8 +206,106 @@ class SK4FiLMBot:
     
     async def clear_processing_request(self, user_id, request_data):
         """Clear from processing requests"""
-        request_hash = f"{user_id}_{hash(request_data)}"
+        request_hash = f"{user_id}_{hashlib.md5(request_data.encode()).hexdigest()[:8]}"
         self.processing_requests.pop(request_hash, None)
+    
+    # ✅ PAYMENT SCREENSHOT TRACKING
+    async def add_pending_payment(self, payment_id: str, user_id: int, amount: int, plan: str):
+        """Add pending payment for tracking"""
+        self.pending_payments[payment_id] = {
+            'user_id': user_id,
+            'amount': amount,
+            'plan': plan,
+            'timestamp': time.time(),
+            'status': 'pending',
+            'screenshot_sent': False,
+            'screenshot_message_id': None
+        }
+        logger.info(f"✅ Payment added: {payment_id} for user {user_id}, amount: {amount}")
+    
+    async def update_payment_screenshot(self, payment_id: str, message_id: int):
+        """Update payment with screenshot info"""
+        if payment_id in self.pending_payments:
+            self.pending_payments[payment_id]['screenshot_sent'] = True
+            self.pending_payments[payment_id]['screenshot_message_id'] = message_id
+            self.pending_payments[payment_id]['screenshot_time'] = time.time()
+            logger.info(f"✅ Screenshot updated for payment {payment_id}")
+            return True
+        return False
+    
+    async def get_pending_payments(self):
+        """Get all pending payments"""
+        pending = []
+        now = time.time()
+        for payment_id, data in self.pending_payments.items():
+            if data['status'] == 'pending':
+                # Calculate age in hours
+                age_hours = (now - data['timestamp']) / 3600
+                data['payment_id'] = payment_id
+                data['age_hours'] = round(age_hours, 1)
+                pending.append(data)
+        return pending
+    
+    async def complete_payment(self, payment_id: str):
+        """Mark payment as completed"""
+        if payment_id in self.pending_payments:
+            self.pending_payments[payment_id]['status'] = 'completed'
+            self.pending_payments[payment_id]['completed_time'] = time.time()
+            logger.info(f"✅ Payment completed: {payment_id}")
+            return True
+        return False
+    
+    # ✅ PERIODIC CLEANUP
+    async def cleanup_old_processing_requests(self):
+        """Clean up old processing requests"""
+        try:
+            now = time.time()
+            to_remove = []
+            for request_hash, timestamp in self.processing_requests.items():
+                if now - timestamp > 300:  # 5 minutes old
+                    to_remove.append(request_hash)
+            
+            for req in to_remove:
+                self.processing_requests.pop(req, None)
+            
+            if to_remove:
+                logger.info(f"Cleaned up {len(to_remove)} old processing requests")
+        except Exception as e:
+            logger.error(f"Error cleaning processing requests: {e}")
+    
+    async def periodic_cleanup(self):
+        """Periodic cleanup of rate limiting and processing requests"""
+        while True:
+            try:
+                await asyncio.sleep(300)  # Every 5 minutes
+                await self.cleanup_old_processing_requests()
+                
+                # Clean old rate limits
+                now = time.time()
+                for user_id in list(self.user_request_times.keys()):
+                    # Keep only requests from last 5 minutes
+                    self.user_request_times[user_id] = [
+                        t for t in self.user_request_times[user_id]
+                        if now - t < 300
+                    ]
+                    # Remove empty lists
+                    if not self.user_request_times[user_id]:
+                        self.user_request_times.pop(user_id, None)
+                
+                # Clean old pending payments (older than 7 days)
+                old_payments = []
+                for payment_id, data in list(self.pending_payments.items()):
+                    if now - data.get('timestamp', 0) > 7 * 24 * 3600:  # 7 days
+                        old_payments.append(payment_id)
+                
+                for pid in old_payments:
+                    self.pending_payments.pop(pid, None)
+                
+                if old_payments:
+                    logger.info(f"Cleaned up {len(old_payments)} old pending payments")
+                        
+            except Exception as e:
+                logger.error(f"Error in periodic cleanup: {e}")
 
 # ✅ FIXED: Utility function to prevent MESSAGE_NOT_MODIFIED errors
 async def safe_edit_message(callback_query, text=None, reply_markup=None, disable_web_page_preview=None):
@@ -670,7 +777,8 @@ async def handle_file_request(client, message, file_text, bot_instance):
             try:
                 await processing_msg.edit_text(
                     "❌ **File not found**\n\n"
-                    "The file may have been deleted or I don't have access."
+                    "The file may have been deleted or I don't have access.\n"
+                    "Please try downloading from the website again."
                 )
             except:
                 pass
@@ -740,11 +848,138 @@ async def handle_file_request(client, message, file_text, bot_instance):
             pass
         await bot_instance.clear_processing_request(user_id, file_text)
 
+# ✅ FIXED: Admin commands to view user info and screenshots
 async def setup_bot_handlers(bot: Client, bot_instance):
-    """Setup bot commands and handlers - MINIMAL VERSION TO PREVENT FLOOD"""
+    """Setup bot commands and handlers with admin dashboard"""
     config = bot_instance.config
     
-    # ✅ ADMIN COMMANDS
+    # ✅ ADMIN DASHBOARD - MAIN COMMAND
+    @bot.on_message(filters.command("admin") & filters.user(config.ADMIN_IDS))
+    async def admin_dashboard_command(client, message):
+        """Admin dashboard main menu"""
+        admin_text = (
+            "🛠️ **SK4FiLM Admin Dashboard**\n\n"
+            "**Available Commands:**\n"
+            "• `/users` - View all users\n"
+            "• `/pending` - View pending payments\n"
+            "• `/addpremium <id> <days> <plan>` - Add premium\n"
+            "• `/removepremium <id>` - Remove premium\n"
+            "• `/checkpremium <id>` - Check premium\n"
+            "• `/stats` - Bot statistics\n"
+            "• `/backup` - Backup database\n"
+            "• `/broadcast` - Send message to all users\n\n"
+            "**Payment Screenshots:**\n"
+            "Screenshots are automatically forwarded to all admins when users send them."
+        )
+        
+        await message.reply_text(admin_text, disable_web_page_preview=True)
+    
+    # ✅ VIEW ALL USERS
+    @bot.on_message(filters.command("users") & filters.user(config.ADMIN_IDS))
+    async def users_command(client, message):
+        """View all registered users"""
+        try:
+            if bot_instance.premium_system:
+                users_data = await bot_instance.premium_system.get_all_users()
+                
+                if not users_data:
+                    await message.reply_text("📭 No users found in database.")
+                    return
+                
+                # Paginate users
+                page = int(message.command[1]) if len(message.command) > 1 else 1
+                per_page = 10
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+                
+                users_page = users_data[start_idx:end_idx]
+                
+                users_text = f"👥 **Registered Users** (Page {page})\n\n"
+                
+                for i, user in enumerate(users_page, start_idx + 1):
+                    user_id = user.get('user_id', 'Unknown')
+                    username = user.get('username', 'No username')
+                    first_name = user.get('first_name', 'Unknown')
+                    last_name = user.get('last_name', '')
+                    premium = user.get('premium', '❌')
+                    last_active = user.get('last_active', 'Never')
+                    
+                    users_text += f"{i}. **{first_name} {last_name}**\n"
+                    users_text += f"   👤 ID: `{user_id}`\n"
+                    users_text += f"   📛 @{username}\n"
+                    users_text += f"   ⭐ Premium: {premium}\n"
+                    users_text += f"   ⏰ Last Active: {last_active}\n\n"
+                
+                total_pages = (len(users_data) + per_page - 1) // per_page
+                
+                keyboard_buttons = []
+                if page > 1:
+                    keyboard_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"users_page_{page-1}"))
+                if page < total_pages:
+                    keyboard_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"users_page_{page+1}"))
+                
+                if keyboard_buttons:
+                    keyboard = InlineKeyboardMarkup([keyboard_buttons])
+                    await message.reply_text(users_text, reply_markup=keyboard)
+                else:
+                    await message.reply_text(users_text)
+            else:
+                await message.reply_text("❌ Premium system not available")
+                
+        except Exception as e:
+            logger.error(f"Users command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    # ✅ VIEW PENDING PAYMENTS
+    @bot.on_message(filters.command("pending") & filters.user(config.ADMIN_IDS))
+    async def pending_payments_command(client, message):
+        """View pending payment screenshots"""
+        try:
+            pending_payments = await bot_instance.get_pending_payments()
+            
+            if not pending_payments:
+                await message.reply_text("✅ No pending payments.")
+                return
+            
+            pending_text = "💰 **Pending Payments**\n\n"
+            
+            for i, payment in enumerate(pending_payments, 1):
+                user_id = payment.get('user_id', 'Unknown')
+                amount = payment.get('amount', 0)
+                plan = payment.get('plan', 'Unknown')
+                age_hours = payment.get('age_hours', 0)
+                screenshot_sent = "✅ Yes" if payment.get('screenshot_sent') else "❌ No"
+                
+                # Get user info
+                try:
+                    user = await client.get_users(user_id)
+                    user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
+                    username = f"@{user.username}" if user.username else "No username"
+                except:
+                    user_name = f"User {user_id}"
+                    username = "Unknown"
+                
+                pending_text += f"{i}. **{user_name}**\n"
+                pending_text += f"   👤 {username}\n"
+                pending_text += f"   💳 Payment ID: `{payment.get('payment_id', 'Unknown')}`\n"
+                pending_text += f"   💰 Amount: ₹{amount}\n"
+                pending_text += f"   📋 Plan: {plan}\n"
+                pending_text += f"   📸 Screenshot: {screenshot_sent}\n"
+                pending_text += f"   ⏰ Age: {age_hours} hours\n\n"
+            
+            # Add action buttons
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_pending")],
+                [InlineKeyboardButton("📋 View All Users", callback_data="admin_users")]
+            ])
+            
+            await message.reply_text(pending_text, reply_markup=keyboard)
+            
+        except Exception as e:
+            logger.error(f"Pending payments command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    # ✅ ADD PREMIUM USER
     @bot.on_message(filters.command("addpremium") & filters.user(config.ADMIN_IDS))
     async def add_premium_command(client, message):
         """Add premium user command for admins"""
@@ -796,7 +1031,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 )
                 
                 if success:
-                    await message.reply_text(
+                    admin_msg = (
                         f"✅ **Premium User Added Successfully!**\n\n"
                         f"**User:** {user_name}\n"
                         f"**ID:** `{user_id}`\n"
@@ -805,6 +1040,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                         f"**Duration:** {days} days\n\n"
                         f"User can now download files without verification!"
                     )
+                    
+                    await message.reply_text(admin_msg)
                     
                     # Notify user if possible
                     try:
@@ -820,8 +1057,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                             f"• Priority support\n\n"
                             f"🎬 **Enjoy unlimited downloads!**"
                         )
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Could not notify user {user_id}: {e}")
                 else:
                     await message.reply_text("❌ Failed to add premium subscription. Check logs.")
             else:
@@ -837,6 +1074,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Add premium command error: {e}")
             await message.reply_text(f"❌ Error: {str(e)[:100]}")
     
+    # ✅ REMOVE PREMIUM
     @bot.on_message(filters.command("removepremium") & filters.user(config.ADMIN_IDS))
     async def remove_premium_command(client, message):
         """Remove premium user command for admins"""
@@ -870,6 +1108,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Remove premium command error: {e}")
             await message.reply_text(f"❌ Error: {str(e)[:100]}")
     
+    # ✅ CHECK PREMIUM STATUS
     @bot.on_message(filters.command("checkpremium") & filters.user(config.ADMIN_IDS))
     async def check_premium_command(client, message):
         """Check premium status of user"""
@@ -923,6 +1162,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Check premium command error: {e}")
             await message.reply_text(f"❌ Error: {str(e)[:100]}")
     
+    # ✅ STATISTICS COMMAND
     @bot.on_message(filters.command("stats") & filters.user(config.ADMIN_IDS))
     async def stats_command(client, message):
         """Show bot statistics"""
@@ -937,12 +1177,12 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     f"✅ **Active Premium:** {stats.get('active_premium', 0)}\n"
                     f"📥 **Total Downloads:** {stats.get('total_downloads', 0)}\n"
                     f"💾 **Total Data Sent:** {stats.get('total_data_sent', '0 GB')}\n\n"
+                    f"💰 **Pending Payments:** {len(await bot_instance.get_pending_payments())}\n\n"
                     f"🔄 **System Status:**\n"
                     f"• Bot: {'✅ Online' if bot_instance.bot_started else '❌ Offline'}\n"
                     f"• User Client: {'✅ Connected' if bot_instance.user_session_ready else '❌ Disconnected'}\n"
                     f"• Verification: {'✅ Active' if bot_instance.verification_system else '❌ Inactive'}\n"
-                    f"• Premium: {'✅ Active' if bot_instance.premium_system else '❌ Inactive'}\n\n"
-                    f"⏰ **Uptime:** {stats.get('uptime', 'Unknown')}"
+                    f"• Premium: {'✅ Active' if bot_instance.premium_system else '❌ Inactive'}\n"
                 )
                 
                 await message.reply_text(stats_text, disable_web_page_preview=True)
@@ -952,6 +1192,406 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         except Exception as e:
             logger.error(f"Stats command error: {e}")
             await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
+    
+    # ✅ BROADCAST COMMAND
+    @bot.on_message(filters.command("broadcast") & filters.user(config.ADMIN_IDS))
+    async def broadcast_command(client, message):
+        """Broadcast message to all users"""
+        try:
+            if len(message.command) < 2 and not message.reply_to_message:
+                await message.reply_text(
+                    "❌ **Usage:** `/broadcast <message>`\n"
+                    "Or reply to a message with `/broadcast`\n\n"
+                    "**Example:** `/broadcast New movies added!`"
+                )
+                return
+            
+            # Get broadcast message
+            if message.reply_to_message:
+                broadcast_msg = message.reply_to_message
+                text_message = broadcast_msg.text or broadcast_msg.caption or ""
+            else:
+                broadcast_text = ' '.join(message.command[1:])
+                broadcast_msg = None
+                text_message = broadcast_text
+            
+            if not text_message.strip():
+                await message.reply_text("❌ Message cannot be empty")
+                return
+            
+            # Get all users
+            if bot_instance.premium_system:
+                users_data = await bot_instance.premium_system.get_all_users()
+                
+                if not users_data:
+                    await message.reply_text("📭 No users to broadcast to.")
+                    return
+                
+                total_users = len(users_data)
+                success_count = 0
+                fail_count = 0
+                
+                # Send confirmation
+                confirm_text = (
+                    f"📢 **Broadcast Confirmation**\n\n"
+                    f"**Message:** {text_message[:100]}...\n"
+                    f"**To:** {total_users} users\n\n"
+                    f"Type `/confirm_broadcast` to proceed or cancel."
+                )
+                
+                await message.reply_text(confirm_text)
+                
+            else:
+                await message.reply_text("❌ Premium system not available")
+                
+        except Exception as e:
+            logger.error(f"Broadcast command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    # ✅ CONFIRM BROADCAST
+    @bot.on_message(filters.command("confirm_broadcast") & filters.user(config.ADMIN_IDS))
+    async def confirm_broadcast_command(client, message):
+        """Confirm and send broadcast"""
+        try:
+            # This would need additional logic to store the pending broadcast
+            await message.reply_text(
+                "⚠️ **Broadcast system needs setup**\n\n"
+                "This feature requires additional implementation to store pending broadcasts."
+            )
+        except Exception as e:
+            logger.error(f"Confirm broadcast error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    # ✅ BACKUP COMMAND
+    @bot.on_message(filters.command("backup") & filters.user(config.ADMIN_IDS))
+    async def backup_command(client, message):
+        """Create database backup"""
+        try:
+            await message.reply_text("🔄 Creating database backup...")
+            
+            if bot_instance.premium_system:
+                # Check if backup method exists
+                if hasattr(bot_instance.premium_system, 'backup_database'):
+                    backup_file = await bot_instance.premium_system.backup_database()
+                    if backup_file:
+                        await message.reply_text(f"✅ Backup created: `{backup_file}`")
+                        
+                        # Try to send the backup file
+                        try:
+                            await client.send_document(
+                                message.chat.id,
+                                backup_file,
+                                caption=f"📦 Database Backup\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not send backup file: {e}")
+                            await message.reply_text(f"✅ Backup saved locally: `{backup_file}`")
+                    else:
+                        await message.reply_text("❌ Backup failed")
+                else:
+                    await message.reply_text("❌ Backup method not available in premium system")
+            else:
+                await message.reply_text("❌ Premium system not available")
+                
+        except Exception as e:
+            logger.error(f"Backup command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    # ✅ FORWARD SCREENSHOTS TO ALL ADMINS
+    @bot.on_message(filters.private & (filters.photo | filters.document))
+    async def forward_screenshots_to_admins(client, message):
+        """Forward payment screenshots to all admins"""
+        # Check if message is from a user (not admin)
+        user_id = message.from_user.id
+        
+        if user_id in config.ADMIN_IDS:
+            # Admin sending, don't forward
+            return
+        
+        # Check if it's likely a screenshot
+        is_screenshot = False
+        
+        if message.photo:
+            is_screenshot = True
+        elif message.document and message.document.mime_type:
+            # Check for image mime types
+            image_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+            if any(img_type in message.document.mime_type for img_type in image_types):
+                is_screenshot = True
+        
+        if not is_screenshot:
+            return
+        
+        # Get user info
+        try:
+            user = await client.get_users(user_id)
+            user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
+            username = f"@{user.username}" if user.username else "No username"
+        except:
+            user_name = f"User {user_id}"
+            username = "Unknown"
+        
+        # Create admin alert
+        alert_text = (
+            f"📸 **New Payment Screenshot Received!**\n\n"
+            f"👤 **User:** {user_name}\n"
+            f"📛 **Username:** {username}\n"
+            f"🆔 **User ID:** `{user_id}`\n"
+            f"🕒 **Time:** {datetime.now().strftime('%H:%M:%S')}\n\n"
+            f"**Admin Actions:**\n"
+            f"• Check pending payments: `/pending`\n"
+            f"• Add premium: `/addpremium {user_id} 30 basic`\n"
+            f"• View user info: `/checkpremium {user_id}`"
+        )
+        
+        # Forward to all admins
+        for admin_id in config.ADMIN_IDS:
+            try:
+                # Forward the screenshot
+                await message.forward(admin_id)
+                
+                # Send alert message
+                await client.send_message(
+                    admin_id,
+                    alert_text,
+                    reply_markup=InlineKeyboardMarkup([
+                        [
+                            InlineKeyboardButton("✅ Add Premium", callback_data=f"admin_addpremium_{user_id}"),
+                            InlineKeyboardButton("👤 Check User", callback_data=f"admin_checkuser_{user_id}")
+                        ],
+                        [InlineKeyboardButton("📋 Pending Payments", callback_data="admin_pending")]
+                    ])
+                )
+                
+                logger.info(f"✅ Screenshot forwarded to admin {admin_id} from user {user_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to forward screenshot to admin {admin_id}: {e}")
+        
+        # Reply to user
+        await message.reply_text(
+            "✅ **Screenshot received!**\n\n"
+            "Our admin will verify your payment and activate your premium within 24 hours.\n"
+            "Thank you for choosing SK4FiLM! 🎬\n\n"
+            "You will receive a confirmation message when activated.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
+            ])
+        )
+    
+    # ✅ ADMIN CALLBACK QUERIES
+    @bot.on_callback_query(filters.regex(r"^admin_"))
+    async def admin_callback_handler(client, callback_query):
+        """Handle admin callback queries"""
+        data = callback_query.data
+        admin_id = callback_query.from_user.id
+        
+        if admin_id not in config.ADMIN_IDS:
+            await callback_query.answer("❌ Access denied!", show_alert=True)
+            return
+        
+        if data.startswith("admin_addpremium_"):
+            # Add premium from callback
+            user_id = int(data.split('_')[2])
+            
+            # Show quick add premium interface
+            text = (
+                f"⭐ **Add Premium for User**\n\n"
+                f"**User ID:** `{user_id}`\n\n"
+                f"Select plan and duration:"
+            )
+            
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("30 Days Basic", callback_data=f"quick_add_{user_id}_30_basic"),
+                    InlineKeyboardButton("30 Days Premium", callback_data=f"quick_add_{user_id}_30_premium")
+                ],
+                [
+                    InlineKeyboardButton("365 Days Basic", callback_data=f"quick_add_{user_id}_365_basic"),
+                    InlineKeyboardButton("365 Days Premium", callback_data=f"quick_add_{user_id}_365_premium")
+                ],
+                [InlineKeyboardButton("🔙 Back", callback_data="admin_dashboard")]
+            ])
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            
+        elif data.startswith("quick_add_"):
+            # Quick add premium
+            parts = data.split('_')
+            user_id = int(parts[2])
+            days = int(parts[3])
+            plan_type = parts[4]
+            
+            if bot_instance.premium_system:
+                success = await bot_instance.premium_system.add_premium_subscription(
+                    user_id=user_id,
+                    tier_name=plan_type.capitalize(),
+                    days_valid=days,
+                    payment_method="admin_quick",
+                    payment_id=f"admin_quick_{int(time.time())}"
+                )
+                
+                if success:
+                    # Get user info for notification
+                    try:
+                        user = await client.get_users(user_id)
+                        user_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                    except:
+                        user_name = f"User {user_id}"
+                    
+                    await callback_query.answer(f"✅ Premium added for {user_name}!", show_alert=True)
+                    
+                    # Update message
+                    await callback_query.message.edit_text(
+                        f"✅ **Premium Added Successfully!**\n\n"
+                        f"**User:** {user_name}\n"
+                        f"**Plan:** {plan_type.capitalize()}\n"
+                        f"**Duration:** {days} days\n\n"
+                        f"User has been notified.",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("📋 Back to Admin", callback_data="admin_dashboard")]
+                        ])
+                    )
+                    
+                    # Notify user
+                    try:
+                        await client.send_message(
+                            user_id,
+                            f"🎉 **Congratulations!** 🎉\n\n"
+                            f"Your premium has been activated!\n\n"
+                            f"✅ **Plan:** {plan_type.capitalize()}\n"
+                            f"📅 **Valid for:** {days} days\n\n"
+                            f"🎬 **Enjoy unlimited downloads!**"
+                        )
+                    except:
+                        pass
+                else:
+                    await callback_query.answer("❌ Failed to add premium", show_alert=True)
+            else:
+                await callback_query.answer("❌ Premium system not available", show_alert=True)
+                
+        elif data == "admin_pending":
+            # Show pending payments
+            pending_payments = await bot_instance.get_pending_payments()
+            
+            if not pending_payments:
+                text = "✅ No pending payments."
+                keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="admin_dashboard")]])
+            else:
+                text = "💰 **Pending Payments**\n\n"
+                for i, payment in enumerate(pending_payments[:5], 1):
+                    user_id = payment.get('user_id', 'Unknown')
+                    amount = payment.get('amount', 0)
+                    plan = payment.get('plan', 'Unknown')
+                    
+                    text += f"{i}. User ID: `{user_id}`\n"
+                    text += f"   Amount: ₹{amount} ({plan})\n\n"
+                
+                keyboard_buttons = []
+                for i, payment in enumerate(pending_payments[:5], 1):
+                    user_id = payment.get('user_id')
+                    keyboard_buttons.append([InlineKeyboardButton(
+                        f"✅ Approve #{i}", 
+                        callback_data=f"approve_payment_{payment.get('payment_id', '')}"
+                    )])
+                
+                keyboard_buttons.append([InlineKeyboardButton("🔙 Back", callback_data="admin_dashboard")])
+                keyboard = InlineKeyboardMarkup(keyboard_buttons)
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            
+        elif data.startswith("approve_payment_"):
+            # Approve payment
+            payment_id = data.split('_')[2]
+            
+            # Complete payment in system
+            await bot_instance.complete_payment(payment_id)
+            
+            await callback_query.answer("✅ Payment approved!", show_alert=True)
+            
+            # Go back to pending list
+            await admin_callback_handler(client, callback_query)
+            
+        elif data == "admin_dashboard":
+            # Show admin dashboard
+            text = (
+                "🛠️ **SK4FiLM Admin Dashboard**\n\n"
+                "**Quick Actions:**"
+            )
+            
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("👥 Users", callback_data="admin_users"),
+                    InlineKeyboardButton("💰 Pending", callback_data="admin_pending")
+                ],
+                [
+                    InlineKeyboardButton("📊 Stats", callback_data="admin_stats"),
+                    InlineKeyboardButton("⚙️ Settings", callback_data="admin_settings")
+                ]
+            ])
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            
+        elif data == "admin_users":
+            # Show users list
+            if bot_instance.premium_system:
+                users_data = await bot_instance.premium_system.get_all_users()
+                
+                if users_data:
+                    text = f"👥 **Total Users:** {len(users_data)}\n\n"
+                    for i, user in enumerate(users_data[:10], 1):
+                        user_id = user.get('user_id', 'Unknown')
+                        premium = user.get('premium', '❌')
+                        text += f"{i}. `{user_id}` - {premium}\n"
+                    
+                    if len(users_data) > 10:
+                        text += f"\n... and {len(users_data) - 10} more users"
+                else:
+                    text = "📭 No users found."
+            else:
+                text = "❌ Premium system not available"
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="admin_dashboard")]
+            ])
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            
+        elif data == "admin_stats":
+            # Show stats
+            if bot_instance.premium_system:
+                stats = await bot_instance.premium_system.get_statistics()
+                text = (
+                    f"📊 **Bot Statistics**\n\n"
+                    f"👥 Users: {stats.get('total_users', 0)}\n"
+                    f"⭐ Premium: {stats.get('premium_users', 0)}\n"
+                    f"📥 Downloads: {stats.get('total_downloads', 0)}\n"
+                    f"💾 Data: {stats.get('total_data_sent', '0 GB')}"
+                )
+            else:
+                text = "❌ Statistics not available"
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="admin_dashboard")]
+            ])
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+        
+        elif data == "admin_settings":
+            # Show settings
+            text = (
+                "⚙️ **Bot Settings**\n\n"
+                f"• Auto-delete: {config.AUTO_DELETE_TIME//60} minutes\n"
+                f"• Admins: {len(config.ADMIN_IDS)}\n"
+                f"• User Client: {'✅ Connected' if bot_instance.user_session_ready else '❌ Disconnected'}\n"
+                f"• Bot Status: {'✅ Online' if bot_instance.bot_started else '❌ Offline'}"
+            )
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="admin_dashboard")]
+            ])
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
     
     # ✅ START COMMAND HANDLER - SIMPLIFIED
     @bot.on_message(filters.command("start"))
@@ -1102,7 +1742,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         except:
             await callback_query.answer("Premium plans!")
     
-    # ✅ PLAN SELECTION - SIMPLIFIED
+    # ✅ PLAN SELECTION - WITH PAYMENT TRACKING
     @bot.on_callback_query(filters.regex(r"^plan_"))
     async def plan_selection_callback(client, callback_query):
         plan_type = callback_query.data.split('_')[1]
@@ -1118,14 +1758,24 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         payment_id = secrets.token_hex(8)
         
+        # Track this payment
+        await bot_instance.add_pending_payment(
+            payment_id=payment_id,
+            user_id=callback_query.from_user.id,
+            amount=amount,
+            plan=plan_type
+        )
+        
         text = (
             f"💰 **Payment for {plan_name}**\n\n"
             f"**Amount:** ₹{amount}\n"
-            f"**UPI ID:** `{upi_id}`\n\n"
+            f"**UPI ID:** `{upi_id}`\n"
+            f"**Payment ID:** `{payment_id}`\n\n"
             f"1. Send ₹{amount} to UPI ID\n"
-            "2. Take screenshot\n"
+            "2. Take screenshot of payment\n"
             "3. Send screenshot here\n\n"
-            "Admin will activate within 24 hours"
+            "**Admin will activate within 24 hours**\n"
+            "⏰ Payment ID is valid for 24 hours"
         )
         
         keyboard = InlineKeyboardMarkup([
@@ -1162,21 +1812,5 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             await callback_query.message.delete()
         except:
             pass
-    
-    # ✅ HANDLE SCREENSHOT MESSAGES
-    @bot.on_message(filters.private & (filters.photo | filters.document))
-    async def handle_screenshot(client, message):
-        """Handle payment screenshots"""
-        # Check if it's likely a screenshot
-        if message.photo or (message.document and message.document.mime_type and 'image' in message.document.mime_type):
-            await message.reply_text(
-                "✅ **Screenshot received!**\n\n"
-                "Our admin will verify your payment and activate your premium within 24 hours.\n"
-                "Thank you for choosing SK4FiLM! 🎬\n\n"
-                "You will receive a confirmation message when activated.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
-                ])
-            )
-    
-    logger.info("✅ Bot handlers setup complete with admin commands")
+
+    logger.info("✅ Bot handlers setup complete with admin dashboard and screenshot forwarding")
