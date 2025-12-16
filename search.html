@@ -930,24 +930,35 @@ function updateOnlineStatus() {
     isOnline = navigator.onLine;
 }
 
-// ✅ IMPROVED: Quality Options Generator with Better Fallbacks
+// ✅ FIXED: Quality Options Generator with Better Fallbacks
 function generateQualityOptions(qualityOptions, resultData) {
     console.log("🔧 Generating quality options...");
     console.log("Quality options received:", qualityOptions);
+    console.log("Quality options type:", typeof qualityOptions);
     console.log("Result data keys:", Object.keys(resultData));
     
-    if (!qualityOptions || Object.keys(qualityOptions).length === 0) {
-        console.log("❌ No quality options available");
+    // Check if qualityOptions is properly structured
+    if (!qualityOptions || typeof qualityOptions !== 'object') {
+        console.log("❌ No quality options available or invalid format");
         return '<p class="text-center text-muted mb-0">No files available</p>';
     }
     
     // Check if we have any data in quality options
     let hasValidData = false;
     Object.values(qualityOptions).forEach(q => {
-        if (q && (q.file_id || q.message_id || q.file_size)) {
+        if (q && (q.file_id || q.message_id || q.file_size || q.file_name || q.real_message_id)) {
             hasValidData = true;
         }
     });
+    
+    // If no quality options, check resultData directly
+    if (!hasValidData) {
+        console.log("❌ No valid data in quality options, checking resultData");
+        // Try to extract from resultData directly
+        if (resultData.file_id || resultData.real_message_id || resultData.message_id) {
+            hasValidData = true;
+        }
+    }
     
     if (!hasValidData) {
         console.log("❌ No valid data in quality options");
@@ -957,10 +968,11 @@ function generateQualityOptions(qualityOptions, resultData) {
     // Try multiple sources for message ID
     let realMessageId = null;
     const sources = [
-        { name: 'resultData.message_id', value: resultData.message_id },
         { name: 'resultData.real_message_id', value: resultData.real_message_id },
-        { name: 'resultData.id', value: resultData.id },
-        { name: 'first quality option', value: Object.values(qualityOptions)[0]?.message_id }
+        { name: 'resultData.message_id', value: resultData.message_id },
+        { name: 'quality options message_id', value: Object.values(qualityOptions)[0]?.message_id },
+        { name: 'quality options real_message_id', value: Object.values(qualityOptions)[0]?.real_message_id },
+        { name: 'resultData.id', value: resultData.id }
     ];
     
     for (const source of sources) {
@@ -970,21 +982,6 @@ function generateQualityOptions(qualityOptions, resultData) {
                 realMessageId = extracted;
                 console.log(`✅ Found message ID from ${source.name}: ${realMessageId}`);
                 break;
-            }
-        }
-    }
-    
-    // If still no message ID, try to find it in resultData
-    if (!realMessageId) {
-        console.log("🔍 Searching for message ID in resultData...");
-        for (const [key, value] of Object.entries(resultData)) {
-            if (typeof value === 'string' || typeof value === 'number') {
-                const extracted = extractRealMessageId(value);
-                if (extracted) {
-                    realMessageId = extracted;
-                    console.log(`✅ Found message ID in ${key}: ${realMessageId}`);
-                    break;
-                }
             }
         }
     }
@@ -1001,6 +998,7 @@ function generateQualityOptions(qualityOptions, resultData) {
     }
     
     console.log(`✅ Final message ID to use: ${realMessageId}`);
+    console.log(`✅ Quality options keys:`, Object.keys(qualityOptions));
     
     // Generate quality buttons
     let html = '<div class="quality-buttons-row">';
@@ -1013,61 +1011,98 @@ function generateQualityOptions(qualityOptions, resultData) {
         '360p', '240p', 'HD', 'SD', 'HQ', 'LQ'
     ];
     
-    // First, try to show qualities in preferred order
-    qualityOrder.forEach(quality => {
-        const qualityData = qualityOptions[quality];
-        if (!qualityData) return;
+    // First, check if qualityOptions is an object with quality keys
+    if (typeof qualityOptions === 'object' && !Array.isArray(qualityOptions)) {
+        console.log("✅ Quality options is an object with keys:", Object.keys(qualityOptions));
         
-        console.log(`Processing quality: ${quality}`, qualityData);
+        // First, try to show qualities in preferred order
+        qualityOrder.forEach(quality => {
+            const qualityData = qualityOptions[quality];
+            if (!qualityData) return;
+            
+            console.log(`Processing quality: ${quality}`, qualityData);
+            
+            const fileSize = formatSize(qualityData.file_size || 0);
+            const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+            
+            // Use the qualityData's message_id if available, otherwise use realMessageId
+            const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+            
+            // Create the file ID for Telegram bot
+            const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+            
+            const videoBadge = isVideo ? 
+                ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : 
+                '';
+            
+            // Get bot username (use result's bot_username or default)
+            const botUsername = resultData.bot_username || BOT_USERNAME;
+            
+            html += `
+            <a href="https://t.me/${botUsername}?start=${fileId}" 
+               target="_blank" 
+               class="quality-option"
+               data-quality="${quality}"
+               onclick="console.log('Downloading: ${fileId}')">
+                <i class="fas fa-download me-1"></i>${quality}${videoBadge}
+                <small>${fileSize}</small>
+            </a>`;
+            
+            linksGenerated++;
+        });
         
-        const fileSize = formatSize(qualityData.file_size || 0);
-        const isVideo = qualityData.is_video === true;
-        const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-        
-        // Create the file ID for Telegram bot
-        const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
-        
-        const videoBadge = isVideo ? 
-            ' <span class="badge bg-danger ms-1"><i class="fas fa-play-circle me-1"></i>VIDEO</span>' : 
-            '';
-        
-        // Get bot username (use result's bot_username or default)
-        const botUsername = resultData.bot_username || BOT_USERNAME;
-        
-        html += `
-        <a href="https://t.me/${botUsername}?start=${fileId}" 
-           target="_blank" 
-           class="quality-option"
-           data-quality="${quality}"
-           onclick="console.log('Downloading: ${fileId}')">
-            <i class="fas fa-download me-1"></i>${quality}${videoBadge}
-            <small>${fileSize}</small>
-        </a>`;
-        
-        linksGenerated++;
-    });
-    
-    // If no standard qualities found, show all available qualities
-    if (linksGenerated === 0) {
-        console.log("No standard qualities found, showing all available");
-        for (const [quality, qualityData] of Object.entries(qualityOptions)) {
-            if (qualityData) {
-                const fileSize = formatSize(qualityData.file_size || 0);
-                const isVideo = qualityData.is_video === true;
-                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
-                const botUsername = resultData.bot_username || BOT_USERNAME;
-                
-                html += `
-                <a href="https://t.me/${botUsername}?start=${fileId}" 
-                   target="_blank" 
-                   class="quality-option"
-                   data-quality="${quality}">
-                    <i class="fas fa-download me-1"></i>${quality}
-                    <small>${fileSize}</small>
-                </a>`;
-                linksGenerated++;
+        // If no standard qualities found, show all available qualities
+        if (linksGenerated === 0) {
+            console.log("No standard qualities found, showing all available");
+            for (const [quality, qualityData] of Object.entries(qualityOptions)) {
+                if (qualityData && typeof qualityData === 'object') {
+                    const fileSize = formatSize(qualityData.file_size || 0);
+                    const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+                    const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                    
+                    // Use the qualityData's message_id if available, otherwise use realMessageId
+                    const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+                    const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                    
+                    const botUsername = resultData.bot_username || BOT_USERNAME;
+                    
+                    html += `
+                    <a href="https://t.me/${botUsername}?start=${fileId}" 
+                       target="_blank" 
+                       class="quality-option"
+                       data-quality="${quality}">
+                        <i class="fas fa-download me-1"></i>${quality}
+                        <small>${fileSize}</small>
+                    </a>`;
+                    linksGenerated++;
+                }
             }
+        }
+    } else {
+        console.log("❌ Quality options is not in expected format:", typeof qualityOptions);
+        
+        // Try last resort: Check if resultData has direct file info
+        if (resultData.has_file && (resultData.file_id || resultData.real_message_id || resultData.message_id)) {
+            console.log("✅ Using direct file info from resultData");
+            const fileSize = formatSize(resultData.file_size || 0);
+            const quality = resultData.quality || 'HD';
+            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+            
+            // Use available message ID
+            const msgId = resultData.real_message_id || resultData.message_id || realMessageId;
+            const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+            const botUsername = resultData.bot_username || BOT_USERNAME;
+            
+            html += `
+            <a href="https://t.me/${botUsername}?start=${fileId}" 
+               target="_blank" 
+               class="quality-option"
+               data-quality="${quality}">
+                <i class="fas fa-download me-1"></i>${quality}
+                <small>${fileSize}</small>
+            </a>`;
+            linksGenerated++;
         }
     }
     
@@ -1081,21 +1116,34 @@ function generateQualityOptions(qualityOptions, resultData) {
         // Get bot username
         const botUsername = resultData.bot_username || BOT_USERNAME;
         
-        // Show all quality names
-        Object.keys(qualityOptions).forEach((quality, index) => {
-            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-            const simpleFileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
-            
+        // Show all quality names from quality options
+        if (typeof qualityOptions === 'object' && Object.keys(qualityOptions).length > 0) {
+            Object.keys(qualityOptions).forEach((quality, index) => {
+                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                const simpleFileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
+                
+                html += `
+                <a href="https://t.me/${botUsername}?start=${simpleFileId}" 
+                   target="_blank" 
+                   class="quality-option"
+                   data-quality="${quality}">
+                    <i class="fas fa-download me-1"></i>${quality}
+                    <small>Download</small>
+                </a>`;
+                linksGenerated++;
+            });
+        } else {
+            // No quality options at all
             html += `
-            <a href="https://t.me/${botUsername}?start=${simpleFileId}" 
+            <a href="https://t.me/${BOT_USERNAME}" 
                target="_blank" 
                class="quality-option"
-               data-quality="${quality}">
-                <i class="fas fa-download me-1"></i>${quality}
-                <small>Download</small>
+               data-quality="HD">
+                <i class="fas fa-download me-1"></i>Get from Telegram
+                <small>Contact Bot</small>
             </a>`;
             linksGenerated++;
-        });
+        }
         
         html += '</div>';
     }
@@ -1332,6 +1380,14 @@ async function displayResults(results, pagination) {
         console.log(`Result ${i}: ${result.title}`);
         console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
         console.log(`Quality options:`, qualityOptions);
+        console.log(`Quality options type:`, typeof qualityOptions);
+        console.log(`Quality options keys:`, Object.keys(qualityOptions));
+        
+        // Debug: Show first quality option details
+        if (hasQualities) {
+            const firstKey = Object.keys(qualityOptions)[0];
+            console.log(`First quality option (${firstKey}):`, qualityOptions[firstKey]);
+        }
         
         html += `
         <div class="result-card">
@@ -1341,9 +1397,6 @@ async function displayResults(results, pagination) {
                     <!-- Thumbnail will be loaded here -->
                 </div>
             </div>
-            
-            <!-- 2. TITLE -->
-            <h3 class="result-title">${escapeHtml(result.title)}</h3>
             
             <!-- 3. POST CONTENT - बीच में -->
             ${hasPostContent ? `
@@ -1360,16 +1413,33 @@ async function displayResults(results, pagination) {
                             <i class="fas fa-download me-2"></i>Download Movie
                             <i class="fas fa-chevron-down ms-2" id="arrow-${i}"></i>
                         </button>
+                    ` : hasFile ? `
+                        <button class="btn btn-download-main" onclick="toggleQuality(${i})">
+                            <i class="fas fa-download me-2"></i>Download (No Qualities)
+                            <i class="fas fa-chevron-down ms-2" id="arrow-${i}"></i>
+                        </button>
                     ` : `<button class="btn btn-download-main" disabled>
                         <i class="fas fa-times me-2"></i>File Not Available
                     </button>`}
                 </div>
                 
-                ${hasFile && hasQualities ? `
+                ${hasFile ? `
                     <div class="quality-dropdown" id="quality-${i}">
                         ${generateQualityOptions(qualityOptions, result)}
                     </div>
                 ` : ''}
+            </div>
+            
+            <!-- DEBUG INFO (visible only in console) -->
+            <div style="display:none;" id="debug-${i}">
+                ${JSON.stringify({
+                    title: result.title,
+                    hasFile: hasFile,
+                    hasQualities: hasQualities,
+                    qualityKeys: Object.keys(qualityOptions),
+                    qualityOptions: qualityOptions,
+                    resultKeys: Object.keys(result)
+                })}
             </div>
         </div>
         `;
@@ -1585,6 +1655,24 @@ if (!AbortSignal.timeout) {
 console.log("✅ SK4FiLM Search Page Loaded with Improved Download Links");
 console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
 console.log("📱 Open browser console (F12) to see debug messages");
+
+// Test function to check API response
+async function testApiResponse() {
+    console.log("🧪 Testing API response...");
+    try {
+        const response = await fetch(`${API_ENDPOINTS[0]}/api/search?query=test&page=1&limit=1`);
+        const data = await response.json();
+        console.log("API Test Response:", data);
+        if (data.results && data.results.length > 0) {
+            console.log("First result quality options:", data.results[0].quality_options);
+        }
+    } catch (error) {
+        console.error("API Test Error:", error);
+    }
+}
+
+// Run test on load
+setTimeout(testApiResponse, 3000);
 </script>
 </body>
 </html>
