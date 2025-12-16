@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v8.5 - OPTIMIZED WITH BOT HANDLER & INSTANT AUTO INDEX
+# 🚀 SK4FiLM v8.5 - OPTIMIZED WITH BOT HANDLER & COMPLETE REINDEXING
 # ============================================================================
 
 import asyncio
@@ -49,7 +49,18 @@ try:
     logger.debug("✅ Cache module imported")
 except ImportError as e:
     logger.error(f"❌ Cache module import error: {e}")
-    CacheManager = None
+    # Fallback CacheManager
+    class CacheManager:
+        def __init__(self, config):
+            self.config = config
+            self.redis_enabled = False
+            self.redis_client = None
+        async def init_redis(self): return False
+        async def get(self, key): return None
+        async def set(self, key, value, expire_seconds=0): pass
+        async def delete(self, key): pass
+        async def start_cleanup_task(self): pass
+        async def stop(self): pass
 
 try:
     from verification import VerificationSystem
@@ -57,6 +68,16 @@ try:
 except ImportError as e:
     logger.error(f"❌ Verification module import error: {e}")
     VerificationSystem = None
+    # Fallback VerificationSystem
+    class VerificationSystem:
+        def __init__(self, config, mongo_client):
+            self.config = config
+            self.mongo_client = mongo_client
+        async def check_user_verified(self, user_id, premium_system):
+            return True, "User verified"
+        async def get_user_verification_info(self, user_id):
+            return {"verified": True}
+        async def stop(self): pass
 
 try:
     from premium import PremiumSystem, PremiumTier
@@ -65,6 +86,24 @@ except ImportError as e:
     logger.error(f"❌ Premium module import error: {e}")
     PremiumSystem = None
     PremiumTier = None
+    # Fallback PremiumSystem
+    class PremiumTier:
+        BASIC = "basic"
+        PREMIUM = "premium"
+        GOLD = "gold"
+        DIAMOND = "diamond"
+    
+    class PremiumSystem:
+        def __init__(self, config, mongo_client):
+            self.config = config
+            self.mongo_client = mongo_client
+        async def is_premium_user(self, user_id):
+            return False
+        async def get_user_tier(self, user_id):
+            return PremiumTier.BASIC
+        async def get_subscription_details(self, user_id):
+            return {"tier": "basic", "expiry": None}
+        async def stop_cleanup_task(self): pass
 
 try:
     from poster_fetching import PosterFetcher, PosterSource
@@ -73,6 +112,12 @@ except ImportError as e:
     logger.error(f"❌ Poster fetching module import error: {e}")
     PosterFetcher = None
     PosterSource = None
+    # Fallback PosterSource
+    class PosterSource:
+        TMDB = "tmdb"
+        OMDB = "omdb"
+        CUSTOM = "custom"
+        FALLBACK = "fallback"
 
 try:
     from utils import (
@@ -89,17 +134,93 @@ try:
 except ImportError as e:
     logger.error(f"❌ Utils module import error: {e}")
     # Define fallback functions
-    def normalize_title(title): return title.lower().strip() if title else ""
-    def extract_title_smart(text): return text[:50] if text else ""
-    def extract_title_from_file(filename, caption=None): return filename or "Unknown"
-    def format_size(size): return f"{size/1024/1024:.1f} MB" if size else "Unknown"
-    def detect_quality(filename): return "480p"
-    def is_video_file(filename): return bool(filename)
-    def format_post(text, max_length=None): 
-        if max_length and text and len(text) > max_length:
+    def normalize_title(title): 
+        if not title:
+            return ""
+        # Basic normalization
+        title = title.lower().strip()
+        # Remove common suffixes
+        title = re.sub(r'\s*\([^)]*\)$', '', title)
+        title = re.sub(r'\s*\[[^\]]*\]$', '', title)
+        title = re.sub(r'\s*\d{4}$', '', title)
+        return title
+    
+    def extract_title_smart(text):
+        if not text:
+            return ""
+        # Extract first line or first 100 chars
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) > 10 and not line.startswith('http'):
+                return line[:100]
+        return text[:50] if text else ""
+    
+    def extract_title_from_file(filename, caption=None):
+        if filename:
+            # Remove extension
+            name = os.path.splitext(filename)[0]
+            # Clean up
+            name = re.sub(r'[._]', ' ', name)
+            name = re.sub(r'\s+', ' ', name)
+            return name.strip()
+        elif caption:
+            return extract_title_smart(caption)
+        return "Unknown"
+    
+    def format_size(size):
+        if not size:
+            return "Unknown"
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024*1024:
+            return f"{size/1024:.1f} KB"
+        elif size < 1024*1024*1024:
+            return f"{size/1024/1024:.1f} MB"
+        else:
+            return f"{size/1024/1024/1024:.2f} GB"
+    
+    def detect_quality(filename):
+        if not filename:
+            return "480p"
+        filename_lower = filename.lower()
+        patterns = [
+            (r'\b2160p\b|\b4k\b|\buhd\b', '2160p'),
+            (r'\b1080p\b|\bfullhd\b|\bfhd\b', '1080p'),
+            (r'\b720p\b|\bhd\b', '720p'),
+            (r'\b480p\b', '480p'),
+            (r'\b360p\b', '360p'),
+        ]
+        for pattern, quality in patterns:
+            if re.search(pattern, filename_lower):
+                return quality
+        return "480p"
+    
+    def is_video_file(filename):
+        if not filename:
+            return False
+        video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
+        return any(filename.lower().endswith(ext) for ext in video_extensions)
+    
+    def format_post(text, max_length=None):
+        if not text:
+            return ""
+        # Clean up text
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        if max_length and len(text) > max_length:
             text = text[:max_length] + "..."
-        return text or ""
-    def is_new(date): return False
+        return text.strip()
+    
+    def is_new(date):
+        if not date:
+            return False
+        if isinstance(date, str):
+            try:
+                date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+            except:
+                return False
+        # Consider new if within last 7 days
+        return (datetime.now() - date).days < 7
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -160,7 +281,7 @@ class PerformanceMonitor:
 performance_monitor = PerformanceMonitor()
 
 # ============================================================================
-# ✅ CONFIGURATION
+# ✅ CONFIGURATION - REINDEXING MODE ENABLED
 # ============================================================================
 
 class Config:
@@ -230,11 +351,11 @@ class Config:
     THUMBNAIL_EXTRACT_TIMEOUT = 10  # seconds
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60  # 24 hours
     
-    # Auto Indexing Settings - INSTANT START
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "150"))  # 10 minutes
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))  # Messages per batch
-    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))  # 0 = Unlimited
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"  # Disabled by default
+    # Auto Indexing Settings - COMPLETE REINDEXING MODE
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))  # 10 minutes
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))  # Increased for reindexing
+    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))  # 0 = Unlimited (सभी messages index करो)
+    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"  # ✅ सभी पुराने messages index करो
     INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"  # Start immediately
 
 # ============================================================================
@@ -251,7 +372,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '8.5-OPTIMIZED-INSTANT-INDEX'
+    response.headers['X-SK4FiLM-Version'] = '8.5-COMPLETE-REINDEXING'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -313,6 +434,16 @@ class BotHandler:
             return False
         
         try:
+            # Reuse existing Bot session if available
+            global Bot, bot_session_ready
+            if Bot is not None and bot_session_ready:
+                self.bot = Bot
+                logger.info("✅ Bot Handler using existing Bot session")
+                self.initialized = True
+                self.last_update = datetime.now()
+                return True
+            
+            # Otherwise create new session
             self.bot = Client(
                 "sk4film_bot_handler",
                 api_id=self.api_id,
@@ -485,7 +616,7 @@ class BotHandler:
     
     async def shutdown(self):
         """Shutdown bot handler"""
-        if self.bot:
+        if self.bot and not bot_session_ready:  # Only stop if we created our own session
             await self.bot.stop()
         self.initialized = False
 
@@ -954,9 +1085,9 @@ class InstantAutoIndexingManager:
                 await asyncio.sleep(60)
     
     async def _run_indexing_cycle(self):
-        """Run one indexing cycle"""
+        """Run one indexing cycle - MODIFIED FOR REINDEXING"""
         logger.info("=" * 50)
-        logger.info("🔄 STARTING AUTO INDEXING CYCLE")
+        logger.info("🔄 AUTO INDEXING CYCLE")
         logger.info("=" * 50)
         
         start_time = time.time()
@@ -968,38 +1099,44 @@ class InstantAutoIndexingManager:
         }
         
         try:
-            # Get last indexed message
-            last_indexed = await files_col.find_one(
-                {"channel_id": Config.FILE_CHANNEL_ID}, 
-                sort=[('message_id', -1)],
-                projection={'message_id': 1}
-            )
+            # During reindexing, always start from beginning
+            if self.indexing_stats['total_indexed'] == 0:
+                # First time - get all messages
+                last_message_id = 0
+                logger.info("🔄 REINDEXING MODE: Fetching all messages")
+            else:
+                # Normal mode - get last indexed message
+                last_indexed = await files_col.find_one(
+                    {"channel_id": Config.FILE_CHANNEL_ID}, 
+                    sort=[('message_id', -1)],
+                    projection={'message_id': 1}
+                )
+                
+                last_message_id = last_indexed['message_id'] if last_indexed else 0
+                logger.info(f"📊 Last indexed message ID: {last_message_id}")
             
-            last_message_id = last_indexed['message_id'] if last_indexed else 0
-            
-            logger.info(f"📊 Last indexed message ID: {last_message_id}")
-            logger.info(f"📡 Fetching new messages...")
-            
-            # Fetch new messages
+            # Fetch messages
             messages_to_index = []
             fetched_count = 0
             
             try:
-                # Fetch messages with reasonable limit
-                limit = min(Config.BATCH_INDEX_SIZE * 2, 200)  # Max 200 messages per cycle
+                # Fetch messages (more during initial reindexing)
+                limit = 500 if self.indexing_stats['total_indexed'] == 0 else Config.BATCH_INDEX_SIZE
                 
                 async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=limit):
                     fetched_count += 1
                     
-                    # Stop if we reach already indexed messages
-                    if msg.id <= last_message_id:
-                        break
+                    # Stop if we reach already indexed messages (except in full reindex mode)
+                    if msg.id <= last_message_id and last_message_id > 0:
+                        if fetched_count > 100:  # Check at least 100 messages
+                            break
+                        continue
                     
                     # Only index file messages
                     if msg and (msg.document or msg.video):
                         messages_to_index.append(msg)
                 
-                logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages_to_index)} new files")
+                logger.info(f"📥 Fetched {fetched_count} messages, found {len(messages_to_index)} files to index")
                 
             except Exception as e:
                 logger.error(f"❌ Error fetching messages: {e}")
@@ -1029,6 +1166,7 @@ class InstantAutoIndexingManager:
             logger.info(f"✅ Indexed: {cycle_stats['indexed']} new files")
             logger.info(f"🔄 Duplicates: {cycle_stats['duplicates']} skipped")
             logger.info(f"❌ Errors: {cycle_stats['errors']}")
+            logger.info(f"📈 Total Indexed: {self.indexing_stats['total_indexed']}")
             logger.info("=" * 50)
             
             # Update global counts
@@ -1258,7 +1396,7 @@ async def generate_file_hash(message):
         return None
 
 async def index_single_file_smart(message):
-    """Index single file with duplicate prevention"""
+    """Index single file with duplicate prevention - WITH BETTER LOGGING"""
     try:
         if files_col is None:
             logger.error("❌ Database not ready for indexing")
@@ -1267,19 +1405,6 @@ async def index_single_file_smart(message):
         if not message or (not message.document and not message.video):
             logger.debug(f"❌ Not a file message: {message.id}")
             return False
-        
-        # Check if already exists by message ID
-        existing_by_id = await files_col.find_one({
-            'channel_id': Config.FILE_CHANNEL_ID,
-            'message_id': message.id
-        }, {'_id': 1})
-        
-        if existing_by_id:
-            logger.debug(f"📝 Already indexed by message ID: {message.id}")
-            return False
-        
-        # Generate file hash for duplicate detection
-        file_hash = await generate_file_hash(message)
         
         # Extract title
         caption = message.caption if hasattr(message, 'caption') else None
@@ -1297,6 +1422,19 @@ async def index_single_file_smart(message):
         
         normalized_title = normalize_title(title)
         
+        # Check if already exists by message ID
+        existing_by_id = await files_col.find_one({
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'message_id': message.id
+        }, {'_id': 1})
+        
+        if existing_by_id:
+            logger.debug(f"📝 Already indexed: {title} (ID: {message.id})")
+            return False
+        
+        # Generate file hash for duplicate detection
+        file_hash = await generate_file_hash(message)
+        
         # Check for duplicates using hash
         if file_hash:
             is_duplicate, reason = await duplicate_prevention.is_duplicate_file(
@@ -1304,7 +1442,7 @@ async def index_single_file_smart(message):
             )
             
             if is_duplicate:
-                logger.info(f"🔄 DUPLICATE DETECTED: {title} - Reason: {reason}")
+                logger.info(f"🔄 DUPLICATE: {title} - Reason: {reason}")
                 return False
         
         # Extract thumbnail if video file
@@ -1380,7 +1518,7 @@ async def index_single_file_smart(message):
             size_str = format_size(doc['file_size']) if doc['file_size'] > 0 else "Unknown"
             thumbnail_status = "✅" if thumbnail_url else "❌"
             
-            logger.info(f"✅ {file_type} indexed: {title}")
+            logger.info(f"✅ INDEXED: {title} (ID: {message.id})")
             logger.info(f"   📊 Size: {size_str} | Quality: {doc.get('quality', 'Unknown')}")
             logger.info(f"   🖼️ Thumbnail: {thumbnail_status}")
             
@@ -1399,12 +1537,14 @@ async def index_single_file_smart(message):
         return False
 
 async def initial_indexing():
-    """Initial indexing on startup"""
+    """Initial indexing on startup - COMPLETE REINDEXING MODE"""
     if User is None or files_col is None or not user_session_ready:
         logger.warning("⚠️ User session not ready for initial indexing")
         return
     
-    logger.info("📁 Starting initial indexing...")
+    logger.info("=" * 60)
+    logger.info("🚀 STARTING COMPLETE REINDEXING OF ALL FILES")
+    logger.info("=" * 60)
     
     try:
         # Setup indexes
@@ -1413,64 +1553,92 @@ async def initial_indexing():
         # Initialize duplicate prevention
         await duplicate_prevention.initialize_from_database()
         
-        # Get last indexed message
-        last_indexed = await files_col.find_one(
-            {"channel_id": Config.FILE_CHANNEL_ID}, 
-            sort=[('message_id', -1)],
-            projection={'message_id': 1}
-        )
-        
-        last_message_id = last_indexed['message_id'] if last_indexed else 0
-        
-        logger.info(f"📊 Last indexed message ID: {last_message_id}")
-        logger.info(f"📡 Fetching recent messages...")
-        
-        # Fetch recent messages only (100 latest)
-        messages = []
-        
-        try:
-            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=100):
-                if msg.id <= last_message_id:
-                    break
-                
-                if msg is not None and (msg.document or msg.video):
-                    messages.append(msg)
-        except Exception as e:
-            logger.error(f"❌ Error fetching chat history: {e}")
-            return
-        
-        logger.info(f"📥 Found {len(messages)} new files to index")
-        
-        # Process messages
+        # Get total message count estimate
+        total_processed = 0
         total_indexed = 0
         total_duplicates = 0
+        total_errors = 0
         
-        for msg in messages:
-            try:
-                success = await index_single_file_smart(msg)
-                if success:
-                    total_indexed += 1
-                else:
-                    total_duplicates += 1
-                
-                # Small delay to avoid rate limiting
-                await asyncio.sleep(0.1)
-                
-            except Exception as e:
-                logger.error(f"❌ Error processing message {msg.id}: {e}")
-                continue
+        logger.info("📡 Fetching ALL messages from file channel...")
         
-        if total_indexed > 0 or total_duplicates > 0:
-            logger.info(f"✅ Initial indexing complete:")
-            logger.info(f"   ✅ Indexed: {total_indexed} new files")
-            logger.info(f"   🔄 Skipped: {total_duplicates} duplicates")
-        else:
-            logger.info("✅ No new files to index")
+        # Fetch ALL messages from beginning
+        all_messages = []
         
-        # Start auto indexing
+        try:
+            # Get ALL messages (no limit for reindexing)
+            async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID):
+                if msg is not None and (msg.document or msg.video):
+                    all_messages.append(msg)
+                    total_processed += 1
+                    
+                    # Progress logging
+                    if total_processed % 100 == 0:
+                        logger.info(f"📥 Fetched {total_processed} file messages...")
+                    
+                    # Safety limit (optional)
+                    if Config.MAX_INDEX_LIMIT > 0 and total_processed >= Config.MAX_INDEX_LIMIT:
+                        logger.info(f"⚠️ Reached max limit: {Config.MAX_INDEX_LIMIT}")
+                        break
+        
+        except Exception as e:
+            logger.error(f"❌ Error fetching chat history: {e}")
+        
+        logger.info(f"✅ Total messages fetched: {total_processed}")
+        
+        # Process in batches
+        if all_messages:
+            # Reverse to process from oldest to newest
+            all_messages.reverse()
+            
+            logger.info(f"🔧 Processing {len(all_messages)} messages...")
+            
+            for i, msg in enumerate(all_messages):
+                try:
+                    # Check if already exists (just in case)
+                    existing = await files_col.find_one({
+                        'channel_id': Config.FILE_CHANNEL_ID,
+                        'message_id': msg.id
+                    }, {'_id': 1})
+                    
+                    if existing:
+                        logger.debug(f"📝 Already exists: {msg.id}")
+                        total_duplicates += 1
+                    else:
+                        # Index the file
+                        success = await index_single_file_smart(msg)
+                        
+                        if success:
+                            total_indexed += 1
+                        else:
+                            total_duplicates += 1
+                    
+                    # Progress update every 50 messages
+                    if (i + 1) % 50 == 0:
+                        progress_pct = ((i + 1) / len(all_messages)) * 100
+                        logger.info(f"📊 Progress: {i+1}/{len(all_messages)} ({progress_pct:.1f}%) | Indexed: {total_indexed}")
+                    
+                    # Small delay to avoid rate limiting
+                    await asyncio.sleep(0.05)
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error processing message {msg.id}: {e}")
+                    total_errors += 1
+                    continue
+        
+        # Summary
+        logger.info("=" * 60)
+        logger.info("✅ COMPLETE REINDEXING FINISHED")
+        logger.info("=" * 60)
+        logger.info(f"📊 Total Processed: {total_processed}")
+        logger.info(f"✅ Newly Indexed: {total_indexed}")
+        logger.info(f"🔄 Duplicates Skipped: {total_duplicates}")
+        logger.info(f"❌ Errors: {total_errors}")
+        logger.info("=" * 60)
+        
+        # Start auto indexing for future messages
         if Config.INSTANT_AUTO_INDEX:
             await auto_indexing_manager.start_instant_indexing()
-            logger.info("✅ Started INSTANT auto indexing")
+            logger.info("✅ Started auto indexing for new messages")
         
         # Start sync monitoring
         await channel_sync_manager.start_sync_monitoring()
@@ -1507,6 +1675,17 @@ async def setup_database_indexes():
         logger.info("✅ Created file_hash index")
     except Exception as e:
         logger.warning(f"⚠️ File hash index creation error: {e}")
+    
+    try:
+        # Text search index for titles
+        await files_col.create_index(
+            [("normalized_title", "text")],
+            name="title_text_index",
+            background=True
+        )
+        logger.info("✅ Created text index on normalized_title")
+    except Exception as e:
+        logger.warning(f"⚠️ Text index creation error: {e}")
 
 # ============================================================================
 # ✅ POSTER FETCHING FUNCTIONS
@@ -2124,7 +2303,7 @@ async def get_home_movies(limit=20):
         
         logger.info(f"🎬 Fetching home movies (20)...")
         
-        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=30):
+        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=12):
             if msg is not None and msg.text and len(msg.text) > 20:
                 title = extract_title_smart(msg.text)
                 
@@ -2187,12 +2366,25 @@ async def init_system():
     start_time = time.time()
     
     try:
-        logger.info("🚀 Starting SK4FiLM v8.5 - OPTIMIZED & INSTANT AUTO INDEX...")
+        logger.info("=" * 60)
+        logger.info("🚀 SK4FiLM v8.5 - COMPLETE REINDEXING MODE")
+        logger.info("=" * 60)
         
         # Initialize MongoDB
         mongo_ok = await init_mongodb()
         if not mongo_ok:
-            logger.warning("⚠️ MongoDB connection failed")
+            logger.error("❌ MongoDB connection failed")
+            return False
+        
+        # Get current file count
+        if files_col is not None:
+            file_count = await files_col.count_documents({})
+            logger.info(f"📊 Current files in database: {file_count}")
+            
+            if file_count == 0:
+                logger.warning("⚠️ DATABASE IS EMPTY - Starting complete reindexing")
+            else:
+                logger.info("✅ Database has existing files")
         
         # Initialize Bot Handler
         bot_handler_ok = await bot_handler.initialize()
@@ -2243,15 +2435,23 @@ async def init_system():
         
         # Start initial indexing
         if user_session_ready and files_col is not None:
-            asyncio.create_task(initial_indexing())
-            logger.info("✅ Started INSTANT auto indexing")
+            # Check if database is empty
+            file_count = await files_col.count_documents({})
+            if file_count == 0:
+                logger.info("🔄 Starting COMPLETE REINDEXING (database is empty)")
+                asyncio.create_task(initial_indexing())
+            else:
+                logger.info("✅ Database has files, starting normal auto indexing")
+                if Config.INSTANT_AUTO_INDEX:
+                    await auto_indexing_manager.start_instant_indexing()
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
+        logger.info("=" * 60)
         
         logger.info("🔧 INTEGRATED FEATURES:")
         logger.info(f"   • Bot Handler: {'✅ ENABLED' if bot_handler_ok else '❌ DISABLED'}")
-        logger.info(f"   • Instant Auto Indexing: {'✅ ENABLED' if Config.INSTANT_AUTO_INDEX else '❌ DISABLED'}")
+        logger.info(f"   • Complete Reindexing: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
         logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
         logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
         logger.info(f"   • Verification: {'✅ ENABLED' if verification_system else '❌ DISABLED'}")
@@ -2268,7 +2468,7 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ API ROUTES - OPTIMIZED (REMOVED UNUSED APIs)
+# ✅ API ROUTES - OPTIMIZED WITH REINDEXING ENDPOINTS
 # ============================================================================
 
 @app.route('/')
@@ -2294,7 +2494,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v8.5 - OPTIMIZED & INSTANT AUTO INDEX',
+        'service': 'SK4FiLM v8.5 - COMPLETE REINDEXING MODE',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2315,6 +2515,7 @@ async def root():
             'bot_handler': bot_handler is not None and bot_handler.initialized
         },
         'features': {
+            'complete_reindexing': Config.INDEX_ALL_HISTORY,
             'instant_auto_indexing': Config.INSTANT_AUTO_INDEX,
             'duplicate_prevention': True,
             'quality_merging': True,
@@ -2574,6 +2775,55 @@ async def api_stats():
         }), 500
 
 # ============================================================================
+# ✅ ADMIN API ROUTES FOR REINDEXING
+# ============================================================================
+
+@app.route('/api/admin/reindex', methods=['POST'])
+async def api_admin_reindex():
+    """Admin endpoint to trigger complete reindexing"""
+    try:
+        # Simple auth check
+        auth_token = request.headers.get('X-Admin-Token')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        # Trigger reindexing
+        asyncio.create_task(initial_indexing())
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Complete reindexing started',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Admin reindex error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/indexing-status', methods=['GET'])
+async def api_admin_indexing_status():
+    """Check indexing status"""
+    try:
+        indexing_status = await auto_indexing_manager.get_indexing_status()
+        
+        # Get database stats
+        if files_col is not None:
+            total_files = await files_col.count_documents({})
+        else:
+            total_files = 0
+        
+        return jsonify({
+            'status': 'success',
+            'indexing': indexing_status,
+            'database_files': total_files,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Indexing status error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================================================
 # ✅ STARTUP AND SHUTDOWN
 # ============================================================================
 
@@ -2649,11 +2899,12 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v8.5 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: OPTIMIZED WITH INSTANT AUTO INDEXING")
+    logger.info("🎯 FEATURES: COMPLETE REINDEXING MODE")
+    logger.info(f"   • Complete Reindexing: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
     logger.info(f"   • Auto Index Interval: {Config.AUTO_INDEX_INTERVAL}s")
     logger.info(f"   • Batch Size: {Config.BATCH_INDEX_SIZE}")
+    logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
     logger.info(f"   • Instant Auto Index: {'✅ ENABLED' if Config.INSTANT_AUTO_INDEX else '❌ DISABLED'}")
-    logger.info(f"   • Full History Indexing: {'✅ ENABLED' if Config.INDEX_ALL_HISTORY else '❌ DISABLED'}")
     logger.info(f"   • Duplicate Prevention: ✅ ENABLED")
     logger.info(f"   • Bot Handler: ✅ INITIALIZED")
     
