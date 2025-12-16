@@ -296,31 +296,36 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
-        /* Quality Buttons Row - Horizontal on desktop, vertical on mobile */
+        /* Quality Buttons Row - ALWAYS HORIZONTAL */
         .quality-buttons-row {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
+            flex-direction: row; /* Always horizontal */
         }
         
         /* Quality Option Buttons - Different gradient colors */
         .quality-option {
-            display: inline-block;
-            padding: 12px 18px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 15px;
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
             font-size: 0.95rem;
-            text-align: center;
             white-space: nowrap;
             transition: all 0.3s ease;
             border: none;
             cursor: pointer;
             min-width: 90px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            flex: 1;
+            min-width: 120px; /* Minimum width for better visibility */
         }
         
         /* Different gradient colors for different qualities */
@@ -360,7 +365,7 @@
             display: block;
             font-size: 0.75rem;
             opacity: 0.9;
-            margin-top: 2px;
+            margin-top: 4px;
             font-weight: 500;
         }
         
@@ -516,7 +521,7 @@
             font-size: 1rem;
         }
         
-        /* Mobile Optimizations */
+        /* Mobile Optimizations - Adjust button sizes but keep HORIZONTAL */
         @media (max-width: 768px) {
             .result-thumbnail-top {
                 height: 200px;
@@ -531,20 +536,20 @@
                 font-size: 24px;
             }
             
-            /* On mobile, make buttons horizontal but wrap if needed */
             .quality-buttons-row {
-                flex-direction: row;
-                flex-wrap: wrap;
                 gap: 8px;
-                justify-content: center;
             }
             
             .quality-option {
+                min-width: 100px;
                 padding: 10px 12px;
                 font-size: 0.85rem;
-                min-width: 80px;
-                flex: 1;
+                flex: 1 1 calc(50% - 8px); /* 2 buttons per row on mobile */
                 min-width: calc(50% - 8px);
+            }
+            
+            .quality-option small {
+                font-size: 0.7rem;
             }
             
             .post-content {
@@ -562,16 +567,20 @@
                 padding: 10px 8px;
             }
             
-            /* On very small screens, make buttons full width */
             .quality-buttons-row {
-                flex-direction: column;
+                gap: 6px;
             }
             
             .quality-option {
-                width: 100%;
-                min-width: 100%;
-                padding: 12px;
-                font-size: 0.9rem;
+                min-width: 90px;
+                padding: 8px 10px;
+                font-size: 0.8rem;
+                flex: 1 1 calc(50% - 6px); /* 2 buttons per row */
+                min-width: calc(50% - 6px);
+            }
+            
+            .quality-option small {
+                font-size: 0.65rem;
             }
             
             .post-content {
@@ -590,13 +599,19 @@
             }
             
             .quality-buttons-row {
-                flex-direction: column;
+                gap: 5px;
             }
             
             .quality-option {
-                width: 100%;
-                padding: 10px;
-                font-size: 0.85rem;
+                min-width: 85px;
+                padding: 7px 9px;
+                font-size: 0.75rem;
+                flex: 1 1 calc(50% - 5px); /* 2 buttons per row */
+                min-width: calc(50% - 5px);
+            }
+            
+            .quality-option small {
+                font-size: 0.6rem;
             }
             
             .post-content {
@@ -604,29 +619,55 @@
             }
         }
         
-        /* Desktop-specific styling for quality buttons */
-        @media (min-width: 769px) {
-            .quality-buttons-row {
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-            
+        /* For tablets and larger phones */
+        @media (min-width: 577px) and (max-width: 768px) {
             .quality-option {
-                min-width: 100px;
-                padding: 12px 15px;
+                flex: 1 1 calc(33.33% - 8px); /* 3 buttons per row */
+                min-width: calc(33.33% - 8px);
             }
         }
         
-        /* For larger screens */
-        @media (min-width: 992px) {
+        /* For desktop - more buttons per row */
+        @media (min-width: 769px) and (max-width: 992px) {
+            .quality-buttons-row {
+                gap: 12px;
+            }
+            
+            .quality-option {
+                flex: 1 1 calc(25% - 12px); /* 4 buttons per row */
+                min-width: calc(25% - 12px);
+            }
+        }
+        
+        /* For large desktop screens */
+        @media (min-width: 993px) {
             .quality-buttons-row {
                 gap: 15px;
             }
             
             .quality-option {
-                min-width: 110px;
-                padding: 12px 20px;
+                flex: 1 1 calc(20% - 15px); /* 5 buttons per row */
+                min-width: calc(20% - 15px);
             }
+        }
+        
+        /* When there are very few buttons (1-3), center them */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option,
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)) .quality-option,
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(3)) .quality-option {
+            flex: 0 1 auto;
+            min-width: 150px;
+        }
+        
+        /* For only 1-2 buttons, make them larger and center */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)),
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)) {
+            justify-content: center;
+        }
+        
+        /* For 1 button only, make it extra large */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option {
+            min-width: 200px;
         }
     </style>
 </head>
@@ -1397,6 +1438,9 @@ async function displayResults(results, pagination) {
                     <!-- Thumbnail will be loaded here -->
                 </div>
             </div>
+            
+            <!-- 2. TITLE -->
+            <h3 class="result-title">${escapeHtml(result.title)}</h3>
             
             <!-- 3. POST CONTENT - बीच में -->
             ${hasPostContent ? `
