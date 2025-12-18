@@ -1,6 +1,6 @@
 """
 premium.py - Premium subscription system with 4 tiers
-UPDATED: Added missing methods for bot_handlers.py compatibility
+UPDATED: Same features across all tiers, different validity
 """
 import asyncio
 import secrets
@@ -50,29 +50,39 @@ class PremiumSystem:
         self.db_manager = db_manager
         self.logger = logger
         
-        # Define premium plans with UPI IDs
+        # Common features for all premium tiers
+        COMMON_FEATURES = [
+            "✅ All Quality (480p-4K)",
+            "✅ Unlimited Downloads",
+            "✅ No Verification Needed",
+            "✅ VIP Support 24/7",
+            "✅ No Ads",
+            "✅ Instant Downloads",
+            "✅ Batch Downloads",
+            "✅ Early Access",
+            "✅ Custom Requests",
+            "✅ Highest Priority"
+        ]
+        
+        COMMON_LIMITS = {
+            'daily_downloads': 999999,  # Unlimited
+            'concurrent_downloads': 10,
+            'quality': ['480p', '720p', '1080p', '2160p'],  # All quality
+            'priority': 'highest',
+            'verification_bypass': True,
+            'is_unlimited': True
+        }
+        
+        # Define premium plans with SAME features, different validity
         self.plans = {
             PremiumTier.BASIC: PremiumPlan(
                 tier=PremiumTier.BASIC,
                 name="Basic Plan",
                 price=99,
                 duration_days=30,
-                features=[
-                    "✅ All Quality (480p-4K)",
-                    "✅ Unlimited Downloads",
-                    "✅ No Verification Needed",
-                    "✅ Basic Support",
-                    "✅ No Ads",
-                    "✅ Faster Downloads"
-                ],
-                limits={
-                    'daily_downloads': 999,
-                    'concurrent_downloads': 3,
-                    'quality': ['480p', '720p', '1080p', '2160p'],
-                    'priority': 'medium',
-                    'verification_bypass': True
-                },
-                description="Perfect starter plan - Unlimited access for 30 days",
+                features=COMMON_FEATURES,
+                limits=COMMON_LIMITS,
+                description="Perfect starter plan - All premium features for 30 days",
                 upi_id=os.environ.get("UPI_ID_BASIC", "sk4filmbot@ybl"),
                 color_code="#4CAF50",  # Green
                 icon="🥉"
@@ -81,24 +91,10 @@ class PremiumSystem:
                 tier=PremiumTier.PREMIUM,
                 name="Premium Plan",
                 price=199,
-                duration_days=30,
-                features=[
-                    "✅ All Quality (480p-4K)",
-                    "✅ Unlimited Downloads",
-                    "✅ No Verification Needed",
-                    "✅ Priority Support",
-                    "✅ No Ads",
-                    "✅ Faster Downloads",
-                    "✅ Batch Downloads"
-                ],
-                limits={
-                    'daily_downloads': 9999,
-                    'concurrent_downloads': 5,
-                    'quality': ['480p', '720p', '1080p', '2160p'],
-                    'priority': 'high',
-                    'verification_bypass': True
-                },
-                description="Best value - Unlimited access for 30 days",
+                duration_days=60,
+                features=COMMON_FEATURES,
+                limits=COMMON_LIMITS,
+                description="Best value - All premium features for 60 days",
                 upi_id=os.environ.get("UPI_ID_PREMIUM", "sk4filmbot@ybl"),
                 color_code="#2196F3",  # Blue
                 icon="🥈"
@@ -107,25 +103,10 @@ class PremiumSystem:
                 tier=PremiumTier.GOLD,
                 name="Gold Plan",
                 price=299,
-                duration_days=60,
-                features=[
-                    "✅ All Quality (480p-4K)",
-                    "✅ Unlimited Downloads",
-                    "✅ No Verification Needed",
-                    "✅ VIP Support",
-                    "✅ No Ads",
-                    "✅ Instant Downloads",
-                    "✅ Batch Downloads",
-                    "✅ Early Access"
-                ],
-                limits={
-                    'daily_downloads': 99999,
-                    'concurrent_downloads': 8,
-                    'quality': ['480p', '720p', '1080p', '2160p'],
-                    'priority': 'vip',
-                    'verification_bypass': True
-                },
-                description="Premium experience - Unlimited access for 60 days",
+                duration_days=90,
+                features=COMMON_FEATURES,
+                limits=COMMON_LIMITS,
+                description="Premium experience - All premium features for 90 days",
                 upi_id=os.environ.get("UPI_ID_GOLD", "sk4filmbot@ybl"),
                 color_code="#FFC107",  # Gold
                 icon="🥇"
@@ -134,34 +115,17 @@ class PremiumSystem:
                 tier=PremiumTier.DIAMOND,
                 name="Diamond Plan",
                 price=499,
-                duration_days=90,
-                features=[
-                    "✅ All Quality (480p-4K)",
-                    "✅ Unlimited Downloads",
-                    "✅ No Verification Needed",
-                    "✅ VIP Support 24/7",
-                    "✅ No Ads",
-                    "✅ Instant Downloads",
-                    "✅ Batch Downloads",
-                    "✅ Early Access",
-                    "✅ Custom Requests",
-                    "✅ Highest Priority"
-                ],
-                limits={
-                    'daily_downloads': 999999,
-                    'concurrent_downloads': 10,
-                    'quality': ['480p', '720p', '1080p', '2160p'],
-                    'priority': 'highest',
-                    'verification_bypass': True
-                },
-                description="Ultimate experience - Unlimited access for 90 days",
+                duration_days=180,  # 6 months
+                features=COMMON_FEATURES,
+                limits=COMMON_LIMITS,
+                description="Ultimate experience - All premium features for 180 days",
                 upi_id=os.environ.get("UPI_ID_DIAMOND", "sk4filmbot@ybl"),
                 color_code="#E040FB",  # Purple
                 icon="💎"
             )
         }
         
-        # Free tier limits - UNLIMITED downloads, all quality
+        # Free tier limits - Unlimited downloads but needs verification
         self.free_limits = {
             'daily_downloads': 999999,  # Unlimited
             'concurrent_downloads': 2,
@@ -169,7 +133,7 @@ class PremiumSystem:
             'priority': 'medium',
             'verification_bypass': False,
             'verification_duration': 6 * 60 * 60,  # 6 hours
-            'is_unlimited': True  # Flag for unlimited downloads
+            'is_unlimited': True
         }
         
         # Payment methods
@@ -248,10 +212,11 @@ class PremiumSystem:
                     '✅ All Quality (480p-4K)',
                     '✅ Unlimited Downloads',
                     '🔒 URL Verification Required (6 hours)',
-                    '✅ Basic Search'
+                    '✅ Basic Search',
+                    '✅ No Ads'
                 ],
                 'limits': self.free_limits,
-                'is_active': True,  # Free is always "active"
+                'is_active': True,
                 'verification_required': True,
                 'verification_hours': 6,
                 'is_unlimited': True
@@ -279,7 +244,7 @@ class PremiumSystem:
             'is_active': sub_data.get('status') == PremiumStatus.ACTIVE.value,
             'days_remaining': days_left,
             'total_downloads': self.user_usage.get(user_id, {}).get('total_downloads', 0),
-            'verification_required': False,  # Premium users don't need verification
+            'verification_required': False,
             'color_code': plan.color_code
         }
     
@@ -297,9 +262,10 @@ class PremiumSystem:
                 "🔒 **Verification:** Required every 6 hours\n\n"
                 "💎 **Upgrade to Premium for:**\n"
                 "• No verification required\n"
-                "• Priority support\n"
-                "• Faster downloads\n"
-                "• No ads\n\n"
+                "• VIP Support 24/7\n"
+                "• Instant downloads\n"
+                "• Custom requests\n"
+                "• Highest priority\n\n"
                 "Use /buy to upgrade!"
             )
         
@@ -325,41 +291,46 @@ class PremiumSystem:
             text += f"⏰ **Expires:** {expiry_str}\n"
         
         text += f"📥 **Total Downloads:** {details.get('total_downloads', 0)}\n\n"
-        text += "✅ **Benefits:**\n"
+        text += "✅ **Your Benefits:**\n"
         
         features = details.get('features', [])
-        for feature in features[:5]:  # Show first 5 features
+        for feature in features[:5]:
             text += f"• {feature}\n"
         
         if len(features) > 5:
-            text += f"• ... and {len(features) - 5} more benefits\n"
+            text += f"• ... and {len(features) - 5} more premium benefits\n"
         
-        text += "\n🎬 **Enjoy unlimited downloads!**"
+        text += "\n🎬 **Enjoy unlimited premium downloads!**"
         
         return text
     
     async def get_available_plans_text(self) -> str:
         """Get all plans in formatted text for /plans command"""
         text = "💎 **SK4FiLM PREMIUM PLANS** 💎\n\n"
+        text += "🎯 **ALL PLANS INCLUDE ALL FEATURES:**\n"
+        text += "✅ All Quality (480p-4K)\n"
+        text += "✅ Unlimited Downloads\n"
+        text += "✅ No Verification Needed\n"
+        text += "✅ VIP Support 24/7\n"
+        text += "✅ No Ads\n"
+        text += "✅ Instant Downloads\n"
+        text += "✅ Batch Downloads\n"
+        text += "✅ Early Access\n"
+        text += "✅ Custom Requests\n"
+        text += "✅ Highest Priority\n\n"
+        text += "📊 **Choose your validity period:**\n\n"
         
         for tier_enum, plan in self.plans.items():
             per_day = plan.price / plan.duration_days
             text += (
                 f"{plan.icon} **{plan.name}** {plan.icon}\n"
-                f"💰 **Price:** ₹{plan.price} ({plan.duration_days} days)\n"
-                f"📅 **Per day:** ₹{per_day:.2f}/day\n"
-                f"✅ **Features:** {len(plan.features)} benefits\n\n"
+                f"💰 **Price:** ₹{plan.price}\n"
+                f"📅 **Validity:** {plan.duration_days} days\n"
+                f"📊 **Per day:** ₹{per_day:.2f}/day\n\n"
             )
         
-        text += (
-            "🎬 **All plans include:**\n"
-            "✅ No verification required\n"
-            "✅ All quality (480p-4K)\n"
-            "✅ Unlimited downloads\n"
-            "✅ No ads\n"
-            "✅ Priority support\n\n"
-            "Use /buy to purchase a plan!"
-        )
+        text += "🎬 **Same premium features in all plans!**\n"
+        text += "Use /buy to purchase a plan!"
         
         return text
     
@@ -374,22 +345,15 @@ class PremiumSystem:
         text = (
             f"{plan.icon} **{plan.name}** {plan.icon}\n\n"
             f"💰 **Price:** ₹{plan.price}\n"
-            f"📅 **Duration:** {plan.duration_days} days\n"
-            f"📊 **Per day:** ₹{per_day:.2f}/day\n"
-            f"💳 **UPI ID:** `{plan.upi_id}`\n\n"
-            "✅ **Features:**\n"
+            f"📅 **Validity:** {plan.duration_days} days\n"
+            f"📊 **Per day:** ₹{per_day:.2f}/day\n\n"
+            "✅ **All Premium Features:**\n"
         )
         
         for feature in plan.features:
             text += f"• {feature}\n"
         
-        text += f"\n📊 **Limits:**\n"
-        text += f"• Daily downloads: {plan.limits.get('daily_downloads', 'Unlimited')}\n"
-        text += f"• Concurrent downloads: {plan.limits.get('concurrent_downloads', 3)}\n"
-        text += f"• Quality: {', '.join(plan.limits.get('quality', []))}\n"
-        text += f"• Priority: {plan.limits.get('priority', 'medium').title()}\n\n"
-        
-        text += f"📝 **Description:** {plan.description}\n\n"
+        text += f"\n📝 **Description:** {plan.description}\n\n"
         text += "Use /buy to purchase this plan!"
         
         return text
@@ -416,7 +380,7 @@ class PremiumSystem:
                 'upi_id': plan.upi_id,
                 'qr_code': qr_code,
                 'created_at': datetime.now(),
-                'expires_at': datetime.now() + timedelta(hours=24),  # 24 hours to pay
+                'expires_at': datetime.now() + timedelta(hours=24),
                 'status': 'pending',
                 'screenshot_sent': False,
                 'admin_notified': False,
@@ -437,8 +401,8 @@ class PremiumSystem:
             logger.error(f"Purchase initiation error: {e}")
             raise
     
-    async def get_payment_instructions_text(self, payment_id: str) -> str:
-        """Get payment instructions for user"""
+    async def get_payment_instructions_text(self, payment_id: str, show_qr: bool = True) -> str:
+        """Get payment instructions for user with QR code image link"""
         payment = self.pending_payments.get(payment_id)
         if not payment:
             return "❌ Payment not found or expired!"
@@ -452,22 +416,36 @@ class PremiumSystem:
             f"💰 **Payment Instructions** 💰\n\n"
             f"{plan.icon} **Plan:** {plan.name}\n"
             f"💵 **Amount:** ₹{plan.price}\n"
-            f"📅 **Duration:** {plan.duration_days} days\n\n"
-            f"💳 **Payment Method:**\n"
-            f"1. **UPI ID:** `{plan.upi_id}`\n"
-            f"2. **Paytm/PhonePe:** Send to above UPI\n"
-            f"3. **Amount:** ₹{plan.price}\n\n"
-            f"📸 **After Payment:**\n"
-            f"1. Take screenshot\n"
-            f"2. Send to this bot\n"
-            f"3. Admin will activate within 24 hours\n\n"
-            f"🆔 **Payment ID:** `{payment_id}`\n"
-            f"⏰ **Time left:** {hours_left} hours\n\n"
-            f"⚠️ **Important:**\n"
-            f"• Keep screenshot ready\n"
-            f"• Don't share payment details\n"
-            f"• Contact @admin for issues"
+            f"📅 **Validity:** {plan.duration_days} days\n\n"
         )
+        
+        if show_qr:
+            text += f"📱 **QR Code:** https://i.ibb.co/4RLgJ8Tp/QR-MY.jpg\n\n"
+        
+        text += f"💳 **Payment Methods:**\n"
+        text += f"1. **Scan QR Code above**\n"
+        text += f"2. **UPI ID:** `{plan.upi_id}`\n"
+        text += f"3. **Amount:** ₹{plan.price}\n\n"
+        
+        text += f"📸 **After Payment:**\n"
+        text += f"1. Take payment screenshot\n"
+        text += f"2. Send to this bot\n"
+        text += f"3. Admin will activate within 24 hours\n\n"
+        
+        text += f"🆔 **Payment ID:** `{payment_id}`\n"
+        text += f"⏰ **Time left:** {hours_left} hours\n\n"
+        
+        text += f"⚠️ **Important:**\n"
+        text += f"• Keep screenshot ready\n"
+        text += f"• Don't share payment details\n"
+        text += f"• Contact @admin for issues\n\n"
+        
+        text += f"✅ **After activation you get:**\n"
+        text += f"• All quality (480p-4K)\n"
+        text += f"• Unlimited downloads\n"
+        text += f"• No verification needed\n"
+        text += f"• VIP support 24/7\n"
+        text += f"• All premium features!"
         
         return text
     
@@ -539,7 +517,7 @@ class PremiumSystem:
                     'is_renewal': True,
                     'previous_tier': current_tier.value,
                     'duration_days': days,
-                    'price': 0,  # Admin grants are free
+                    'price': 0,
                     'color_code': plan.color_code,
                     'admin_reason': reason
                 }
@@ -558,7 +536,7 @@ class PremiumSystem:
                     'activated_at': datetime.now(),
                     'is_renewal': False,
                     'duration_days': days,
-                    'price': 0,  # Admin grants are free
+                    'price': 0,
                     'color_code': plan.color_code,
                     'admin_reason': reason
                 }
@@ -906,8 +884,8 @@ class PremiumSystem:
             tier = await self.get_user_tier(user_id)
             
             if tier == PremiumTier.FREE:
-                # Free users have unlimited downloads
-                return True, "Free download allowed - Unlimited", {
+                # Free users have unlimited downloads but need verification
+                return True, "Free download allowed - Unlimited (Verification required)", {
                     'tier': 'free', 
                     'unlimited': True,
                     'quality': self.free_limits['quality'],
@@ -915,7 +893,7 @@ class PremiumSystem:
                     'verification_hours': 6
                 }
             
-            # Premium user - unlimited downloads
+            # Premium user - unlimited downloads, no verification
             plan = self.plans[tier]
             return True, f"Premium download allowed - {plan.name}", {
                 'tier': tier.value,
@@ -1250,8 +1228,8 @@ class PremiumSystem:
             
             # Sort by premium status and downloads
             users.sort(key=lambda x: (
-                x.get('premium') != '✅ Premium',  # Premium first
-                -x.get('total_downloads', 0)  # Most downloads first
+                x.get('premium') != '✅ Premium',
+                -x.get('total_downloads', 0)
             ))
             
             return users
@@ -1307,7 +1285,7 @@ class PremiumSystem:
                 'total_downloads': usage.get('total_downloads', 0),
                 'quality_stats': usage.get('quality_stats', {}),
                 'premium_status': await self.get_user_tier(user_id),
-                'download_limit': 'Unlimited' if await self.get_user_tier(user_id) == PremiumTier.FREE else 'Unlimited'
+                'download_limit': 'Unlimited'
             }
             
         except Exception as e:
@@ -1380,7 +1358,7 @@ class PremiumSystem:
             
             # Add subscription
             sub_data = await self.add_premium_subscription(
-                admin_id=0,  # System admin
+                admin_id=0,
                 user_id=user_id,
                 tier=tier,
                 days=days_valid,
