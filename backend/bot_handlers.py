@@ -1,5 +1,6 @@
 """
 bot_handlers.py - Telegram Bot Handlers for SK4FiLM
+UPDATED: Auto-delete file system fixed
 UPDATED: All plans have same features, different validity
 UPDATED: QR code image display for all plans
 """
@@ -18,7 +19,7 @@ from collections import defaultdict
 try:
     from pyrogram import Client, filters
     from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
-    from pyrogram.errors import FloodWait, BadRequest, UserNotParticipant
+    from pyrogram.errors import FloodWait, BadRequest, UserNotParticipant, MessageDeleteForbidden
     PYROGRAM_AVAILABLE = True
 except ImportError:
     # Dummy classes for development
@@ -61,7 +62,8 @@ class SK4FiLMBot:
         self.user_session_ready = False
         
         # Track auto-delete tasks
-        self.auto_delete_tasks = {}
+        self.auto_delete_tasks = {}  # task_id -> task
+        self.auto_delete_messages = {}  # task_id -> message data
         
         # Rate limiting and deduplication
         self.user_request_times = defaultdict(list)
@@ -129,7 +131,8 @@ class SK4FiLMBot:
             if self.cache_manager:
                 asyncio.create_task(self.cache_manager.start_cleanup_task())
             
-            asyncio.create_task(self.periodic_cleanup())
+            # Start auto-delete cleanup task
+            asyncio.create_task(self.cleanup_old_auto_delete_tasks())
             
             return True
             
@@ -140,8 +143,17 @@ class SK4FiLMBot:
     async def shutdown(self):
         """Shutdown bot"""
         try:
+            # Cancel all auto-delete tasks
             for task_id, task in self.auto_delete_tasks.items():
-                task.cancel()
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+            
+            self.auto_delete_tasks.clear()
+            self.auto_delete_messages.clear()
             
             if self.bot and self.bot_started:
                 await self.bot.stop()
@@ -159,6 +171,246 @@ class SK4FiLMBot:
                 await self.cache_manager.stop()
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
+    
+    # ✅ AUTO-DELETE SYSTEM METHODS - FIXED
+    
+    async def add_auto_delete_task(self, user_id: int, message_id: int, file_name: str, 
+                                   delete_after_minutes: int = 10):
+        """Add auto-delete task for a file"""
+        try:
+            task_id = f"{user_id}_{message_id}"
+            
+            # Cancel existing task if any
+            if task_id in self.auto_delete_tasks:
+                old_task = self.auto_delete_tasks[task_id]
+                if not old_task.done():
+                    old_task.cancel()
+                    try:
+                        await old_task
+                    except asyncio.CancelledError:
+                        pass
+            
+            # Store message data
+            self.auto_delete_messages[task_id] = {
+                'user_id': user_id,
+                'message_id': message_id,
+                'file_name': file_name,
+                'scheduled_time': datetime.now() + timedelta(minutes=delete_after_minutes),
+                'status': 'pending',
+                'delete_after_minutes': delete_after_minutes
+            }
+            
+            # Create new task
+            task = asyncio.create_task(
+                self._auto_delete_file(user_id, message_id, file_name, delete_after_minutes)
+            )
+            self.auto_delete_tasks[task_id] = task
+            
+            logger.info(f"⏰ Auto-delete task scheduled: {task_id} in {delete_after_minutes} minutes")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error adding auto-delete task: {e}")
+            return False
+    
+    async def _auto_delete_file(self, user_id: int, message_id: int, file_name: str, 
+                                delete_after_minutes: int):
+        """Auto-delete file after specified minutes - FIXED"""
+        try:
+            logger.info(f"⏰ Auto-delete started for user {user_id}, message {message_id}, waiting {delete_after_minutes} minutes")
+            
+            # Wait for specified time
+            await asyncio.sleep(delete_after_minutes * 60)
+            
+            task_id = f"{user_id}_{message_id}"
+            
+            # Try to delete the file message
+            delete_success = False
+            try:
+                if self.bot and self.bot_started:
+                    await self.bot.delete_messages(user_id, message_id)
+                    delete_success = True
+                    logger.info(f"🗑️ File message deleted: user {user_id}, message {message_id}")
+            except MessageDeleteForbidden:
+                logger.warning(f"❌ Cannot delete message {message_id} for user {user_id}: Message delete forbidden")
+            except BadRequest as e:
+                if "MESSAGE_TOO_OLD" in str(e):
+                    logger.warning(f"❌ Cannot delete message {message_id}: Message too old (48 hours limit)")
+                elif "MESSAGE_ID_INVALID" in str(e):
+                    logger.warning(f"❌ Cannot delete message {message_id}: Message already deleted or invalid")
+                else:
+                    logger.error(f"❌ Error deleting message {message_id}: {e}")
+            except Exception as e:
+                logger.error(f"❌ Error deleting message: {e}")
+            
+            # Send deletion notification
+            try:
+                notification_text = (
+                    f"🗑️ **File Auto-Deleted**\n\n"
+                    f"`{file_name}`\n\n"
+                    f"⏰ **Deleted after:** {delete_after_minutes} minutes\n"
+                    f"✅ **Security measure completed**\n\n"
+                    f"🔁 **Need the file again?**\n"
+                    f"Visit website and download again\n"
+                    f"🎬 @SK4FiLM"
+                )
+                
+                buttons = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 VISIT WEBSITE", url=self.config.WEBSITE_URL)],
+                    [InlineKeyboardButton("🔄 GET ANOTHER FILE", callback_data="back_to_start")]
+                ])
+                
+                if self.bot and self.bot_started:
+                    await self.bot.send_message(
+                        user_id,
+                        notification_text,
+                        reply_markup=buttons
+                    )
+                    logger.info(f"✅ Auto-delete notification sent to user {user_id}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Failed to send delete notification: {e}")
+            
+            # Clean up task data
+            if task_id in self.auto_delete_tasks:
+                del self.auto_delete_tasks[task_id]
+            
+            if task_id in self.auto_delete_messages:
+                self.auto_delete_messages[task_id]['status'] = 'completed' if delete_success else 'failed'
+                self.auto_delete_messages[task_id]['completed_at'] = datetime.now()
+            
+            logger.info(f"✅ Auto-delete process completed for task {task_id}")
+            
+        except asyncio.CancelledError:
+            logger.info(f"⏹️ Auto-delete task cancelled for user {user_id}, message {message_id}")
+            
+            # Clean up task data
+            task_id = f"{user_id}_{message_id}"
+            if task_id in self.auto_delete_tasks:
+                del self.auto_delete_tasks[task_id]
+            
+            if task_id in self.auto_delete_messages:
+                self.auto_delete_messages[task_id]['status'] = 'cancelled'
+                self.auto_delete_messages[task_id]['cancelled_at'] = datetime.now()
+                
+        except Exception as e:
+            logger.error(f"❌ Error in auto-delete task: {e}")
+            
+            # Clean up task data even on error
+            task_id = f"{user_id}_{message_id}"
+            if task_id in self.auto_delete_tasks:
+                del self.auto_delete_tasks[task_id]
+            
+            if task_id in self.auto_delete_messages:
+                self.auto_delete_messages[task_id]['status'] = 'error'
+                self.auto_delete_messages[task_id]['error'] = str(e)
+    
+    async def cancel_auto_delete(self, user_id: int, message_id: int):
+        """Cancel auto-delete for a specific file"""
+        try:
+            task_id = f"{user_id}_{message_id}"
+            
+            if task_id in self.auto_delete_tasks:
+                task = self.auto_delete_tasks[task_id]
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                
+                del self.auto_delete_tasks[task_id]
+                
+                if task_id in self.auto_delete_messages:
+                    self.auto_delete_messages[task_id]['status'] = 'cancelled'
+                    self.auto_delete_messages[task_id]['cancelled_at'] = datetime.now()
+                
+                logger.info(f"✅ Auto-delete cancelled for task {task_id}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error cancelling auto-delete: {e}")
+            return False
+    
+    async def get_auto_delete_stats(self):
+        """Get auto-delete system statistics"""
+        try:
+            pending_tasks = 0
+            completed_tasks = 0
+            failed_tasks = 0
+            cancelled_tasks = 0
+            error_tasks = 0
+            
+            for task_id, task_data in self.auto_delete_messages.items():
+                status = task_data.get('status', 'unknown')
+                if status == 'pending':
+                    pending_tasks += 1
+                elif status == 'completed':
+                    completed_tasks += 1
+                elif status == 'failed':
+                    failed_tasks += 1
+                elif status == 'cancelled':
+                    cancelled_tasks += 1
+                elif status == 'error':
+                    error_tasks += 1
+            
+            return {
+                'total_tasks': len(self.auto_delete_messages),
+                'pending_tasks': pending_tasks,
+                'completed_tasks': completed_tasks,
+                'failed_tasks': failed_tasks,
+                'cancelled_tasks': cancelled_tasks,
+                'error_tasks': error_tasks,
+                'active_tasks': len(self.auto_delete_tasks),
+                'default_delete_time': getattr(self.config, 'AUTO_DELETE_TIME', 10)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting auto-delete stats: {e}")
+            return {}
+    
+    async def cleanup_old_auto_delete_tasks(self):
+        """Clean up old auto-delete task data"""
+        while True:
+            try:
+                await asyncio.sleep(3600)  # Run every hour
+                
+                now = datetime.now()
+                to_remove = []
+                
+                for task_id, task_data in self.auto_delete_messages.items():
+                    completed_at = task_data.get('completed_at')
+                    cancelled_at = task_data.get('cancelled_at')
+                    
+                    # Remove tasks completed/cancelled more than 24 hours ago
+                    if completed_at and (now - completed_at).total_seconds() > 24 * 3600:
+                        to_remove.append(task_id)
+                    elif cancelled_at and (now - cancelled_at).total_seconds() > 24 * 3600:
+                        to_remove.append(task_id)
+                    # Remove pending tasks scheduled more than 48 hours ago
+                    elif task_data.get('status') == 'pending':
+                        scheduled_time = task_data.get('scheduled_time')
+                        if scheduled_time and (now - scheduled_time).total_seconds() > 48 * 3600:
+                            to_remove.append(task_id)
+                    # Remove error tasks older than 12 hours
+                    elif task_data.get('status') == 'error':
+                        error_time = task_data.get('error_time', datetime.now())
+                        if (now - error_time).total_seconds() > 12 * 3600:
+                            to_remove.append(task_id)
+                
+                for task_id in to_remove:
+                    self.auto_delete_messages.pop(task_id, None)
+                
+                if to_remove:
+                    logger.info(f"🧹 Cleaned up {len(to_remove)} old auto-delete tasks")
+                    
+            except asyncio.CancelledError:
+                logger.info("🧹 Auto-delete cleanup task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in auto-delete cleanup: {e}")
     
     # ✅ RATE LIMITING METHODS
     async def check_rate_limit(self, user_id, limit=3, window=60):
@@ -325,53 +577,15 @@ async def safe_edit_message(callback_query, text=None, reply_markup=None, disabl
         else:
             raise e
 
-async def schedule_file_deletion(bot_instance, user_id, file_message_id, file_name, auto_delete_minutes):
-    """Schedule file deletion and send notification"""
-    try:
-        await asyncio.sleep(auto_delete_minutes * 60)
-        
-        deleted_text = (
-            f"🗑️ **File Auto-Deleted**\n\n"
-            f"`{file_name}`\n\n"
-            f"⏰ **Deleted after:** {auto_delete_minutes} minutes\n"
-            f"✅ **Security measure completed**\n\n"
-            f"🔁 **Need the file again?**\n"
-            f"Visit website and download again\n"
-            f"🎬 @SK4FiLM"
-        )
-        
-        deleted_buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 VISIT WEBSITE", url=bot_instance.config.WEBSITE_URL)],
-            [InlineKeyboardButton("🔄 GET ANOTHER FILE", callback_data="back_to_start")]
-        ])
-        
-        try:
-            await bot_instance.bot.send_message(
-                user_id,
-                deleted_text,
-                reply_markup=deleted_buttons
-            )
-            logger.info(f"✅ Auto-delete notification sent to user {user_id} for file {file_name}")
-            
-        except Exception as e:
-            logger.error(f"Failed to send delete notification: {e}")
-            
-        task_id = f"{user_id}_{file_message_id}"
-        if task_id in bot_instance.auto_delete_tasks:
-            del bot_instance.auto_delete_tasks[task_id]
-            
-    except asyncio.CancelledError:
-        logger.info(f"Auto-delete task cancelled for user {user_id}")
-    except Exception as e:
-        logger.error(f"Error in auto-delete task: {e}")
-
 async def send_file_to_user(client, user_id, file_message, quality="480p", config=None, bot_instance=None):
-    """Send file to user with verification check"""
+    """Send file to user with verification check - FIXED AUTO-DELETE"""
     try:
+        # ✅ FIRST CHECK: Verify user is premium/verified/admin
         user_status = "Checking..."
         status_icon = "⏳"
         can_download = False
         
+        # Check if user is admin
         is_admin = user_id in getattr(config, 'ADMIN_IDS', [])
         
         if is_admin:
@@ -379,12 +593,14 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
             user_status = "Admin User 👑"
             status_icon = "👑"
         elif bot_instance and bot_instance.premium_system:
+            # Check premium status
             is_premium = await bot_instance.premium_system.is_premium_user(user_id)
             if is_premium:
                 can_download = True
                 user_status = "Premium User ⭐"
                 status_icon = "⭐"
             else:
+                # Check verification status
                 if bot_instance.verification_system:
                     is_verified, _ = await bot_instance.verification_system.check_user_verified(
                         user_id, bot_instance.premium_system
@@ -394,6 +610,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                         user_status = "Verified User ✅"
                         status_icon = "✅"
                     else:
+                        # User needs verification
                         verification_data = await bot_instance.verification_system.create_verification_link(user_id)
                         return False, {
                             'message': f"🔒 **Access Restricted**\n\n❌ You need to verify or purchase premium to download files.",
@@ -419,6 +636,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 'buttons': []
             }, 0
         
+        # ✅ FILE SENDING LOGIC
         if file_message.document:
             file_name = file_message.document.file_name or "file"
             file_size = file_message.document.file_size or 0
@@ -435,6 +653,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 'buttons': []
             }, 0
         
+        # ✅ FIX: Validate file ID
         if not file_id:
             logger.error(f"❌ Empty file ID for message {file_message.id}")
             return False, {
@@ -442,13 +661,17 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 'buttons': []
             }, 0
         
+        # ✅ Get auto-delete time from config
+        auto_delete_minutes = getattr(config, 'AUTO_DELETE_TIME', 10)  # Default 10 minutes
+        
+        # ✅ SIMPLE CAPTION
         file_caption = (
             f"📁 **File:** `{file_name}`\n"
             f"📦 **Size:** {format_size(file_size)}\n"
             f"📹 **Quality:** {quality}\n"
             f"{status_icon} **Status:** {user_status}\n\n"
             f"♻ **Forward to saved messages for safety**\n"
-            f"⏰ **Auto-delete in:** {config.AUTO_DELETE_TIME//60} minutes\n\n"
+            f"⏰ **Auto-delete in:** {auto_delete_minutes} minutes\n\n"
             f"@SK4FiLM 🎬"
         )
         
@@ -476,19 +699,18 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
             
             logger.info(f"✅ File sent to {user_status} user {user_id}: {file_name}")
             
-            if bot_instance and config.AUTO_DELETE_TIME > 0:
-                auto_delete_minutes = config.AUTO_DELETE_TIME // 60
-                task_id = f"{user_id}_{sent.id}"
-                
-                if task_id in bot_instance.auto_delete_tasks:
-                    bot_instance.auto_delete_tasks[task_id].cancel()
-                
-                delete_task = asyncio.create_task(
-                    schedule_file_deletion(bot_instance, user_id, sent.id, file_name, auto_delete_minutes)
+            # ✅ SCHEDULE AUTO-DELETE USING BOT INSTANCE METHOD
+            if bot_instance and auto_delete_minutes > 0:
+                # Use bot instance method for better tracking
+                await bot_instance.add_auto_delete_task(
+                    user_id=user_id,
+                    message_id=sent.id,
+                    file_name=file_name,
+                    delete_after_minutes=auto_delete_minutes
                 )
-                bot_instance.auto_delete_tasks[task_id] = delete_task
                 logger.info(f"⏰ Auto-delete scheduled for message {sent.id} in {auto_delete_minutes} minutes")
             
+            # ✅ Return success
             return True, {
                 'success': True,
                 'file_name': file_name,
@@ -496,7 +718,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                 'quality': quality,
                 'user_status': user_status,
                 'status_icon': status_icon,
-                'auto_delete_minutes': config.AUTO_DELETE_TIME//60,
+                'auto_delete_minutes': auto_delete_minutes,
                 'message_id': sent.id,
                 'single_message': True
             }, file_size
@@ -504,7 +726,9 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
         except BadRequest as e:
             if "MEDIA_EMPTY" in str(e) or "FILE_REFERENCE_EXPIRED" in str(e):
                 logger.error(f"❌ File reference expired or empty: {e}")
+                # Try to refresh file reference
                 try:
+                    # Get fresh message
                     fresh_msg = await client.get_messages(
                         file_message.chat.id,
                         file_message.id
@@ -520,6 +744,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                             'buttons': []
                         }, 0
                     
+                    # Retry with new file ID
                     if file_message.document:
                         sent = await client.send_document(
                             user_id, 
@@ -543,17 +768,14 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                     
                     logger.info(f"✅ File sent with refreshed reference to {user_id}")
                     
-                    if bot_instance and config.AUTO_DELETE_TIME > 0:
-                        auto_delete_minutes = config.AUTO_DELETE_TIME // 60
-                        task_id = f"{user_id}_{sent.id}"
-                        
-                        if task_id in bot_instance.auto_delete_tasks:
-                            bot_instance.auto_delete_tasks[task_id].cancel()
-                        
-                        delete_task = asyncio.create_task(
-                            schedule_file_deletion(bot_instance, user_id, sent.id, file_name, auto_delete_minutes)
+                    # ✅ SCHEDULE AUTO-DELETE FOR REFRESHED FILE
+                    if bot_instance and auto_delete_minutes > 0:
+                        await bot_instance.add_auto_delete_task(
+                            user_id=user_id,
+                            message_id=sent.id,
+                            file_name=file_name,
+                            delete_after_minutes=auto_delete_minutes
                         )
-                        bot_instance.auto_delete_tasks[task_id] = delete_task
                         logger.info(f"⏰ Auto-delete scheduled for refreshed message {sent.id}")
                     
                     return True, {
@@ -563,7 +785,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                         'quality': quality,
                         'user_status': user_status,
                         'status_icon': status_icon,
-                        'auto_delete_minutes': config.AUTO_DELETE_TIME//60,
+                        'auto_delete_minutes': auto_delete_minutes,
                         'message_id': sent.id,
                         'refreshed': True,
                         'single_message': True
@@ -576,7 +798,7 @@ async def send_file_to_user(client, user_id, file_message, quality="480p", confi
                         'buttons': []
                     }, 0
             else:
-                raise e
+                raise e  # Re-raise other BadRequest errors
                 
     except FloodWait as e:
         logger.warning(f"⏳ Flood wait: {e.value}s")
@@ -598,6 +820,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
         user_id = message.from_user.id
         request_hash = f"{user_id}_{file_text}"
         
+        # ✅ RATE LIMIT CHECK
         if not await bot_instance.check_rate_limit(user_id):
             await message.reply_text(
                 "⚠️ **Rate Limit Exceeded**\n\n"
@@ -605,6 +828,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
             )
             return
         
+        # ✅ DUPLICATE REQUEST CHECK
         if await bot_instance.is_request_duplicate(user_id, file_text):
             logger.warning(f"⚠️ Duplicate request ignored for user {user_id}: {file_text}")
             await message.reply_text(
@@ -613,14 +837,19 @@ async def handle_file_request(client, message, file_text, bot_instance):
             )
             return
         
+        # Clean the text
         clean_text = file_text.strip()
         logger.info(f"📥 Processing file request from user {user_id}: {clean_text}")
         
+        # Parse file request
+        # Remove /start if present
         if clean_text.startswith('/start'):
             clean_text = clean_text.replace('/start', '').strip()
         
+        # Also handle /start with space
         clean_text = re.sub(r'^/start\s+', '', clean_text)
         
+        # Extract file ID parts
         parts = clean_text.split('_')
         logger.info(f"📥 Parts: {parts}")
         
@@ -633,9 +862,12 @@ async def handle_file_request(client, message, file_text, bot_instance):
             await bot_instance.clear_processing_request(user_id, file_text)
             return
         
+        # Parse channel ID (could be negative)
         channel_str = parts[0].strip()
         try:
+            # Handle negative channel IDs
             if channel_str.startswith('--'):
+                # Double dash case
                 channel_id = int(channel_str[1:])
             else:
                 channel_id = int(channel_str)
@@ -648,6 +880,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
             await bot_instance.clear_processing_request(user_id, file_text)
             return
         
+        # Parse message ID
         try:
             message_id = int(parts[1].strip())
         except ValueError:
@@ -658,11 +891,13 @@ async def handle_file_request(client, message, file_text, bot_instance):
             await bot_instance.clear_processing_request(user_id, file_text)
             return
         
+        # Get quality
         quality = parts[2].strip() if len(parts) > 2 else "480p"
         
         logger.info(f"📥 Parsed: channel={channel_id}, message={message_id}, quality={quality}")
         
         try:
+            # Send processing message
             processing_msg = await message.reply_text(
                 f"⏳ **Preparing your file...**\n\n"
                 f"📹 **Quality:** {quality}\n"
@@ -677,11 +912,13 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 f"🔄 **Checking access...**"
             )
         
+        # Get file from channel
         file_message = None
         max_retries = 2
         
         for attempt in range(max_retries):
             try:
+                # Try user client first
                 if bot_instance.user_client and bot_instance.user_session_ready:
                     try:
                         file_message = await bot_instance.user_client.get_messages(
@@ -693,6 +930,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                     except Exception as e:
                         logger.warning(f"Attempt {attempt+1}: User client failed: {e}")
                 
+                # Try bot client
                 try:
                     file_message = await client.get_messages(
                         channel_id, 
@@ -704,7 +942,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                     logger.warning(f"Attempt {attempt+1}: Bot client failed: {e}")
                     
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(1)  # Wait before retry
                     
             except Exception as e:
                 logger.error(f"Attempt {attempt+1} failed: {e}")
@@ -732,16 +970,19 @@ async def handle_file_request(client, message, file_text, bot_instance):
             await bot_instance.clear_processing_request(user_id, file_text)
             return
         
+        # ✅ Send file to user
         success, result_data, file_size = await send_file_to_user(
             client, message.chat.id, file_message, quality, config, bot_instance
         )
         
         if success:
+            # File was sent with caption
             try:
                 await processing_msg.delete()
             except:
                 pass
             
+            # ✅ Record download for statistics
             if bot_instance.premium_system:
                 await bot_instance.premium_system.record_download(
                     user_id, 
@@ -751,6 +992,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
                 logger.info(f"📊 Download recorded for user {user_id}")
             
         else:
+            # Handle error with buttons if available
             error_text = result_data['message']
             error_buttons = result_data.get('buttons', [])
             
@@ -766,6 +1008,7 @@ async def handle_file_request(client, message, file_text, bot_instance):
             except:
                 pass
         
+        # Clear processing request
         await bot_instance.clear_processing_request(user_id, file_text)
         
     except Exception as e:
@@ -779,11 +1022,110 @@ async def handle_file_request(client, message, file_text, bot_instance):
             pass
         await bot_instance.clear_processing_request(user_id, file_text)
 
+# ✅ ADMIN COMMAND TO CHECK AUTO-DELETE STATUS
 async def setup_bot_handlers(bot: Client, bot_instance):
     """Setup bot commands and handlers with admin dashboard"""
     config = bot_instance.config
     
-    # ✅ BUY COMMAND - SHOW ALL PLANS WITH QR
+    # ✅ AUTO-DELETE STATUS COMMAND (ADMIN ONLY)
+    @bot.on_message(filters.command("autodelete") & filters.user(config.ADMIN_IDS))
+    async def autodelete_status_command(client, message):
+        """Check auto-delete system status"""
+        try:
+            stats = await bot_instance.get_auto_delete_stats()
+            
+            if stats:
+                text = (
+                    "⏰ **Auto-Delete System Status**\n\n"
+                    f"📊 **Total Tasks:** {stats.get('total_tasks', 0)}\n"
+                    f"⏳ **Pending Tasks:** {stats.get('pending_tasks', 0)}\n"
+                    f"✅ **Completed Tasks:** {stats.get('completed_tasks', 0)}\n"
+                    f"❌ **Failed Tasks:** {stats.get('failed_tasks', 0)}\n"
+                    f"⏹️ **Cancelled Tasks:** {stats.get('cancelled_tasks', 0)}\n"
+                    f"⚠️ **Error Tasks:** {stats.get('error_tasks', 0)}\n"
+                    f"⚡ **Active Tasks:** {stats.get('active_tasks', 0)}\n\n"
+                    f"⏱️ **Default Delete Time:** {stats.get('default_delete_time', 10)} minutes\n"
+                    f"🔄 **System:** {'✅ Running' if bot_instance.bot_started else '❌ Stopped'}\n"
+                )
+                
+                # Add recent tasks info
+                pending_tasks = []
+                for task_id, task_data in bot_instance.auto_delete_messages.items():
+                    if task_data.get('status') == 'pending':
+                        pending_tasks.append(task_data)
+                
+                if pending_tasks:
+                    text += f"\n📋 **Recent Pending Tasks ({len(pending_tasks)}):**\n"
+                    for i, task in enumerate(pending_tasks[:5], 1):
+                        user_id = task.get('user_id', 'Unknown')
+                        file_name = task.get('file_name', 'Unknown')[:20]
+                        minutes_left = 0
+                        scheduled_time = task.get('scheduled_time')
+                        if scheduled_time:
+                            time_diff = scheduled_time - datetime.now()
+                            minutes_left = max(0, int(time_diff.total_seconds() / 60))
+                        
+                        text += f"{i}. User {user_id}: `{file_name}` ({minutes_left}m left)\n"
+                    
+                    if len(pending_tasks) > 5:
+                        text += f"... and {len(pending_tasks) - 5} more\n"
+                
+            else:
+                text = "❌ Could not retrieve auto-delete statistics."
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_autodelete")],
+                [InlineKeyboardButton("📊 All Stats", callback_data="admin_stats")]
+            ])
+            
+            await message.reply_text(text, reply_markup=keyboard, disable_web_page_preview=True)
+            
+        except Exception as e:
+            logger.error(f"Auto-delete status command error: {e}")
+            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    
+    # ✅ AUTO-DELETE REFRESH CALLBACK
+    @bot.on_callback_query(filters.regex(r"^refresh_autodelete$"))
+    async def refresh_autodelete_callback(client, callback_query):
+        """Refresh auto-delete status"""
+        admin_id = callback_query.from_user.id
+        
+        if admin_id not in config.ADMIN_IDS:
+            await callback_query.answer("❌ Access denied!", show_alert=True)
+            return
+        
+        try:
+            stats = await bot_instance.get_auto_delete_stats()
+            
+            if stats:
+                text = (
+                    "⏰ **Auto-Delete System Status**\n\n"
+                    f"📊 **Total Tasks:** {stats.get('total_tasks', 0)}\n"
+                    f"⏳ **Pending Tasks:** {stats.get('pending_tasks', 0)}\n"
+                    f"✅ **Completed Tasks:** {stats.get('completed_tasks', 0)}\n"
+                    f"❌ **Failed Tasks:** {stats.get('failed_tasks', 0)}\n"
+                    f"⏹️ **Cancelled Tasks:** {stats.get('cancelled_tasks', 0)}\n"
+                    f"⚠️ **Error Tasks:** {stats.get('error_tasks', 0)}\n"
+                    f"⚡ **Active Tasks:** {stats.get('active_tasks', 0)}\n\n"
+                    f"⏱️ **Default Delete Time:** {stats.get('default_delete_time', 10)} minutes\n"
+                    f"🔄 **System:** {'✅ Running' if bot_instance.bot_started else '❌ Stopped'}\n"
+                )
+            else:
+                text = "❌ Could not retrieve auto-delete statistics."
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_autodelete")],
+                [InlineKeyboardButton("📊 All Stats", callback_data="admin_stats")]
+            ])
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            await callback_query.answer("✅ Refreshed!")
+            
+        except Exception as e:
+            logger.error(f"Refresh auto-delete error: {e}")
+            await callback_query.answer("❌ Refresh failed!", show_alert=True)
+    
+    # ✅ BUY COMMAND - SHOW ALL PLANS
     @bot.on_message(filters.command("buy"))
     async def buy_command(client, message):
         """Show all premium plans for purchase"""
@@ -845,12 +1187,13 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         else:
             await message.reply_text("❌ Premium system not available")
     
-    # ✅ PREMIUM PLANS SELECTION CALLBACK WITH QR
+    # ✅ PREMIUM PLANS SELECTION CALLBACK
     @bot.on_callback_query(filters.regex(r"^select_plan_"))
     async def select_plan_callback(client, callback_query):
         """Handle plan selection with QR code image"""
         plan_tier = callback_query.data.split('_')[2]
         
+        # Map tier names
         tier_map = {
             'basic': 'Basic',
             'premium': 'Premium', 
@@ -860,6 +1203,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         
         plan_name = tier_map.get(plan_tier, 'Premium')
         
+        # Get plan details from premium system
         if bot_instance.premium_system:
             try:
                 from premium import PremiumTier
@@ -876,6 +1220,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     payment_id = secrets.token_hex(8)
                     user_id = callback_query.from_user.id
                     
+                    # Track payment
                     await bot_instance.add_pending_payment(
                         payment_id=payment_id,
                         user_id=user_id,
@@ -883,6 +1228,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                         plan=plan_tier
                     )
                     
+                    # QR code image URL
                     qr_image_url = "https://i.ibb.co/4RLgJ8Tp/QR-MY.jpg"
                     
                     text = (
@@ -927,12 +1273,13 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         else:
             await callback_query.answer("Premium system not available!", show_alert=True)
     
-    # ✅ BUY PREMIUM CALLBACK - UPDATED
+    # ✅ BUY PREMIUM CALLBACK
     @bot.on_callback_query(filters.regex(r"^buy_premium$"))
     async def buy_premium_callback(client, callback_query):
-        """Show premium plans - UPDATED"""
+        """Show premium plans"""
         user_id = callback_query.from_user.id
         
+        # Check if already premium
         if bot_instance.premium_system:
             is_premium = await bot_instance.premium_system.is_premium_user(user_id)
             if is_premium:
@@ -964,6 +1311,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     await callback_query.answer("You're already premium!")
                 return
         
+        # Show all plans
         if bot_instance.premium_system:
             plans = await bot_instance.premium_system.get_all_plans()
             
@@ -1043,6 +1391,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             "• `/removepremium <id>` - Remove premium\n"
             "• `/checkpremium <id>` - Check premium\n"
             "• `/stats` - Bot statistics\n"
+            "• `/autodelete` - Auto-delete system status\n"
             "• `/backup` - Backup database\n"
             "• `/broadcast` - Send message to all users\n\n"
             "**Payment Screenshots:**\n"
@@ -1366,103 +1715,103 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             logger.error(f"Stats command error: {e}")
             await message.reply_text(f"❌ Error getting stats: {str(e)[:100]}")
     
-    # ✅ BROADCAST COMMAND
-    @bot.on_message(filters.command("broadcast") & filters.user(config.ADMIN_IDS))
-    async def broadcast_command(client, message):
-        """Broadcast message to all users"""
-        try:
-            if len(message.command) < 2 and not message.reply_to_message:
-                await message.reply_text(
-                    "❌ **Usage:** `/broadcast <message>`\n"
-                    "Or reply to a message with `/broadcast`\n\n"
-                    "**Example:** `/broadcast New movies added!`"
-                )
-                return
-            
-            if message.reply_to_message:
-                broadcast_msg = message.reply_to_message
-                text_message = broadcast_msg.text or broadcast_msg.caption or ""
-            else:
-                broadcast_text = ' '.join(message.command[1:])
-                broadcast_msg = None
-                text_message = broadcast_text
-            
-            if not text_message.strip():
-                await message.reply_text("❌ Message cannot be empty")
-                return
-            
-            if bot_instance.premium_system:
-                users_data = await bot_instance.premium_system.get_all_users()
-                
-                if not users_data:
-                    await message.reply_text("📭 No users to broadcast to.")
-                    return
-                
-                total_users = len(users_data)
-                success_count = 0
-                fail_count = 0
-                
-                confirm_text = (
-                    f"📢 **Broadcast Confirmation**\n\n"
-                    f"**Message:** {text_message[:100]}...\n"
-                    f"**To:** {total_users} users\n\n"
-                    f"Type `/confirm_broadcast` to proceed or cancel."
-                )
-                
-                await message.reply_text(confirm_text)
-                
-            else:
-                await message.reply_text("❌ Premium system not available")
-                
-        except Exception as e:
-            logger.error(f"Broadcast command error: {e}")
-            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+    # ✅ START COMMAND HANDLER
+    @bot.on_message(filters.command("start"))
+    async def handle_start_command(client, message):
+        """Handle /start command"""
+        user_name = message.from_user.first_name or "User"
+        user_id = message.from_user.id
+        
+        if len(message.command) > 1:
+            file_text = ' '.join(message.command[1:])
+            await handle_file_request(client, message, file_text, bot_instance)
+            return
+        
+        welcome_text = (
+            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
+            f"🌐 **Visit:** {config.WEBSITE_URL}\n\n"
+            "**How to download:**\n"
+            "1. Visit website above\n"
+            "2. Search for movies\n"
+            "3. Click download button\n"
+            "4. File will appear here automatically\n\n"
+            "🎬 **Happy watching!**"
+        )
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+            [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
+            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+        ])
+        
+        await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
     
-    # ✅ CONFIRM BROADCAST
-    @bot.on_message(filters.command("confirm_broadcast") & filters.user(config.ADMIN_IDS))
-    async def confirm_broadcast_command(client, message):
-        """Confirm and send broadcast"""
-        try:
-            await message.reply_text(
-                "⚠️ **Broadcast system needs setup**\n\n"
-                "This feature requires additional implementation to store pending broadcasts."
+    # ✅ Handle direct file format messages
+    @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
+    async def handle_direct_file_request(client, message):
+        """Handle direct file format messages"""
+        file_text = message.text.strip()
+        await handle_file_request(client, message, file_text, bot_instance)
+    
+    # ✅ GET VERIFIED CALLBACK
+    @bot.on_callback_query(filters.regex(r"^get_verified$"))
+    async def get_verified_callback(client, callback_query):
+        """Get verification link"""
+        user_id = callback_query.from_user.id
+        
+        if bot_instance.verification_system:
+            verification_data = await bot_instance.verification_system.create_verification_link(user_id)
+            
+            text = (
+                "🔗 **Verification Required**\n\n"
+                "Join channel to verify:\n\n"
+                f"🔗 **Link:** {verification_data['short_url']}\n"
+                f"⏰ **Valid:** {verification_data['valid_for_hours']} hours\n\n"
+                "Click link, join channel, then try download again."
             )
-        except Exception as e:
-            logger.error(f"Confirm broadcast error: {e}")
-            await message.reply_text(f"❌ Error: {str(e)[:100]}")
-    
-    # ✅ BACKUP COMMAND
-    @bot.on_message(filters.command("backup") & filters.user(config.ADMIN_IDS))
-    async def backup_command(client, message):
-        """Create database backup"""
-        try:
-            await message.reply_text("🔄 Creating database backup...")
             
-            if bot_instance.premium_system:
-                if hasattr(bot_instance.premium_system, 'backup_database'):
-                    backup_file = await bot_instance.premium_system.backup_database()
-                    if backup_file:
-                        await message.reply_text(f"✅ Backup created: `{backup_file}`")
-                        
-                        try:
-                            await client.send_document(
-                                message.chat.id,
-                                backup_file,
-                                caption=f"📦 Database Backup\n🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                            )
-                        except Exception as e:
-                            logger.warning(f"Could not send backup file: {e}")
-                            await message.reply_text(f"✅ Backup saved locally: `{backup_file}`")
-                    else:
-                        await message.reply_text("❌ Backup failed")
-                else:
-                    await message.reply_text("❌ Backup method not available in premium system")
-            else:
-                await message.reply_text("❌ Premium system not available")
-                
-        except Exception as e:
-            logger.error(f"Backup command error: {e}")
-            await message.reply_text(f"❌ Error: {str(e)[:100]}")
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_data['short_url'])],
+                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+            ])
+            
+            try:
+                await callback_query.message.edit_text(
+                    text=text,
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True
+                )
+            except:
+                await callback_query.answer("Click VERIFY NOW button!")
+        else:
+            await callback_query.answer("Verification not available!", show_alert=True)
+    
+    # ✅ BACK TO START
+    @bot.on_callback_query(filters.regex(r"^back_to_start$"))
+    async def back_to_start_callback(client, callback_query):
+        user_name = callback_query.from_user.first_name or "User"
+        
+        text = (
+            f"🎬 **Welcome back, {user_name}!**\n\n"
+            f"Visit {config.WEBSITE_URL} to download movies.\n"
+            "Click download button on website and file will appear here."
+        )
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
+            [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
+            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(
+                text=text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True
+            )
+        except:
+            await callback_query.answer("Already on home page!")
     
     # ✅ FORWARD SCREENSHOTS TO ALL ADMINS
     @bot.on_message(filters.private & (filters.photo | filters.document))
@@ -1681,6 +2030,9 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                 [
                     InlineKeyboardButton("📊 Stats", callback_data="admin_stats"),
                     InlineKeyboardButton("⚙️ Settings", callback_data="admin_settings")
+                ],
+                [
+                    InlineKeyboardButton("⏰ Auto-Delete", callback_data="admin_autodelete")
                 ]
             ])
             
@@ -1732,7 +2084,7 @@ async def setup_bot_handlers(bot: Client, bot_instance):
         elif data == "admin_settings":
             text = (
                 "⚙️ **Bot Settings**\n\n"
-                f"• Auto-delete: {config.AUTO_DELETE_TIME//60} minutes\n"
+                f"• Auto-delete: {getattr(config, 'AUTO_DELETE_TIME', 10)} minutes\n"
                 f"• Admins: {len(config.ADMIN_IDS)}\n"
                 f"• User Client: {'✅ Connected' if bot_instance.user_session_ready else '❌ Disconnected'}\n"
                 f"• Bot Status: {'✅ Online' if bot_instance.bot_started else '❌ Offline'}"
@@ -1743,103 +2095,10 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             ])
             
             await callback_query.message.edit_text(text, reply_markup=keyboard)
-    
-    # ✅ START COMMAND HANDLER
-    @bot.on_message(filters.command("start"))
-    async def handle_start_command(client, message):
-        """Handle /start command"""
-        user_name = message.from_user.first_name or "User"
-        user_id = message.from_user.id
         
-        if len(message.command) > 1:
-            file_text = ' '.join(message.command[1:])
-            await handle_file_request(client, message, file_text, bot_instance)
-            return
-        
-        welcome_text = (
-            f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
-            f"🌐 **Visit:** {config.WEBSITE_URL}\n\n"
-            "**How to download:**\n"
-            "1. Visit website above\n"
-            "2. Search for movies\n"
-            "3. Click download button\n"
-            "4. File will appear here automatically\n\n"
-            "🎬 **Happy watching!**"
-        )
-        
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-            [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
-            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-        ])
-        
-        await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
-    
-    # ✅ Handle direct file format messages
-    @bot.on_message(filters.private & filters.regex(r'^-?\d+_\d+(_\w+)?$'))
-    async def handle_direct_file_request(client, message):
-        """Handle direct file format messages"""
-        file_text = message.text.strip()
-        await handle_file_request(client, message, file_text, bot_instance)
-    
-    # ✅ GET VERIFIED CALLBACK
-    @bot.on_callback_query(filters.regex(r"^get_verified$"))
-    async def get_verified_callback(client, callback_query):
-        """Get verification link"""
-        user_id = callback_query.from_user.id
-        
-        if bot_instance.verification_system:
-            verification_data = await bot_instance.verification_system.create_verification_link(user_id)
-            
-            text = (
-                "🔗 **Verification Required**\n\n"
-                "Join channel to verify:\n\n"
-                f"🔗 **Link:** {verification_data['short_url']}\n"
-                f"⏰ **Valid:** {verification_data['valid_for_hours']} hours\n\n"
-                "Click link, join channel, then try download again."
-            )
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔗 VERIFY NOW", url=verification_data['short_url'])],
-                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
-                [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
-            ])
-            
-            try:
-                await callback_query.message.edit_text(
-                    text=text,
-                    reply_markup=keyboard,
-                    disable_web_page_preview=True
-                )
-            except:
-                await callback_query.answer("Click VERIFY NOW button!")
-        else:
-            await callback_query.answer("Verification not available!", show_alert=True)
-    
-    # ✅ BACK TO START
-    @bot.on_callback_query(filters.regex(r"^back_to_start$"))
-    async def back_to_start_callback(client, callback_query):
-        user_name = callback_query.from_user.first_name or "User"
-        
-        text = (
-            f"🎬 **Welcome back, {user_name}!**\n\n"
-            f"Visit {config.WEBSITE_URL} to download movies.\n"
-            "Click download button on website and file will appear here."
-        )
-        
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 OPEN WEBSITE", url=config.WEBSITE_URL)],
-            [InlineKeyboardButton("📢 JOIN CHANNEL", url=config.MAIN_CHANNEL_LINK)],
-            [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-        ])
-        
-        try:
-            await callback_query.message.edit_text(
-                text=text,
-                reply_markup=keyboard,
-                disable_web_page_preview=True
-            )
-        except:
-            await callback_query.answer("Already on home page!")
+        elif data == "admin_autodelete":
+            # Redirect to auto-delete status
+            await autodelete_status_command(client, callback_query.message)
+            await callback_query.answer()
 
-    logger.info("✅ Bot handlers setup complete with QR code support for all plans")
+    logger.info("✅ Bot handlers setup complete with FIXED auto-delete system")
