@@ -314,10 +314,10 @@ class Config:
     CUTTLY_API = os.environ.get("CUTTLY_API", "")
     
     # UPI IDs
-    UPI_ID_BASIC = os.environ.get("UPI_ID_BASIC", "sk4filmbot@ybl")
-    UPI_ID_PREMIUM = os.environ.get("UPI_ID_PREMIUM", "sk4filmbot@ybl")
-    UPI_ID_GOLD = os.environ.get("UPI_ID_GOLD", "sk4filmbot@ybl")
-    UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "sk4filmbot@ybl")
+    UPI_ID_BASIC = os.environ.get("UPI_ID_BASIC", "cf.sk4film@cashfreensdlpb")
+    UPI_ID_PREMIUM = os.environ.get("UPI_ID_PREMIUM", "cf.sk4film@cashfreensdlpb")
+    UPI_ID_GOLD = os.environ.get("UPI_ID_GOLD", "cf.sk4film@cashfreensdlpb")
+    UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
     
     # Verification
     VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "true").lower() == "true"
@@ -327,7 +327,7 @@ class Config:
     WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
     BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
     ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
-    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "300"))
+    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "5"))
     WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
     BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
     
