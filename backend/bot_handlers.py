@@ -247,11 +247,8 @@ class SK4FiLMBot:
             try:
                 notification_text = (
                     f"🗑️ **File Auto-Deleted**\n\n"
-                    f"`{file_name}`\n\n"
-                    f"⏰ **Deleted after:** {delete_after_minutes} minutes\n"
                     f"✅ **Security measure completed**\n\n"
-                    f"🔁 **Need the file again?**\n"
-                    f"Visit website and download again\n"
+                    f"> Visit website and download again\n"
                     f"🎬 @SK4FiLM"
                 )
                 
@@ -1148,10 +1145,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             
             keyboard_buttons = []
             for plan in plans:
-                text += f"{plan['icon']} **{plan['name']}**\n"
                 text += f"💰 **Price:** ₹{plan['price']}\n"
-                text += f"📅 **Validity:** {plan['duration_days']} days\n"
-                text += f"📊 **Per day:** ₹{plan['per_day_cost']}/day\n\n"
+                text += f"📅 **Validity:** {plan['duration_days']} days\n\n"
                 
                 keyboard_buttons.append([
                     InlineKeyboardButton(
@@ -1160,7 +1155,6 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     )
                 ])
             
-            text += "🎬 **Same premium features in all plans!**\n"
             text += "Click a plan button to purchase"
             
             keyboard_buttons.append([InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")])
@@ -1234,27 +1228,12 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                     text = (
                         f"💰 **Payment for {plan_details['name']}**\n\n"
                         f"**Amount:** ₹{plan_details['price']}\n"
-                        f"**Validity:** {plan_details['duration_days']} days\n"
-                        f"**UPI ID:** `{plan_details['upi_id']}`\n\n"
+                        f"**Validity:** {plan_details['duration_days']} days\n\n"
+                        f"**UPI ID:** `{plan_details['upi_id']}`\n"
                         f"📱 **QR Code:**\n"
                         f"{qr_image_url}\n\n"
-                        f"🆔 **Payment ID:** `{payment_id}`\n\n"
-                        f"**Payment Methods:**\n"
-                        f"1. Scan QR Code above\n"
-                        f"2. Send ₹{plan_details['price']} to UPI ID\n"
                         f"3. Take screenshot\n"
                         f"4. Send screenshot here\n\n"
-                        f"✅ **You'll get ALL premium features:**\n"
-                        "• All Quality (480p-4K)\n"
-                        "• Unlimited Downloads\n"
-                        "• No Verification Needed\n"
-                        "• VIP Support 24/7\n"
-                        "• No Ads\n"
-                        "• Instant Downloads\n"
-                        "• Batch Downloads\n"
-                        "• Early Access\n"
-                        "• Custom Requests\n"
-                        "• Highest Priority\n\n"
                         f"⏰ **Payment ID valid for 24 hours**"
                     )
                     
@@ -1331,10 +1310,8 @@ async def setup_bot_handlers(bot: Client, bot_instance):
             
             keyboard_buttons = []
             for plan in plans:
-                text += f"{plan['icon']} **{plan['name']}**\n"
                 text += f"💰 **Price:** ₹{plan['price']}\n"
-                text += f"📅 **Validity:** {plan['duration_days']} days\n"
-                text += f"📊 **Per day:** ₹{plan['per_day_cost']}/day\n\n"
+                text += f"📅 **Validity:** {plan['duration_days']} days\n\n"
                 
                 keyboard_buttons.append([
                     InlineKeyboardButton(
@@ -1571,12 +1548,12 @@ async def setup_bot_handlers(bot: Client, bot_instance):
                             f"✅ **Plan:** {plan_type.capitalize()}\n"
                             f"📅 **Valid for:** {days} days\n"
                             f"⭐ **You get ALL premium features:**\n"
-                            f"• All Quality (480p-4K)\n"
-                            f"• Unlimited Downloads\n"
-                            f"• No verification required\n"
-                            f"• VIP Support 24/7\n"
-                            f"• No Ads\n"
-                            f"• Instant Downloads\n\n"
+                            f"> • All Quality (480p-4K)\n"
+                            f"> • Unlimited Downloads\n"
+                            f"> • No verification required\n"
+                            f"> • VIP Support 24/7\n"
+                            f"> • No Ads\n"
+                            f"> • Instant Downloads\n\n"
                             f"🎬 **Enjoy unlimited downloads!**"
                         )
                     except Exception as e:
