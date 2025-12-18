@@ -83,7 +83,7 @@ class PremiumSystem:
                 features=COMMON_FEATURES,
                 limits=COMMON_LIMITS,
                 description="Perfect starter plan - All premium features for 30 days",
-                upi_id=os.environ.get("UPI_ID_BASIC", "sk4filmbot@ybl"),
+                upi_id=os.environ.get("UPI_ID_BASIC", "cf.sk4film@cashfreensdlpb"),
                 color_code="#4CAF50",  # Green
                 icon="🥉"
             ),
@@ -95,7 +95,7 @@ class PremiumSystem:
                 features=COMMON_FEATURES,
                 limits=COMMON_LIMITS,
                 description="Best value - All premium features for 60 days",
-                upi_id=os.environ.get("UPI_ID_PREMIUM", "sk4filmbot@ybl"),
+                upi_id=os.environ.get("UPI_ID_PREMIUM", "cf.sk4film@cashfreensdlpb"),
                 color_code="#2196F3",  # Blue
                 icon="🥈"
             ),
@@ -107,7 +107,7 @@ class PremiumSystem:
                 features=COMMON_FEATURES,
                 limits=COMMON_LIMITS,
                 description="Premium experience - All premium features for 90 days",
-                upi_id=os.environ.get("UPI_ID_GOLD", "sk4filmbot@ybl"),
+                upi_id=os.environ.get("UPI_ID_GOLD", "cf.sk4film@cashfreensdlpb"),
                 color_code="#FFC107",  # Gold
                 icon="🥇"
             ),
@@ -119,7 +119,7 @@ class PremiumSystem:
                 features=COMMON_FEATURES,
                 limits=COMMON_LIMITS,
                 description="Ultimate experience - All premium features for 180 days",
-                upi_id=os.environ.get("UPI_ID_DIAMOND", "sk4filmbot@ybl"),
+                upi_id=os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb"),
                 color_code="#E040FB",  # Purple
                 icon="💎"
             )
