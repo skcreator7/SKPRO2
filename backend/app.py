@@ -2136,7 +2136,7 @@ def channel_name_cached(cid):
 
 @performance_monitor.measure("multi_channel_search_merged")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
-async def search_movies_multi_channel_merged(query, limit=12, page=1):
+async def search_movies_multi_channel_merged(query, limit=15, page=1):
     """FIXED: Now properly merges all files with same title and shows all qualities"""
     offset = (page - 1) * limit
     
@@ -2597,7 +2597,7 @@ async def search_movies_multi_channel_merged(query, limit=12, page=1):
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
-async def get_home_movies(limit=20):
+async def get_home_movies(limit=25):
     """Get home movies"""
     try:
         if User is None or not user_session_ready:
@@ -2608,8 +2608,8 @@ async def get_home_movies(limit=20):
         
         logger.info(f"🎬 Fetching home movies ({limit})...")
         
-        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=12):
-            if msg is not None and msg.text and len(msg.text) > 20:
+        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=15):
+            if msg is not None and msg.text and len(msg.text) > 25:
                 title = extract_title_smart(msg.text)
                 
                 if title and title not in seen_titles:
@@ -2806,13 +2806,13 @@ async def health():
 async def api_movies():
     try:
         # Get home movies
-        movies = await get_home_movies(limit=24)
+        movies = await get_home_movies(limit=25)
         
         return jsonify({
             'status': 'success' if movies else 'empty',
             'movies': movies,
             'total': len(movies),
-            'limit': 24,
+            'limit': 25,
             'source': 'telegram',
             'poster_fetcher': poster_fetcher is not None,
             'session_used': 'user',
