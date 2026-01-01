@@ -2608,7 +2608,7 @@ async def get_home_movies(limit=25):
         
         logger.info(f"🎬 Fetching home movies ({limit})...")
         
-        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=15):
+        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=25):
             if msg is not None and msg.text and len(msg.text) > 25:
                 title = extract_title_smart(msg.text)
                 
