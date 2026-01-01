@@ -381,11 +381,32 @@
             }
         }
         
+        /* ===== MINIMAL GAP CONTAINER ===== */
+        .container {
+            padding-left: 8px;
+            padding-right: 8px;
+            max-width: 100%;
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+        }
+        
+        @media (min-width: 992px) {
+            .container {
+                padding-left: 15px;
+                padding-right: 15px;
+            }
+        }
+        
         .section-box {
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(5px);
             border-radius: 12px;
-            padding: 25px;
+            padding: 20px 12px; /* Reduced side padding */
             margin-bottom: 25px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.1);
@@ -399,14 +420,6 @@
             background-position: center;
             transition: filter 0.7s ease-out, opacity 0.5s ease-out;
             filter: blur(15px);
-        }
-        
-        .progressive-image-container {
-            position: relative;
-            width: 100%;
-            height: 225px;
-            overflow: hidden;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
         /* ==== SKELETON LOADING EFFECTS ==== */
@@ -448,32 +461,57 @@
             margin: 8px auto;
         }
         
-        .skeleton-movie-card {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 15px;
-            overflow: hidden;
-            height: 100%;
-            position: relative;
+        /* ===== MINIMAL GAP MOVIE GRID ===== */
+        #homeMoviesContainer {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px; /* Minimal gap for border visibility */
+            margin: 0;
+            padding: 0;
+            width: 100%;
         }
         
-        /* Movie card styles */
+        @media (min-width: 768px) {
+            #homeMoviesContainer {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+        }
+        
+        @media (min-width: 992px) {
+            #homeMoviesContainer {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+            }
+        }
+        
+        @media (min-width: 1200px) {
+            #homeMoviesContainer {
+                grid-template-columns: repeat(6, 1fr);
+                gap: 12px;
+            }
+        }
+        
+        /* Movie card styles - MINIMAL GAP VERSION */
         .movie-card {
-            background: rgba(30, 41, 59, 0.9);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 15px;
+            background: #000000;
+            border: 2px solid rgba(0, 204, 255, 0.15); /* Thin border for separation */
+            border-radius: 12px;
             overflow: hidden;
             transition: all 0.4s ease;
             height: 100%;
             cursor: pointer;
             position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin: 0;
+            padding: 0;
+            width: 100%;
         }
         
         .movie-card:hover {
-            transform: translateY(-12px) scale(1.02);
+            transform: translateY(-8px) scale(1.02);
             box-shadow: 0 25px 50px rgba(0, 204, 255, 0.5);
             border-color: var(--accent);
+            z-index: 10;
         }
         
         .click-overlay {
@@ -491,22 +529,38 @@
             background: rgba(0, 204, 255, 0.1);
         }
         
-        .hq-poster {
+        .progressive-image-container {
+            position: relative;
             width: 100%;
             height: 225px;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+        
+        .hq-poster {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             object-position: center;
-            background: linear-gradient(135deg, #1a1a2e 0%, #2d3748 100%);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: #000;
             transition: all 0.5s ease;
+            display: block;
+            margin: 0;
+            padding: 0;
         }
         
         @media (min-width: 1200px) {
-            .hq-poster, .skeleton-poster, .progressive-image-container { height: 313px; }
+            .hq-poster, .skeleton-poster, .progressive-image-container { 
+                height: 313px; 
+            }
         }
         
         @media (min-width: 768px) and (max-width: 1199px) {
-            .hq-poster, .skeleton-poster, .progressive-image-container { height: 250px; }
+            .hq-poster, .skeleton-poster, .progressive-image-container { 
+                height: 250px; 
+            }
         }
         
         .movie-card:hover .hq-poster {
@@ -520,9 +574,9 @@
             left: 10px;
             background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
-            padding: 6px 12px;
-            border-radius: 18px;
-            font-size: 0.75rem;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
             font-weight: 700;
             box-shadow: 0 4px 15px rgba(40, 167, 69, 0.6);
             z-index: 5;
@@ -538,28 +592,51 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             color: #ffd700;
-            padding: 6px 12px;
-            border-radius: 18px;
-            font-size: 0.75rem;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.7rem;
             font-weight: 700;
             border: 1px solid rgba(255, 215, 0, 0.3);
             z-index: 5;
         }
         
+        /* TITLE ON PURE BLACK BACKGROUND */
         .hq-info {
-            padding: 15px;
+            padding: 12px 8px;
             text-align: center;
-            background: rgba(15, 23, 42, 0.9);
+            background: #000000;
+            border-top: 2px solid rgba(0, 204, 255, 0.3);
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
         }
         
         .hq-title {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--accent);
             margin: 0;
             font-weight: 600;
             line-height: 1.4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 5px;
+        }
+        
+        /* Skeleton card - MINIMAL GAP */
+        .skeleton-movie-card {
+            background: #000;
+            border: 2px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            overflow: hidden;
+            height: 100%;
+            position: relative;
+            margin: 0;
+            padding: 0;
+            width: 100%;
         }
         
         .visitor-container {
@@ -815,8 +892,17 @@
             to { opacity: 1; }
         }
         
-        /* Mobile-specific popup styles */
+        /* Mobile-specific adjustments */
         @media (max-width: 767px) {
+            .container {
+                padding-left: 6px;
+                padding-right: 6px;
+            }
+            
+            .section-box {
+                padding: 15px 8px;
+            }
+            
             .popup-container,
             .second-popup-container {
                 width: 300px;
@@ -828,13 +914,32 @@
                 width: 300px;
                 height: 250px;
             }
+            
+            .hq-info {
+                min-height: 65px;
+                padding: 10px 6px;
+            }
+            
+            .hq-title {
+                font-size: 0.75rem;
+                letter-spacing: 0.3px;
+            }
+            
+            #homeMoviesContainer {
+                gap: 4px;
+            }
         }
 
         @media (max-width: 320px) {
+            .container {
+                padding-left: 4px;
+                padding-right: 4px;
+            }
+            
             .popup-container,
             .second-popup-container {
-                width: 300px;
-                height: 250px;
+                width: 280px;
+                height: 230px;
                 transform: translateX(-50%) translateY(100%) scale(0.9);
             }
             
@@ -845,8 +950,16 @@
             
             .popup-ad-container,
             .second-popup-ad-container {
-                width: 300px;
-                height: 250px;
+                width: 280px;
+                height: 230px;
+            }
+            
+            #homeMoviesContainer {
+                gap: 3px;
+            }
+            
+            .movie-card {
+                border-width: 1px;
             }
         }
     </style>
@@ -959,8 +1072,8 @@
 
         <!-- Latest Movies -->
         <div class="section-box animate__animated animate__fadeIn">
-            <div style="margin-bottom: 35px;">
-                <h2 style="color: var(--accent); margin-bottom: 25px; font-size: 2.3rem; font-weight: 700;">
+            <div style="margin-bottom: 30px; padding: 0 5px;">
+                <h2 style="color: var(--accent); margin-bottom: 20px; font-size: 2.1rem; font-weight: 700;">
                     <i class="fas fa-film me-3" style="color: var(--primary);"></i>Latest Movies
                 </h2>
             </div>
@@ -971,28 +1084,9 @@
                 <p style="color: var(--accent); margin-top: 10px;">Loading next batch...</p>
             </div>
             
-            <div class="row g-4" id="homeMoviesContainer">
-                <!-- Skeleton loading cards (12 cards for responsive layout) -->
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Repeat 11 more skeleton cards (total 12) -->
-                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                    <div class="skeleton-movie-card">
-                        <div class="skeleton skeleton-poster"></div>
-                        <div class="hq-info">
-                            <div class="skeleton skeleton-title"></div>
-                            <div class="skeleton skeleton-text"></div>
-                        </div>
-                    </div>
-                </div>
-                <!-- ... add 10 more skeleton cards ... -->
+            <!-- MINIMAL GAP GRID CONTAINER -->
+            <div id="homeMoviesContainer">
+                <!-- Skeleton loading cards will be generated by JavaScript -->
             </div>
         </div>
 
@@ -1014,13 +1108,13 @@
 
         <!-- Tutorial Videos -->
         <div class="section-box animate__animated animate__fadeIn">
-            <h2 style="color: var(--accent); text-align: center; margin-bottom: 30px;">
+            <h2 style="color: var(--accent); text-align: center; margin-bottom: 25px; padding: 0 5px;">
                 <i class="fas fa-play-circle me-2"></i>Tutorial Videos
             </h2>
             <div class="row gy-4">
                 <div class="col-12 col-md-4">
-                    <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
-                        <h5 style="color: var(--accent); margin-bottom: 15px;">How to Search Movies</h5>
+                    <div style="background: rgba(30, 41, 59, 0.7); padding: 15px; border-radius: 8px; text-align: center; height: 100%;">
+                        <h5 style="color: var(--accent); margin-bottom: 12px; font-size: 1rem;">How to Search Movies</h5>
                         <div class="ratio ratio-16x9">
                             <iframe allowfullscreen src="https://www.youtube.com/embed/PSQ9_KLzm8s" style="border-radius: 8px;" loading="lazy"></iframe>
                         </div>
@@ -1028,8 +1122,8 @@
                 </div>
                 
                 <div class="col-12 col-md-4">
-                    <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
-                        <h5 style="color: var(--accent); margin-bottom: 15px;">StreaamNet Link</h5>
+                    <div style="background: rgba(30, 41, 59, 0.7); padding: 15px; border-radius: 8px; text-align: center; height: 100%;">
+                        <h5 style="color: var(--accent); margin-bottom: 12px; font-size: 1rem;">StreaamNet Link</h5>
                         <div class="ratio ratio-16x9">
                             <iframe allowfullscreen src="https://www.youtube.com/embed/fVL7DfhnwWM" style="border-radius: 8px;" loading="lazy"></iframe>
                         </div>
@@ -1037,8 +1131,8 @@
                 </div>
                 
                 <div class="col-12 col-md-4">
-                    <div style="background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 8px; text-align: center; height: 100%;">
-                        <h5 style="color: var(--accent); margin-bottom: 15px;">DiskWala Link</h5>
+                    <div style="background: rgba(30, 41, 59, 0.7); padding: 15px; border-radius: 8px; text-align: center; height: 100%;">
+                        <h5 style="color: var(--accent); margin-bottom: 12px; font-size: 1rem;">DiskWala Link</h5>
                         <div class="ratio ratio-16x9">
                             <iframe allowfullscreen src="https://www.youtube.com/embed/ZNKeL-pcIDw" style="border-radius: 8px;" loading="lazy"></iframe>
                         </div>
@@ -1048,7 +1142,7 @@
         </div>
 
         <!-- Disclaimer -->
-        <div style="background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; padding: 15px; margin-top: 30px; text-align: center; color: #ff6b6b;">
+        <div style="background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; padding: 12px; margin-top: 25px; text-align: center; color: #ff6b6b; font-size: 0.85rem;">
             <p style="margin: 0;"><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p>
         </div>
     </div>
@@ -1111,46 +1205,92 @@
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         
-        console.log('🎬 SK4FiLM v6.1 - BATCHED PROGRESSIVE LOADING SYSTEM');
+        console.log('🎬 SK4FiLM v6.1 - MINIMAL GAP PROGRESSIVE LOADING');
 
         // ==== BATCH LOADING VARIABLES ====
         let currentBatch = 0;
         let totalMoviesLoaded = 0;
         const BATCH_SIZE = 5;
         const TOTAL_MOVIES_TO_LOAD = 20;
-        let allMovies = []; // Will store all movies from backend
+        let allMovies = [];
 
-        // ==== POSTER SOURCE HIERARCHY ====
-        const posterSources = [
-            // 1. Letterboxd (Primary) - You need to implement this in your backend
-            { name: 'Letterboxd', priority: 1 },
-            // 2. OMDB API (Secondary)
-            { name: 'OMDB', priority: 2 },
-            // 3. IMDb (Fast scraping)
-            { name: 'IMDb', priority: 3 },
-            // 4. IMPAwards (High quality)
-            { name: 'IMPAwards', priority: 4 },
-            // 5. JustWatch (Streaming service)
-            { name: 'JustWatch', priority: 5 },
-            // 6. YouTube Thumbnails (Fallback)
-            { name: 'YouTube', priority: 6 }
-        ];
+        // ==== INITIAL SKELETON GENERATION ====
+        function generateSkeletonGrid() {
+            const container = document.getElementById('homeMoviesContainer');
+            let skeletonHTML = '';
+            
+            // Generate 12 skeleton cards
+            for (let i = 0; i < 12; i++) {
+                skeletonHTML += `
+                    <div class="skeleton-movie-card">
+                        <div class="skeleton skeleton-poster"></div>
+                        <div class="hq-info">
+                            <div class="skeleton skeleton-title"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = skeletonHTML;
+        }
 
-        // ==== BATCHED PROGRESSIVE LOADING SYSTEM ====
+        // ==== MINIMAL GAP MOVIE DISPLAY ====
+        function displayHomeMovies(movies) {
+            const container = document.getElementById('homeMoviesContainer');
+            container.innerHTML = '';
+            
+            movies.forEach((movie, index) => {
+                const title = movie.title || 'Unknown';
+                const isNew = movie.is_new;
+                const rating = movie.poster_rating || '0.0';
+                
+                const movieCard = document.createElement('div');
+                movieCard.className = 'movie-card animate__animated animate__fadeInUp';
+                movieCard.setAttribute('data-index', index);
+                movieCard.style.animationDelay = `${index * 0.03}s`;
+                
+                movieCard.innerHTML = `
+                    <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
+                    
+                    <div class="progressive-image-container">
+                        <img 
+                            class="hq-poster progressive-loading" 
+                            alt="${escapeHTML(title)}"
+                            loading="lazy"
+                            data-title="${escapeHTML(title)}"
+                            data-year="${movie.year || ''}"
+                        >
+                    </div>
+                    
+                    ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
+                    
+                    ${rating !== '0.0' ? `
+                        <div class="rating-badge">
+                            <i class="fas fa-star me-1"></i>${rating}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="hq-info">
+                        <h6 class="hq-title">${escapeHTML(title)}</h6>
+                    </div>
+                `;
+                
+                container.appendChild(movieCard);
+            });
+        }
+
+        // ==== BATCHED PROGRESSIVE LOADING ====
         async function loadMoviesInBatches() {
             try {
-                console.log(`🎬 Loading batch ${currentBatch + 1} of ${Math.ceil(TOTAL_MOVIES_TO_LOAD/BATCH_SIZE)}`);
+                console.log(`🎬 Loading batch ${currentBatch + 1}`);
                 
-                // Show loading indicator for batches after first
                 if (currentBatch > 0) {
                     document.getElementById('batchLoadingIndicator').classList.add('active');
                 }
                 
-                // Calculate which movies to load in this batch
                 const startIndex = currentBatch * BATCH_SIZE;
                 const endIndex = Math.min(startIndex + BATCH_SIZE, TOTAL_MOVIES_TO_LOAD);
                 
-                // Load this batch
                 for (let i = startIndex; i < endIndex; i++) {
                     if (i < allMovies.length) {
                         await loadSingleMovieProgressive(i, allMovies[i]);
@@ -1158,17 +1298,13 @@
                     }
                 }
                 
-                // Hide loading indicator
                 document.getElementById('batchLoadingIndicator').classList.remove('active');
-                
-                // Move to next batch
                 currentBatch++;
                 
-                // Schedule next batch if needed
                 if (totalMoviesLoaded < TOTAL_MOVIES_TO_LOAD && currentBatch * BATCH_SIZE < allMovies.length) {
-                    setTimeout(loadMoviesInBatches, 800); // 800ms delay between batches
+                    setTimeout(loadMoviesInBatches, 800);
                 } else {
-                    console.log(`✅ All ${totalMoviesLoaded} movies loaded successfully!`);
+                    console.log(`✅ All ${totalMoviesLoaded} movies loaded!`);
                 }
                 
             } catch (error) {
@@ -1177,7 +1313,7 @@
             }
         }
 
-        // ==== ENHANCED PROGRESSIVE LOADING FOR SINGLE MOVIE ====
+        // ==== PROGRESSIVE LOADING FOR SINGLE MOVIE ====
         async function loadSingleMovieProgressive(index, movie) {
             const movieCard = document.querySelector(`.movie-card[data-index="${index}"]`);
             if (!movieCard) return;
@@ -1186,26 +1322,23 @@
             if (!img) return;
             
             const title = movie.title || 'Unknown';
-            const cacheKey = `${title}_${movie.year || ''}`;
             
-            // Immediately show blurred placeholder
+            // Start with blurred placeholder
             img.src = FALLBACK_IMAGE;
             img.style.filter = 'blur(15px)';
             img.style.opacity = '0.8';
             
-            // Get poster URL from backend (your backend should handle the hierarchy)
+            // Get poster URL
             const posterURL = buildPosterURL(movie);
             
-            // Create a new image element to load in background
+            // Load in background
             const highQualityImg = new Image();
             
-            // Set timeout to ensure even failed loads show something
             const loadTimeout = setTimeout(() => {
                 if (!highQualityImg.complete) {
-                    console.log(`⏱️ Timeout for: ${title}, using fallback`);
                     completeProgressiveLoad(img, FALLBACK_IMAGE, title);
                 }
-            }, 5000); // 5 second timeout
+            }, 5000);
             
             highQualityImg.onload = function() {
                 clearTimeout(loadTimeout);
@@ -1214,60 +1347,50 @@
             
             highQualityImg.onerror = function() {
                 clearTimeout(loadTimeout);
-                console.warn(`❌ Failed to load poster for: ${title}`);
                 completeProgressiveLoad(img, FALLBACK_IMAGE, title);
             };
             
-            // Start loading
             highQualityImg.src = posterURL;
         }
 
         function completeProgressiveLoad(img, finalSrc, title) {
-            // Smooth transition to final image
             img.src = finalSrc;
-            
-            // Animate blur removal and opacity
             setTimeout(() => {
                 img.style.filter = 'blur(0px)';
                 img.style.opacity = '1';
             }, 100);
-            
-            console.log(`✅ Progressive load complete: ${title}`);
+            console.log(`✅ Loaded: ${title}`);
         }
 
-        // ==== POSTER URL BUILDER WITH HIERARCHY ====
+        // ==== POSTER URL BUILDER ====
         function buildPosterURL(movie) {
             const title = movie.title || '';
             const year = movie.year || '';
             
-            // If backend provides a URL, use it directly
             if (movie.poster_url && movie.poster_url.startsWith('http')) {
                 return movie.poster_url;
             }
             
-            // Build URL for your backend API
-            // Your backend should implement the source hierarchy
-            return `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}&year=${year}&sources=${posterSources.map(s => s.name).join(',')}`;
+            return `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}&year=${year}`;
         }
 
         // ==== INITIAL MOVIE LOADING ====
         async function loadHomeMovies() {
             try {
-                console.log('🎬 Loading all movies from backend...');
+                console.log('🎬 Loading all movies...');
                 const response = await fetch(`${BACKEND_URL}/api/movies`);
                 const data = await response.json();
                 
                 if (data.status === 'success' && data.movies?.length > 0) {
-                    allMovies = data.movies.slice(0, TOTAL_MOVIES_TO_LOAD); // Take first 20
-                    console.log(`📊 Loaded ${allMovies.length} movies from backend`);
+                    allMovies = data.movies.slice(0, TOTAL_MOVIES_TO_LOAD);
+                    console.log(`📊 Loaded ${allMovies.length} movies`);
                     
-                    // Display all movie cards
+                    // Display movies with minimal gap layout
                     displayHomeMovies(allMovies);
                     
-                    // Start batch loading
-                    setTimeout(loadMoviesInBatches, 500); // Small delay to show skeleton
+                    // Start progressive batch loading
+                    setTimeout(loadMoviesInBatches, 500);
                 } else {
-                    console.error('❌ No movies found in response');
                     showError();
                 }
             } catch (error) {
@@ -1276,63 +1399,15 @@
             }
         }
 
-        // ==== DISPLAY MOVIES WITH PROGRESSIVE LOADING READY ====
-        function displayHomeMovies(movies) {
-            const container = document.getElementById('homeMoviesContainer');
-            container.innerHTML = '';
-            
-            let html = '';
-            
-            movies.forEach((movie, index) => {
-                const title = movie.title || 'Unknown';
-                const isNew = movie.is_new;
-                const rating = movie.poster_rating || '0.0';
-                
-                html += `
-                    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="movie-card animate__animated animate__fadeInUp" 
-                             data-index="${index}"
-                             style="animation-delay: ${index * 0.03}s">
-                            <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}'); showSecondPopup();"></div>
-                            
-                            <div class="progressive-image-container">
-                                <img 
-                                    class="hq-poster progressive-loading" 
-                                    alt="${escapeHTML(title)}"
-                                    loading="lazy"
-                                    data-title="${escapeHTML(title)}"
-                                    data-year="${movie.year || ''}"
-                                >
-                            </div>
-                            
-                            ${isNew ? '<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>' : ''}
-                            
-                            ${rating !== '0.0' ? `
-                                <div class="rating-badge">
-                                    <i class="fas fa-star me-1"></i>${rating}
-                                </div>
-                            ` : ''}
-                            
-                            <div class="hq-info">
-                                <h6 class="hq-title">${escapeHTML(title)}</h6>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-
         // ==== ERROR HANDLING ====
         function showError() {
             const container = document.getElementById('homeMoviesContainer');
             container.innerHTML = `
-                <div class="col-12" style="text-align: center; padding: 60px;">
+                <div style="text-align: center; padding: 40px; grid-column: 1 / -1;">
                     <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
                     <h3>Error loading movies</h3>
                     <p class="text-muted mb-3">Please check if the backend server is running</p>
-                    <button onclick="location.reload()" style="background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; margin-top: 20px;">
+                    <button onclick="location.reload()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 15px; cursor: pointer; margin-top: 15px;">
                         <i class="fas fa-redo me-2"></i>Retry
                     </button>
                 </div>
@@ -1467,17 +1542,20 @@
 
         // ==== INITIALIZATION ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM v6.1 - BATCHED PROGRESSIVE LOADING INITIALIZED');
+            console.log('🚀 SK4FiLM - MINIMAL GAP LAYOUT INITIALIZED');
+            
+            // Generate initial skeleton grid
+            generateSkeletonGrid();
             
             // Set up popup event listeners
             document.getElementById('popupClose').addEventListener('click', hideFirstPopup);
             document.getElementById('popupOverlay').addEventListener('click', hideFirstPopup);
             document.getElementById('secondPopupOverlay').addEventListener('click', hideSecondPopup);
             
-            // Show first popup automatically after 3 seconds
+            // Show first popup automatically
             setTimeout(showFirstPopup, 3000);
             
-            // Load movies with batch progressive loading
+            // Load movies with minimal gap layout
             setTimeout(loadHomeMovies, 800);
             
             // Visitor counter animation
