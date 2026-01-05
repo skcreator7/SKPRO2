@@ -9,8 +9,9 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet">
     <style>
         :root {
             --primary-color: #ff0000;
@@ -19,7 +20,6 @@
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
         }
-        
         body {
             font-family: 'Josefin Sans', sans-serif;
             background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
@@ -27,13 +27,12 @@
             min-height: 100vh;
             padding-top: 80px;
         }
-        
+        /* Navbar */
         .navbar {
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(15px);
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        
         .navbar-brand {
             font-family: 'Montserrat', sans-serif;
             font-weight: 800;
@@ -45,13 +44,11 @@
             align-items: center;
             gap: 10px;
         }
-        
         .logo-img {
             height: 40px;
             width: 40px;
             border-radius: 8px;
         }
-        
         .btn-back-home {
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             border: none;
@@ -62,29 +59,27 @@
             cursor: pointer;
             transition: transform 0.3s ease;
         }
-        
         .btn-back-home:hover {
             transform: scale(1.05);
         }
         
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
         /* Video Player Container */
         .video-player-container {
-            background: rgba(0, 0, 0, 0.8);
+            background: var(--card-bg);
             border-radius: 15px;
             padding: 20px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         
-        .video-title {
-            color: var(--accent-color);
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        /* Video.js Player Customization */
+        /* Video.js Custom Styles */
         .video-js {
             width: 100%;
             height: 500px;
@@ -98,172 +93,205 @@
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            line-height: 70px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            line-height: 80px;
+            font-size: 40px;
         }
         
-        .vjs-big-play-button:hover {
-            background: var(--secondary-color);
+        .vjs-control-bar {
+            background: rgba(0, 0, 0, 0.8);
         }
         
-        /* File Info */
-        .file-info-card {
+        .vjs-play-progress {
+            background: var(--primary-color);
+        }
+        
+        /* Movie Info */
+        .movie-info {
             background: var(--card-bg);
             border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         
-        .info-title {
+        .movie-title {
             color: var(--accent-color);
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .info-label {
-            color: rgba(255,255,255,0.7);
-            font-weight: 600;
-        }
-        
-        .info-value {
-            color: white;
+            font-size: 1.8rem;
             font-weight: 700;
+            margin-bottom: 1rem;
         }
         
-        /* Quality Selection */
-        .quality-selection {
-            margin-top: 20px;
-        }
-        
-        .quality-buttons {
+        .movie-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 15px;
+            margin-bottom: 1.5rem;
         }
         
-        .quality-btn {
-            background: linear-gradient(45deg, var(--secondary-color), var(--accent-color));
-            border: none;
-            padding: 10px 20px;
-            border-radius: 10px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 100px;
-            text-align: center;
+        .meta-item {
+            background: rgba(0, 204, 255, 0.1);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
-        .quality-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0, 102, 255, 0.4);
-        }
-        
-        .quality-btn.active {
-            background: linear-gradient(45deg, var(--primary-color), #ff6b6b);
-            transform: scale(1.05);
+        .meta-item i {
+            color: var(--accent-color);
         }
         
         /* Download Section */
         .download-section {
             background: var(--card-bg);
             border-radius: 15px;
-            padding: 20px;
-            margin-top: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         
-        .download-title {
+        .section-title {
             color: var(--accent-color);
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 15px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
             gap: 10px;
         }
         
-        .download-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
+        .section-title i {
+            font-size: 1.2rem;
         }
         
-        .btn-download {
+        /* Quality Buttons */
+        .quality-buttons-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .quality-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 120px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .quality-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .quality-btn.active {
+            background: linear-gradient(135deg, #ff0000 0%, #ff6b6b 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 0, 0, 0.4);
+        }
+        
+        .quality-btn.disabled {
+            background: #495057;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .quality-btn.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* Download Options */
+        .download-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .download-btn {
             background: linear-gradient(45deg, #28a745, #20c997);
             border: none;
-            padding: 12px 25px;
-            border-radius: 10px;
             color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
             font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-            min-width: 200px;
-            text-decoration: none;
         }
         
-        .btn-download:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
-            color: white;
-            text-decoration: none;
+        .download-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
         }
         
-        .btn-direct-download {
-            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+        .download-btn.telegram {
+            background: linear-gradient(45deg, #0088cc, #00aced);
         }
         
-        .btn-telegram-download {
-            background: linear-gradient(45deg, #0088cc, #00aaff);
+        .download-btn.telegram:hover {
+            box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
+        }
+        
+        .download-btn.direct {
+            background: linear-gradient(45deg, #ff8c00, #ffa500);
+        }
+        
+        .download-btn.direct:hover {
+            box-shadow: 0 8px 25px rgba(255, 140, 0, 0.4);
         }
         
         /* Loading States */
         .loading-container {
-            text-align: center;
-            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+            background: var(--card-bg);
+            border-radius: 10px;
         }
         
         .loading-spinner {
-            width: 3rem;
-            height: 3rem;
-            border-width: 0.3rem;
-            color: var(--accent-color);
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255,255,255,0.1);
+            border-top: 5px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
         }
         
-        .loading-text {
-            margin-top: 20px;
-            color: rgba(255,255,255,0.7);
-            font-size: 1.1rem;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
         /* Error States */
         .error-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 40px;
             text-align: center;
-            padding: 50px;
-            background: rgba(255, 0, 0, 0.1);
-            border-radius: 15px;
-            border: 1px solid rgba(255, 0, 0, 0.3);
         }
         
         .error-icon {
@@ -272,49 +300,26 @@
             margin-bottom: 20px;
         }
         
-        .error-title {
-            color: #ff6b6b;
-            font-size: 1.5rem;
-            margin-bottom: 15px;
-        }
-        
-        .error-message {
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 25px;
-        }
-        
-        .btn-retry {
+        .retry-btn {
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             border: none;
             padding: 12px 30px;
             border-radius: 25px;
             color: white;
             font-weight: 600;
+            margin-top: 20px;
             cursor: pointer;
             transition: transform 0.3s ease;
         }
         
-        .btn-retry:hover {
+        .retry-btn:hover {
             transform: scale(1.05);
         }
         
-        /* Disclaimer */
-        .disclaimer {
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 30px;
+        /* Ad Container */
+        .ad-container {
+            margin: 2rem 0;
             text-align: center;
-            color: #ff6b6b;
-            font-size: 0.9rem;
-        }
-        
-        .disclaimer strong {
-            color: #ff4757;
-            display: block;
-            margin-bottom: 8px;
-            font-size: 1rem;
         }
         
         /* Mobile Optimizations */
@@ -323,17 +328,20 @@
                 height: 300px;
             }
             
-            .video-title {
+            .download-btn {
+                min-width: 100%;
+                padding: 12px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .quality-btn {
+                min-width: 100px;
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .movie-title {
                 font-size: 1.4rem;
-            }
-            
-            .download-buttons {
-                flex-direction: column;
-            }
-            
-            .btn-download {
-                width: 100%;
-                min-width: unset;
             }
         }
         
@@ -342,13 +350,18 @@
                 height: 250px;
             }
             
-            .video-title {
-                font-size: 1.2rem;
+            .download-options {
+                flex-direction: column;
             }
             
-            .info-item {
-                flex-direction: column;
-                gap: 5px;
+            .quality-buttons-row {
+                gap: 8px;
+            }
+            
+            .quality-btn {
+                min-width: 80px;
+                padding: 8px 12px;
+                font-size: 0.8rem;
             }
         }
     </style>
@@ -368,380 +381,513 @@
 </nav>
 
 <!-- Main Content -->
-<div class="container my-4">
-    <div id="loadingContainer" class="loading-container">
-        <div class="spinner-border loading-spinner" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <div class="loading-text">Loading movie information...</div>
+<div class="container main-content">
+    <!-- Top Ad -->
+    <div class="ad-container">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '567936a964b0784aedd11f237d26bee0',
+                'format' : 'iframe',
+                'height' : 250,
+                'width' : 300,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
     </div>
-    
-    <div id="errorContainer" class="error-container" style="display: none;">
-        <i class="fas fa-exclamation-triangle error-icon"></i>
-        <h3 class="error-title">Error Loading Movie</h3>
-        <p class="error-message" id="errorMessage"></p>
-        <button class="btn-retry" onclick="loadMovieInfo()">
-            <i class="fas fa-redo me-2"></i>Retry
-        </button>
-    </div>
-    
-    <div id="contentContainer" style="display: none;">
-        <!-- Top Ad -->
-        <div class="top-ad-container mb-4">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : '567936a964b0784aedd11f237d26bee0',
-                    'format' : 'iframe',
-                    'height' : 250,
-                    'width' : 300,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+
+    <!-- Video Player Container -->
+    <div class="video-player-container">
+        <div id="videoLoading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading video player...</p>
         </div>
         
-        <!-- Video Player Section -->
-        <div class="video-player-container">
-            <h1 class="video-title" id="movieTitle"></h1>
-            <div class="video-wrapper">
-                <video id="videoPlayer" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto" data-setup='{}'>
-                    <p class="vjs-no-js">
-                        To view this video please enable JavaScript, and consider upgrading to a web browser that
-                        <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-                    </p>
-                </video>
+        <div id="videoError" class="error-container" style="display: none;">
+            <i class="fas fa-exclamation-triangle error-icon"></i>
+            <h4>Video Loading Error</h4>
+            <p id="errorMessage">Unable to load the video stream.</p>
+            <button class="retry-btn" onclick="loadVideoStream()">
+                <i class="fas fa-redo me-2"></i>Retry Loading
+            </button>
+        </div>
+        
+        <video id="moviePlayer" class="video-js vjs-default-skin" controls preload="auto" style="display: none;">
+            <p class="vjs-no-js">
+                To view this video please enable JavaScript, and consider upgrading to a
+                web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+            </p>
+        </video>
+    </div>
+
+    <!-- Movie Information -->
+    <div class="movie-info">
+        <h1 class="movie-title" id="movieTitle">Loading...</h1>
+        
+        <div class="movie-meta">
+            <div class="meta-item">
+                <i class="fas fa-film"></i>
+                <span id="movieQuality">HD</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-hdd"></i>
+                <span id="movieSize">0 MB</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-clock"></i>
+                <span id="movieDuration">0 min</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span id="movieYear">2024</span>
             </div>
         </div>
         
-        <!-- File Information -->
-        <div class="file-info-card">
-            <h3 class="info-title"><i class="fas fa-info-circle"></i> File Information</h3>
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="info-label">Quality:</span>
-                    <span class="info-value" id="fileQuality"></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">File Size:</span>
-                    <span class="info-value" id="fileSize"></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Format:</span>
-                    <span class="info-value" id="fileFormat"></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Duration:</span>
-                    <span class="info-value" id="fileDuration"></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Resolution:</span>
-                    <span class="info-value" id="fileResolution"></span>
-                </div>
-            </div>
+        <div id="movieDescription">
+            <p>Loading movie information...</p>
         </div>
+    </div>
+
+    <!-- Download Section -->
+    <div class="download-section">
+        <h3 class="section-title">
+            <i class="fas fa-download"></i>Download Options
+        </h3>
         
         <!-- Quality Selection -->
-        <div class="file-info-card quality-selection">
-            <h3 class="info-title"><i class="fas fa-sliders-h"></i> Available Qualities</h3>
-            <div class="quality-buttons" id="qualityButtons">
-                <!-- Quality buttons will be inserted here -->
+        <div class="quality-selection">
+            <h4 class="section-title" style="font-size: 1.1rem;">
+                <i class="fas fa-tv"></i>Select Quality
+            </h4>
+            <div class="quality-buttons-row" id="qualityButtons">
+                <!-- Quality buttons will be added here -->
             </div>
         </div>
         
-        <!-- Download Section -->
-        <div class="download-section">
-            <h3 class="download-title"><i class="fas fa-download"></i> Download Options</h3>
-            <div class="download-buttons">
-                <a href="#" class="btn-download btn-direct-download" id="directDownloadBtn" target="_blank">
-                    <i class="fas fa-download me-2"></i>Direct Download
-                </a>
-                <a href="#" class="btn-download btn-telegram-download" id="telegramDownloadBtn" target="_blank">
-                    <i class="fab fa-telegram me-2"></i>Download via Telegram Bot
-                </a>
-            </div>
+        <!-- Download Buttons -->
+        <div class="download-options">
+            <button class="download-btn telegram" id="telegramDownload" onclick="openTelegramDownload()">
+                <i class="fab fa-telegram"></i>Download via Telegram Bot
+            </button>
+            <button class="download-btn direct" id="directDownload" onclick="openDirectDownload()">
+                <i class="fas fa-download"></i>Direct Download
+            </button>
         </div>
-        
-        <!-- Middle Ad -->
-        <div class="ad-container my-4">
-            <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
-        </div>
-        
-        <!-- Disclaimer Section -->
-        <div class="disclaimer">
-            <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
-            This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
-        </div>
+    </div>
+
+    <!-- Bottom Ad Container -->
+    <div class="ad-container">
+        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Video.js Script -->
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<!-- Video.js HLS Plugin -->
+<script src="https://cdn.jsdelivr.net/npm/videojs-contrib-hls@5.15.0/dist/videojs-contrib-hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// API endpoints
+// ✅ Configuration
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
     'https://sk4film-backup.herokuapp.com',
     'https://sk4film-alternate.onrender.com'
 ];
 
+const AD_LINK = 'https://otieu.com/4/10220520';
 const BOT_USERNAME = 'sk4filmbot';
-const FILE_CHANNEL_ID = "-1001768249569";
-
-let currentAPI = 0;
-let movieInfo = null;
-let player = null;
 
 // Get URL parameters
 const urlParams = new URLSearchParams(window.location.search);
-const channelId = urlParams.get('channel_id') || FILE_CHANNEL_ID;
-const messageId = urlParams.get('message_id');
-const quality = urlParams.get('quality') || '';
-const movieTitle = urlParams.get('title') || '';
+const fileId = urlParams.get('file_id');
+const movieTitle = decodeURIComponent(urlParams.get('title') || '');
+const quality = urlParams.get('quality') || 'HD';
 
-const loadingContainer = document.getElementById('loadingContainer');
-const errorContainer = document.getElementById('errorContainer');
-const contentContainer = document.getElementById('contentContainer');
+// Video.js player instance
+let player = null;
+let currentFileInfo = null;
+let availableQualities = [];
+
+// DOM Elements
+const videoLoading = document.getElementById('videoLoading');
+const videoError = document.getElementById('videoError');
 const errorMessage = document.getElementById('errorMessage');
-const movieTitleElement = document.getElementById('movieTitle');
-const fileQuality = document.getElementById('fileQuality');
-const fileSize = document.getElementById('fileSize');
-const fileFormat = document.getElementById('fileFormat');
-const fileDuration = document.getElementById('fileDuration');
-const fileResolution = document.getElementById('fileResolution');
+const moviePlayer = document.getElementById('moviePlayer');
+const movieTitleEl = document.getElementById('movieTitle');
+const movieQualityEl = document.getElementById('movieQuality');
+const movieSizeEl = document.getElementById('movieSize');
+const movieDurationEl = document.getElementById('movieDuration');
+const movieYearEl = document.getElementById('movieYear');
+const movieDescription = document.getElementById('movieDescription');
 const qualityButtons = document.getElementById('qualityButtons');
-const directDownloadBtn = document.getElementById('directDownloadBtn');
-const telegramDownloadBtn = document.getElementById('telegramDownloadBtn');
+const telegramDownloadBtn = document.getElementById('telegramDownload');
+const directDownloadBtn = document.getElementById('directDownload');
 
-// Initialize Video.js player
-function initVideoPlayer(streamUrl, posterUrl = '') {
-    if (player) {
-        player.dispose();
-    }
+// Initialize the page
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎬 View Page Loaded');
+    console.log('📁 File ID:', fileId);
+    console.log('🎥 Title:', movieTitle);
+    console.log('📊 Quality:', quality);
     
-    player = videojs('videoPlayer', {
-        controls: true,
-        autoplay: false,
-        preload: 'auto',
-        responsive: true,
-        fluid: true,
-        poster: posterUrl,
-        sources: [{
-            src: streamUrl,
-            type: 'video/mp4'
-        }],
-        controlBar: {
-            volumePanel: {
-                inline: false
-            },
-            children: [
-                'playToggle',
-                'volumePanel',
-                'currentTimeDisplay',
-                'timeDivider',
-                'durationDisplay',
-                'progressControl',
-                'remainingTimeDisplay',
-                'playbackRateMenuButton',
-                'chaptersButton',
-                'subtitlesButton',
-                'fullscreenToggle'
-            ]
-        }
-    });
-    
-    player.on('error', function() {
-        console.error('Video player error:', player.error());
-        showError('Error playing video. Please try another quality.');
-    });
-}
-
-// Load movie information
-async function loadMovieInfo() {
-    showLoading();
-    
-    if (!messageId && !movieTitle) {
-        showError('No movie specified. Please go back and select a movie.');
+    if (!fileId) {
+        showError('No file ID provided. Please go back and select a movie.');
         return;
     }
     
+    // Set initial title
+    movieTitleEl.textContent = movieTitle || 'Movie Player';
+    
+    // Load movie information
+    await loadMovieInfo();
+    
+    // Initialize video player
+    initializeVideoPlayer();
+});
+
+async function loadMovieInfo() {
     try {
-        const data = await fetchMovieInfo();
-        if (data && data.status === 'success') {
-            movieInfo = data.file;
-            displayMovieInfo();
-        } else {
-            showError('Movie not found or unavailable.');
+        console.log('🔍 Loading movie information...');
+        
+        // Try multiple API endpoints
+        for (const endpoint of API_ENDPOINTS) {
+            try {
+                const response = await fetch(`${endpoint}/api/stream/info/${fileId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        currentFileInfo = data;
+                        updateMovieInfo(data);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log(`❌ Endpoint ${endpoint} failed:`, error.message);
+                continue;
+            }
         }
+        
+        throw new Error('Could not load movie information from any endpoint');
+        
     } catch (error) {
-        console.error('Error loading movie:', error);
+        console.error('❌ Error loading movie info:', error);
         showError('Failed to load movie information. Please try again.');
+        
+        // Set default values
+        movieQualityEl.textContent = quality;
+        movieSizeEl.textContent = 'Unknown';
+        movieDurationEl.textContent = 'Unknown';
+        movieYearEl.textContent = 'Unknown';
+        movieDescription.innerHTML = '<p>Movie information could not be loaded.</p>';
     }
 }
 
-async function fetchMovieInfo() {
-    for (let i = 0; i < API_ENDPOINTS.length; i++) {
-        try {
-            let apiUrl;
-            if (messageId) {
-                apiUrl = `${API_ENDPOINTS[i]}/api/view?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-            } else if (movieTitle) {
-                apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(movieTitle)}&limit=1`;
+function updateMovieInfo(data) {
+    console.log('📊 Updating movie info:', data);
+    
+    // Update title if available
+    if (data.title) {
+        movieTitleEl.textContent = data.title;
+        document.title = `${data.title} - SK4FiLM`;
+    }
+    
+    // Update quality
+    movieQualityEl.textContent = data.quality || quality;
+    
+    // Update size
+    movieSizeEl.textContent = data.size_formatted || formatSize(data.file_size || 0);
+    
+    // Update duration
+    if (data.duration && data.duration > 0) {
+        const hours = Math.floor(data.duration / 3600);
+        const minutes = Math.floor((data.duration % 3600) / 60);
+        
+        if (hours > 0) {
+            movieDurationEl.textContent = `${hours}h ${minutes}m`;
+        } else {
+            movieDurationEl.textContent = `${minutes}m`;
+        }
+    }
+    
+    // Update year if available
+    if (data.year) {
+        movieYearEl.textContent = data.year;
+    }
+    
+    // Update description
+    movieDescription.innerHTML = `
+        <p><strong>File Name:</strong> ${data.file_name || 'video.mp4'}</p>
+        <p><strong>Quality:</strong> ${data.quality || 'HD'}</p>
+        <p><strong>Size:</strong> ${data.size_formatted || formatSize(data.file_size || 0)}</p>
+        ${data.duration ? `<p><strong>Duration:</strong> ${formatDuration(data.duration)}</p>` : ''}
+        ${data.thumbnail_url ? `<p><strong>Thumbnail Available:</strong> Yes</p>` : ''}
+    `;
+    
+    // Check streaming availability
+    if (data.streaming_enabled && data.stream_url) {
+        console.log('✅ Streaming available');
+        document.getElementById('videoLoading').style.display = 'none';
+        loadVideoStream(data.stream_url);
+    } else {
+        console.log('❌ Streaming not available');
+        showError('Streaming is not available for this file. Please use download options.');
+        directDownloadBtn.disabled = false;
+    }
+    
+    // Generate quality buttons
+    generateQualityButtons(data);
+}
+
+function initializeVideoPlayer() {
+    try {
+        player = videojs('moviePlayer', {
+            controls: true,
+            autoplay: false,
+            preload: 'auto',
+            fluid: true,
+            responsive: true,
+            playbackRates: [0.5, 1, 1.5, 2],
+            controlBar: {
+                children: [
+                    'playToggle',
+                    'volumePanel',
+                    'currentTimeDisplay',
+                    'timeDivider',
+                    'durationDisplay',
+                    'progressControl',
+                    'liveDisplay',
+                    'remainingTimeDisplay',
+                    'customControlSpacer',
+                    'playbackRateMenuButton',
+                    'chaptersButton',
+                    'descriptionsButton',
+                    'subsCapsButton',
+                    'audioTrackButton',
+                    'fullscreenToggle'
+                ]
+            }
+        });
+        
+        // Handle player errors
+        player.on('error', function() {
+            const error = player.error();
+            console.error('Video.js Error:', error);
+            
+            if (error && error.code === 4) {
+                showError('Video format not supported. Please try downloading instead.');
+            } else {
+                showError('Video playback error. Please try again or use download options.');
+            }
+        });
+        
+        // Handle player ready
+        player.on('ready', function() {
+            console.log('✅ Video.js player ready');
+        });
+        
+    } catch (error) {
+        console.error('❌ Video.js initialization error:', error);
+        showError('Video player initialization failed. Please try downloading instead.');
+    }
+}
+
+async function loadVideoStream(streamUrl = null) {
+    try {
+        videoLoading.style.display = 'flex';
+        videoError.style.display = 'none';
+        moviePlayer.style.display = 'none';
+        
+        // If no stream URL provided, try to get one
+        if (!streamUrl) {
+            if (!currentFileInfo || !currentFileInfo.streaming_enabled) {
+                throw new Error('Streaming not available for this file');
             }
             
-            console.log(`Fetching from API ${i}: ${apiUrl}`);
+            streamUrl = currentFileInfo.stream_url;
             
-            const response = await fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                signal: AbortSignal.timeout(10000)
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                currentAPI = i;
-                
-                if (data.status === 'success') {
-                    if (movieTitle && data.results && data.results.length > 0) {
-                        // For search results, get the first result
-                        const result = data.results[0];
-                        if (result.quality_options && Object.keys(result.quality_options).length > 0) {
-                            const firstQuality = Object.keys(result.quality_options)[0];
-                            const qualityData = result.quality_options[firstQuality];
-                            
-                            return {
-                                status: 'success',
-                                file: {
-                                    title: result.title,
-                                    quality: firstQuality,
-                                    file_size: qualityData.file_size || 0,
-                                    is_video_file: true,
-                                    channel_id: qualityData.channel_id,
-                                    message_id: qualityData.message_id,
-                                    telegram_file_id: qualityData.telegram_file_id,
-                                    available_qualities: data.available_qualities || []
-                                }
-                            };
+            if (!streamUrl) {
+                // Try to get stream URL from API
+                for (const endpoint of API_ENDPOINTS) {
+                    try {
+                        const response = await fetch(`${endpoint}/api/stream/url/${fileId}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.status === 'success' && data.stream_url) {
+                                streamUrl = data.stream_url;
+                                break;
+                            }
                         }
+                    } catch (error) {
+                        console.log(`❌ Stream URL from ${endpoint} failed:`, error.message);
+                        continue;
                     }
-                    return data;
                 }
             }
-        } catch (error) {
-            console.log(`API ${i} error:`, error.message);
-            continue;
         }
+        
+        if (!streamUrl) {
+            throw new Error('Could not get streaming URL');
+        }
+        
+        console.log('🎬 Loading stream URL:', streamUrl);
+        
+        // Set video source
+        player.src({
+            src: streamUrl,
+            type: 'application/x-mpegURL' // HLS stream
+        });
+        
+        // Load and play
+        player.load();
+        player.play();
+        
+        // Show player
+        videoLoading.style.display = 'none';
+        moviePlayer.style.display = 'block';
+        
+        console.log('✅ Video stream loaded successfully');
+        
+    } catch (error) {
+        console.error('❌ Error loading video stream:', error);
+        showError('Failed to load video stream. Please try downloading instead.');
     }
-    
-    return null;
 }
 
-function displayMovieInfo() {
-    if (!movieInfo) return;
-    
-    // Update UI elements
-    movieTitleElement.textContent = movieInfo.title || 'Unknown Movie';
-    fileQuality.textContent = movieInfo.quality || 'Unknown';
-    fileSize.textContent = movieInfo.file_size_formatted || formatSize(movieInfo.file_size || 0);
-    fileFormat.textContent = movieInfo.mime_type || 'Video File';
-    fileDuration.textContent = movieInfo.duration ? formatDuration(movieInfo.duration) : 'Unknown';
-    fileResolution.textContent = movieInfo.width && movieInfo.height ? 
-        `${movieInfo.width}×${movieInfo.height}` : 'Unknown';
-    
-    // Setup quality buttons
-    setupQualityButtons();
-    
-    // Setup download buttons
-    setupDownloadButtons();
-    
-    // Initialize video player if streaming URL is available
-    if (movieInfo.streaming_url) {
-        initVideoPlayer(movieInfo.streaming_url);
-    } else if (movieInfo.telegram_file_id) {
-        // Generate streaming URL
-        const streamUrl = `/api/stream?channel_id=${movieInfo.channel_id}&message_id=${movieInfo.message_id}`;
-        initVideoPlayer(streamUrl);
-    }
-    
-    // Show content and hide loading
-    showContent();
-}
-
-function setupQualityButtons() {
+function generateQualityButtons(data) {
     qualityButtons.innerHTML = '';
     
-    const qualities = movieInfo.available_qualities || [];
-    const currentQuality = movieInfo.quality || '';
+    // Default quality from current file
+    const currentQuality = data.quality || quality;
     
-    if (qualities.length === 0) {
-        qualityButtons.innerHTML = '<p class="text-muted">No other qualities available</p>';
-        return;
-    }
-    
-    qualities.forEach(q => {
-        const isActive = q === currentQuality;
+    // If we have multiple qualities in the search results
+    if (data.available_qualities && Array.isArray(data.available_qualities) && data.available_qualities.length > 1) {
+        availableQualities = data.available_qualities;
+        
+        availableQualities.forEach(q => {
+            const button = document.createElement('button');
+            button.className = `quality-btn ${q === currentQuality ? 'active' : ''}`;
+            button.textContent = q;
+            button.onclick = () => switchQuality(q);
+            qualityButtons.appendChild(button);
+        });
+    } else {
+        // Single quality button
         const button = document.createElement('button');
-        button.className = `quality-btn ${isActive ? 'active' : ''}`;
-        button.textContent = q;
-        button.onclick = () => switchQuality(q);
+        button.className = 'quality-btn active';
+        button.textContent = currentQuality;
+        button.disabled = true;
         qualityButtons.appendChild(button);
-    });
-}
-
-function setupDownloadButtons() {
-    // Direct download button
-    if (movieInfo.telegram_file_id) {
-        const directUrl = `https://api.telegram.org/file/bot${getBotToken()}/${movieInfo.telegram_file_id}`;
-        directDownloadBtn.href = directUrl;
-        directDownloadBtn.onclick = (e) => {
-            e.preventDefault();
-            window.open(directUrl, '_blank');
-        };
-    } else {
-        directDownloadBtn.href = '#';
-        directDownloadBtn.onclick = (e) => {
-            e.preventDefault();
-            alert('Direct download not available for this file.');
-        };
-    }
-    
-    // Telegram bot download button
-    if (movieInfo.channel_id && movieInfo.message_id) {
-        const fileId = `${movieInfo.channel_id}_${movieInfo.message_id}_${movieInfo.quality?.toLowerCase().replace(/\s+/g, '_') || 'hd'}`;
-        const telegramUrl = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-        telegramDownloadBtn.href = telegramUrl;
-    } else {
-        telegramDownloadBtn.href = `https://t.me/${BOT_USERNAME}`;
     }
 }
 
 async function switchQuality(newQuality) {
-    showLoading();
+    console.log('🔄 Switching to quality:', newQuality);
     
-    try {
-        const apiUrl = `${API_ENDPOINTS[currentAPI]}/api/view?channel_id=${channelId}&message_id=${messageId}&quality=${newQuality}`;
-        const response = await fetch(apiUrl);
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.status === 'success') {
-                movieInfo = data.file;
-                displayMovieInfo();
-            } else {
-                showError('Failed to switch quality.');
-            }
-        } else {
-            showError('Failed to switch quality.');
+    // Update active button
+    document.querySelectorAll('.quality-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent === newQuality) {
+            btn.classList.add('active');
         }
+    });
+    
+    // Update quality display
+    movieQualityEl.textContent = newQuality;
+    
+    // Try to get new stream URL for this quality
+    try {
+        for (const endpoint of API_ENDPOINTS) {
+            try {
+                const response = await fetch(`${endpoint}/api/stream/url/${fileId}?quality=${encodeURIComponent(newQuality)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'success' && data.stream_url) {
+                        // Reload stream with new quality
+                        loadVideoStream(data.stream_url);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log(`❌ Quality switch from ${endpoint} failed:`, error.message);
+                continue;
+            }
+        }
+        
+        showError('Could not switch quality. Please try the current quality or download instead.');
+        
     } catch (error) {
-        console.error('Error switching quality:', error);
-        showError('Failed to switch quality.');
+        console.error('❌ Error switching quality:', error);
+        showError('Failed to switch quality. Please try again.');
     }
 }
 
-// Helper functions
+function openTelegramDownload() {
+    if (!currentFileInfo) {
+        alert('Movie information not loaded yet. Please wait.');
+        return;
+    }
+    
+    const botUsername = currentFileInfo.bot_username || BOT_USERNAME;
+    const telegramUrl = currentFileInfo.telegram_bot_url || `https://t.me/${botUsername}?start=${fileId}`;
+    
+    console.log('🤖 Opening Telegram bot:', telegramUrl);
+    window.open(telegramUrl, '_blank');
+}
+
+async function openDirectDownload() {
+    if (!currentFileInfo) {
+        alert('Movie information not loaded yet. Please wait.');
+        return;
+    }
+    
+    try {
+        // Try to get direct download URL
+        for (const endpoint of API_ENDPOINTS) {
+            try {
+                const response = await fetch(`${endpoint}/api/download/info/${fileId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'success' && data.download_info) {
+                        const downloadInfo = data.download_info;
+                        
+                        // Check if we have a direct URL
+                        if (downloadInfo.direct_url) {
+                            window.open(downloadInfo.direct_url, '_blank');
+                        } else if (downloadInfo.telegram_bot_url) {
+                            window.open(downloadInfo.telegram_bot_url, '_blank');
+                        } else {
+                            // Fallback to Telegram bot
+                            const botUsername = currentFileInfo.bot_username || BOT_USERNAME;
+                            window.open(`https://t.me/${botUsername}?start=${fileId}`, '_blank');
+                        }
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log(`❌ Direct download from ${endpoint} failed:`, error.message);
+                continue;
+            }
+        }
+        
+        // Fallback to Telegram bot
+        const botUsername = currentFileInfo.bot_username || BOT_USERNAME;
+        window.open(`https://t.me/${botUsername}?start=${fileId}`, '_blank');
+        
+    } catch (error) {
+        console.error('❌ Error getting download URL:', error);
+        alert('Could not get download URL. Please try the Telegram bot.');
+    }
+}
+
+function showError(message) {
+    errorMessage.textContent = message;
+    videoLoading.style.display = 'none';
+    moviePlayer.style.display = 'none';
+    videoError.style.display = 'flex';
+}
+
 function formatSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -751,7 +897,8 @@ function formatSize(bytes) {
 }
 
 function formatDuration(seconds) {
-    if (!seconds) return 'Unknown';
+    if (!seconds || seconds === 0) return '0m';
+    
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
@@ -765,55 +912,27 @@ function formatDuration(seconds) {
     }
 }
 
-function getBotToken() {
-    // This should be handled server-side for security
-    // For now, we'll use a placeholder
-    return 'YOUR_BOT_TOKEN';
-}
-
-// UI state functions
-function showLoading() {
-    loadingContainer.style.display = 'block';
-    errorContainer.style.display = 'none';
-    contentContainer.style.display = 'none';
-}
-
-function showContent() {
-    loadingContainer.style.display = 'none';
-    errorContainer.style.display = 'none';
-    contentContainer.style.display = 'block';
-}
-
-function showError(message) {
-    loadingContainer.style.display = 'none';
-    errorContainer.style.display = 'block';
-    contentContainer.style.display = 'none';
-    errorMessage.textContent = message;
-}
-
-// Initialize page
-window.addEventListener('DOMContentLoaded', () => {
-    loadMovieInfo();
+// Handle page visibility changes
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Page is hidden, pause video
+        if (player && !player.paused()) {
+            player.pause();
+        }
+    }
 });
 
-// Handle player cleanup on page unload
-window.addEventListener('beforeunload', () => {
+// Clean up on page unload
+window.addEventListener('beforeunload', function() {
     if (player) {
         player.dispose();
     }
 });
 
-// Add timeout to fetch (polyfill for older browsers)
-if (!AbortSignal.timeout) {
-    AbortSignal.timeout = function(ms) {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), ms);
-        return controller.signal;
-    };
-}
-
-console.log("✅ SK4FiLM View Page Loaded");
-console.log(`🔧 Parameters: Channel: ${channelId}, Message: ${messageId}, Quality: ${quality}`);
+// Debug info
+console.log('✅ SK4FiLM View Page Loaded');
+console.log('🎯 Features: Video.js Player + Quality Selection + Download Options');
+console.log('📱 Open browser console (F12) for debugging');
 </script>
 </body>
 </html>
