@@ -2,739 +2,2143 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Search Movies - SK4FiLM</title>
+    <meta name="description" content="Search and download latest movies in HD quality">
+    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         :root {
-            --primary: #ff3366;
-            --secondary: #8b5cf6;
-            --dark: #0f172a;
-            --darker: #020617;
-            --card-bg: rgba(15, 23, 42, 0.8);
-            --text: #e2e8f0;
-            --text-dim: #94a3b8;
+            --primary-color: #ff0000;
+            --secondary-color: #0066ff;
+            --accent-color: #00ccff;
+            --bg-dark: #0a0a0f;
+            --card-bg: rgba(30, 41, 59, 0.9);
         }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-            background-attachment: fixed;
-            color: var(--text);
+            font-family: 'Josefin Sans', sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #f8f9fa;
             min-height: 100vh;
-            overflow-x: hidden;
+            padding-top: 80px;
         }
-
-        .background-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 80%, rgba(255, 51, 102, 0.1) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: 0;
+        /* Navbar */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header {
-            text-align: center;
-            padding: 40px 0;
-            animation: fadeInDown 0.6s ease-out;
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .header h1 {
-            font-size: clamp(2rem, 5vw, 3.5rem);
-            font-weight: 900;
-            background: linear-gradient(135deg, #fff 0%, #e2e8f0 100%);
+        .navbar-brand {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 10px;
-            letter-spacing: -1px;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            color: rgba(255, 255, 255, 0.8);
-            font-weight: 300;
-        }
-
-        .search-container {
-            max-width: 700px;
-            margin: 0 auto 40px;
-            animation: fadeIn 0.8s ease-out 0.2s both;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .search-box {
-            position: relative;
             display: flex;
             align-items: center;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border-radius: 50px;
-            padding: 8px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
+            gap: 10px;
         }
-
-        .search-box:focus-within {
-            border-color: var(--primary);
-            box-shadow: 0 8px 32px rgba(255, 51, 102, 0.3);
+        .logo-img {
+            height: 40px;
+            width: 40px;
+            border-radius: 8px;
         }
-
-        .search-icon {
-            padding: 0 20px;
-            font-size: 1.3rem;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .search-input {
-            flex: 1;
-            background: transparent;
+        .btn-back-home {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             border: none;
-            outline: none;
-            padding: 15px 10px;
-            font-size: 1rem;
-            color: #fff;
-            font-weight: 400;
-        }
-
-        .search-input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .search-btn {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            border: none;
-            border-radius: 50px;
-            padding: 15px 35px;
-            color: #fff;
+            padding: 8px 20px;
             font-weight: 600;
-            font-size: 1rem;
+            border-radius: 20px;
+            color: white;
             cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .btn-back-home:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Search Bar */
+        .search-container {
+            margin: 2rem 0;
+            position: relative;
+        }
+        .search-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50px;
+            padding: 12px 25px;
+            color: white;
+            font-size: 1.1rem;
+            width: 100%;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(255, 51, 102, 0.3);
         }
-
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.2);
+        }
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 50px;
+            width: 50px;
+            height: 50px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
         .search-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 51, 102, 0.4);
+            transform: scale(1.05);
         }
-
-        .search-btn:active {
-            transform: translateY(0);
-        }
-
-        .results-info {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
+        
+        .result-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
             border-radius: 15px;
-            padding: 15px 25px;
-            margin-bottom: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        }
+        .result-title {
+            color: var(--accent-color);
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+        
+        /* Result Structure */
+        .result-thumbnail-top {
+            margin-bottom: 1.5rem;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            height: 250px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        
+        /* IMPROVED: Post Content Styling */
+        .result-post-content {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.2rem;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Post Content Text Styling */
+        .post-content-text {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        /* Post Content Scrollbar */
+        .post-content-text::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .post-content-text::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+        
+        .post-content-text::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 3px;
+        }
+        
+        /* Post Content Links - IMPROVED */
+        .post-content-text a {
+            color: #00ccff;
+            text-decoration: none;
+            font-weight: 600;
+            background: rgba(0, 204, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            transition: all 0.3s ease;
             display: inline-block;
-            animation: slideInLeft 0.5s ease-out;
+            margin: 2px 0;
         }
-
-        @keyframes slideInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+        
+        .post-content-text a:hover {
+            background: rgba(0, 204, 255, 0.2);
+            color: #80e1ff;
+            text-decoration: none;
+            border-color: rgba(0, 204, 255, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0, 204, 255, 0.2);
         }
-
-        .results-info strong {
-            color: var(--primary);
+        
+        /* Telegram Links Styling */
+        .post-content-text a[href*="t.me"],
+        .post-content-text a[href*="telegram"] {
+            color: #0088cc;
+            background: rgba(0, 136, 204, 0.1);
+            border: 1px solid rgba(0, 136, 204, 0.3);
+        }
+        
+        .post-content-text a[href*="t.me"]:hover,
+        .post-content-text a[href*="telegram"]:hover {
+            background: rgba(0, 136, 204, 0.2);
+            color: #33aadd;
+            border-color: rgba(0, 136, 204, 0.5);
+        }
+        
+        /* Bold Text in Post Content */
+        .post-content-text strong,
+        .post-content-text b {
+            color: #ffffff;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        
+        /* Italic Text */
+        .post-content-text em,
+        .post-content-text i {
+            color: #cbd5e1;
+            font-style: italic;
+        }
+        
+        /* Headers in Post Content */
+        .post-content-text h1,
+        .post-content-text h2,
+        .post-content-text h3,
+        .post-content-text h4 {
+            color: var(--accent-color);
+            margin: 15px 0 10px 0;
             font-weight: 700;
         }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
+        
+        /* Lists in Post Content */
+        .post-content-text ul,
+        .post-content-text ol {
+            padding-left: 20px;
+            margin: 10px 0;
         }
-
-        .movie-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-            position: relative;
-            animation: fadeInUp 0.6s ease-out both;
+        
+        .post-content-text li {
+            margin: 5px 0;
         }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        
+        /* Code/Pre tags */
+        .post-content-text pre,
+        .post-content-text code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-x: auto;
         }
-
-        .movie-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            border-color: rgba(255, 51, 102, 0.3);
+        
+        /* Blockquotes */
+        .post-content-text blockquote {
+            border-left: 4px solid var(--accent-color);
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #94a3b8;
+            font-style: italic;
         }
-
-        .movie-poster {
+        
+        /* Horizontal Rule */
+        .post-content-text hr {
+            border: none;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 20px 0;
+        }
+        
+        /* Images in Post Content */
+        .post-content-text img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Video in Post Content */
+        .post-content-text video {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Tags/Hashtags */
+        .post-content-text .hashtag {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin: 0 2px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        /* Mentions */
+        .post-content-text .mention {
+            color: #ff6b9d;
+            background: rgba(255, 107, 157, 0.1);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin: 0 2px;
+            border: 1px solid rgba(255, 107, 157, 0.3);
+        }
+        
+        .result-download-section {
+            margin-top: 1rem;
+        }
+        
+        /* Thumbnail Container */
+        .thumbnail-container {
             position: relative;
             width: 100%;
-            height: 400px;
-            overflow: hidden;
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(255, 51, 102, 0.1) 100%);
+            height: 100%;
         }
-
-        .movie-poster img {
+        .thumbnail-container img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.4s ease;
+            transition: transform 0.3s ease;
         }
-
-        .movie-card:hover .movie-poster img {
-            transform: scale(1.1);
+        .thumbnail-container:hover img {
+            transform: scale(1.05);
         }
-
-        .movie-poster-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 4rem;
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(255, 51, 102, 0.2) 100%);
-        }
-
-        .movie-overlay {
+        .play-overlay {
             position: absolute;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             opacity: 0;
             transition: opacity 0.3s ease;
         }
-
-        .movie-card:hover .movie-overlay {
+        .thumbnail-container:hover .play-overlay {
             opacity: 1;
         }
-
-        .movie-badge {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            z-index: 2;
+        .play-button {
+            width: 70px;
+            height: 70px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            transition: transform 0.3s ease;
+            border: 3px solid white;
         }
-
-        .movie-info {
+        .play-button:hover {
+            transform: scale(1.1);
+            background: var(--secondary-color);
+        }
+        
+        /* Thumbnail Loading States */
+        .thumbnail-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            height: 100%;
+        }
+        .thumbnail-loading .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            border-width: 0.2em;
+        }
+        
+        /* Default Thumbnail */
+        .default-thumbnail {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
             padding: 20px;
         }
-
-        .movie-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 8px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            line-height: 1.4;
+        .default-thumbnail i {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.8;
         }
-
-        .movie-meta {
+        .default-thumbnail span {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        /* Action Buttons Container */
+        .action-buttons-container {
             display: flex;
-            align-items: center;
             gap: 12px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
+            margin-top: 1rem;
         }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.9rem;
-            color: var(--text-dim);
-        }
-
-        .rating {
-            color: #fbbf24;
-            font-weight: 600;
-        }
-
-        .qualities {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .quality-tag {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(255, 51, 102, 0.3) 100%);
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .movie-description {
-            font-size: 0.9rem;
-            color: var(--text-dim);
-            line-height: 1.6;
-            margin-bottom: 15px;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .movie-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 12px 20px;
-            border-radius: 12px;
+        
+        /* Stream Now Button */
+        .btn-stream-now {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: white;
             border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
             font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
+            font-size: 1rem;
             transition: all 0.3s ease;
-            text-decoration: none;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            flex: 1;
+            min-width: 140px;
         }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(255, 51, 102, 0.3);
+        
+        .btn-stream-now:hover:not(:disabled) {
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(255, 65, 108, 0.35);
+            color: white;
         }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 51, 102, 0.4);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .btn-disabled {
-            background: rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.3);
+        
+        .btn-stream-now:disabled {
+            background: #495057 !important;
+            opacity: 0.6;
             cursor: not-allowed;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform: none !important;
         }
-
-        .loading {
-            text-align: center;
-            padding: 80px 20px;
-        }
-
-        .spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .no-results {
-            text-align: center;
-            padding: 80px 20px;
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .no-results-icon {
-            font-size: 5rem;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-
-        .no-results h2 {
-            font-size: 2rem;
-            margin-bottom: 15px;
-            color: #fff;
-        }
-
-        .no-results p {
-            font-size: 1.1rem;
-            color: var(--text-dim);
-        }
-
-        .error-message {
-            background: rgba(239, 68, 68, 0.2);
-            border: 2px solid rgba(239, 68, 68, 0.4);
-            padding: 15px 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+        
+        /* Download Button */
+        .btn-download-main {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 12px;
-            animation: shake 0.5s ease;
+            justify-content: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 140px;
         }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
+        
+        .btn-download-main:hover:not(:disabled) {
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35);
+            color: white;
         }
-
-        .error-icon {
-            font-size: 1.5rem;
+        
+        .btn-download-main:disabled {
+            background: #495057 !important;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
         }
-
+        
+        /* Quality Dropdown */
+        .quality-dropdown {
+            display: none;
+            background: rgba(20, 30, 48, 0.98);
+            border: 2px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+            animation: slideDown 0.3s ease;
+        }
+        .quality-dropdown.show {
+            display: block;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Quality Buttons Row - ALWAYS HORIZONTAL WITH WRAP */
+        .quality-buttons-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-start;
+            align-items: stretch;
+            width: 100%;
+        }
+        
+        /* Premium Quality Option Buttons */
+        .quality-option {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 20px;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            white-space: nowrap;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            cursor: pointer;
+            min-width: 110px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+            flex: 0 0 auto;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Stream Quality Button */
+        .quality-option.stream-btn {
+            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+            border: 1px solid rgba(255, 107, 107, 0.5);
+        }
+        
+        /* Download Quality Button */
+        .quality-option.download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+        }
+        
+        /* Premium Gradient Colors for Each Quality */
+        .quality-option[data-quality*="2160p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+            border: 1px solid rgba(255, 107, 107, 0.5);
+        }
+        
+        .quality-option[data-quality*="2160p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #FF8008 0%, #FFC837 100%);
+            border: 1px solid rgba(255, 168, 38, 0.5);
+        }
+        
+        .quality-option[data-quality*="1080p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+            border: 1px solid rgba(86, 210, 189, 0.5);
+        }
+        
+        .quality-option[data-quality*="1080p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            border: 1px solid rgba(109, 213, 237, 0.5);
+        }
+        
+        .quality-option[data-quality*="720p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
+            border: 1px solid rgba(142, 45, 226, 0.5);
+        }
+        
+        .quality-option[data-quality*="720p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+        }
+        
+        .quality-option[data-quality*="480p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #FF5E62 0%, #FF9966 100%);
+            border: 1px solid rgba(255, 94, 98, 0.5);
+        }
+        
+        .quality-option[data-quality*="480p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #FF6B9D 0%, #FF8E53 100%);
+            border: 1px solid rgba(255, 107, 157, 0.5);
+        }
+        
+        .quality-option[data-quality*="360p"] {
+            background: linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%);
+            border: 1px solid rgba(91, 134, 229, 0.5);
+        }
+        
+        .quality-option[data-quality*="240p"] {
+            background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
+            border: 1px solid rgba(120, 255, 214, 0.5);
+            color: #333;
+        }
+        
+        .quality-option[data-quality*="HD"] {
+            background: linear-gradient(135deg, #FFE53B 0%, #FF2525 100%);
+            border: 1px solid rgba(255, 229, 59, 0.5);
+            color: #333;
+        }
+        
+        .quality-option[data-quality*="SD"] {
+            background: linear-gradient(135deg, #f46b45 0%, #eea849 100%);
+            border: 1px solid rgba(238, 168, 73, 0.5);
+        }
+        
+        .quality-option[data-quality*="HQ"] {
+            background: linear-gradient(135deg, #FFAFBD 0%, #ffc3a0 100%);
+            border: 1px solid rgba(255, 175, 189, 0.5);
+            color: #333;
+        }
+        
+        .quality-option[data-quality*="LQ"] {
+            background: linear-gradient(135deg, #CCCCCC 0%, #999999 100%);
+            border: 1px solid rgba(153, 153, 153, 0.5);
+            color: #333;
+        }
+        
+        /* Default gradient for other qualities */
+        .quality-option:not([data-quality]) {
+            background: linear-gradient(135deg, #9CECFB 0%, #65C7F7 50%, #0052D4 100%);
+            border: 1px solid rgba(101, 199, 247, 0.5);
+        }
+        
+        /* Premium Hover Effects */
+        .quality-option:hover {
+            transform: translateY(-5px) scale(1.03);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4);
+            text-decoration: none;
+            color: white;
+        }
+        
+        .quality-option:active {
+            transform: translateY(-2px) scale(1.01);
+            transition: transform 0.1s ease;
+        }
+        
+        /* Video File Badge */
+        .video-file-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
+        }
+        
+        /* Thumbnail Source Badge */
+        .thumbnail-source-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            z-index: 2;
+        }
+        
+        /* Pagination & State */
+        .pagination {
+            margin-top: 2rem;
+        }
+        .page-link {
+            background: rgba(0,204,255,0.2);
+            color: var(--accent-color);
+            border: 2px solid var(--accent-color);
+        }
+        .page-link:hover, .page-item.active .page-link {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            color: #0a0a0f;
+        }
+        .page-item.disabled .page-link {
+            opacity: 0.4;
+        }
+        .results-info {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--accent-color);
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Loading Skeleton */
+        .skeleton-loader {
+            background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-thumbnail {
+            height: 250px;
+            width: 100%;
+        }
+        .skeleton-title {
+            height: 24px;
+            width: 70%;
+        }
+        .skeleton-post {
+            height: 100px;
+            width: 100%;
+        }
+        .skeleton-button {
+            height: 45px;
+            width: 100%;
+        }
+        
+        /* Error States */
+        .error-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: rgba(255, 0, 0, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        .error-state i {
+            font-size: 3rem;
+            color: #ff4757;
+            margin-bottom: 1rem;
+        }
+        .retry-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+            margin-top: 1rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .retry-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Ad Container */
+        .ad-container {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        .top-ad-container {
+            margin: 1rem 0 2rem 0;
+            text-align: center;
+        }
+        
+        /* Disclaimer Styles */
+        .disclaimer {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 2rem;
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        .disclaimer strong {
+            color: #ff4757;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        /* Mobile Optimizations */
         @media (max-width: 768px) {
-            .container {
-                padding: 15px;
+            .result-thumbnail-top {
+                height: 200px;
             }
-
-            .header {
-                padding: 30px 0;
+            
+            .action-buttons-container {
+                flex-direction: column;
+                gap: 10px;
             }
-
-            .results-grid {
-                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-                gap: 20px;
-            }
-
-            .search-btn {
-                padding: 15px 25px;
+            
+            .btn-stream-now,
+            .btn-download-main {
+                width: 100%;
+                min-width: auto;
+                padding: 12px 16px;
                 font-size: 0.9rem;
             }
-
-            .movie-actions {
-                flex-direction: column;
+            
+            .play-button {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
             }
-
-            .btn {
-                width: 100%;
+            
+            .quality-buttons-row {
+                gap: 8px;
+            }
+            
+            .quality-option {
+                min-width: 100px;
+                padding: 12px 15px;
+                font-size: 0.9rem;
+                flex: 0 0 auto;
+            }
+            
+            .post-content-text {
+                font-size: 0.95rem;
+                max-height: 250px;
             }
         }
-
-        @media (max-width: 480px) {
-            .results-grid {
-                grid-template-columns: 1fr;
+        
+        @media (max-width: 576px) {
+            .result-thumbnail-top {
+                height: 180px;
             }
-
-            .movie-poster {
-                height: 350px;
+            
+            .btn-stream-now,
+            .btn-download-main {
+                font-size: 0.85rem;
+                padding: 10px 12px;
             }
+            
+            .quality-buttons-row {
+                gap: 6px;
+            }
+            
+            .quality-option {
+                min-width: 90px;
+                padding: 10px 12px;
+                font-size: 0.85rem;
+            }
+            
+            .post-content-text {
+                font-size: 0.9rem;
+                max-height: 200px;
+            }
+            
+            .result-post-content {
+                padding: 1rem;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .result-thumbnail-top {
+                height: 150px;
+            }
+            
+            .btn-stream-now,
+            .btn-download-main {
+                font-size: 0.8rem;
+                padding: 10px 8px;
+            }
+            
+            .quality-buttons-row {
+                gap: 5px;
+            }
+            
+            .quality-option {
+                min-width: 85px;
+                padding: 8px 10px;
+                font-size: 0.8rem;
+            }
+            
+            .post-content-text {
+                font-size: 0.85rem;
+                max-height: 180px;
+            }
+            
+            .result-post-content {
+                padding: 0.8rem;
+            }
+        }
+        
+        /* For tablets and larger phones */
+        @media (min-width: 577px) and (max-width: 768px) {
+            .quality-option {
+                min-width: 100px;
+            }
+        }
+        
+        /* For desktop */
+        @media (min-width: 769px) {
+            .quality-buttons-row {
+                gap: 12px;
+            }
+            
+            .quality-option {
+                min-width: 110px;
+                padding: 15px 20px;
+            }
+        }
+        
+        /* For large desktop screens */
+        @media (min-width: 993px) {
+            .quality-buttons-row {
+                gap: 15px;
+            }
+            
+            .quality-option {
+                min-width: 120px;
+            }
+        }
+        
+        /* When there are very few buttons (1-3), center them */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)),
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)),
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(3)) {
+            justify-content: center;
+        }
+        
+        /* For 1-2 buttons, make them larger */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option,
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)) .quality-option {
+            min-width: 150px;
+        }
+        
+        /* For 1 button only, make it extra large */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option {
+            min-width: 200px;
         }
     </style>
 </head>
 <body>
-    <div class="background-overlay"></div>
-    
-    <div class="container">
-        <div class="header">
-            <h1>🎬 SK4FiLM Search</h1>
-            <p>Discover unlimited movies and shows</p>
-        </div>
+<!-- Navbar -->
+<nav class="navbar fixed-top">
+    <div class="container d-flex align-items-center justify-content-between">
+        <a href="index.html" class="navbar-brand">
+            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+            SK4FiLM
+        </a>
+        <button class="btn-back-home" onclick="window.location.href='index.html'">
+            <i class="fas fa-arrow-left me-2"></i>Back Home
+        </button>
+    </div>
+</nav>
 
-        <div class="search-container">
-            <div class="search-box">
-                <span class="search-icon">🔍</span>
-                <input 
-                    type="text" 
-                    class="search-input" 
-                    id="searchInput"
-                    placeholder="Search for movies, shows, or keywords..."
-                    autocomplete="off"
-                >
-                <button class="search-btn" onclick="performSearch()">Search</button>
-            </div>
-        </div>
-
-        <div id="resultsInfo" class="results-info" style="display: none;">
-            <strong>Found:</strong> <span id="resultCount">0</span> results for "<span id="searchQuery"></span>"
-        </div>
-
-        <div id="errorMessage" style="display: none;"></div>
-
-        <div id="loadingSpinner" class="loading" style="display: none;">
-            <div class="spinner"></div>
-            <p style="font-size: 1.1rem; color: var(--text-dim);">Searching for amazing content...</p>
-        </div>
-
-        <div id="resultsContainer" class="results-grid"></div>
-
-        <div id="noResults" class="no-results" style="display: none;">
-            <div class="no-results-icon">🎭</div>
-            <h2>No Results Found</h2>
-            <p>Try different keywords or check your spelling</p>
-        </div>
+<!-- Main Content -->
+<div class="container my-4">
+    <!-- Top Ad -->
+    <div class="top-ad-container">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '567936a964b0784aedd11f237d26bee0',
+                'format' : 'iframe',
+                'height' : 250,
+                'width' : 300,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
     </div>
 
-    <script>
-        const API_BASE = window.location.origin;
-        const VIEW_PAGE = 'view.html';
+    <!-- Search Bar -->
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search for movies..." value="">
+        <button class="search-btn" id="searchButton">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
 
-        function getQueryFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('q') || '';
+    <div id="resultsInfo"></div>
+    <div id="resultsContainer"></div>
+    <div id="paginationContainer"></div>
+    
+    <!-- Bottom Ad Container -->
+    <div class="ad-container">
+        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+    </div>
+    
+    <!-- Disclaimer Section -->
+    <div class="disclaimer">
+        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
+        This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ✅ REAL MESSAGE IDS के साथ API endpoints
+const API_ENDPOINTS = [
+    'https://sk4film.koyeb.app',
+    'https://sk4film-backup.herokuapp.com',
+    'https://sk4film-alternate.onrender.com'
+];
+
+// Fast Thumbnail Services
+const THUMBNAIL_SERVICES = [
+    {
+        name: 'TMDB',
+        url: (title) => `https://api.themoviedb.org/3/search/movie?api_key=b8a7d0e37e4b0c49d60d0b52f1e5a6d8&query=${encodeURIComponent(title)}`
+    },
+    {
+        name: 'OMDB',
+        url: (title) => `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=trilogy`
+    }
+];
+
+const RESULTS_PER_PAGE = 10;
+const AD_LINK = 'https://otieu.com/4/10220520';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache duration
+
+// ✅ REAL MESSAGE IDS के लिए config
+const FILE_CHANNEL_ID = "-1001768249569"; // Real channel ID
+const BOT_USERNAME = 'sk4filmbot'; // Fixed bot username
+
+let currentQuery = '';
+let currentPage = 1;
+let currentAPI = 0;
+let isOnline = true;
+
+const resultsContainer = document.getElementById('resultsContainer');
+const resultsInfo = document.getElementById('resultsInfo');
+const paginationContainer = document.getElementById('paginationContainer');
+const searchInput = document.getElementById('searchInput');
+const searchButton = document.getElementById('searchButton');
+
+// Fast Thumbnail Cache
+class FastThumbnailCache {
+    constructor() {
+        this.thumbnailCache = new Map();
+        this.pendingRequests = new Map();
+    }
+    
+    async getThumbnail(movieTitle) {
+        const cleanTitle = this.cleanTitle(movieTitle);
+        
+        // Check cache first
+        if (this.thumbnailCache.has(cleanTitle)) {
+            return this.thumbnailCache.get(cleanTitle);
         }
-
-        async function performSearch() {
-            const query = document.getElementById('searchInput').value.trim();
-            
-            if (query.length < 2) {
-                showError('⚠️ Please enter at least 2 characters to search');
-                return;
+        
+        // Check if request is already in progress
+        if (this.pendingRequests.has(cleanTitle)) {
+            return this.pendingRequests.get(cleanTitle);
+        }
+        
+        // Create new request
+        const thumbnailPromise = this.fetchThumbnail(cleanTitle);
+        this.pendingRequests.set(cleanTitle, thumbnailPromise);
+        
+        try {
+            const thumbnail = await thumbnailPromise;
+            if (thumbnail) {
+                this.thumbnailCache.set(cleanTitle, thumbnail);
             }
-
-            const newURL = `${window.location.pathname}?q=${encodeURIComponent(query)}`;
-            window.history.pushState({}, '', newURL);
-
-            document.getElementById('loadingSpinner').style.display = 'block';
-            document.getElementById('resultsContainer').innerHTML = '';
-            document.getElementById('noResults').style.display = 'none';
-            document.getElementById('errorMessage').style.display = 'none';
-            document.getElementById('resultsInfo').style.display = 'none';
-
+            return thumbnail;
+        } finally {
+            this.pendingRequests.delete(cleanTitle);
+        }
+    }
+    
+    cleanTitle(title) {
+        return title
+            .replace(/[\(\)\[\]\{\}]/g, '')
+            .replace(/\b\d{4}\b/, '')
+            .replace(/\./g, ' ')
+            .replace(/_/g, ' ')
+            .trim()
+            .toLowerCase();
+    }
+    
+    async fetchThumbnail(title) {
+        // Try multiple services concurrently
+        const promises = THUMBNAIL_SERVICES.map(service => 
+            this.tryThumbnailService(service, title)
+        );
+        
+        // Return the first successful result
+        for (const promise of promises) {
             try {
-                const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
-                const data = await response.json();
-
-                document.getElementById('loadingSpinner').style.display = 'none';
-
-                if (data.error) {
-                    showError(`❌ ${data.error}`);
-                    return;
-                }
-
-                if (!data.results || data.results.length === 0) {
-                    document.getElementById('noResults').style.display = 'block';
-                    return;
-                }
-
-                document.getElementById('resultsInfo').style.display = 'inline-block';
-                document.getElementById('resultCount').textContent = data.count;
-                document.getElementById('searchQuery').textContent = query;
-
-                displayResults(data.results);
-
+                const result = await promise;
+                if (result) return result;
             } catch (error) {
-                document.getElementById('loadingSpinner').style.display = 'none';
-                showError('❌ Failed to fetch search results. Please try again.');
-                console.error('Search error:', error);
+                // Continue to next service
             }
         }
-
-        function displayResults(results) {
-            const container = document.getElementById('resultsContainer');
-            container.innerHTML = '';
-
-            results.forEach((result, index) => {
-                const card = createMovieCard(result);
-                card.style.animationDelay = `${index * 0.05}s`;
-                container.appendChild(card);
+        
+        return null;
+    }
+    
+    async tryThumbnailService(service, title) {
+        try {
+            const response = await fetch(service.url(title), {
+                signal: AbortSignal.timeout(3000) // Fast timeout
             });
+            
+            if (!response.ok) return null;
+            
+            const data = await response.json();
+            
+            if (service.name === 'TMDB' && data.results && data.results[0] && data.results[0].poster_path) {
+                return `https://image.tmdb.org/t/p/w500${data.results[0].poster_path}`;
+            }
+            
+            if (service.name === 'OMDB' && data.Poster && data.Poster !== 'N/A') {
+                return data.Poster;
+            }
+            
+            return null;
+        } catch (error) {
+            return null;
         }
+    }
+    
+    clear() {
+        this.thumbnailCache.clear();
+        this.pendingRequests.clear();
+    }
+}
 
-        function createMovieCard(result) {
-            const card = document.createElement('div');
-            card.className = 'movie-card';
+const thumbnailCache = new FastThumbnailCache();
 
-            const thumbnail = result.poster_url || result.thumbnail || 'https://iili.io/fAeIwv9.th.png';
-            const hasThumbnail = result.has_poster || result.has_thumbnail || result.poster_url;
+// Enhanced Cache Implementation
+class EnhancedSearchCache {
+    constructor() {
+        this.storage = new Map();
+    }
+    
+    async set(key, data) {
+        const timestamp = Date.now();
+        this.storage.set(key, { data, timestamp });
+        this.cleanup();
+    }
+    
+    async get(key) {
+        const cached = this.storage.get(key);
+        if (cached && Date.now() - cached.timestamp <= CACHE_DURATION) {
+            return cached.data;
+        }
+        if (cached) {
+            this.storage.delete(key);
+        }
+        return null;
+    }
+    
+    cleanup() {
+        const now = Date.now();
+        for (const [key, value] of this.storage.entries()) {
+            if (now - value.timestamp > CACHE_DURATION) {
+                this.storage.delete(key);
+            }
+        }
+    }
+}
 
-            let posterHTML = '';
-            if (hasThumbnail && thumbnail !== 'https://iili.io/fAeIwv9.th.png') {
-                posterHTML = `
-                    <div class="movie-poster">
-                        <img src="${thumbnail}" alt="${result.title}" onerror="this.parentElement.innerHTML='<div class=\\'movie-poster-placeholder\\'>🎬</div>'">
-                        <div class="movie-overlay"></div>
-                        ${result.is_new ? '<div class="movie-badge">🆕 New</div>' : ''}
-                    </div>
-                `;
+const searchCache = new EnhancedSearchCache();
+
+// ✅ IMPROVED: Better Message ID Extraction
+function extractRealMessageId(messageIdData) {
+    if (!messageIdData) {
+        console.log("❌ No messageIdData provided");
+        return null;
+    }
+    
+    console.log("🔧 Extracting real message ID from:", typeof messageIdData, "=", messageIdData);
+    
+    // If it's already a number, use it directly
+    if (typeof messageIdData === 'number') {
+        console.log("✅ Direct number:", messageIdData);
+        return messageIdData.toString();
+    }
+    
+    // If it's a string
+    if (typeof messageIdData === 'string') {
+        const cleanStr = messageIdData.trim();
+        
+        // Case 1: String is already a number
+        if (/^\d+$/.test(cleanStr)) {
+            console.log("✅ Clean numeric string:", cleanStr);
+            return cleanStr;
+        }
+        
+        // Case 2: Contains underscores (common in Telegram)
+        if (cleanStr.includes('_')) {
+            const parts = cleanStr.split('_');
+            console.log("Parts after split:", parts);
+            
+            // Look for the largest numeric part
+            let maxNum = null;
+            parts.forEach(part => {
+                if (/^\d+$/.test(part)) {
+                    const num = parseInt(part, 10);
+                    if (!maxNum || num > maxNum) {
+                        maxNum = num;
+                    }
+                }
+            });
+            
+            if (maxNum) {
+                console.log("✅ Found max numeric part:", maxNum);
+                return maxNum.toString();
+            }
+        }
+        
+        // Case 3: Extract any sequence of digits
+        const digitMatch = cleanStr.match(/\d+/g);
+        if (digitMatch) {
+            // Find the longest digit sequence
+            let longest = '';
+            digitMatch.forEach(match => {
+                if (match.length > longest.length) {
+                    longest = match;
+                }
+            });
+            
+            if (longest.length >= 3) { // At least 3 digits
+                console.log("✅ Extracted digit sequence:", longest);
+                return longest;
+            }
+        }
+    }
+    
+    console.log("❌ No valid message ID found");
+    return null;
+}
+
+// Network status detection
+function updateOnlineStatus() {
+    isOnline = navigator.onLine;
+}
+
+// ✅ FIXED: Quality Options Generator for STREAMING and DOWNLOAD
+function generateQualityOptions(qualityOptions, resultData, type = 'both') {
+    console.log(`🔧 Generating ${type} quality options...`);
+    console.log("Quality options received:", qualityOptions);
+    console.log("Quality options type:", typeof qualityOptions);
+    console.log("Result data keys:", Object.keys(resultData));
+    
+    // Check if qualityOptions is properly structured
+    if (!qualityOptions || typeof qualityOptions !== 'object') {
+        console.log("❌ No quality options available or invalid format");
+        return '<p class="text-center text-muted mb-0">No files available</p>';
+    }
+    
+    // Check if we have any data in quality options
+    let hasValidData = false;
+    Object.values(qualityOptions).forEach(q => {
+        if (q && (q.file_id || q.message_id || q.file_size || q.file_name || q.real_message_id)) {
+            hasValidData = true;
+        }
+    });
+    
+    // If no quality options, check resultData directly
+    if (!hasValidData) {
+        console.log("❌ No valid data in quality options, checking resultData");
+        // Try to extract from resultData directly
+        if (resultData.file_id || resultData.real_message_id || resultData.message_id) {
+            hasValidData = true;
+        }
+    }
+    
+    if (!hasValidData) {
+        console.log("❌ No valid data in quality options");
+        return '<p class="text-center text-muted mb-0">No download data available</p>';
+    }
+    
+    // Try multiple sources for message ID
+    let realMessageId = null;
+    const sources = [
+        { name: 'resultData.real_message_id', value: resultData.real_message_id },
+        { name: 'resultData.message_id', value: resultData.message_id },
+        { name: 'quality options message_id', value: Object.values(qualityOptions)[0]?.message_id },
+        { name: 'quality options real_message_id', value: Object.values(qualityOptions)[0]?.real_message_id },
+        { name: 'resultData.id', value: resultData.id }
+    ];
+    
+    for (const source of sources) {
+        if (source.value) {
+            const extracted = extractRealMessageId(source.value);
+            if (extracted) {
+                realMessageId = extracted;
+                console.log(`✅ Found message ID from ${source.name}: ${realMessageId}`);
+                break;
+            }
+        }
+    }
+    
+    // If still no message ID, create a fallback one
+    if (!realMessageId) {
+        console.log("⚠️ No message ID found, using fallback");
+        // Create a simple message ID based on title hash
+        const titleHash = resultData.title ? 
+            resultData.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 
+            Date.now();
+        realMessageId = Math.abs(titleHash % 1000000).toString();
+        console.log(`✅ Created fallback message ID: ${realMessageId}`);
+    }
+    
+    console.log(`✅ Final message ID to use: ${realMessageId}`);
+    console.log(`✅ Quality options keys:`, Object.keys(qualityOptions));
+    
+    // Generate quality buttons
+    let html = '<div class="quality-buttons-row">';
+    let linksGenerated = 0;
+    
+    // Define quality order preference
+    const qualityOrder = [
+        '2160p HEVC', '2160p', '1080p HEVC', '1080p', 
+        '720p HEVC', '720p', '480p HEVC', '480p',
+        '360p', '240p', 'HD', 'SD', 'HQ', 'LQ'
+    ];
+    
+    // First, check if qualityOptions is an object with quality keys
+    if (typeof qualityOptions === 'object' && !Array.isArray(qualityOptions)) {
+        console.log("✅ Quality options is an object with keys:", Object.keys(qualityOptions));
+        
+        // First, try to show qualities in preferred order
+        qualityOrder.forEach(quality => {
+            const qualityData = qualityOptions[quality];
+            if (!qualityData) return;
+            
+            console.log(`Processing quality: ${quality}`, qualityData);
+            
+            const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+            
+            // Use the qualityData's message_id if available, otherwise use realMessageId
+            const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+            
+            if (type === 'stream' || type === 'both') {
+                // STREAM button - opens view.html
+                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                html += `
+                <a href="${streamUrl}" 
+                   target="_blank" 
+                   class="quality-option stream-btn"
+                   data-quality="${quality}"
+                   onclick="console.log('Streaming: ${streamUrl}')">
+                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                    <small>Stream Now</small>
+                </a>`;
+            }
+            
+            if (type === 'download' || type === 'both') {
+                // DOWNLOAD button - opens Telegram bot
+                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                const botUsername = resultData.bot_username || BOT_USERNAME;
+                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                
+                html += `
+                <a href="${downloadUrl}" 
+                   target="_blank" 
+                   class="quality-option download-btn"
+                   data-quality="${quality}"
+                   onclick="console.log('Downloading: ${fileId}')">
+                    <i class="fas fa-download me-1"></i>${quality}<br>
+                    <small>Download</small>
+                </a>`;
+            }
+            
+            linksGenerated++;
+        });
+        
+        // If no standard qualities found, show all available qualities
+        if (linksGenerated === 0) {
+            console.log("No standard qualities found, showing all available");
+            for (const [quality, qualityData] of Object.entries(qualityOptions)) {
+                if (qualityData && typeof qualityData === 'object') {
+                    const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+                    const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                    
+                    // Use the qualityData's message_id if available, otherwise use realMessageId
+                    const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+                    
+                    if (type === 'stream' || type === 'both') {
+                        const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                        html += `
+                        <a href="${streamUrl}" 
+                           target="_blank" 
+                           class="quality-option stream-btn"
+                           data-quality="${quality}">
+                            <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                            <small>Stream Now</small>
+                        </a>`;
+                    }
+                    
+                    if (type === 'download' || type === 'both') {
+                        const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                        const botUsername = resultData.bot_username || BOT_USERNAME;
+                        const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                        
+                        html += `
+                        <a href="${downloadUrl}" 
+                           target="_blank" 
+                           class="quality-option download-btn"
+                           data-quality="${quality}">
+                            <i class="fas fa-download me-1"></i>${quality}<br>
+                            <small>Download</small>
+                        </a>`;
+                    }
+                    linksGenerated++;
+                }
+            }
+        }
+    } else {
+        console.log("❌ Quality options is not in expected format:", typeof qualityOptions);
+        
+        // Try last resort: Check if resultData has direct file info
+        if (resultData.has_file && (resultData.file_id || resultData.real_message_id || resultData.message_id)) {
+            console.log("✅ Using direct file info from resultData");
+            const quality = resultData.quality || 'HD';
+            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+            
+            // Use available message ID
+            const msgId = resultData.real_message_id || resultData.message_id || realMessageId;
+            
+            if (type === 'stream' || type === 'both') {
+                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                html += `
+                <a href="${streamUrl}" 
+                   target="_blank" 
+                   class="quality-option stream-btn"
+                   data-quality="${quality}">
+                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                    <small>Stream Now</small>
+                </a>`;
+            }
+            
+            if (type === 'download' || type === 'both') {
+                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                const botUsername = resultData.bot_username || BOT_USERNAME;
+                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                
+                html += `
+                <a href="${downloadUrl}" 
+                   target="_blank" 
+                   class="quality-option download-btn"
+                   data-quality="${quality}">
+                    <i class="fas fa-download me-1"></i>${quality}<br>
+                    <small>Download</small>
+                </a>`;
+            }
+            linksGenerated++;
+        }
+    }
+    
+    html += '</div>';
+    
+    if (linksGenerated === 0) {
+        // Last resort: Create simple buttons
+        console.log("Creating simple buttons as last resort");
+        html = '<div class="quality-buttons-row">';
+        
+        // Get bot username
+        const botUsername = resultData.bot_username || BOT_USERNAME;
+        
+        // Show all quality names from quality options
+        if (typeof qualityOptions === 'object' && Object.keys(qualityOptions).length > 0) {
+            Object.keys(qualityOptions).forEach((quality, index) => {
+                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                
+                if (type === 'stream' || type === 'both') {
+                    const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${realMessageId}&quality=${qualityCode}`;
+                    html += `
+                    <a href="${streamUrl}" 
+                       target="_blank" 
+                       class="quality-option stream-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                        <small>Stream Now</small>
+                    </a>`;
+                }
+                
+                if (type === 'download' || type === 'both') {
+                    const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
+                    const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                    
+                    html += `
+                    <a href="${downloadUrl}" 
+                       target="_blank" 
+                       class="quality-option download-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-download me-1"></i>${quality}<br>
+                        <small>Download</small>
+                    </a>`;
+                }
+                linksGenerated++;
+            });
+        } else {
+            // No quality options at all
+            html += `
+            <a href="https://t.me/${BOT_USERNAME}" 
+               target="_blank" 
+               class="quality-option download-btn"
+               data-quality="HD">
+                <i class="fas fa-download me-1"></i>Get from Telegram
+            </a>`;
+            linksGenerated++;
+        }
+        
+        html += '</div>';
+    }
+    
+    console.log(`✅ Generated ${linksGenerated} ${type} links`);
+    return html;
+}
+
+// Initialize the page
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('query');
+    const page = parseInt(urlParams.get('page')) || 1;
+    
+    // Set up network status listeners
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+    
+    if (query) {
+        currentQuery = query;
+        searchInput.value = query;
+        performSearch(page);
+    }
+    
+    // Set up search button event
+    searchButton.addEventListener('click', () => {
+        const query = searchInput.value.trim();
+        if (query) {
+            currentQuery = query;
+            performSearch(1);
+        }
+    });
+    
+    // Set up enter key in search input
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const query = searchInput.value.trim();
+            if (query) {
+                currentQuery = query;
+                performSearch(1);
+            }
+        }
+    });
+});
+
+async function performSearch(page = 1) {
+    if (!currentQuery) {
+        showError("Please enter a search query");
+        return;
+    }
+    
+    currentPage = page;
+    const url = new URL(window.location);
+    url.searchParams.set('query', currentQuery);
+    url.searchParams.set('page', page);
+    window.history.pushState({}, '', url);
+    
+    // Show loading state with skeleton
+    showSkeletonLoader();
+    resultsInfo.innerHTML = '';
+    paginationContainer.innerHTML = '';
+    
+    // Check cache first
+    const cacheKey = `${currentQuery}-${page}`;
+    const cachedData = await searchCache.get(cacheKey);
+    
+    if (cachedData) {
+        displayResults(cachedData.results, cachedData.pagination);
+        return;
+    }
+    
+    // If offline and no cache, show error
+    if (!isOnline) {
+        showOfflineError();
+        return;
+    }
+    
+    // Try multiple API endpoints
+    try {
+        const data = await tryAllEndpoints(currentQuery, page);
+        if (data) {
+            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
+            
+            // Cache the successful results
+            searchCache.set(cacheKey, {
+                results: sortedResults,
+                pagination: data.pagination,
+                bot_username: data.bot_username || BOT_USERNAME
+            });
+            
+            displayResults(sortedResults, data.pagination);
+        } else {
+            showConnectionError();
+        }
+    } catch (error) {
+        console.error("Search error:", error);
+        showConnectionError();
+    }
+}
+
+function showSkeletonLoader() {
+    let html = '';
+    for (let i = 0; i < RESULTS_PER_PAGE; i++) {
+        html += `
+        <div class="result-card">
+            <div class="skeleton-loader skeleton-thumbnail mb-3"></div>
+            <div class="skeleton-loader skeleton-title mb-3"></div>
+            <div class="skeleton-loader skeleton-post mb-3"></div>
+            <div class="skeleton-loader skeleton-button"></div>
+        </div>
+        `;
+    }
+    resultsContainer.innerHTML = html;
+}
+
+async function tryAllEndpoints(query, page) {
+    for (let i = 0; i < API_ENDPOINTS.length; i++) {
+        try {
+            const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+            console.log(`Trying API endpoint ${i}: ${apiUrl}`);
+            
+            const response = await fetch(apiUrl, { 
+                method: 'GET',
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
+                signal: AbortSignal.timeout(8000)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`API ${i} response:`, data.status, "results:", data.results?.length);
+                
+                if (data.status === "success") {
+                    currentAPI = i;
+                    console.log("✅ API response successful, showing first result:", data.results?.[0]);
+                    return data;
+                }
             } else {
-                posterHTML = `
-                    <div class="movie-poster">
-                        <div class="movie-poster-placeholder">🎬</div>
-                        <div class="movie-overlay"></div>
-                        ${result.is_new ? '<div class="movie-badge">🆕 New</div>' : ''}
-                    </div>
-                `;
+                console.log(`API ${i} response not OK:`, response.status);
             }
+        } catch (error) {
+            console.log(`API ${i} error:`, error.message);
+            continue;
+        }
+    }
+    return null;
+}
 
-            const title = result.title || 'Unknown Title';
-            const year = result.year || '';
-            const rating = result.poster_rating || result.rating || '0.0';
+function showConnectionError() {
+    const cacheKey = `${currentQuery}-${currentPage}`;
+    const cachedData = searchCache.get(cacheKey);
+    
+    if (cachedData) {
+        displayResults(cachedData.results, cachedData.pagination);
+    } else {
+        resultsContainer.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-unlink"></i>
+                <h4>Connection Error</h4>
+                <p>Unable to connect to the server. Please check your internet connection and try again.</p>
+                <button class="retry-btn" onclick="performSearch(${currentPage})">
+                    <i class="fas fa-redo me-1"></i>Retry Search
+                </button>
+            </div>
+        `;
+    }
+}
 
-            let qualitiesHTML = '';
-            if (result.qualities && result.qualities.length > 0) {
-                qualitiesHTML = `
-                    <div class="qualities">
-                        ${result.qualities.map(q => `<span class="quality-tag">${q}</span>`).join('')}
+function showOfflineError() {
+    resultsContainer.innerHTML = `
+        <div class="error-state">
+            <i class="fas fa-wifi-slash"></i>
+            <h4>You're Offline</h4>
+            <p>Please check your internet connection and try again.</p>
+            <button class="retry-btn" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-1"></i>Reload Page
+            </button>
+        </div>
+    `;
+}
+
+function sortResultsWithExactMatchFirst(results, query) {
+    if (!results || results.length === 0) return [];
+    
+    const queryLower = query.toLowerCase().trim();
+    const resultsCopy = [...results];
+    
+    resultsCopy.sort((a, b) => {
+        if (!a.title || !b.title) return 0;
+        
+        const titleALower = a.title.toLowerCase().trim();
+        const titleBLower = b.title.toLowerCase().trim();
+        
+        const aIsExact = titleALower === queryLower;
+        const bIsExact = titleBLower === queryLower;
+        
+        if (aIsExact && !bIsExact) return -1;
+        if (!aIsExact && bIsExact) return 1;
+        if (aIsExact && bIsExact) return 0;
+        
+        const aHasPartial = titleALower.includes(queryLower);
+        const bHasPartial = titleBLower.includes(queryLower);
+        
+        if (aHasPartial && !bHasPartial) return -1;
+        if (!aHasPartial && bHasPartial) return 1;
+        if (aHasPartial && bHasPartial) return 0;
+        
+        return 0;
+    });
+    
+    return resultsCopy;
+}
+
+async function displayResults(results, pagination) {
+    if (!results || results.length === 0) {
+        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
+        return;
+    }
+    
+    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
+    
+    let html = '';
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const hasFile = result.has_file === true;
+        const qualityOptions = result.quality_options || {};
+        const hasQualities = Object.keys(qualityOptions).length > 0;
+        const postContent = result.post_content || '';
+        const hasPostContent = postContent.trim().length > 0;
+        const thumbnail = result.thumbnail || result.poster_url || '';
+        
+        console.log(`Result ${i}: ${result.title}`);
+        console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
+        console.log(`Quality options:`, qualityOptions);
+        console.log(`Quality options type:`, typeof qualityOptions);
+        console.log(`Quality options keys:`, Object.keys(qualityOptions));
+        
+        // Debug: Show first quality option details
+        if (hasQualities) {
+            const firstKey = Object.keys(qualityOptions)[0];
+            console.log(`First quality option (${firstKey}):`, qualityOptions[firstKey]);
+        }
+        
+        html += `
+        <div class="result-card">
+            <!-- 1. THUMBNAIL - सबसे ऊपर -->
+            <div class="result-thumbnail-top">
+                <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
+                    <!-- Thumbnail will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- 2. TITLE - बीच में -->
+            <h3 class="result-title">${escapeHtml(result.title)}</h3>
+            
+            <!-- 3. POST CONTENT - बीच में -->
+            ${hasPostContent ? `
+                <div class="result-post-content">
+                    <div class="post-content-text">
+                        ${formatPostContent(postContent)}
                     </div>
-                `;
-            }
-
-            let descriptionHTML = '';
-            if (result.has_posts && result.post_text) {
-                descriptionHTML = `
-                    <div class="movie-description">
-                        ${result.post_text}
-                    </div>
-                `;
-            }
-
-            // 🔥 FIXED: Stream Now button logic
-            const hasFiles = result.has_files === true || (result.files && result.files.length > 0);
-            const firstFile = result.files && result.files.length > 0 ? result.files[0] : null;
-            const fileId = firstFile ? firstFile.file_id : '';
-
-            let actionsHTML = '';
-            if (hasFiles && fileId) {
-                actionsHTML = `
-                    <div class="movie-actions">
-                        <a href="${VIEW_PAGE}?file=${encodeURIComponent(fileId)}" class="btn btn-primary">
-                            <span>▶️</span> Stream Now
-                        </a>
-                    </div>
-                `;
-            } else if (result.has_posts) {
-                actionsHTML = `
-                    <div class="movie-actions">
-                        <button class="btn btn-disabled" disabled>
-                            <span>📝</span> Post Only
+                </div>
+            ` : ''}
+            
+            <!-- 4. ACTION BUTTONS - सबसे नीचे -->
+            <div class="result-download-section">
+                ${hasFile && hasQualities ? `
+                    <div class="action-buttons-container">
+                        <!-- STREAM NOW BUTTON -->
+                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
+                            <i class="fas fa-play-circle me-2"></i>Stream Now
+                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
+                        </button>
+                        
+                        <!-- DOWNLOAD BUTTON -->
+                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
+                            <i class="fas fa-download me-2"></i>Download Now
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
                         </button>
                     </div>
-                `;
-            } else {
-                actionsHTML = `
-                    <div class="movie-actions">
-                        <button class="btn btn-disabled" disabled>
-                            <span>🚫</span> No Files
+                    
+                    <!-- STREAM QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="stream-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'stream')}
+                    </div>
+                    
+                    <!-- DOWNLOAD QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="download-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'download')}
+                    </div>
+                ` : hasFile ? `
+                    <div class="action-buttons-container">
+                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
+                            <i class="fas fa-play-circle me-2"></i>Stream Now
+                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
+                        </button>
+                        
+                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
+                            <i class="fas fa-download me-2"></i>Download Now
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
                         </button>
                     </div>
-                `;
-            }
-
-            card.innerHTML = `
-                ${posterHTML}
-                <div class="movie-info">
-                    <div class="movie-title">${title}</div>
-                    <div class="movie-meta">
-                        ${year ? `<span class="meta-item">📅 ${year}</span>` : ''}
-                        ${rating !== '0.0' ? `<span class="meta-item rating">⭐ ${rating}</span>` : ''}
+                    
+                    <!-- STREAM QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="stream-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'stream')}
                     </div>
-                    ${qualitiesHTML}
-                    ${descriptionHTML}
-                    ${actionsHTML}
+                    
+                    <!-- DOWNLOAD QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="download-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'download')}
+                    </div>
+                ` : `
+                    <button class="btn btn-stream-now" disabled>
+                        <i class="fas fa-times me-2"></i>File Not Available
+                    </button>
+                `}
+            </div>
+            
+            <!-- DEBUG INFO (visible only in console) -->
+            <div style="display:none;" id="debug-${i}">
+                ${JSON.stringify({
+                    title: result.title,
+                    hasFile: hasFile,
+                    hasQualities: hasQualities,
+                    qualityKeys: Object.keys(qualityOptions),
+                    qualityOptions: qualityOptions,
+                    resultKeys: Object.keys(result)
+                })}
+            </div>
+        </div>
+        `;
+    }
+    
+    resultsContainer.innerHTML = html;
+    
+    // Load thumbnails for ALL results
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        loadThumbnailForResult(result, i);
+    }
+    
+    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
+    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function loadThumbnailForResult(result, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
+    
+    // Show loading state first
+    thumbnailContainer.innerHTML = `
+        <div class="thumbnail-loading">
+            <div class="spinner-border text-light" role="status">
+                <span class="visually-hidden">Loading thumbnail...</span>
+            </div>
+        </div>
+    `;
+    
+    if (result.thumbnail || result.poster_url) {
+        const thumbnailUrl = result.thumbnail || result.poster_url;
+        setTimeout(() => {
+            thumbnailContainer.innerHTML = `
+                ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
+                <img src="${thumbnailUrl}" alt="${escapeHtml(result.title)}" loading="lazy" 
+                     onerror="loadFallbackThumbnail('${escapeHtml(result.title)}', ${index})">
+                <div class="play-overlay" onclick="triggerAdLink()">
+                    <div class="play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
                 </div>
             `;
+        }, 100);
+    } else {
+        await loadFallbackThumbnail(result.title, index);
+    }
+}
 
-            return card;
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.className = 'error-message';
-            errorDiv.innerHTML = `
-                <span class="error-icon">⚠️</span>
-                <span>${message}</span>
+async function loadFallbackThumbnail(movieTitle, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
+    
+    try {
+        const thumbnailUrl = await thumbnailCache.getThumbnail(movieTitle);
+        if (thumbnailUrl) {
+            thumbnailContainer.innerHTML = `
+                <div class="thumbnail-source-badge">External</div>
+                <img src="${thumbnailUrl}" alt="${escapeHtml(movieTitle)}" loading="lazy" 
+                     onerror="showDefaultThumbnail('${escapeHtml(movieTitle)}', ${index})">
+                <div class="play-overlay" onclick="triggerAdLink()">
+                    <div class="play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
             `;
-            errorDiv.style.display = 'flex';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
+        } else {
+            showDefaultThumbnail(movieTitle, index);
         }
+    } catch (error) {
+        showDefaultThumbnail(movieTitle, index);
+    }
+}
 
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                performSearch();
-            }
-        });
+function showDefaultThumbnail(movieTitle, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
+    
+    thumbnailContainer.innerHTML = `
+        <div class="default-thumbnail" onclick="triggerAdLink()">
+            <i class="fas fa-film"></i>
+            <span>${escapeHtml(movieTitle.substring(0, 30))}${movieTitle.length > 30 ? '...' : ''}</span>
+        </div>
+        <div class="play-overlay" onclick="triggerAdLink()">
+            <div class="play-button">
+                <i class="fas fa-play"></i>
+            </div>
+        </div>
+    `;
+}
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const query = getQueryFromURL();
-            if (query) {
-                document.getElementById('searchInput').value = query;
-                performSearch();
-            }
+// ✅ IMPROVED: Post Content Formatting with Better Link Visibility
+function formatPostContent(content) {
+    let formatted = escapeHtml(content);
+    
+    // Replace newlines with <br> tags
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Detect and format URLs (http/https)
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        const lastChar = url.slice(-1);
+        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
+        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="post-link">${cleanUrl}</a>${punctuation}`;
+    });
+    
+    // Detect and format Telegram links (t.me)
+    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        const lastChar = url.slice(-1);
+        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
+        const fullUrl = 'https://' + cleanUrl;
+        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="telegram-link">${cleanUrl}</a>${punctuation}`;
+    });
+    
+    // Detect and format @mentions
+    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, function(mention) {
+        const username = mention.substring(1);
+        return `<a href="https://t.me/${username}" target="_blank" rel="noopener noreferrer" class="mention-link">${mention}</a>`;
+    });
+    
+    // Detect and format #hashtags
+    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, function(hashtag) {
+        return `<span class="hashtag-tag">${hashtag}</span>`;
+    });
+    
+    // Format bold text (**text**)
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Format italic text (*text*)
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Format underline text (__text__)
+    formatted = formatted.replace(/__(.*?)__/g, '<u>$1</u>');
+    
+    // Format strikethrough text (~~text~~)
+    formatted = formatted.replace(/~~(.*?)~~/g, '<del>$1</del>');
+    
+    // Format inline code (`code`)
+    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Format code blocks (```code```)
+    formatted = formatted.replace(/```([^`]+)```/g, '<pre>$1</pre>');
+    
+    // Format blockquotes (> text)
+    formatted = formatted.replace(/^&gt;\s*(.*)$/gm, '<blockquote>$1</blockquote>');
+    
+    return formatted;
+}
+
+function triggerAdLink() {
+    window.open(AD_LINK, '_blank');
+}
+
+// Toggle Stream Quality Dropdown
+function toggleStreamQuality(index) {
+    const dropdown = document.getElementById(`stream-quality-${index}`);
+    const arrow = document.getElementById(`stream-arrow-${index}`);
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
+        if (el.id !== `stream-quality-${index}`) {
+            el.classList.remove('show');
+            const otherStreamArrow = document.getElementById(`stream-arrow-${i}`);
+            const otherDownloadArrow = document.getElementById(`download-arrow-${i}`);
+            if (otherStreamArrow) otherStreamArrow.style.transform = 'rotate(0deg)';
+            if (otherDownloadArrow) otherDownloadArrow.style.transform = 'rotate(0deg)';
+        }
+    });
+    
+    dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+// Toggle Download Quality Dropdown
+function toggleDownloadQuality(index) {
+    const dropdown = document.getElementById(`download-quality-${index}`);
+    const arrow = document.getElementById(`download-arrow-${index}`);
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
+        if (el.id !== `download-quality-${index}`) {
+            el.classList.remove('show');
+            const otherStreamArrow = document.getElementById(`stream-arrow-${i}`);
+            const otherDownloadArrow = document.getElementById(`download-arrow-${i}`);
+            if (otherStreamArrow) otherStreamArrow.style.transform = 'rotate(0deg)';
+            if (otherDownloadArrow) otherDownloadArrow.style.transform = 'rotate(0deg)';
+        }
+    });
+    
+    dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function displayPagination(pagination) {
+    let html = '<nav><ul class="pagination justify-content-center">';
+    const { current_page, total_pages, has_previous, has_next } = pagination;
+    const maxVisible = 5;
+    
+    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
+    
+    let startPage = Math.max(1, current_page - 2);
+    let endPage = Math.min(total_pages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<li class="page-item ${i === current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;
+    }
+    
+    if (endPage < total_pages) {
+        if (endPage < total_pages - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;
+    }
+    
+    html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
+    html += '</ul></nav>';
+    
+    paginationContainer.innerHTML = html;
+}
+
+function showError(message) {
+    resultsContainer.innerHTML = `<div class="alert alert-danger text-center">${escapeHtml(message)}</div>`;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
+        document.querySelectorAll('.quality-dropdown').forEach((dropdown, index) => {
+            dropdown.classList.remove('show');
+            const streamArrow = document.getElementById(`stream-arrow-${index}`);
+            const downloadArrow = document.getElementById(`download-arrow-${index}`);
+            if (streamArrow) streamArrow.style.transform = 'rotate(0deg)';
+            if (downloadArrow) downloadArrow.style.transform = 'rotate(0deg)';
         });
-    </script>
+    }
+});
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('query');
+    const page = parseInt(urlParams.get('page')) || 1;
+    
+    if (query) {
+        currentQuery = query;
+        searchInput.value = query;
+        performSearch(page);
+    }
+});
+
+// Add timeout to fetch (polyfill for older browsers)
+if (!AbortSignal.timeout) {
+    AbortSignal.timeout = function(ms) {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), ms);
+        return controller.signal;
+    };
+}
+
+// Debug info
+console.log("✅ SK4FiLM Search Page Loaded with STREAM NOW & DOWNLOAD NOW buttons");
+console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
+console.log("📱 Open browser console (F12) to see debug messages");
+
+// Test function to check API response
+async function testApiResponse() {
+    console.log("🧪 Testing API response...");
+    try {
+        const response = await fetch(`${API_ENDPOINTS[0]}/api/search?query=test&page=1&limit=1`);
+        const data = await response.json();
+        console.log("API Test Response:", data);
+        if (data.results && data.results.length > 0) {
+            console.log("First result quality options:", data.results[0].quality_options);
+        }
+    } catch (error) {
+        console.error("API Test Error:", error);
+    }
+}
+
+// Run test on load
+setTimeout(testApiResponse, 3000);
+</script>
 </body>
 </html>
