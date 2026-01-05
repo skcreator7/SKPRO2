@@ -577,55 +577,228 @@ class StreamingProxyManager:
 streaming_proxy = StreamingProxyManager()
 
 # ============================================================================
-# ✅ BOT INITIALIZATION FUNCTION
+# ✅ FILE INFO ENHANCEMENT FOR VIEW PAGE
 # ============================================================================
 
-async def start_telegram_bot():
-    """Start Telegram bot with handlers"""
+async def get_enhanced_file_info(file_id: str) -> Dict[str, Any]:
+    """
+    Get enhanced file information for view page
+    Includes all quality options, download links, and streaming info
+    """
     try:
-        if not PYROGRAM_AVAILABLE:
-            logger.warning("❌ Pyrogram not available, bot won't start")
-            return None
+        parts = file_id.split('_')
+        if len(parts) < 2:
+            return {"error": "Invalid file ID format"}
         
-        # Check if bot token is available
-        if not Config.BOT_TOKEN:
-            logger.warning("❌ Bot token not configured, bot won't start")
-            return None
+        channel_id = int(parts[0])
+        message_id = int(parts[1])
+        quality = parts[2] if len(parts) > 2 else ""
         
-        logger.info("🤖 Starting SK4FiLM Telegram Bot...")
+        # Get base file info
+        if files_col is None:
+            return {"error": "Database not available"}
         
-        # Import bot handler
-        try:
-            from bot_handlers import SK4FiLMBot
-            logger.info("✅ Bot handler module imported")
-        except ImportError as e:
-            logger.error(f"❌ Bot handler import error: {e}")
-            # Create fallback bot
-            class FallbackBot:
-                def __init__(self):
-                    self.bot_started = False
-                async def initialize(self): 
-                    logger.warning("⚠️ Using fallback bot")
-                    return False
-                async def shutdown(self): pass
-            return FallbackBot()
+        # Get the specific file
+        file_doc = await files_col.find_one({
+            "channel_id": channel_id,
+            "message_id": message_id
+        })
         
-        # Initialize bot
-        bot_instance = SK4FiLMBot(Config, db_manager=None)
+        if not file_doc:
+            return {"error": "File not found"}
         
-        # Start bot
-        bot_started = await bot_instance.initialize()
+        # Get normalized title
+        normalized_title = file_doc.get('normalized_title')
+        if not normalized_title:
+            return {"error": "No title found"}
         
-        if bot_started:
-            logger.info("✅ Telegram Bot started successfully!")
-            return bot_instance
-        else:
-            logger.error("❌ Failed to start Telegram Bot")
-            return None
+        # Find ALL files with same normalized title (all qualities)
+        all_files_cursor = files_col.find({
+            "normalized_title": normalized_title,
+            "status": "active",
+            "is_duplicate": False
+        }, {
+            'title': 1,
+            'normalized_title': 1,
+            'quality': 1,
+            'file_size': 1,
+            'file_name': 1,
+            'is_video_file': 1,
+            'channel_id': 1,
+            'message_id': 1,
+            'real_message_id': 1,
+            'date': 1,
+            'caption': 1,
+            'file_id': 1,
+            'telegram_file_id': 1,
+            'thumbnail_url': 1,
+            'thumbnail_extracted': 1,
+            'year': 1,
+            'duration': 1,
+            '_id': 0
+        })
+        
+        all_files = await all_files_cursor.to_list(length=20)
+        
+        if not all_files:
+            return {"error": "No files found"}
+        
+        # Organize by quality
+        quality_options = {}
+        selected_quality_info = None
+        
+        for file_data in all_files:
+            file_quality = file_data.get('quality', 'Unknown')
+            real_msg_id = file_data.get('real_message_id') or file_data.get('message_id')
+            file_unique_id = f"{file_data.get('channel_id', Config.FILE_CHANNEL_ID)}_{real_msg_id}_{file_quality}"
             
+            # Get quality info
+            quality_info = extract_quality_info(file_data.get('file_name', ''))
+            
+            # Create quality option
+            quality_option = {
+                'file_id': file_unique_id,
+                'file_size': file_data.get('file_size', 0),
+                'size_formatted': format_size(file_data.get('file_size', 0)),
+                'file_name': file_data.get('file_name', ''),
+                'is_video': file_data.get('is_video_file', False),
+                'channel_id': file_data.get('channel_id'),
+                'message_id': real_msg_id,
+                'real_message_id': real_msg_id,
+                'quality': file_quality,
+                'base_quality': quality_info['base'],
+                'is_hevc': quality_info['is_hevc'],
+                'priority': quality_info['priority'],
+                'thumbnail_url': file_data.get('thumbnail_url'),
+                'has_thumbnail': file_data.get('thumbnail_url') is not None,
+                'date': file_data.get('date'),
+                'telegram_file_id': file_data.get('telegram_file_id'),
+                'duration': file_data.get('duration', 0),
+                'duration_formatted': format_duration(file_data.get('duration', 0))
+            }
+            
+            # Check if this is the selected quality
+            if file_unique_id == file_id:
+                selected_quality_info = quality_option
+            
+            # Add to quality options
+            quality_options[file_quality] = quality_option
+        
+        # If no specific quality selected, use first one
+        if not selected_quality_info and quality_options:
+            first_quality = list(quality_options.keys())[0]
+            selected_quality_info = quality_options[first_quality]
+        
+        # Get streaming URL for selected quality
+        stream_url = None
+        if Config.STREAMING_ENABLED and selected_quality_info:
+            stream_url = await streaming_proxy.get_stream_url(
+                selected_quality_info['file_id'], 
+                selected_quality_info['quality']
+            )
+        
+        # Get download info
+        download_info = await streaming_proxy.get_direct_download_url(
+            selected_quality_info['file_id'] if selected_quality_info else file_id
+        )
+        
+        # Get poster for the movie
+        poster_data = await get_poster_for_movie(
+            file_doc.get('title', ''),
+            file_doc.get('year', ''),
+            selected_quality_info['quality'] if selected_quality_info else ''
+        )
+        
+        # Prepare quality list sorted by priority
+        qualities_list = list(quality_options.keys())
+        
+        def get_quality_priority(q):
+            base_q = q.replace(' HEVC', '')
+            if base_q in Config.QUALITY_PRIORITY:
+                return Config.QUALITY_PRIORITY.index(base_q)
+            return 999
+        
+        qualities_list.sort(key=get_quality_priority)
+        
+        # Format duration
+        duration_formatted = format_duration(file_doc.get('duration', 0))
+        
+        return {
+            'status': 'success',
+            'file_info': {
+                'title': file_doc.get('title', ''),
+                'original_title': file_doc.get('title', ''),
+                'year': file_doc.get('year', ''),
+                'caption': file_doc.get('caption', ''),
+                'content': format_post(file_doc.get('caption', ''), max_length=1000),
+                'post_content': file_doc.get('caption', ''),
+                'date': file_doc.get('date'),
+                'is_new': is_new(file_doc.get('date')),
+                'poster_url': poster_data['poster_url'],
+                'poster_source': poster_data['source'],
+                'poster_rating': poster_data['rating'],
+                'thumbnail_url': file_doc.get('thumbnail_url') or poster_data['poster_url'],
+                'has_thumbnail': bool(file_doc.get('thumbnail_url')),
+                'has_poster': True,
+                'channel_id': file_doc.get('channel_id'),
+                'channel_name': channel_name_cached(file_doc.get('channel_id')),
+                'message_id': file_doc.get('message_id'),
+                'real_message_id': file_doc.get('real_message_id') or file_doc.get('message_id'),
+                'has_file': True,
+                'has_post': bool(file_doc.get('caption')),
+                'is_video_file': file_doc.get('is_video_file', False),
+                'result_type': 'file' if not file_doc.get('caption') else 'both',
+                'bot_username': Config.BOT_USERNAME,
+                'streaming_enabled': Config.STREAMING_ENABLED,
+                'direct_download_enabled': Config.DIRECT_DOWNLOAD_ENABLED
+            },
+            'streaming': {
+                'enabled': Config.STREAMING_ENABLED,
+                'stream_url': stream_url,
+                'selected_quality': selected_quality_info['quality'] if selected_quality_info else '',
+                'selected_file_id': selected_quality_info['file_id'] if selected_quality_info else file_id
+            },
+            'download': {
+                'enabled': Config.DIRECT_DOWNLOAD_ENABLED,
+                'info': download_info,
+                'telegram_bot_url': f"https://t.me/{Config.BOT_USERNAME}?start={file_id}"
+            },
+            'quality_options': {
+                'available': qualities_list,
+                'selected': selected_quality_info['quality'] if selected_quality_info else '',
+                'details': quality_options
+            },
+            'media_info': {
+                'duration': file_doc.get('duration', 0),
+                'duration_formatted': duration_formatted,
+                'file_size': selected_quality_info['file_size'] if selected_quality_info else 0,
+                'size_formatted': selected_quality_info['size_formatted'] if selected_quality_info else 'Unknown',
+                'quality': selected_quality_info['quality'] if selected_quality_info else '',
+                'file_name': selected_quality_info['file_name'] if selected_quality_info else '',
+                'is_hevc': selected_quality_info['is_hevc'] if selected_quality_info else False
+            }
+        }
+        
     except Exception as e:
-        logger.error(f"❌ Bot startup error: {e}")
-        return None
+        logger.error(f"❌ Enhanced file info error: {e}")
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
+def format_duration(seconds: int) -> str:
+    """Format duration in seconds to HH:MM:SS"""
+    if not seconds or seconds <= 0:
+        return "Unknown"
+    
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    else:
+        return f"{minutes:02d}:{secs:02d}"
 
 # ============================================================================
 # ✅ BOT HANDLER MODULE
@@ -1170,7 +1343,7 @@ class DuplicatePreventionSystem:
     async def add_file_hash(self, file_hash, normalized_title=None):
         """Add new file hash to tracking"""
         if not file_hash:
-            return
+        return
         
         async with self.lock:
             self.file_hashes.add(file_hash)
@@ -1181,7 +1354,7 @@ class DuplicatePreventionSystem:
     async def remove_file_hash(self, file_hash, normalized_title=None):
         """Remove file hash from tracking"""
         if not file_hash:
-            return
+        return
         
         async with self.lock:
             if file_hash in self.file_hashes:
@@ -2190,7 +2363,7 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ MAIN INITIALIZATION - UPDATED WITH BOT START
+# ✅ MAIN INITIALIZATION
 # ============================================================================
 
 @performance_monitor.measure("system_init")
@@ -2217,14 +2390,6 @@ async def init_system():
         bot_handler_ok = await bot_handler.initialize()
         if bot_handler_ok:
             logger.info("✅ Bot Handler initialized")
-        
-        # ✅ START TELEGRAM BOT (NEW)
-        global telegram_bot
-        telegram_bot = await start_telegram_bot()
-        if telegram_bot:
-            logger.info("✅ Telegram Bot started successfully")
-        else:
-            logger.warning("⚠️ Telegram Bot failed to start")
         
         # Initialize Cache Manager
         global cache_manager, verification_system, premium_system, poster_fetcher
@@ -2274,7 +2439,7 @@ async def init_system():
         logger.info(f"   • Quality Merging: ✅ ENABLED")
         logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
         logger.info(f"   • Bot Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
-        logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
+        logger.info(f"   • Bot Handler: {'✅ READY' if bot_handler.initialized else '❌ NOT READY'}")
         logger.info(f"   • Streaming: {'✅ ENABLED' if Config.STREAMING_ENABLED else '❌ DISABLED'}")
         logger.info(f"   • Direct Download: {'✅ ENABLED' if Config.DIRECT_DOWNLOAD_ENABLED else '❌ DISABLED'}")
         
@@ -2285,7 +2450,7 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ SEARCH FUNCTION - ENHANCED FOR STREAMING
+# ✅ SEARCH FUNCTION - ENHANCED FOR STREAMING AND VIEW PAGE
 # ============================================================================
 
 def channel_name_cached(cid):
@@ -2455,7 +2620,9 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
                         'has_thumbnail': thumbnail_url is not None,
                         'date': doc.get('date'),
                         'telegram_file_id': doc.get('telegram_file_id'),
-                        'streaming_enabled': Config.STREAMING_ENABLED
+                        'streaming_enabled': Config.STREAMING_ENABLED,
+                        'duration': doc.get('duration', 0),
+                        'duration_formatted': format_duration(doc.get('duration', 0))
                     }
                     
                     # If this normalized title doesn't exist in files_dict
@@ -2484,11 +2651,14 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
                             'thumbnail_url': thumbnail_url,
                             'real_message_id': real_msg_id,
                             'search_score': 3 if query_lower in title.lower() else 2,
-                            'result_type': 'file',
+                            'result_type': 'file' if not doc.get('caption') else 'both',
                             'total_files': 1,
                             'file_sizes': [doc.get('file_size', 0)],
                             'bot_username': Config.BOT_USERNAME,
-                            'streaming_enabled': Config.STREAMING_ENABLED
+                            'streaming_enabled': Config.STREAMING_ENABLED,
+                            'direct_download_enabled': Config.DIRECT_DOWNLOAD_ENABLED,
+                            'duration': doc.get('duration', 0),
+                            'duration_formatted': format_duration(doc.get('duration', 0))
                         }
                         
                         # If we have thumbnail, use it
@@ -2565,13 +2735,17 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
             # Determine best quality (highest priority)
             best_quality = qualities[0] if qualities else ''
             
+            # Get best quality file_id for streaming
+            best_quality_option = movie_data['quality_options'].get(best_quality)
+            best_file_id = best_quality_option['file_id'] if best_quality_option else ''
+            
             # Create quality summary
             quality_summary_parts = []
-            for q in qualities[:5]:  # Show up to 5 qualities
+            for q in qualities[:3]:  # Show up to 3 qualities
                 quality_summary_parts.append(q)
             
-            if len(qualities) > 5:
-                quality_summary_parts.append(f"+{len(qualities) - 5} more")
+            if len(qualities) > 3:
+                quality_summary_parts.append(f"+{len(qualities) - 3} more")
             
             quality_summary = " • ".join(quality_summary_parts)
             
@@ -2584,7 +2758,10 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
                 'quality_count': len(qualities),
                 'total_size': total_size,
                 'size_formatted': format_size(total_size),
-                'best_quality': best_quality
+                'best_quality': best_quality,
+                'best_file_id': best_file_id,
+                'has_multiple_qualities': len(qualities) > 1,
+                'streaming_file_id': best_file_id  # For streaming button
             })
             
             logger.debug(f"📊 {norm_title}: {len(qualities)} qualities -> {quality_summary}")
@@ -2811,7 +2988,8 @@ async def get_home_movies(limit=25):
                         'post_content': post_content,
                         'quality_options': {},
                         'is_video_file': False,
-                        'streaming_enabled': Config.STREAMING_ENABLED
+                        'streaming_enabled': Config.STREAMING_ENABLED,
+                        'direct_download_enabled': Config.DIRECT_DOWNLOAD_ENABLED
                     }
                     
                     movies.append(movie_data)
@@ -2833,54 +3011,241 @@ async def get_home_movies(limit=25):
         return []
 
 # ============================================================================
-# ✅ DEBUG FUNCTION FOR FILE GROUPING
+# ✅ API ROUTES
 # ============================================================================
 
-async def debug_file_grouping(query):
-    """Debug function to see how files are being grouped"""
-    if files_col is None:
-        return {}
+@app.route('/')
+@performance_monitor.measure("root_endpoint")
+async def root():
+    if files_col is not None:
+        tf = await files_col.count_documents({})
+        video_files = await files_col.count_documents({'is_video_file': True})
+        thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
+    else:
+        tf = 0
+        video_files = 0
+        thumbnails_extracted = 0
     
-    # Get all files matching query
-    cursor = files_col.find(
-        {"normalized_title": {"$regex": query, "$options": "i"}},
-        {
-            'title': 1,
-            'normalized_title': 1,
-            'quality': 1,
-            'file_name': 1,
-            'message_id': 1,
-            '_id': 0
-        }
-    ).limit(50)
+    # Get indexing status
+    indexing_status = await file_indexing_manager.get_indexing_status()
     
-    files_by_title = defaultdict(list)
+    # Get bot handler status
+    bot_status = await bot_handler.get_bot_status() if bot_handler else None
     
-    async for doc in cursor:
-        title = doc.get('title', 'Unknown')
-        norm_title = normalize_title(title)
-        quality = doc.get('quality', 'Unknown')
+    return jsonify({
+        'status': 'healthy',
+        'service': 'SK4FiLM v9.0 - STREAMING & DOWNLOAD',
+        'sessions': {
+            'user_session': {
+                'ready': user_session_ready,
+                'channels': Config.TEXT_CHANNEL_IDS
+            },
+            'bot_session': {
+                'ready': bot_session_ready,
+                'channel': Config.FILE_CHANNEL_ID
+            },
+            'bot_handler': bot_status
+        },
+        'components': {
+            'cache': cache_manager is not None,
+            'verification': verification_system is not None,
+            'premium': premium_system is not None,
+            'poster_fetcher': poster_fetcher is not None,
+            'database': files_col is not None,
+            'bot_handler': bot_handler is not None and bot_handler.initialized,
+            'streaming_proxy': Config.STREAMING_ENABLED
+        },
+        'features': {
+            'real_message_ids': True,
+            'file_channel_indexing': True,
+            'complete_history': Config.INDEX_ALL_HISTORY,
+            'instant_indexing': Config.INSTANT_AUTO_INDEX,
+            'duplicate_prevention': True,
+            'quality_merging': True,
+            'thumbnail_extraction': True,
+            'streaming': Config.STREAMING_ENABLED,
+            'direct_download': Config.DIRECT_DOWNLOAD_ENABLED
+        },
+        'stats': {
+            'total_files': tf,
+            'video_files': video_files,
+            'thumbnails_extracted': thumbnails_extracted
+        },
+        'indexing': indexing_status,
+        'response_time': f"{time.perf_counter():.3f}s"
+    })
+
+@app.route('/health')
+@performance_monitor.measure("health_endpoint")
+async def health():
+    indexing_status = await file_indexing_manager.get_indexing_status()
+    bot_status = await bot_handler.get_bot_status() if bot_handler else None
+    
+    return jsonify({
+        'status': 'ok',
+        'sessions': {
+            'user': user_session_ready,
+            'bot': bot_session_ready,
+            'bot_handler': bot_status.get('initialized') if bot_status else False
+        },
+        'indexing': {
+            'running': indexing_status['is_running'],
+            'is_first_run': indexing_status.get('is_first_run', False),
+            'last_run': indexing_status['last_run']
+        },
+        'streaming': {
+            'enabled': Config.STREAMING_ENABLED,
+            'proxy_url': Config.STREAMING_PROXY_URL
+        },
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api/movies', methods=['GET'])
+@performance_monitor.measure("movies_endpoint")
+async def api_movies():
+    try:
+        # Get home movies
+        movies = await get_home_movies(limit=25)
         
-        files_by_title[norm_title].append({
-            'title': title,
-            'quality': quality,
-            'file_name': doc.get('file_name', ''),
-            'message_id': doc.get('message_id')
+        return jsonify({
+            'status': 'success' if movies else 'empty',
+            'movies': movies,
+            'total': len(movies),
+            'limit': 25,
+            'source': 'telegram',
+            'poster_fetcher': poster_fetcher is not None,
+            'session_used': 'user',
+            'channel_id': Config.MAIN_CHANNEL_ID,
+            'streaming_enabled': Config.STREAMING_ENABLED,
+            'direct_download_enabled': Config.DIRECT_DOWNLOAD_ENABLED,
+            'timestamp': datetime.now().isoformat()
         })
-    
-    # Log grouping
-    logger.info(f"🔍 DEBUG Grouping for query: {query}")
-    for norm_title, files in files_by_title.items():
-        qualities = [f['quality'] for f in files]
-        logger.info(f"   📁 '{norm_title}': {len(files)} files")
-        for file in files:
-            logger.info(f"      • {file['quality']} - {file['file_name'][:30]}... (Msg ID: {file['message_id']})")
-    
-    return files_by_title
+    except Exception as e:
+        logger.error(f"Movies API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'movies': [],
+            'total': 0
+        }), 500
 
-# ============================================================================
-# ✅ STREAMING ENDPOINTS
-# ============================================================================
+@app.route('/api/search', methods=['GET'])
+@performance_monitor.measure("search_endpoint")
+async def api_search():
+    try:
+        query = request.args.get('query', '').strip()
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', Config.SEARCH_RESULTS_PER_PAGE))
+        
+        if len(query) < Config.SEARCH_MIN_QUERY_LENGTH:
+            return jsonify({
+                'status': 'error',
+                'message': f'Query must be at least {Config.SEARCH_MIN_QUERY_LENGTH} characters'
+            }), 400
+        
+        result_data = await search_movies_multi_channel_merged(query, limit, page)
+        
+        # ✅ ENHANCE RESULTS FOR SEARCH PAGE DISPLAY
+        enhanced_results = []
+        for result in result_data['results']:
+            enhanced_result = result.copy()
+            
+            # Determine display type based on what's available
+            if result.get('has_file') and result.get('has_post'):
+                # ✅ Post with File (Same Title)
+                enhanced_result['display_type'] = 'post_with_file'
+                enhanced_result['download_message'] = 'Download in Player'
+                enhanced_result['stream_button_enabled'] = True
+                enhanced_result['download_button_enabled'] = False  # No download button in search
+                enhanced_result['view_page_required'] = True
+                
+            elif result.get('has_file') and not result.get('has_post'):
+                # ✅ File Only (No Post)
+                enhanced_result['display_type'] = 'file_only'
+                enhanced_result['download_message'] = 'Download in Player'
+                enhanced_result['stream_button_enabled'] = True
+                enhanced_result['download_button_enabled'] = False  # No download button in search
+                enhanced_result['view_page_required'] = True
+                
+            elif result.get('has_post') and not result.get('has_file'):
+                # ✅ Post Only (No File)
+                enhanced_result['display_type'] = 'post_only'
+                enhanced_result['download_message'] = 'Post Only - No File'
+                enhanced_result['stream_button_enabled'] = False
+                enhanced_result['download_button_enabled'] = False
+                enhanced_result['view_page_required'] = False
+                
+            else:
+                # Fallback
+                enhanced_result['display_type'] = 'unknown'
+                enhanced_result['download_message'] = 'No file available'
+                enhanced_result['stream_button_enabled'] = False
+                enhanced_result['download_button_enabled'] = False
+                enhanced_result['view_page_required'] = False
+            
+            # Add view page link
+            if enhanced_result.get('streaming_file_id') or enhanced_result.get('best_file_id'):
+                file_id = enhanced_result.get('streaming_file_id') or enhanced_result.get('best_file_id')
+                enhanced_result['view_page_url'] = f"/view/{file_id}"
+            else:
+                enhanced_result['view_page_url'] = None
+            
+            enhanced_results.append(enhanced_result)
+        
+        return jsonify({
+            'status': 'success',
+            'query': query,
+            'results': enhanced_results,
+            'pagination': result_data['pagination'],
+            'search_metadata': {
+                **result_data.get('search_metadata', {}),
+                'feature': 'file_channel_search',
+                'quality_priority': Config.QUALITY_PRIORITY,
+                'real_message_ids': True,
+                'streaming_enabled': Config.STREAMING_ENABLED,
+                'direct_download_enabled': Config.DIRECT_DOWNLOAD_ENABLED
+            },
+            'bot_username': Config.BOT_USERNAME,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Search API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/view/<file_id>', methods=['GET'])
+@performance_monitor.measure("view_endpoint")
+async def api_view(file_id):
+    """Get detailed file information for view page"""
+    try:
+        logger.info(f"🔍 Getting view page data for: {file_id}")
+        
+        # Get enhanced file info
+        file_info = await get_enhanced_file_info(file_id)
+        
+        if file_info.get('status') == 'error':
+            return jsonify({
+                'status': 'error',
+                'message': file_info.get('message', 'File not found')
+            }), 404
+        
+        return jsonify({
+            'status': 'success',
+            'file_info': file_info,
+            'streaming_enabled': Config.STREAMING_ENABLED,
+            'direct_download_enabled': Config.DIRECT_DOWNLOAD_ENABLED,
+            'bot_username': Config.BOT_USERNAME,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"View API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 @app.route('/api/stream/info/<file_id>', methods=['GET'])
 @performance_monitor.measure("stream_info")
@@ -2915,6 +3280,7 @@ async def get_stream_info(file_id):
             'size_formatted': format_size(file_info.get('file_size', 0)),
             'quality': file_info.get('quality', 'HD'),
             'duration': file_info.get('duration', 0),
+            'duration_formatted': format_duration(file_info.get('duration', 0)),
             'thumbnail_url': file_info.get('thumbnail_url'),
             'streaming_enabled': Config.STREAMING_ENABLED,
             'stream_url': stream_url,
@@ -2999,420 +3365,6 @@ async def get_download_info(file_id):
         }), 500
 
 # ============================================================================
-# ✅ API ROUTES - WITH ADMIN ENDPOINTS
-# ============================================================================
-
-@app.route('/')
-@performance_monitor.measure("root_endpoint")
-async def root():
-    if files_col is not None:
-        tf = await files_col.count_documents({})
-        video_files = await files_col.count_documents({'is_video_file': True})
-        thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
-    else:
-        tf = 0
-        video_files = 0
-        thumbnails_extracted = 0
-    
-    # Get indexing status
-    indexing_status = await file_indexing_manager.get_indexing_status()
-    
-    # Get bot handler status
-    bot_status = await bot_handler.get_bot_status() if bot_handler else None
-    
-    # Get Telegram bot status
-    bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-    
-    return jsonify({
-        'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - STREAMING & DOWNLOAD',
-        'sessions': {
-            'user_session': {
-                'ready': user_session_ready,
-                'channels': Config.TEXT_CHANNEL_IDS
-            },
-            'bot_session': {
-                'ready': bot_session_ready,
-                'channel': Config.FILE_CHANNEL_ID
-            },
-            'bot_handler': bot_status,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None
-            }
-        },
-        'components': {
-            'cache': cache_manager is not None,
-            'verification': verification_system is not None,
-            'premium': premium_system is not None,
-            'poster_fetcher': poster_fetcher is not None,
-            'database': files_col is not None,
-            'bot_handler': bot_handler is not None and bot_handler.initialized,
-            'telegram_bot': telegram_bot is not None,
-            'streaming_proxy': Config.STREAMING_ENABLED
-        },
-        'features': {
-            'real_message_ids': True,
-            'file_channel_indexing': True,
-            'complete_history': Config.INDEX_ALL_HISTORY,
-            'instant_indexing': Config.INSTANT_AUTO_INDEX,
-            'duplicate_prevention': True,
-            'quality_merging': True,
-            'thumbnail_extraction': True,
-            'telegram_bot': True,
-            'streaming': Config.STREAMING_ENABLED,
-            'direct_download': Config.DIRECT_DOWNLOAD_ENABLED
-        },
-        'stats': {
-            'total_files': tf,
-            'video_files': video_files,
-            'thumbnails_extracted': thumbnails_extracted
-        },
-        'indexing': indexing_status,
-        'response_time': f"{time.perf_counter():.3f}s"
-    })
-
-@app.route('/health')
-@performance_monitor.measure("health_endpoint")
-async def health():
-    indexing_status = await file_indexing_manager.get_indexing_status()
-    bot_status = await bot_handler.get_bot_status() if bot_handler else None
-    
-    return jsonify({
-        'status': 'ok',
-        'sessions': {
-            'user': user_session_ready,
-            'bot': bot_session_ready,
-            'bot_handler': bot_status.get('initialized') if bot_status else False,
-            'telegram_bot': telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        },
-        'indexing': {
-            'running': indexing_status['is_running'],
-            'is_first_run': indexing_status.get('is_first_run', False),
-            'last_run': indexing_status['last_run']
-        },
-        'streaming': {
-            'enabled': Config.STREAMING_ENABLED,
-            'proxy_url': Config.STREAMING_PROXY_URL
-        },
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/api/movies', methods=['GET'])
-@performance_monitor.measure("movies_endpoint")
-async def api_movies():
-    try:
-        # Get home movies
-        movies = await get_home_movies(limit=25)
-        
-        return jsonify({
-            'status': 'success' if movies else 'empty',
-            'movies': movies,
-            'total': len(movies),
-            'limit': 25,
-            'source': 'telegram',
-            'poster_fetcher': poster_fetcher is not None,
-            'session_used': 'user',
-            'channel_id': Config.MAIN_CHANNEL_ID,
-            'streaming_enabled': Config.STREAMING_ENABLED,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Movies API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e),
-            'movies': [],
-            'total': 0
-        }), 500
-
-@app.route('/api/search', methods=['GET'])
-@performance_monitor.measure("search_endpoint")
-async def api_search():
-    try:
-        query = request.args.get('query', '').strip()
-        page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', Config.SEARCH_RESULTS_PER_PAGE))
-        
-        if len(query) < Config.SEARCH_MIN_QUERY_LENGTH:
-            return jsonify({
-                'status': 'error',
-                'message': f'Query must be at least {Config.SEARCH_MIN_QUERY_LENGTH} characters'
-            }), 400
-        
-        result_data = await search_movies_multi_channel_merged(query, limit, page)
-        
-        return jsonify({
-            'status': 'success',
-            'query': query,
-            'results': result_data['results'],
-            'pagination': result_data['pagination'],
-            'search_metadata': {
-                **result_data.get('search_metadata', {}),
-                'feature': 'file_channel_search',
-                'quality_priority': Config.QUALITY_PRIORITY,
-                'real_message_ids': True,
-                'streaming_enabled': Config.STREAMING_ENABLED,
-                'direct_download_enabled': Config.DIRECT_DOWNLOAD_ENABLED
-            },
-            'bot_username': Config.BOT_USERNAME,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Search API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/stats', methods=['GET'])
-async def api_stats():
-    """Get performance statistics"""
-    try:
-        perf_stats = performance_monitor.get_stats()
-        
-        if poster_fetcher and hasattr(poster_fetcher, 'get_stats'):
-            poster_stats = poster_fetcher.get_stats()
-        else:
-            poster_stats = {}
-        
-        # Get database stats
-        if files_col is not None:
-            total_files = await files_col.count_documents({})
-            video_files = await files_col.count_documents({'is_video_file': True})
-            thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
-            
-            # Get indexing stats
-            indexing_status = await file_indexing_manager.get_indexing_status()
-            
-            # Get duplicate stats
-            duplicate_stats = await duplicate_prevention.get_duplicate_stats()
-        else:
-            total_files = 0
-            video_files = 0
-            thumbnails_extracted = 0
-            indexing_status = {}
-            duplicate_stats = {}
-        
-        # Get bot handler status
-        bot_status = await bot_handler.get_bot_status() if bot_handler else None
-        
-        # Get Telegram bot status
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
-        return jsonify({
-            'status': 'success',
-            'performance': perf_stats,
-            'poster_fetcher': poster_stats,
-            'database_stats': {
-                'total_files': total_files,
-                'video_files': video_files,
-                'thumbnails_extracted': thumbnails_extracted,
-                'extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%"
-            },
-            'indexing_stats': indexing_status,
-            'duplicate_stats': duplicate_stats,
-            'bot_handler': bot_status,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None
-            },
-            'real_message_ids': True,
-            'streaming': {
-                'enabled': Config.STREAMING_ENABLED,
-                'proxy_url': Config.STREAMING_PROXY_URL
-            },
-            'direct_download': {
-                'enabled': Config.DIRECT_DOWNLOAD_ENABLED
-            },
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Stats API error: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-# ============================================================================
-# ✅ DEBUG ENDPOINT
-# ============================================================================
-
-@app.route('/api/debug/grouping', methods=['GET'])
-async def api_debug_grouping():
-    """Debug endpoint to see file grouping"""
-    try:
-        query = request.args.get('query', '').strip()
-        if not query:
-            return jsonify({'status': 'error', 'message': 'Query parameter required'}), 400
-        
-        grouped = await debug_file_grouping(query)
-        
-        return jsonify({
-            'status': 'success',
-            'query': query,
-            'grouped_files': grouped,
-            'total_groups': len(grouped),
-            'total_files': sum(len(files) for files in grouped.values())
-        })
-    except Exception as e:
-        logger.error(f"Debug grouping error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# ============================================================================
-# ✅ ADMIN API ROUTES
-# ============================================================================
-
-@app.route('/api/admin/reindex', methods=['POST'])
-async def api_admin_reindex():
-    """Admin endpoint to trigger reindexing"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        # Trigger reindexing
-        asyncio.create_task(initial_indexing())
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'File channel reindexing started',
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Admin reindex error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/indexing-status', methods=['GET'])
-async def api_admin_indexing_status():
-    """Check indexing status"""
-    try:
-        indexing_status = await file_indexing_manager.get_indexing_status()
-        
-        # Get database stats
-        if files_col is not None:
-            total_files = await files_col.count_documents({})
-        else:
-            total_files = 0
-        
-        return jsonify({
-            'status': 'success',
-            'indexing': indexing_status,
-            'database_files': total_files,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Indexing status error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/clear-cache', methods=['POST'])
-async def api_admin_clear_cache():
-    """Clear all cache"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if cache_manager and cache_manager.redis_enabled:
-            try:
-                # Clear all cache keys starting with "search_"
-                keys = await cache_manager.redis_client.keys("search_*")
-                if keys:
-                    await cache_manager.redis_client.delete(*keys)
-                    logger.info(f"✅ Cleared {len(keys)} search cache keys")
-            except Exception as e:
-                logger.error(f"❌ Cache clear error: {e}")
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Cache cleared successfully'
-        })
-    except Exception as e:
-        logger.error(f"❌ Clear cache error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/db-stats', methods=['GET'])
-async def api_admin_db_stats():
-    """Get detailed database stats"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if files_col is None:
-            return jsonify({'status': 'error', 'message': 'Database not connected'})
-        
-        # Get total count
-        total = await files_col.count_documents({})
-        
-        # Get sample documents with REAL MESSAGE IDS
-        sample = await files_col.find({}, {
-            'title': 1, 
-            'message_id': 1, 
-            'real_message_id': 1,
-            'quality': 1, 
-            '_id': 0
-        }).limit(5).to_list(length=5)
-        
-        # Get quality distribution
-        pipeline = [
-            {"$group": {"_id": "$quality", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}}
-        ]
-        quality_dist = await files_col.aggregate(pipeline).to_list(length=10)
-        
-        # Get recent files
-        recent = await files_col.find({}, {
-            'title': 1, 
-            'date': 1, 
-            'real_message_id': 1,
-            '_id': 0
-        }).sort('date', -1).limit(5).to_list(length=5)
-        
-        return jsonify({
-            'status': 'success',
-            'total_files': total,
-            'sample_files': sample,
-            'quality_distribution': quality_dist,
-            'recent_files': recent
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ DB stats error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/bot-status', methods=['GET'])
-async def api_admin_bot_status():
-    """Get Telegram bot status"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
-        return jsonify({
-            'status': 'success',
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None,
-                'started': telegram_bot.bot_started if telegram_bot and hasattr(telegram_bot, 'bot_started') else False
-            },
-            'config': {
-                'bot_token_configured': bool(Config.BOT_TOKEN),
-                'api_id_configured': bool(Config.API_ID),
-                'api_hash_configured': bool(Config.API_HASH),
-                'admin_ids': Config.ADMIN_IDS
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Bot status error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# ============================================================================
 # ✅ STARTUP AND SHUTDOWN
 # ============================================================================
 
@@ -3427,14 +3379,6 @@ async def shutdown():
     logger.info("🛑 Shutting down SK4FiLM v9.0...")
     
     shutdown_tasks = []
-    
-    # Stop Telegram bot
-    if telegram_bot:
-        try:
-            await telegram_bot.shutdown()
-            logger.info("✅ Telegram Bot stopped")
-        except Exception as e:
-            logger.error(f"❌ Telegram Bot shutdown error: {e}")
     
     # Stop indexing
     await file_indexing_manager.stop_indexing()
@@ -3508,5 +3452,7 @@ if __name__ == "__main__":
     logger.info(f"   • Bot Username: @{Config.BOT_USERNAME}")
     logger.info(f"   • Multi-Quality Merging: ✅ FIXED")
     logger.info(f"   • Single Title Results: ✅ ENABLED")
+    logger.info(f"   • View Page API: ✅ READY")
+    logger.info(f"   • Enhanced Search Results: ✅ IMPLEMENTED")
     
     asyncio.run(serve(app, config))
