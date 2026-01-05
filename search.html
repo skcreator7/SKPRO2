@@ -2,1617 +2,533 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-    <title>Search Movies - SK4FiLM</title>
-    <meta name="description" content="Search and stream latest movies in HD quality">
-    <meta name="google-adsense-account" content="ca-pub-5244164301170945">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search - SK4FiLM</title>
     <style>
-        :root {
-            --primary-color: #ff0000;
-            --secondary-color: #0066ff;
-            --accent-color: #00ccff;
-            --bg-dark: #0a0a0f;
-            --card-bg: rgba(30, 41, 59, 0.9);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+
         body {
-            font-family: 'Josefin Sans', sans-serif;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
-            color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding-top: 80px;
+            padding: 20px;
+            color: #fff;
         }
-        /* Navbar */
-        .navbar {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        .navbar-brand {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 1.5rem;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .search-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            padding: 15px 30px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            margin-bottom: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
         }
-        .logo-img {
-            height: 40px;
-            width: 40px;
-            border-radius: 8px;
-        }
-        .btn-back-home {
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+
+        .search-box input {
+            flex: 1;
+            background: transparent;
             border: none;
-            padding: 8px 20px;
-            font-weight: 600;
-            border-radius: 20px;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        .btn-back-home:hover {
-            transform: scale(1.05);
-        }
-        
-        /* Search Bar */
-        .search-container {
-            margin: 2rem 0;
-            position: relative;
-        }
-        .search-box {
-            background: rgba(15, 23, 42, 0.8);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            padding: 12px 25px;
-            color: white;
-            font-size: 1.1rem;
-            width: 100%;
-            transition: all 0.3s ease;
-        }
-        .search-box:focus {
             outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.2);
+            color: #fff;
+            font-size: 1.1rem;
+            padding: 10px;
         }
-        .search-btn {
-            position: absolute;
-            right: 5px;
-            top: 5px;
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+
+        .search-box input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .search-box button {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             border: none;
+            padding: 12px 30px;
             border-radius: 50px;
-            width: 50px;
-            height: 50px;
-            color: white;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
             cursor: pointer;
-            transition: transform 0.3s ease;
+            transition: transform 0.2s;
         }
-        .search-btn:hover {
+
+        .search-box button:hover {
             transform: scale(1.05);
         }
-        
-        .result-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
+
+        .results-info {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
             border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 15px 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
         .result-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
-        .result-title {
-            color: var(--accent-color);
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            line-height: 1.3;
-        }
-        
-        /* Result Structure */
-        .result-thumbnail-top {
-            margin-bottom: 1.5rem;
-            position: relative;
-            border-radius: 10px;
-            overflow: hidden;
-            cursor: pointer;
-            height: 250px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        }
-        
-        /* IMPROVED: Post Content Styling */
-        .result-post-content {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.2rem;
-            font-size: 1rem;
-            line-height: 1.7;
-            color: #e2e8f0;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        /* Post Content Text Styling */
-        .post-content-text {
-            max-height: 300px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-        
-        /* Post Content Scrollbar */
-        .post-content-text::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .post-content-text::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.05);
-            border-radius: 3px;
-        }
-        
-        .post-content-text::-webkit-scrollbar-thumb {
-            background: var(--accent-color);
-            border-radius: 3px;
-        }
-        
-        /* Post Content Links - IMPROVED */
-        .post-content-text a {
-            color: #00ccff;
-            text-decoration: none;
-            font-weight: 600;
-            background: rgba(0, 204, 255, 0.1);
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid rgba(0, 204, 255, 0.3);
-            transition: all 0.3s ease;
-            display: inline-block;
-            margin: 2px 0;
-        }
-        
-        .post-content-text a:hover {
-            background: rgba(0, 204, 255, 0.2);
-            color: #80e1ff;
-            text-decoration: none;
-            border-color: rgba(0, 204, 255, 0.5);
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(0, 204, 255, 0.2);
-        }
-        
-        /* Telegram Links Styling */
-        .post-content-text a[href*="t.me"],
-        .post-content-text a[href*="telegram"] {
-            color: #0088cc;
-            background: rgba(0, 136, 204, 0.1);
-            border: 1px solid rgba(0, 136, 204, 0.3);
-        }
-        
-        .post-content-text a[href*="t.me"]:hover,
-        .post-content-text a[href*="telegram"]:hover {
-            background: rgba(0, 136, 204, 0.2);
-            color: #33aadd;
-            border-color: rgba(0, 136, 204, 0.5);
-        }
-        
-        /* Bold Text in Post Content */
-        .post-content-text strong,
-        .post-content-text b {
-            color: #ffffff;
-            font-weight: 700;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 1px 4px;
-            border-radius: 3px;
-        }
-        
-        /* Italic Text */
-        .post-content-text em,
-        .post-content-text i {
-            color: #cbd5e1;
-            font-style: italic;
-        }
-        
-        /* Headers in Post Content */
-        .post-content-text h1,
-        .post-content-text h2,
-        .post-content-text h3,
-        .post-content-text h4 {
-            color: var(--accent-color);
-            margin: 15px 0 10px 0;
-            font-weight: 700;
-        }
-        
-        /* Lists in Post Content */
-        .post-content-text ul,
-        .post-content-text ol {
-            padding-left: 20px;
-            margin: 10px 0;
-        }
-        
-        .post-content-text li {
-            margin: 5px 0;
-        }
-        
-        /* Code/Pre tags */
-        .post-content-text pre,
-        .post-content-text code {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 0.9em;
-            border: 1px solid rgba(255,255,255,0.1);
-            overflow-x: auto;
-        }
-        
-        /* Blockquotes */
-        .post-content-text blockquote {
-            border-left: 4px solid var(--accent-color);
-            padding-left: 15px;
-            margin: 15px 0;
-            color: #94a3b8;
-            font-style: italic;
-        }
-        
-        /* Horizontal Rule */
-        .post-content-text hr {
-            border: none;
-            height: 1px;
-            background: rgba(255,255,255,0.1);
-            margin: 20px 0;
-        }
-        
-        /* Images in Post Content */
-        .post-content-text img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin: 10px 0;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        /* Video in Post Content */
-        .post-content-text video {
-            max-width: 100%;
-            border-radius: 8px;
-            margin: 10px 0;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        /* Tags/Hashtags */
-        .post-content-text .hashtag {
-            color: #00ff88;
-            background: rgba(0, 255, 136, 0.1);
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 0.9em;
-            margin: 0 2px;
-            border: 1px solid rgba(0, 255, 136, 0.3);
-        }
-        
-        /* Mentions */
-        .post-content-text .mention {
-            color: #ff6b9d;
-            background: rgba(255, 107, 157, 0.1);
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 0.9em;
-            margin: 0 2px;
-            border: 1px solid rgba(255, 107, 157, 0.3);
-        }
-        
-        .result-download-section {
-            margin-top: 1rem;
-        }
-        
-        /* Thumbnail Container */
-        .thumbnail-container {
-            position: relative;
+
+        .result-thumbnail {
             width: 100%;
-            height: 100%;
+            height: 400px;
+            object-fit: cover;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .thumbnail-container img {
+
+        .result-thumbnail img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.3s ease;
         }
-        .thumbnail-container:hover img {
-            transform: scale(1.05);
-        }
-        .play-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
+
+        .result-thumbnail.no-image {
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            font-size: 3rem;
+            color: rgba(255, 255, 255, 0.3);
         }
-        .thumbnail-container:hover .play-overlay {
-            opacity: 1;
-        }
-        .play-button {
-            width: 70px;
-            height: 70px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-            transition: transform 0.3s ease;
-            border: 3px solid white;
-        }
-        .play-button:hover {
-            transform: scale(1.1);
-            background: var(--secondary-color);
-        }
-        
-        /* Thumbnail Loading States */
-        .thumbnail-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.1);
-            height: 100%;
-        }
-        .thumbnail-loading .spinner-border {
-            width: 2rem;
-            height: 2rem;
-            border-width: 0.2em;
-        }
-        
-        /* Default Thumbnail */
-        .default-thumbnail {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-align: center;
+
+        .result-content {
             padding: 20px;
         }
-        .default-thumbnail i {
-            font-size: 3rem;
+
+        .result-title {
+            font-size: 1.3rem;
+            font-weight: bold;
             margin-bottom: 10px;
-            opacity: 0.8;
+            color: #fff;
         }
-        .default-thumbnail span {
+
+        .result-year {
             font-size: 0.9rem;
-            opacity: 0.9;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 10px;
         }
-        
-        /* Action Buttons */
-        .action-buttons {
+
+        .result-rating {
+            display: inline-block;
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .result-qualities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .quality-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .result-post {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-height: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .result-actions {
             display: flex;
             gap: 10px;
-            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
         }
-        
-        .btn-stream {
-            background: linear-gradient(45deg, #ff0000, #ff6b6b);
-            border: none;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 10px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+
+        .btn {
             flex: 1;
-            text-align: center;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.95rem;
-        }
-        
-        .btn-stream:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(255, 0, 0, 0.35);
-        }
-        
-        .btn-stream:disabled {
-            background: #495057 !important;
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-        
-        .btn-download {
-            background: linear-gradient(45deg, #6c757d, #495057);
-            border: none;
-            color: white;
+            min-width: 120px;
             padding: 12px 20px;
-            border-radius: 10px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            flex: 1;
-            text-align: center;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.95rem;
-        }
-        
-        .btn-download:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.35);
-        }
-        
-        .btn-download:disabled {
-            background: #495057 !important;
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-        
-        /* Info Message */
-        .info-message {
-            background: rgba(0, 204, 255, 0.1);
-            border: 1px solid rgba(0, 204, 255, 0.3);
-            border-radius: 8px;
-            padding: 10px 15px;
-            margin-top: 10px;
-            font-size: 0.85rem;
-            color: #80e1ff;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .info-message i {
-            color: #00ccff;
-        }
-        
-        /* Video File Badge */
-        .video-file-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--primary-color);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-        }
-        
-        /* Thumbnail Source Badge */
-        .thumbnail-source-badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.6rem;
-            font-weight: 600;
-            z-index: 2;
-        }
-        
-        /* Pagination & State */
-        .pagination {
-            margin-top: 2rem;
-        }
-        .page-link {
-            background: rgba(0,204,255,0.2);
-            color: var(--accent-color);
-            border: 2px solid var(--accent-color);
-        }
-        .page-link:hover, .page-item.active .page-link {
-            background: var(--accent-color);
-            border-color: var(--accent-color);
-            color: #0a0a0f;
-        }
-        .page-item.disabled .page-link {
-            opacity: 0.4;
-        }
-        .results-info {
-            text-align: center;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-        }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-            border-width: 0.3rem;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-        }
-        .empty-state i {
-            font-size: 4rem;
-            color: var(--accent-color);
-            margin-bottom: 1.5rem;
-        }
-        
-        /* Loading Skeleton */
-        .skeleton-loader {
-            background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        .skeleton-thumbnail {
-            height: 250px;
-            width: 100%;
-        }
-        .skeleton-title {
-            height: 24px;
-            width: 70%;
-        }
-        .skeleton-post {
-            height: 100px;
-            width: 100%;
-        }
-        .skeleton-button {
-            height: 45px;
-            width: 100%;
-        }
-        
-        /* Error States */
-        .error-state {
-            text-align: center;
-            padding: 3rem 2rem;
-            background: rgba(255, 0, 0, 0.1);
-            border-radius: 15px;
-            border: 1px solid rgba(255, 0, 0, 0.3);
-        }
-        .error-state i {
-            font-size: 3rem;
-            color: #ff4757;
-            margin-bottom: 1rem;
-        }
-        .retry-btn {
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            padding: 10px 25px;
             border-radius: 25px;
-            color: white;
-            font-weight: 600;
-            margin-top: 1rem;
+            border: none;
+            font-size: 0.95rem;
+            font-weight: bold;
             cursor: pointer;
-            transition: transform 0.3s ease;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
         }
-        .retry-btn:hover {
+
+        .btn-stream {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #fff;
+        }
+
+        .btn-stream:hover {
             transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
         }
-        
-        /* Ad Container */
-        .ad-container {
-            margin: 2rem 0;
-            text-align: center;
+
+        .btn-disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.4);
+            cursor: not-allowed;
         }
-        .top-ad-container {
-            margin: 1rem 0 2rem 0;
+
+        .loading {
             text-align: center;
+            padding: 50px;
+            font-size: 1.2rem;
         }
-        
-        /* Disclaimer Styles */
-        .disclaimer {
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 2rem;
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-results {
             text-align: center;
-            color: #ff6b6b;
-            font-size: 0.9rem;
+            padding: 60px 20px;
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
         }
-        .disclaimer strong {
-            color: #ff4757;
-            display: block;
-            margin-bottom: 8px;
-            font-size: 1rem;
+
+        .no-results h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
         }
-        
-        /* Mobile Optimizations */
+
+        .no-results p {
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid rgba(255, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
         @media (max-width: 768px) {
-            .result-thumbnail-top {
-                height: 200px;
+            .header h1 {
+                font-size: 2rem;
             }
-            .btn-stream, .btn-download {
-                font-size: 0.85rem;
-                padding: 10px 15px;
+
+            .results-grid {
+                grid-template-columns: 1fr;
             }
-            .play-button {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
-            }
-            
-            .post-content-text {
-                font-size: 0.95rem;
-                max-height: 250px;
-            }
-            
-            .info-message {
-                font-size: 0.8rem;
-                padding: 8px 12px;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .result-thumbnail-top {
-                height: 180px;
-            }
-            .btn-stream, .btn-download {
-                font-size: 0.8rem;
-                padding: 8px 12px;
-            }
-            
-            .post-content-text {
-                font-size: 0.9rem;
-                max-height: 200px;
-            }
-            
-            .result-post-content {
-                padding: 1rem;
-            }
-            
-            .action-buttons {
+
+            .search-box {
                 flex-direction: column;
-                gap: 8px;
+                gap: 15px;
+                padding: 20px;
             }
-        }
-        
-        @media (max-width: 400px) {
-            .result-thumbnail-top {
-                height: 150px;
-            }
-            .btn-stream, .btn-download {
-                font-size: 0.75rem;
-                padding: 8px 10px;
-            }
-            
-            .post-content-text {
-                font-size: 0.85rem;
-                max-height: 180px;
-            }
-            
-            .result-post-content {
-                padding: 0.8rem;
+
+            .search-box button {
+                width: 100%;
             }
         }
     </style>
 </head>
 <body>
-<!-- Navbar -->
-<nav class="navbar fixed-top">
-    <div class="container d-flex align-items-center justify-content-between">
-        <a href="index.html" class="navbar-brand">
-            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
-            SK4FiLM
-        </a>
-        <button class="btn-back-home" onclick="window.location.href='index.html'">
-            <i class="fas fa-arrow-left me-2"></i>Back Home
-        </button>
-    </div>
-</nav>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 SK4FiLM Search</h1>
+            <p>Find your favorite movies and shows</p>
+        </div>
 
-<!-- Main Content -->
-<div class="container my-4">
-    <!-- Top Ad -->
-    <div class="top-ad-container">
-        <script type="text/javascript">
-            atOptions = {
-                'key' : '567936a964b0784aedd11f237d26bee0',
-                'format' : 'iframe',
-                'height' : 250,
-                'width' : 300,
-                'params' : {}
-            };
-        </script>
-        <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-    </div>
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search for movies, shows, or keywords..."
+                autocomplete="off"
+            >
+            <button onclick="performSearch()">🔍 Search</button>
+        </div>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-        <input type="text" id="searchInput" class="search-box" placeholder="Search for movies..." value="">
-        <button class="search-btn" id="searchButton">
-            <i class="fas fa-search"></i>
-        </button>
+        <div id="resultsInfo" class="results-info" style="display: none;">
+            <strong>Found:</strong> <span id="resultCount">0</span> results for "<span id="searchQuery"></span>"
+        </div>
+
+        <div id="errorMessage" class="error" style="display: none;"></div>
+
+        <div id="loadingSpinner" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Searching...</p>
+        </div>
+
+        <div id="resultsContainer" class="results-grid"></div>
+
+        <div id="noResults" class="no-results" style="display: none;">
+            <h2>😕 No Results Found</h2>
+            <p>Try different keywords or check your spelling</p>
+        </div>
     </div>
 
-    <div id="resultsInfo"></div>
-    <div id="resultsContainer"></div>
-    <div id="paginationContainer"></div>
-    
-    <!-- Bottom Ad Container -->
-    <div class="ad-container">
-        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
-    </div>
-    
-    <!-- Disclaimer Section -->
-    <div class="disclaimer">
-        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
-        This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
-    </div>
-</div>
+    <script>
+        const API_BASE = window.location.origin;
+        const VIEW_PAGE = 'view.html';
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// ✅ REAL MESSAGE IDS के साथ API endpoints
-const API_ENDPOINTS = [
-    'https://sk4film.koyeb.app',
-    'https://sk4film-backup.herokuapp.com',
-    'https://sk4film-alternate.onrender.com'
-];
-
-// Fast Thumbnail Services
-const THUMBNAIL_SERVICES = [
-    {
-        name: 'TMDB',
-        url: (title) => `https://api.themoviedb.org/3/search/movie?api_key=b8a7d0e37e4b0c49d60d0b52f1e5a6d8&query=${encodeURIComponent(title)}`
-    },
-    {
-        name: 'OMDB',
-        url: (title) => `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=trilogy`
-    }
-];
-
-const RESULTS_PER_PAGE = 12;
-const AD_LINK = 'https://otieu.com/4/10220520';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache duration
-
-// ✅ REAL MESSAGE IDS के लिए config
-const FILE_CHANNEL_ID = "-1001768249569"; // Real channel ID
-const BOT_USERNAME = 'sk4filmbot'; // Fixed bot username
-
-let currentQuery = '';
-let currentPage = 1;
-let currentAPI = 0;
-let isOnline = true;
-
-const resultsContainer = document.getElementById('resultsContainer');
-const resultsInfo = document.getElementById('resultsInfo');
-const paginationContainer = document.getElementById('paginationContainer');
-const searchInput = document.getElementById('searchInput');
-const searchButton = document.getElementById('searchButton');
-
-// Fast Thumbnail Cache
-class FastThumbnailCache {
-    constructor() {
-        this.thumbnailCache = new Map();
-        this.pendingRequests = new Map();
-    }
-    
-    async getThumbnail(movieTitle) {
-        const cleanTitle = this.cleanTitle(movieTitle);
-        
-        // Check cache first
-        if (this.thumbnailCache.has(cleanTitle)) {
-            return this.thumbnailCache.get(cleanTitle);
+        // Get query from URL
+        function getQueryFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('q') || '';
         }
-        
-        // Check if request is already in progress
-        if (this.pendingRequests.has(cleanTitle)) {
-            return this.pendingRequests.get(cleanTitle);
-        }
-        
-        // Create new request
-        const thumbnailPromise = this.fetchThumbnail(cleanTitle);
-        this.pendingRequests.set(cleanTitle, thumbnailPromise);
-        
-        try {
-            const thumbnail = await thumbnailPromise;
-            if (thumbnail) {
-                this.thumbnailCache.set(cleanTitle, thumbnail);
+
+        // Perform search
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (query.length < 2) {
+                showError('Please enter at least 2 characters to search');
+                return;
             }
-            return thumbnail;
-        } finally {
-            this.pendingRequests.delete(cleanTitle);
-        }
-    }
-    
-    cleanTitle(title) {
-        return title
-            .replace(/[\(\)\[\]\{\}]/g, '')
-            .replace(/\b\d{4}\b/, '')
-            .replace(/\./g, ' ')
-            .replace(/_/g, ' ')
-            .trim()
-            .toLowerCase();
-    }
-    
-    async fetchThumbnail(title) {
-        // Try multiple services concurrently
-        const promises = THUMBNAIL_SERVICES.map(service => 
-            this.tryThumbnailService(service, title)
-        );
-        
-        // Return the first successful result
-        for (const promise of promises) {
+
+            // Update URL
+            const newURL = `${window.location.pathname}?q=${encodeURIComponent(query)}`;
+            window.history.pushState({}, '', newURL);
+
+            // Show loading
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('resultsContainer').innerHTML = '';
+            document.getElementById('noResults').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('resultsInfo').style.display = 'none';
+
             try {
-                const result = await promise;
-                if (result) return result;
-            } catch (error) {
-                // Continue to next service
-            }
-        }
-        
-        return null;
-    }
-    
-    async tryThumbnailService(service, title) {
-        try {
-            const response = await fetch(service.url(title), {
-                signal: AbortSignal.timeout(3000) // Fast timeout
-            });
-            
-            if (!response.ok) return null;
-            
-            const data = await response.json();
-            
-            if (service.name === 'TMDB' && data.results && data.results[0] && data.results[0].poster_path) {
-                return `https://image.tmdb.org/t/p/w500${data.results[0].poster_path}`;
-            }
-            
-            if (service.name === 'OMDB' && data.Poster && data.Poster !== 'N/A') {
-                return data.Poster;
-            }
-            
-            return null;
-        } catch (error) {
-            return null;
-        }
-    }
-    
-    clear() {
-        this.thumbnailCache.clear();
-        this.pendingRequests.clear();
-    }
-}
-
-const thumbnailCache = new FastThumbnailCache();
-
-// Enhanced Cache Implementation
-class EnhancedSearchCache {
-    constructor() {
-        this.storage = new Map();
-    }
-    
-    set(key, data) {
-        const timestamp = Date.now();
-        this.storage.set(key, { data, timestamp });
-        this.cleanup();
-    }
-    
-    get(key) {
-        const cached = this.storage.get(key);
-        if (cached && Date.now() - cached.timestamp <= CACHE_DURATION) {
-            return cached.data;
-        }
-        if (cached) {
-            this.storage.delete(key);
-        }
-        return null;
-    }
-    
-    cleanup() {
-        const now = Date.now();
-        for (const [key, value] of this.storage.entries()) {
-            if (now - value.timestamp > CACHE_DURATION) {
-                this.storage.delete(key);
-            }
-        }
-    }
-}
-
-const searchCache = new EnhancedSearchCache();
-
-// Network status detection
-function updateOnlineStatus() {
-    isOnline = navigator.onLine;
-}
-
-// ✅ FIXED: Get best quality for streaming
-function getBestQualityForStreaming(qualityOptions) {
-    if (!qualityOptions || typeof qualityOptions !== 'object') {
-        return null;
-    }
-    
-    // Quality priority for streaming
-    const qualityPriority = ['2160p', '1080p', '720p', '480p', '360p'];
-    
-    // Try to find the best quality
-    for (const quality of qualityPriority) {
-        if (qualityOptions[quality]) {
-            return {
-                quality: quality,
-                file_id: qualityOptions[quality].file_id || null
-            };
-        }
-        
-        // Check for HEVC variants
-        const hevcQuality = `${quality} HEVC`;
-        if (qualityOptions[hevcQuality]) {
-            return {
-                quality: hevcQuality,
-                file_id: qualityOptions[hevcQuality].file_id || null
-            };
-        }
-    }
-    
-    // Return first available quality
-    const firstKey = Object.keys(qualityOptions)[0];
-    if (firstKey && qualityOptions[firstKey]) {
-        return {
-            quality: firstKey,
-            file_id: qualityOptions[firstKey].file_id || null
-        };
-    }
-    
-    return null;
-}
-
-// ✅ FIXED: Result Button Generation Logic
-function generateResultButtons(result, index) {
-    const hasFile = result.has_file === true;
-    const hasPost = result.has_post === true;
-    const qualityOptions = result.quality_options || {};
-    const streamingEnabled = result.streaming_enabled === true;
-    
-    let html = '';
-    
-    // Get best quality for streaming
-    const bestQuality = getBestQualityForStreaming(qualityOptions);
-    const hasStreaming = streamingEnabled && bestQuality && bestQuality.file_id;
-    
-    if (hasFile && hasPost) {
-        // ✅ CASE 1: Post with File (Same Title) - Show only Stream Now button
-        html += `
-        <div class="action-buttons">
-            ${hasStreaming ? `
-                <button class="btn-stream" onclick="openStreamView('${bestQuality.file_id}', '${escapeHtml(result.title)}', '${bestQuality.quality}')">
-                    <i class="fas fa-play-circle me-2"></i>Stream Now
-                </button>
-            ` : `
-                <button class="btn-stream" disabled>
-                    <i class="fas fa-times me-2"></i>Stream Unavailable
-                </button>
-            `}
-            
-            <button class="btn-download" onclick="showDownloadInfo(${index})">
-                <i class="fas fa-info-circle me-2"></i>Download Info
-            </button>
-        </div>
-        
-        <div class="info-message" id="info-${index}" style="display: none;">
-            <i class="fas fa-info-circle"></i>
-            Download options available in video player. Click "Stream Now" to open player.
-        </div>
-        `;
-        
-    } else if (hasFile && !hasPost) {
-        // ✅ CASE 2: File Only - Show Stream Now button
-        html += `
-        <div class="action-buttons">
-            ${hasStreaming ? `
-                <button class="btn-stream" onclick="openStreamView('${bestQuality.file_id}', '${escapeHtml(result.title)}', '${bestQuality.quality}')">
-                    <i class="fas fa-play-circle me-2"></i>Stream Now
-                </button>
-            ` : `
-                <button class="btn-stream" disabled>
-                    <i class="fas fa-times me-2"></i>Stream Unavailable
-                </button>
-            `}
-            
-            <button class="btn-download" onclick="showDownloadInfo(${index})">
-                <i class="fas fa-info-circle me-2"></i>Download Info
-            </button>
-        </div>
-        
-        <div class="info-message" id="info-${index}" style="display: none;">
-            <i class="fas fa-info-circle"></i>
-            Download options available in video player. Click "Stream Now" to open player.
-        </div>
-        `;
-        
-    } else if (!hasFile && hasPost) {
-        // ✅ CASE 3: Post Only - Show message
-        html += `
-        <div class="action-buttons">
-            <button class="btn-stream" disabled>
-                <i class="fas fa-newspaper me-2"></i>Post Only
-            </button>
-            <button class="btn-download" disabled>
-                <i class="fas fa-times me-2"></i>No File
-            </button>
-        </div>
-        
-        <div class="info-message">
-            <i class="fas fa-info-circle"></i>
-            This is a text post only. No video file available.
-        </div>
-        `;
-        
-    } else {
-        // ✅ CASE 4: No file, no post (shouldn't happen)
-        html += `
-        <div class="action-buttons">
-            <button class="btn-stream" disabled>
-                <i class="fas fa-times me-2"></i>No Content
-            </button>
-            <button class="btn-download" disabled>
-                <i class="fas fa-times me-2"></i>No Download
-            </button>
-        </div>
-        `;
-    }
-    
-    return html;
-}
-
-function showDownloadInfo(index) {
-    const infoMessage = document.getElementById(`info-${index}`);
-    if (infoMessage) {
-        if (infoMessage.style.display === 'none') {
-            infoMessage.style.display = 'flex';
-            // Auto hide after 5 seconds
-            setTimeout(() => {
-                infoMessage.style.display = 'none';
-            }, 5000);
-        } else {
-            infoMessage.style.display = 'none';
-        }
-    }
-}
-
-// ✅ STREAMING SUPPORT FUNCTIONS
-async function openStreamView(fileId, title, quality) {
-    console.log("🎬 Opening stream for:", title, "File ID:", fileId, "Quality:", quality);
-    
-    // Build view.html URL with parameters
-    const params = new URLSearchParams({
-        file_id: fileId,
-        title: encodeURIComponent(title),
-        quality: quality || 'HD'
-    });
-    
-    // Open in new tab
-    window.open(`view.html?${params.toString()}`, '_blank');
-}
-
-// Initialize the page
-window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('query');
-    const page = parseInt(urlParams.get('page')) || 1;
-    
-    // Set up network status listeners
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus();
-    
-    if (query) {
-        currentQuery = query;
-        searchInput.value = query;
-        performSearch(page);
-    }
-    
-    // Set up search button event
-    searchButton.addEventListener('click', () => {
-        const query = searchInput.value.trim();
-        if (query) {
-            currentQuery = query;
-            performSearch(1);
-        }
-    });
-    
-    // Set up enter key in search input
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const query = searchInput.value.trim();
-            if (query) {
-                currentQuery = query;
-                performSearch(1);
-            }
-        }
-    });
-});
-
-async function performSearch(page = 1) {
-    if (!currentQuery) {
-        showError("Please enter a search query");
-        return;
-    }
-    
-    currentPage = page;
-    const url = new URL(window.location);
-    url.searchParams.set('query', currentQuery);
-    url.searchParams.set('page', page);
-    window.history.pushState({}, '', url);
-    
-    // Show loading state with skeleton
-    showSkeletonLoader();
-    resultsInfo.innerHTML = '';
-    paginationContainer.innerHTML = '';
-    
-    // Check cache first
-    const cacheKey = `${currentQuery}-${page}`;
-    const cachedData = searchCache.get(cacheKey);
-    
-    if (cachedData) {
-        displayResults(cachedData.results, cachedData.pagination);
-        return;
-    }
-    
-    // If offline and no cache, show error
-    if (!isOnline) {
-        showOfflineError();
-        return;
-    }
-    
-    // Try multiple API endpoints
-    try {
-        const data = await tryAllEndpoints(currentQuery, page);
-        if (data) {
-            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
-            
-            // Cache the successful results
-            searchCache.set(cacheKey, {
-                results: sortedResults,
-                pagination: data.pagination,
-                bot_username: data.bot_username || BOT_USERNAME
-            });
-            
-            displayResults(sortedResults, data.pagination);
-        } else {
-            showConnectionError();
-        }
-    } catch (error) {
-        console.error("Search error:", error);
-        showConnectionError();
-    }
-}
-
-function showSkeletonLoader() {
-    let html = '';
-    for (let i = 0; i < RESULTS_PER_PAGE; i++) {
-        html += `
-        <div class="result-card">
-            <div class="skeleton-loader skeleton-thumbnail mb-3"></div>
-            <div class="skeleton-loader skeleton-title mb-3"></div>
-            <div class="skeleton-loader skeleton-post mb-3"></div>
-            <div class="skeleton-loader skeleton-button"></div>
-        </div>
-        `;
-    }
-    resultsContainer.innerHTML = html;
-}
-
-async function tryAllEndpoints(query, page) {
-    for (let i = 0; i < API_ENDPOINTS.length; i++) {
-        try {
-            const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-            console.log(`Trying API endpoint ${i}: ${apiUrl}`);
-            
-            const response = await fetch(apiUrl, { 
-                method: 'GET',
-                headers: { 
-                    'Content-Type': 'application/json',
-                },
-                signal: AbortSignal.timeout(10000)
-            });
-            
-            if (response.ok) {
+                const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
-                console.log(`API ${i} response:`, data.status, "results:", data.results?.length);
-                
-                if (data.status === "success") {
-                    currentAPI = i;
-                    console.log("✅ API response successful");
-                    console.log("📊 Results breakdown:", data.search_metadata?.stats);
-                    return data;
+
+                document.getElementById('loadingSpinner').style.display = 'none';
+
+                if (data.error) {
+                    showError(data.error);
+                    return;
                 }
-            } else {
-                console.log(`API ${i} response not OK:`, response.status);
+
+                if (!data.results || data.results.length === 0) {
+                    document.getElementById('noResults').style.display = 'block';
+                    return;
+                }
+
+                // Show results info
+                document.getElementById('resultsInfo').style.display = 'block';
+                document.getElementById('resultCount').textContent = data.count;
+                document.getElementById('searchQuery').textContent = query;
+
+                // Display results
+                displayResults(data.results);
+
+            } catch (error) {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                showError('Failed to fetch search results. Please try again.');
+                console.error('Search error:', error);
             }
-        } catch (error) {
-            console.log(`API ${i} error:`, error.message);
-            continue;
         }
-    }
-    return null;
-}
 
-function showConnectionError() {
-    const cacheKey = `${currentQuery}-${currentPage}`;
-    const cachedData = searchCache.get(cacheKey);
-    
-    if (cachedData) {
-        displayResults(cachedData.results, cachedData.pagination);
-    } else {
-        resultsContainer.innerHTML = `
-            <div class="error-state">
-                <i class="fas fa-unlink"></i>
-                <h4>Connection Error</h4>
-                <p>Unable to connect to the server. Please check your internet connection and try again.</p>
-                <button class="retry-btn" onclick="performSearch(${currentPage})">
-                    <i class="fas fa-redo me-1"></i>Retry Search
-                </button>
-            </div>
-        `;
-    }
-}
+        // Display results
+        function displayResults(results) {
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '';
 
-function showOfflineError() {
-    resultsContainer.innerHTML = `
-        <div class="error-state">
-            <i class="fas fa-wifi-slash"></i>
-            <h4>You're Offline</h4>
-            <p>Please check your internet connection and try again.</p>
-            <button class="retry-btn" onclick="location.reload()">
-                <i class="fas fa-sync-alt me-1"></i>Reload Page
-            </button>
-        </div>
-    `;
-}
+            results.forEach(result => {
+                const card = createResultCard(result);
+                container.appendChild(card);
+            });
+        }
 
-function sortResultsWithExactMatchFirst(results, query) {
-    if (!results || results.length === 0) return [];
-    
-    const queryLower = query.toLowerCase().trim();
-    const resultsCopy = [...results];
-    
-    resultsCopy.sort((a, b) => {
-        if (!a.title || !b.title) return 0;
-        
-        const titleALower = a.title.toLowerCase().trim();
-        const titleBLower = b.title.toLowerCase().trim();
-        
-        const aIsExact = titleALower === queryLower;
-        const bIsExact = titleBLower === queryLower;
-        
-        if (aIsExact && !bIsExact) return -1;
-        if (!aIsExact && bIsExact) return 1;
-        if (aIsExact && bIsExact) return 0;
-        
-        const aHasPartial = titleALower.includes(queryLower);
-        const bHasPartial = titleBLower.includes(queryLower);
-        
-        if (aHasPartial && !bHasPartial) return -1;
-        if (!aHasPartial && bHasPartial) return 1;
-        if (aHasPartial && bHasPartial) return 0;
-        
-        return 0;
-    });
-    
-    return resultsCopy;
-}
+        // Create result card
+        function createResultCard(result) {
+            const card = document.createElement('div');
+            card.className = 'result-card';
 
-async function displayResults(results, pagination) {
-    if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
-        return;
-    }
-    
-    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
-    
-    let html = '';
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const postContent = result.post_content || '';
-        const hasPostContent = postContent.trim().length > 0;
-        const thumbnail = result.thumbnail || result.poster_url || '';
-        const title = result.title || '';
-        const resultType = result.result_type || 'unknown';
-        
-        html += `
-        <div class="result-card" id="result-${i}">
-            <!-- 1. THUMBNAIL - सबसे ऊपर -->
-            <div class="result-thumbnail-top">
-                <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
-                    <!-- Thumbnail will be loaded here -->
-                </div>
-                ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-video me-1"></i>VIDEO</div>` : ''}
-            </div>
-            
-            <!-- 2. TITLE -->
-            <h3 class="result-title">${escapeHtml(title)}</h3>
-            
-            <!-- 3. POST CONTENT - बीच में (if available) -->
-            ${hasPostContent ? `
-                <div class="result-post-content">
-                    <div class="post-content-text">
-                        ${formatPostContent(postContent)}
+            // Thumbnail
+            const thumbnail = result.poster_url || result.thumbnail || 'https://iili.io/fAeIwv9.th.png';
+            const hasThumbnail = result.has_poster || result.has_thumbnail || result.poster_url;
+
+            let thumbnailHTML = '';
+            if (hasThumbnail) {
+                thumbnailHTML = `
+                    <div class="result-thumbnail">
+                        <img src="${thumbnail}" alt="${result.title}" onerror="this.src='https://iili.io/fAeIwv9.th.png'">
                     </div>
-                </div>
-            ` : ''}
-            
-            <!-- 4. ACTION BUTTONS - Based on result type -->
-            ${generateResultButtons(result, i)}
-        </div>
-        `;
-    }
-    
-    resultsContainer.innerHTML = html;
-    
-    // Load thumbnails for ALL results
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        loadThumbnailForResult(result, i);
-    }
-    
-    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
-    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-async function loadThumbnailForResult(result, index) {
-    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
-    if (!thumbnailContainer) return;
-    
-    // Show loading state first
-    thumbnailContainer.innerHTML = `
-        <div class="thumbnail-loading">
-            <div class="spinner-border text-light" role="status">
-                <span class="visually-hidden">Loading thumbnail...</span>
-            </div>
-        </div>
-    `;
-    
-    if (result.thumbnail || result.poster_url) {
-        const thumbnailUrl = result.thumbnail || result.poster_url;
-        setTimeout(() => {
-            thumbnailContainer.innerHTML = `
-                <img src="${thumbnailUrl}" alt="${escapeHtml(result.title)}" loading="lazy" 
-                     onerror="loadFallbackThumbnail('${escapeHtml(result.title)}', ${index})">
-                <div class="play-overlay" onclick="triggerAdLink()">
-                    <div class="play-button">
-                        <i class="fas fa-play"></i>
+                `;
+            } else {
+                thumbnailHTML = `
+                    <div class="result-thumbnail no-image">
+                        🎬
                     </div>
+                `;
+            }
+
+            // Title and year
+            const title = result.title || 'Unknown Title';
+            const year = result.year ? `(${result.year})` : '';
+            const rating = result.poster_rating || result.rating || '0.0';
+
+            // Qualities
+            let qualitiesHTML = '';
+            if (result.qualities && result.qualities.length > 0) {
+                qualitiesHTML = `
+                    <div class="result-qualities">
+                        ${result.qualities.map(q => `<span class="quality-badge">${q}</span>`).join('')}
+                    </div>
+                `;
+            }
+
+            // Post text (if available)
+            let postHTML = '';
+            if (result.has_posts && result.post_text) {
+                postHTML = `
+                    <div class="result-post">
+                        ${result.post_text}
+                    </div>
+                `;
+            }
+
+            // 🔥 FIXED: Stream Now Button Logic
+            // Button shows if has_files is true OR if files array has items
+            const hasFiles = result.has_files === true || (result.files && result.files.length > 0);
+            const firstFile = result.files && result.files.length > 0 ? result.files[0] : null;
+            const fileId = firstFile ? firstFile.file_id : '';
+
+            let actionsHTML = '';
+            if (hasFiles && fileId) {
+                actionsHTML = `
+                    <div class="result-actions">
+                        <a href="${VIEW_PAGE}?file=${encodeURIComponent(fileId)}" class="btn btn-stream">
+                            ▶️ Stream Now
+                        </a>
+                    </div>
+                `;
+            } else if (result.has_posts) {
+                actionsHTML = `
+                    <div class="result-actions">
+                        <button class="btn btn-disabled" disabled>
+                            📝 Post Only
+                        </button>
+                    </div>
+                `;
+            } else {
+                actionsHTML = `
+                    <div class="result-actions">
+                        <button class="btn btn-disabled" disabled>
+                            🚫 No Files
+                        </button>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                ${thumbnailHTML}
+                <div class="result-content">
+                    <div class="result-title">${title}</div>
+                    <div class="result-year">${year}</div>
+                    ${rating !== '0.0' ? `<div class="result-rating">⭐ ${rating}</div>` : ''}
+                    ${qualitiesHTML}
+                    ${postHTML}
+                    ${actionsHTML}
                 </div>
             `;
-        }, 100);
-    } else {
-        await loadFallbackThumbnail(result.title, index);
-    }
-}
 
-async function loadFallbackThumbnail(movieTitle, index) {
-    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
-    if (!thumbnailContainer) return;
-    
-    try {
-        const thumbnailUrl = await thumbnailCache.getThumbnail(movieTitle);
-        if (thumbnailUrl) {
-            thumbnailContainer.innerHTML = `
-                <div class="thumbnail-source-badge">External</div>
-                <img src="${thumbnailUrl}" alt="${escapeHtml(movieTitle)}" loading="lazy" 
-                     onerror="showDefaultThumbnail('${escapeHtml(movieTitle)}', ${index})">
-                <div class="play-overlay" onclick="triggerAdLink()">
-                    <div class="play-button">
-                        <i class="fas fa-play"></i>
-                    </div>
-                </div>
-            `;
-        } else {
-            showDefaultThumbnail(movieTitle, index);
+            return card;
         }
-    } catch (error) {
-        showDefaultThumbnail(movieTitle, index);
-    }
-}
 
-function showDefaultThumbnail(movieTitle, index) {
-    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
-    if (!thumbnailContainer) return;
-    
-    thumbnailContainer.innerHTML = `
-        <div class="default-thumbnail" onclick="triggerAdLink()">
-            <i class="fas fa-film"></i>
-            <span>${escapeHtml(movieTitle.substring(0, 30))}${movieTitle.length > 30 ? '...' : ''}</span>
-        </div>
-        <div class="play-overlay" onclick="triggerAdLink()">
-            <div class="play-button">
-                <i class="fas fa-play"></i>
-            </div>
-        </div>
-    `;
-}
-
-// ✅ IMPROVED: Post Content Formatting with Better Link Visibility
-function formatPostContent(content) {
-    let formatted = escapeHtml(content);
-    
-    // Replace newlines with <br> tags
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    // Detect and format URLs (http/https)
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
-        const lastChar = url.slice(-1);
-        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
-        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="post-link">${cleanUrl}</a>${punctuation}`;
-    });
-    
-    // Detect and format Telegram links (t.me)
-    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
-        const lastChar = url.slice(-1);
-        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
-        const fullUrl = 'https://' + cleanUrl;
-        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="telegram-link">${cleanUrl}</a>${punctuation}`;
-    });
-    
-    // Detect and format @mentions
-    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, function(mention) {
-        const username = mention.substring(1);
-        return `<a href="https://t.me/${username}" target="_blank" rel="noopener noreferrer" class="mention-link">${mention}</a>`;
-    });
-    
-    // Detect and format #hashtags
-    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, function(hashtag) {
-        return `<span class="hashtag-tag">${hashtag}</span>`;
-    });
-    
-    // Format bold text (**text**)
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Format italic text (*text*)
-    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-    // Format underline text (__text__)
-    formatted = formatted.replace(/__(.*?)__/g, '<u>$1</u>');
-    
-    // Format strikethrough text (~~text~~)
-    formatted = formatted.replace(/~~(.*?)~~/g, '<del>$1</del>');
-    
-    // Format inline code (`code`)
-    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
-    // Format code blocks (```code```)
-    formatted = formatted.replace(/```([^`]+)```/g, '<pre>$1</pre>');
-    
-    // Format blockquotes (> text)
-    formatted = formatted.replace(/^&gt;\s*(.*)$/gm, '<blockquote>$1</blockquote>');
-    
-    return formatted;
-}
-
-function triggerAdLink() {
-    window.open(AD_LINK, '_blank');
-}
-
-function displayPagination(pagination) {
-    let html = '<nav><ul class="pagination justify-content-center">';
-    const { current_page, total_pages, has_previous, has_next } = pagination;
-    const maxVisible = 5;
-    
-    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
-    
-    let startPage = Math.max(1, current_page - 2);
-    let endPage = Math.min(total_pages, startPage + maxVisible - 1);
-    if (endPage - startPage < maxVisible - 1) {
-        startPage = Math.max(1, endPage - maxVisible + 1);
-    }
-    
-    if (startPage > 1) {
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;
-        if (startPage > 2) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        // Show error
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
         }
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-        html += `<li class="page-item ${i === current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;
-    }
-    
-    if (endPage < total_pages) {
-        if (endPage < total_pages - 1) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        }
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;
-    }
-    
-    html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
-    html += '</ul></nav>';
-    
-    paginationContainer.innerHTML = html;
-}
 
-function showError(message) {
-    resultsContainer.innerHTML = `<div class="alert alert-danger text-center">${escapeHtml(message)}</div>`;
-}
+        // Enter key search
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function formatSize(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Handle browser back/forward buttons
-window.addEventListener('popstate', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('query');
-    const page = parseInt(urlParams.get('page')) || 1;
-    
-    if (query) {
-        currentQuery = query;
-        searchInput.value = query;
-        performSearch(page);
-    }
-});
-
-// Add timeout to fetch (polyfill for older browsers)
-if (!AbortSignal.timeout) {
-    AbortSignal.timeout = function(ms) {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), ms);
-        return controller.signal;
-    };
-}
-
-// Debug info
-console.log("✅ SK4FiLM Search Page Loaded with Fixed Results Display");
-console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
-console.log("🎯 Features: Fixed Button Display Logic");
-
-// Test function to check API response
-async function testApiResponse() {
-    console.log("🧪 Testing API response...");
-    try {
-        const response = await fetch(`${API_ENDPOINTS[0]}/api/search?query=test&page=1&limit=2`);
-        const data = await response.json();
-        console.log("API Test Response:", data);
-        if (data.results && data.results.length > 0) {
-            console.log("First result type:", data.results[0].result_type);
-            console.log("First result buttons:", data.results[0].has_file, data.results[0].has_post);
-        }
-    } catch (error) {
-        console.error("API Test Error:", error);
-    }
-}
-
-// Run test on load
-setTimeout(testApiResponse, 3000);
-</script>
+        // On page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const query = getQueryFromURL();
+            if (query) {
+                document.getElementById('searchInput').value = query;
+                performSearch();
+            }
+        });
+    </script>
 </body>
 </html>
