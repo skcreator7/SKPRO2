@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Search Movies - SK4FiLM</title>
-    <meta name="description" content="Search and download latest movies in HD quality">
+    <meta name="description" content="Search and stream latest movies in HD quality">
     <meta name="google-adsense-account" content="ca-pub-5244164301170945">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -406,222 +406,89 @@
         .action-buttons {
             display: flex;
             gap: 10px;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
         }
         
         .btn-stream {
             background: linear-gradient(45deg, #ff0000, #ff6b6b);
             border: none;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 10px;
             font-weight: 600;
             transition: all 0.3s ease;
             flex: 1;
             text-align: center;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.95rem;
         }
         
         .btn-stream:hover {
-            transform: scale(1.05);
+            transform: scale(1.03);
             box-shadow: 0 6px 20px rgba(255, 0, 0, 0.35);
         }
         
+        .btn-stream:disabled {
+            background: #495057 !important;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
         .btn-download {
-            background: linear-gradient(45deg, #28a745, #20c997);
+            background: linear-gradient(45deg, #6c757d, #495057);
             border: none;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 10px;
             font-weight: 600;
             transition: all 0.3s ease;
             flex: 1;
             text-align: center;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.95rem;
         }
         
         .btn-download:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35);
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.35);
         }
         
-        .btn-stream:disabled,
         .btn-download:disabled {
             background: #495057 !important;
             opacity: 0.6;
             cursor: not-allowed;
             transform: none !important;
+            box-shadow: none !important;
         }
         
-        /* Quality Dropdown */
-        .quality-dropdown {
-            display: none;
-            background: rgba(20, 30, 48, 0.98);
-            border: 2px solid var(--accent-color);
-            border-radius: 10px;
-            padding: 15px;
+        /* Info Message */
+        .info-message {
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
             margin-top: 10px;
-            animation: slideDown 0.3s ease;
-        }
-        .quality-dropdown.show {
-            display: block;
-        }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Quality Buttons Row - ALWAYS HORIZONTAL WITH WRAP */
-        .quality-buttons-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: flex-start;
-            align-items: stretch;
-            width: 100%;
-        }
-        
-        /* Premium Quality Option Buttons */
-        .quality-option {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 15px 20px;
-            color: white;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 1rem;
-            white-space: nowrap;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            cursor: pointer;
-            min-width: 110px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-            flex: 0 0 auto;
-            position: relative;
-            overflow: hidden;
-            letter-spacing: 0.5px;
-        }
-        
-        /* Premium Gradient Colors for Each Quality */
-        .quality-option[data-quality*="2160p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
-            border: 1px solid rgba(255, 107, 107, 0.5);
-        }
-        
-        .quality-option[data-quality*="2160p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #FF8008 0%, #FFC837 100%);
-            border: 1px solid rgba(255, 168, 38, 0.5);
-        }
-        
-        .quality-option[data-quality*="1080p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
-            border: 1px solid rgba(86, 210, 189, 0.5);
-        }
-        
-        .quality-option[data-quality*="1080p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
-            border: 1px solid rgba(109, 213, 237, 0.5);
-        }
-        
-        .quality-option[data-quality*="720p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
-            border: 1px solid rgba(142, 45, 226, 0.5);
-        }
-        
-        .quality-option[data-quality*="720p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: 1px solid rgba(102, 126, 234, 0.5);
-        }
-        
-        .quality-option[data-quality*="480p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #FF5E62 0%, #FF9966 100%);
-            border: 1px solid rgba(255, 94, 98, 0.5);
-        }
-        
-        .quality-option[data-quality*="480p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #FF6B9D 0%, #FF8E53 100%);
-            border: 1px solid rgba(255, 107, 157, 0.5);
-        }
-        
-        .quality-option[data-quality*="360p"] {
-            background: linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%);
-            border: 1px solid rgba(91, 134, 229, 0.5);
-        }
-        
-        .quality-option[data-quality*="240p"] {
-            background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
-            border: 1px solid rgba(120, 255, 214, 0.5);
-            color: #333;
-        }
-        
-        .quality-option[data-quality*="HD"] {
-            background: linear-gradient(135deg, #FFE53B 0%, #FF2525 100%);
-            border: 1px solid rgba(255, 229, 59, 0.5);
-            color: #333;
-        }
-        
-        .quality-option[data-quality*="SD"] {
-            background: linear-gradient(135deg, #f46b45 0%, #eea849 100%);
-            border: 1px solid rgba(238, 168, 73, 0.5);
-        }
-        
-        .quality-option[data-quality*="HQ"] {
-            background: linear-gradient(135deg, #FFAFBD 0%, #ffc3a0 100%);
-            border: 1px solid rgba(255, 175, 189, 0.5);
-            color: #333;
-        }
-        
-        .quality-option[data-quality*="LQ"] {
-            background: linear-gradient(135deg, #CCCCCC 0%, #999999 100%);
-            border: 1px solid rgba(153, 153, 153, 0.5);
-            color: #333;
-        }
-        
-        /* Default gradient for other qualities */
-        .quality-option:not([data-quality]) {
-            background: linear-gradient(135deg, #9CECFB 0%, #65C7F7 50%, #0052D4 100%);
-            border: 1px solid rgba(101, 199, 247, 0.5);
-        }
-        
-        /* Premium Hover Effects */
-        .quality-option:hover {
-            transform: translateY(-5px) scale(1.03);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4);
-            text-decoration: none;
-            color: white;
-        }
-        
-        .quality-option:active {
-            transform: translateY(-2px) scale(1.01);
-            transition: transform 0.1s ease;
-        }
-        
-        /* Stream Now Button */
-        .btn-stream-now {
-            background: linear-gradient(45deg, #ff0000, #ff6b6b);
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: #80e1ff;
+            text-align: center;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
         }
         
-        .btn-stream-now:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.4);
-        }
-        
-        .btn-stream-now i {
-            font-size: 1.2rem;
+        .info-message i {
+            color: #00ccff;
         }
         
         /* Video File Badge */
@@ -781,11 +648,9 @@
             .result-thumbnail-top {
                 height: 200px;
             }
-            .btn-stream-now,
-            .btn-stream,
-            .btn-download {
-                font-size: 0.9rem;
-                padding: 12px 10px;
+            .btn-stream, .btn-download {
+                font-size: 0.85rem;
+                padding: 10px 15px;
             }
             .play-button {
                 width: 60px;
@@ -793,20 +658,14 @@
                 font-size: 24px;
             }
             
-            .quality-buttons-row {
-                gap: 8px;
-            }
-            
-            .quality-option {
-                min-width: 100px;
-                padding: 12px 15px;
-                font-size: 0.9rem;
-                flex: 0 0 auto;
-            }
-            
             .post-content-text {
                 font-size: 0.95rem;
                 max-height: 250px;
+            }
+            
+            .info-message {
+                font-size: 0.8rem;
+                padding: 8px 12px;
             }
         }
         
@@ -814,21 +673,9 @@
             .result-thumbnail-top {
                 height: 180px;
             }
-            .btn-stream-now,
-            .btn-stream,
-            .btn-download {
-                font-size: 0.85rem;
-                padding: 10px 8px;
-            }
-            
-            .quality-buttons-row {
-                gap: 6px;
-            }
-            
-            .quality-option {
-                min-width: 90px;
-                padding: 10px 12px;
-                font-size: 0.85rem;
+            .btn-stream, .btn-download {
+                font-size: 0.8rem;
+                padding: 8px 12px;
             }
             
             .post-content-text {
@@ -839,27 +686,20 @@
             .result-post-content {
                 padding: 1rem;
             }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
         }
         
         @media (max-width: 400px) {
             .result-thumbnail-top {
                 height: 150px;
             }
-            .btn-stream-now,
-            .btn-stream,
-            .btn-download {
-                font-size: 0.8rem;
-                padding: 10px 6px;
-            }
-            
-            .quality-buttons-row {
-                gap: 5px;
-            }
-            
-            .quality-option {
-                min-width: 85px;
+            .btn-stream, .btn-download {
+                font-size: 0.75rem;
                 padding: 8px 10px;
-                font-size: 0.8rem;
             }
             
             .post-content-text {
@@ -870,54 +710,6 @@
             .result-post-content {
                 padding: 0.8rem;
             }
-        }
-        
-        /* For tablets and larger phones */
-        @media (min-width: 577px) and (max-width: 768px) {
-            .quality-option {
-                min-width: 100px;
-            }
-        }
-        
-        /* For desktop */
-        @media (min-width: 769px) {
-            .quality-buttons-row {
-                gap: 12px;
-            }
-            
-            .quality-option {
-                min-width: 110px;
-                padding: 15px 20px;
-            }
-        }
-        
-        /* For large desktop screens */
-        @media (min-width: 993px) {
-            .quality-buttons-row {
-                gap: 15px;
-            }
-            
-            .quality-option {
-                min-width: 120px;
-            }
-        }
-        
-        /* When there are very few buttons (1-3), center them */
-        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)),
-        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)),
-        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(3)) {
-            justify-content: center;
-        }
-        
-        /* For 1-2 buttons, make them larger */
-        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option,
-        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)) .quality-option {
-            min-width: 150px;
-        }
-        
-        /* For 1 button only, make it extra large */
-        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option {
-            min-width: 200px;
         }
     </style>
 </head>
@@ -997,7 +789,7 @@ const THUMBNAIL_SERVICES = [
     }
 ];
 
-const RESULTS_PER_PAGE = 10;
+const RESULTS_PER_PAGE = 12;
 const AD_LINK = 'https://otieu.com/4/10220520';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache duration
 
@@ -1118,13 +910,13 @@ class EnhancedSearchCache {
         this.storage = new Map();
     }
     
-    async set(key, data) {
+    set(key, data) {
         const timestamp = Date.now();
         this.storage.set(key, { data, timestamp });
         this.cleanup();
     }
     
-    async get(key) {
+    get(key) {
         const cached = this.storage.get(key);
         if (cached && Date.now() - cached.timestamp <= CACHE_DURATION) {
             return cached.data;
@@ -1138,104 +930,22 @@ class EnhancedSearchCache {
     cleanup() {
         const now = Date.now();
         for (const [key, value] of this.storage.entries()) {
-            if (now - value.timestamp > CACHE_DURATION):
+            if (now - value.timestamp > CACHE_DURATION) {
                 this.storage.delete(key);
+            }
         }
     }
 }
 
 const searchCache = new EnhancedSearchCache();
 
-// ✅ IMPROVED: Better Message ID Extraction
-function extractRealMessageId(messageIdData) {
-    if (!messageIdData) {
-        console.log("❌ No messageIdData provided");
-        return null;
-    }
-    
-    console.log("🔧 Extracting real message ID from:", typeof messageIdData, "=", messageIdData);
-    
-    // If it's already a number, use it directly
-    if (typeof messageIdData === 'number') {
-        console.log("✅ Direct number:", messageIdData);
-        return messageIdData.toString();
-    }
-    
-    // If it's a string
-    if (typeof messageIdData === 'string') {
-        const cleanStr = messageIdData.trim();
-        
-        // Case 1: String is already a number
-        if (/^\d+$/.test(cleanStr)) {
-            console.log("✅ Clean numeric string:", cleanStr);
-            return cleanStr;
-        }
-        
-        // Case 2: Contains underscores (common in Telegram)
-        if (cleanStr.includes('_')) {
-            const parts = cleanStr.split('_');
-            console.log("Parts after split:", parts);
-            
-            // Look for the largest numeric part
-            let maxNum = null;
-            parts.forEach(part => {
-                if (/^\d+$/.test(part)) {
-                    const num = parseInt(part, 10);
-                    if (!maxNum || num > maxNum) {
-                        maxNum = num;
-                    }
-                }
-            });
-            
-            if (maxNum) {
-                console.log("✅ Found max numeric part:", maxNum);
-                return maxNum.toString();
-            }
-        }
-        
-        // Case 3: Extract any sequence of digits
-        const digitMatch = cleanStr.match(/\d+/g);
-        if (digitMatch) {
-            // Find the longest digit sequence
-            let longest = '';
-            digitMatch.forEach(match => {
-                if (match.length > longest.length) {
-                    longest = match;
-                }
-            });
-            
-            if (longest.length >= 3) { // At least 3 digits
-                console.log("✅ Extracted digit sequence:", longest);
-                return longest;
-            }
-        }
-    }
-    
-    console.log("❌ No valid message ID found");
-    return null;
-}
-
 // Network status detection
 function updateOnlineStatus() {
     isOnline = navigator.onLine;
 }
 
-// ✅ STREAMING SUPPORT FUNCTIONS
-async function openStreamView(fileId, title, quality) {
-    console.log("🎬 Opening stream for:", title, "File ID:", fileId, "Quality:", quality);
-    
-    // Build view.html URL with parameters
-    const params = new URLSearchParams({
-        file_id: fileId,
-        title: encodeURIComponent(title),
-        quality: quality || 'HD'
-    });
-    
-    // Open in new tab
-    window.open(`view.html?${params.toString()}`, '_blank');
-}
-
-async function getBestQualityForStreaming(qualityOptions) {
+// ✅ FIXED: Get best quality for streaming
+function getBestQualityForStreaming(qualityOptions) {
     if (!qualityOptions || typeof qualityOptions !== 'object') {
         return null;
     }
@@ -1264,7 +974,7 @@ async function getBestQualityForStreaming(qualityOptions) {
     
     // Return first available quality
     const firstKey = Object.keys(qualityOptions)[0];
-    if (firstKey) {
+    if (firstKey && qualityOptions[firstKey]) {
         return {
             quality: firstKey,
             file_id: qualityOptions[firstKey].file_id || null
@@ -1274,214 +984,141 @@ async function getBestQualityForStreaming(qualityOptions) {
     return null;
 }
 
-// ✅ FIXED: Quality Options Generator with Premium Design
-function generateQualityOptions(qualityOptions, resultData, resultIndex) {
-    console.log("🔧 Generating quality options...");
-    console.log("Quality options received:", qualityOptions);
-    console.log("Quality options type:", typeof qualityOptions);
-    console.log("Result data keys:", Object.keys(resultData));
+// ✅ FIXED: Result Button Generation Logic
+function generateResultButtons(result, index) {
+    console.log(`🔧 Generating buttons for result ${index}:`, result.title);
+    console.log(`Result type: ${result.result_type}, Has file: ${result.has_file}, Has post: ${result.has_post}`);
     
-    // Check if qualityOptions is properly structured
-    if (!qualityOptions || typeof qualityOptions !== 'object') {
-        console.log("❌ No quality options available or invalid format");
-        return '<p class="text-center text-muted mb-0">No files available</p>';
+    const hasFile = result.has_file === true;
+    const hasPost = result.has_post === true;
+    const qualityOptions = result.quality_options || {};
+    const streamingEnabled = result.streaming_enabled === true;
+    
+    let html = '';
+    
+    // Get best quality for streaming
+    const bestQuality = getBestQualityForStreaming(qualityOptions);
+    const hasStreaming = streamingEnabled && bestQuality && bestQuality.file_id;
+    
+    if (hasFile && hasPost) {
+        // ✅ CASE 1: Post with File (Same Title) - Show only Stream Now button
+        console.log(`✅ Result ${index}: Post with File - Show Stream Now button only`);
+        
+        html += `
+        <div class="action-buttons">
+            ${hasStreaming ? `
+                <button class="btn-stream" onclick="openStreamView('${bestQuality.file_id}', '${escapeHtml(result.title)}', '${bestQuality.quality}')">
+                    <i class="fas fa-play-circle me-2"></i>Stream Now
+                </button>
+            ` : `
+                <button class="btn-stream" disabled>
+                    <i class="fas fa-times me-2"></i>Stream Unavailable
+                </button>
+            `}
+            
+            <button class="btn-download" onclick="showDownloadInfo(${index})">
+                <i class="fas fa-info-circle me-2"></i>Download Info
+            </button>
+        </div>
+        
+        <div class="info-message" id="info-${index}" style="display: none;">
+            <i class="fas fa-info-circle"></i>
+            Download options available in video player. Click "Stream Now" to open player.
+        </div>
+        `;
+        
+    } else if (hasFile && !hasPost) {
+        // ✅ CASE 2: File Only - Show Stream Now button
+        console.log(`✅ Result ${index}: File Only - Show Stream Now button`);
+        
+        html += `
+        <div class="action-buttons">
+            ${hasStreaming ? `
+                <button class="btn-stream" onclick="openStreamView('${bestQuality.file_id}', '${escapeHtml(result.title)}', '${bestQuality.quality}')">
+                    <i class="fas fa-play-circle me-2"></i>Stream Now
+                </button>
+            ` : `
+                <button class="btn-stream" disabled>
+                    <i class="fas fa-times me-2"></i>Stream Unavailable
+                </button>
+            `}
+            
+            <button class="btn-download" onclick="showDownloadInfo(${index})">
+                <i class="fas fa-info-circle me-2"></i>Download Info
+            </button>
+        </div>
+        
+        <div class="info-message" id="info-${index}" style="display: none;">
+            <i class="fas fa-info-circle"></i>
+            Download options available in video player. Click "Stream Now" to open player.
+        </div>
+        `;
+        
+    } else if (!hasFile && hasPost) {
+        // ✅ CASE 3: Post Only - Show message
+        console.log(`✅ Result ${index}: Post Only - Show message`);
+        
+        html += `
+        <div class="action-buttons">
+            <button class="btn-stream" disabled>
+                <i class="fas fa-newspaper me-2"></i>Post Only
+            </button>
+            <button class="btn-download" disabled>
+                <i class="fas fa-times me-2"></i>No File
+            </button>
+        </div>
+        
+        <div class="info-message">
+            <i class="fas fa-info-circle"></i>
+            This is a text post only. No video file available.
+        </div>
+        `;
+        
+    } else {
+        // ✅ CASE 4: No file, no post (shouldn't happen)
+        html += `
+        <div class="action-buttons">
+            <button class="btn-stream" disabled>
+                <i class="fas fa-times me-2"></i>No Content
+            </button>
+            <button class="btn-download" disabled>
+                <i class="fas fa-times me-2"></i>No Download
+            </button>
+        </div>
+        `;
     }
     
-    // Check if we have any data in quality options
-    let hasValidData = false;
-    Object.values(qualityOptions).forEach(q => {
-        if (q && (q.file_id || q.message_id || q.file_size || q.file_name || q.real_message_id)) {
-            hasValidData = true;
+    return html;
+}
+
+function showDownloadInfo(index) {
+    const infoMessage = document.getElementById(`info-${index}`);
+    if (infoMessage) {
+        if (infoMessage.style.display === 'none') {
+            infoMessage.style.display = 'flex';
+            // Auto hide after 5 seconds
+            setTimeout(() => {
+                infoMessage.style.display = 'none';
+            }, 5000);
+        } else {
+            infoMessage.style.display = 'none';
         }
+    }
+}
+
+// ✅ STREAMING SUPPORT FUNCTIONS
+async function openStreamView(fileId, title, quality) {
+    console.log("🎬 Opening stream for:", title, "File ID:", fileId, "Quality:", quality);
+    
+    // Build view.html URL with parameters
+    const params = new URLSearchParams({
+        file_id: fileId,
+        title: encodeURIComponent(title),
+        quality: quality || 'HD'
     });
     
-    // If no quality options, check resultData directly
-    if (!hasValidData) {
-        console.log("❌ No valid data in quality options, checking resultData");
-        // Try to extract from resultData directly
-        if (resultData.file_id || resultData.real_message_id || resultData.message_id) {
-            hasValidData = true;
-        }
-    }
-    
-    if (!hasValidData) {
-        console.log("❌ No valid data in quality options");
-        return '<p class="text-center text-muted mb-0">No download data available</p>';
-    }
-    
-    // Try multiple sources for message ID
-    let realMessageId = null;
-    const sources = [
-        { name: 'resultData.real_message_id', value: resultData.real_message_id },
-        { name: 'resultData.message_id', value: resultData.message_id },
-        { name: 'quality options message_id', value: Object.values(qualityOptions)[0]?.message_id },
-        { name: 'quality options real_message_id', value: Object.values(qualityOptions)[0]?.real_message_id },
-        { name: 'resultData.id', value: resultData.id }
-    ];
-    
-    for (const source of sources) {
-        if (source.value) {
-            const extracted = extractRealMessageId(source.value);
-            if (extracted) {
-                realMessageId = extracted;
-                console.log(`✅ Found message ID from ${source.name}: ${realMessageId}`);
-                break;
-            }
-        }
-    }
-    
-    // If still no message ID, create a fallback one
-    if (!realMessageId) {
-        console.log("⚠️ No message ID found, using fallback");
-        // Create a simple message ID based on title hash
-        const titleHash = resultData.title ? 
-            resultData.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 
-            Date.now();
-        realMessageId = Math.abs(titleHash % 1000000).toString();
-        console.log(`✅ Created fallback message ID: ${realMessageId}`);
-    }
-    
-    console.log(`✅ Final message ID to use: ${realMessageId}`);
-    console.log(`✅ Quality options keys:`, Object.keys(qualityOptions));
-    
-    // Generate quality buttons
-    let html = '<div class="quality-buttons-row">';
-    let linksGenerated = 0;
-    
-    // Define quality order preference
-    const qualityOrder = [
-        '2160p HEVC', '2160p', '1080p HEVC', '1080p', 
-        '720p HEVC', '720p', '480p HEVC', '480p',
-        '360p', '240p', 'HD', 'SD', 'HQ', 'LQ'
-    ];
-    
-    // First, check if qualityOptions is an object with quality keys
-    if (typeof qualityOptions === 'object' && !Array.isArray(qualityOptions)) {
-        console.log("✅ Quality options is an object with keys:", Object.keys(qualityOptions));
-        
-        // First, try to show qualities in preferred order
-        qualityOrder.forEach(quality => {
-            const qualityData = qualityOptions[quality];
-            if (!qualityData) return;
-            
-            console.log(`Processing quality: ${quality}`, qualityData);
-            
-            const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
-            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-            
-            // Use the qualityData's message_id if available, otherwise use realMessageId
-            const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
-            
-            // Create the file ID for Telegram bot
-            const fileId = qualityData.file_id || `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-            
-            // Get bot username (use result's bot_username or default)
-            const botUsername = resultData.bot_username || BOT_USERNAME;
-            
-            html += `
-            <a href="https://t.me/${botUsername}?start=${fileId}" 
-               target="_blank" 
-               class="quality-option"
-               data-quality="${quality}"
-               onclick="console.log('Downloading: ${fileId}')">
-                <i class="fas fa-download me-1"></i>${quality}
-            </a>`;
-            
-            linksGenerated++;
-        });
-        
-        // If no standard qualities found, show all available qualities
-        if (linksGenerated === 0) {
-            console.log("No standard qualities found, showing all available");
-            for (const [quality, qualityData] of Object.entries(qualityOptions)) {
-                if (qualityData && typeof qualityData === 'object') {
-                    const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
-                    const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                    
-                    // Use the qualityData's message_id if available, otherwise use realMessageId
-                    const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
-                    const fileId = qualityData.file_id || `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-                    
-                    const botUsername = resultData.bot_username || BOT_USERNAME;
-                    
-                    html += `
-                    <a href="https://t.me/${botUsername}?start=${fileId}" 
-                       target="_blank" 
-                       class="quality-option"
-                       data-quality="${quality}">
-                        <i class="fas fa-download me-1"></i>${quality}
-                    </a>`;
-                    linksGenerated++;
-                }
-            }
-        }
-    } else {
-        console.log("❌ Quality options is not in expected format:", typeof qualityOptions);
-        
-        // Try last resort: Check if resultData has direct file info
-        if (resultData.has_file && (resultData.file_id || resultData.real_message_id || resultData.message_id)) {
-            console.log("✅ Using direct file info from resultData");
-            const quality = resultData.quality || 'HD';
-            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-            
-            // Use available message ID
-            const msgId = resultData.real_message_id || resultData.message_id || realMessageId;
-            const fileId = resultData.file_id || `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-            const botUsername = resultData.bot_username || BOT_USERNAME;
-            
-            html += `
-            <a href="https://t.me/${botUsername}?start=${fileId}" 
-               target="_blank" 
-               class="quality-option"
-               data-quality="${quality}">
-                <i class="fas fa-download me-1"></i>${quality}
-            </a>`;
-            linksGenerated++;
-        }
-    }
-    
-    html += '</div>';
-    
-    if (linksGenerated === 0) {
-        // Last resort: Create simple download buttons
-        console.log("Creating simple download buttons as last resort");
-        html = '<div class="quality-buttons-row">';
-        
-        // Get bot username
-        const botUsername = resultData.bot_username || BOT_USERNAME;
-        
-        // Show all quality names from quality options
-        if (typeof qualityOptions === 'object' && Object.keys(qualityOptions).length > 0) {
-            Object.keys(qualityOptions).forEach((quality, index) => {
-                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                const simpleFileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
-                
-                html += `
-                <a href="https://t.me/${botUsername}?start=${simpleFileId}" 
-                   target="_blank" 
-                   class="quality-option"
-                   data-quality="${quality}">
-                    <i class="fas fa-download me-1"></i>${quality}
-                </a>`;
-                linksGenerated++;
-            });
-        } else {
-            // No quality options at all
-            html += `
-            <a href="https://t.me/${BOT_USERNAME}" 
-               target="_blank" 
-               class="quality-option"
-               data-quality="HD">
-                <i class="fas fa-download me-1"></i>Get from Telegram
-            </a>`;
-            linksGenerated++;
-        }
-        
-        html += '</div>';
-    }
-    
-    console.log(`✅ Generated ${linksGenerated} download links`);
-    return html;
+    // Open in new tab
+    window.open(`view.html?${params.toString()}`, '_blank');
 }
 
 // Initialize the page
@@ -1541,7 +1178,7 @@ async function performSearch(page = 1) {
     
     // Check cache first
     const cacheKey = `${currentQuery}-${page}`;
-    const cachedData = await searchCache.get(cacheKey);
+    const cachedData = searchCache.get(cacheKey);
     
     if (cachedData) {
         displayResults(cachedData.results, cachedData.pagination);
@@ -1603,7 +1240,7 @@ async function tryAllEndpoints(query, page) {
                 headers: { 
                     'Content-Type': 'application/json',
                 },
-                signal: AbortSignal.timeout(8000)
+                signal: AbortSignal.timeout(10000)
             });
             
             if (response.ok) {
@@ -1612,7 +1249,8 @@ async function tryAllEndpoints(query, page) {
                 
                 if (data.status === "success") {
                     currentAPI = i;
-                    console.log("✅ API response successful, showing first result:", data.results?.[0]);
+                    console.log("✅ API response successful");
+                    console.log("📊 Results breakdown:", data.search_metadata?.stats);
                     return data;
                 }
             } else {
@@ -1702,37 +1340,31 @@ async function displayResults(results, pagination) {
     let html = '';
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        const hasFile = result.has_file === true;
-        const qualityOptions = result.quality_options || {};
-        const hasQualities = Object.keys(qualityOptions).length > 0;
         const postContent = result.post_content || '';
         const hasPostContent = postContent.trim().length > 0;
         const thumbnail = result.thumbnail || result.poster_url || '';
-        const streamingEnabled = result.streaming_enabled === true;
         const title = result.title || '';
+        const resultType = result.result_type || 'unknown';
         
-        console.log(`Result ${i}: ${title}`);
-        console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
-        console.log(`Quality options:`, qualityOptions);
-        console.log(`Streaming enabled: ${streamingEnabled}`);
-        
-        // Get best quality for streaming
-        const bestQuality = await getBestQualityForStreaming(qualityOptions);
-        const hasStreaming = streamingEnabled && bestQuality && bestQuality.file_id;
+        console.log(`🎬 Result ${i}: ${title}`);
+        console.log(`   Type: ${resultType}`);
+        console.log(`   Has file: ${result.has_file}`);
+        console.log(`   Has post: ${result.has_post}`);
         
         html += `
-        <div class="result-card">
+        <div class="result-card" id="result-${i}">
             <!-- 1. THUMBNAIL - सबसे ऊपर -->
             <div class="result-thumbnail-top">
                 <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
                     <!-- Thumbnail will be loaded here -->
                 </div>
+                ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-video me-1"></i>VIDEO</div>` : ''}
             </div>
             
             <!-- 2. TITLE -->
             <h3 class="result-title">${escapeHtml(title)}</h3>
             
-            <!-- 3. POST CONTENT - बीच में -->
+            <!-- 3. POST CONTENT - बीच में (if available) -->
             ${hasPostContent ? `
                 <div class="result-post-content">
                     <div class="post-content-text">
@@ -1741,51 +1373,17 @@ async function displayResults(results, pagination) {
                 </div>
             ` : ''}
             
-            <!-- 4. ACTION BUTTONS - STREAM & DOWNLOAD -->
-            ${hasFile ? `
-                <div class="action-buttons">
-                    ${hasStreaming ? `
-                        <button class="btn-stream" onclick="openStreamView('${bestQuality.file_id}', '${escapeHtml(title)}', '${bestQuality.quality}')">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                        </button>
-                    ` : `
-                        <button class="btn-stream" disabled>
-                            <i class="fas fa-times me-2"></i>Stream Unavailable
-                        </button>
-                    `}
-                    
-                    <button class="btn-download" onclick="toggleQuality(${i})">
-                        <i class="fas fa-download me-2"></i>Download
-                    </button>
-                </div>
-            ` : hasPostContent ? `
-                <div class="action-buttons">
-                    <button class="btn-stream" disabled>
-                        <i class="fas fa-times me-2"></i>No File Available
-                    </button>
-                    <button class="btn-download" disabled>
-                        <i class="fas fa-times me-2"></i>No Download
-                    </button>
-                </div>
-            ` : ''}
-            
-            <!-- 5. QUALITY OPTIONS DROPDOWN -->
-            ${hasFile && hasQualities ? `
-                <div class="quality-dropdown" id="quality-${i}">
-                    ${generateQualityOptions(qualityOptions, result, i)}
-                </div>
-            ` : ''}
+            <!-- 4. ACTION BUTTONS - Based on result type -->
+            ${generateResultButtons(result, i)}
             
             <!-- DEBUG INFO (visible only in console) -->
             <div style="display:none;" id="debug-${i}">
                 ${JSON.stringify({
                     title: title,
-                    hasFile: hasFile,
-                    hasQualities: hasQualities,
-                    qualityKeys: Object.keys(qualityOptions),
-                    qualityOptions: qualityOptions,
-                    streamingEnabled: streamingEnabled,
-                    bestQuality: bestQuality
+                    result_type: resultType,
+                    hasFile: result.has_file,
+                    hasPost: result.has_post,
+                    qualityOptions: Object.keys(result.quality_options || {})
                 })}
             </div>
         </div>
@@ -1821,7 +1419,6 @@ async function loadThumbnailForResult(result, index) {
         const thumbnailUrl = result.thumbnail || result.poster_url;
         setTimeout(() => {
             thumbnailContainer.innerHTML = `
-                ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
                 <img src="${thumbnailUrl}" alt="${escapeHtml(result.title)}" loading="lazy" 
                      onerror="loadFallbackThumbnail('${escapeHtml(result.title)}', ${index})">
                 <div class="play-overlay" onclick="triggerAdLink()">
@@ -1941,29 +1538,6 @@ function triggerAdLink() {
     window.open(AD_LINK, '_blank');
 }
 
-function toggleQuality(index) {
-    const dropdown = document.getElementById(`quality-${index}`);
-    const downloadBtn = document.querySelector(`#result-${index} .btn-download`);
-    
-    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
-        if (el.id !== `quality-${index}`) {
-            el.classList.remove('show');
-            const otherDownloadBtn = document.querySelector(`#result-${i} .btn-download`);
-            if (otherDownloadBtn) otherDownloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Download';
-        }
-    });
-    
-    dropdown.classList.toggle('show');
-    
-    if (downloadBtn) {
-        if (dropdown.classList.contains('show')) {
-            downloadBtn.innerHTML = '<i class="fas fa-chevron-up me-2"></i>Hide Qualities';
-        } else {
-            downloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Download';
-        }
-    }
-}
-
 function displayPagination(pagination) {
     let html = '<nav><ul class="pagination justify-content-center">';
     const { current_page, total_pages, has_previous, has_next } = pagination;
@@ -2019,17 +1593,6 @@ function formatSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Close dropdowns when clicking outside
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('.action-buttons')) {
-        document.querySelectorAll('.quality-dropdown').forEach((dropdown, index) => {
-            dropdown.classList.remove('show');
-            const downloadBtn = document.querySelector(`#result-${index} .btn-download`);
-            if (downloadBtn) downloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Download';
-        });
-    }
-});
-
 // Handle browser back/forward buttons
 window.addEventListener('popstate', function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -2053,21 +1616,21 @@ if (!AbortSignal.timeout) {
 }
 
 // Debug info
-console.log("✅ SK4FiLM Search Page Loaded with Streaming Support");
+console.log("✅ SK4FiLM Search Page Loaded with Fixed Results Display");
 console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
-console.log("🎯 Features: Stream Now + Download Buttons");
+console.log("🎯 Features: Fixed Button Display Logic");
 console.log("📱 Open browser console (F12) to see debug messages");
 
 // Test function to check API response
 async function testApiResponse() {
     console.log("🧪 Testing API response...");
     try {
-        const response = await fetch(`${API_ENDPOINTS[0]}/api/search?query=test&page=1&limit=1`);
+        const response = await fetch(`${API_ENDPOINTS[0]}/api/search?query=test&page=1&limit=2`);
         const data = await response.json();
         console.log("API Test Response:", data);
         if (data.results && data.results.length > 0) {
-            console.log("First result quality options:", data.results[0].quality_options);
-            console.log("Streaming enabled:", data.results[0].streaming_enabled);
+            console.log("First result type:", data.results[0].result_type);
+            console.log("First result buttons:", data.results[0].has_file, data.results[0].has_post);
         }
     } catch (error) {
         console.error("API Test Error:", error);
