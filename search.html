@@ -986,9 +986,6 @@ function getBestQualityForStreaming(qualityOptions) {
 
 // ✅ FIXED: Result Button Generation Logic
 function generateResultButtons(result, index) {
-    console.log(`🔧 Generating buttons for result ${index}:`, result.title);
-    console.log(`Result type: ${result.result_type}, Has file: ${result.has_file}, Has post: ${result.has_post}`);
-    
     const hasFile = result.has_file === true;
     const hasPost = result.has_post === true;
     const qualityOptions = result.quality_options || {};
@@ -1002,8 +999,6 @@ function generateResultButtons(result, index) {
     
     if (hasFile && hasPost) {
         // ✅ CASE 1: Post with File (Same Title) - Show only Stream Now button
-        console.log(`✅ Result ${index}: Post with File - Show Stream Now button only`);
-        
         html += `
         <div class="action-buttons">
             ${hasStreaming ? `
@@ -1029,8 +1024,6 @@ function generateResultButtons(result, index) {
         
     } else if (hasFile && !hasPost) {
         // ✅ CASE 2: File Only - Show Stream Now button
-        console.log(`✅ Result ${index}: File Only - Show Stream Now button`);
-        
         html += `
         <div class="action-buttons">
             ${hasStreaming ? `
@@ -1056,8 +1049,6 @@ function generateResultButtons(result, index) {
         
     } else if (!hasFile && hasPost) {
         // ✅ CASE 3: Post Only - Show message
-        console.log(`✅ Result ${index}: Post Only - Show message`);
-        
         html += `
         <div class="action-buttons">
             <button class="btn-stream" disabled>
@@ -1346,11 +1337,6 @@ async function displayResults(results, pagination) {
         const title = result.title || '';
         const resultType = result.result_type || 'unknown';
         
-        console.log(`🎬 Result ${i}: ${title}`);
-        console.log(`   Type: ${resultType}`);
-        console.log(`   Has file: ${result.has_file}`);
-        console.log(`   Has post: ${result.has_post}`);
-        
         html += `
         <div class="result-card" id="result-${i}">
             <!-- 1. THUMBNAIL - सबसे ऊपर -->
@@ -1375,17 +1361,6 @@ async function displayResults(results, pagination) {
             
             <!-- 4. ACTION BUTTONS - Based on result type -->
             ${generateResultButtons(result, i)}
-            
-            <!-- DEBUG INFO (visible only in console) -->
-            <div style="display:none;" id="debug-${i}">
-                ${JSON.stringify({
-                    title: title,
-                    result_type: resultType,
-                    hasFile: result.has_file,
-                    hasPost: result.has_post,
-                    qualityOptions: Object.keys(result.quality_options || {})
-                })}
-            </div>
         </div>
         `;
     }
@@ -1619,7 +1594,6 @@ if (!AbortSignal.timeout) {
 console.log("✅ SK4FiLM Search Page Loaded with Fixed Results Display");
 console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
 console.log("🎯 Features: Fixed Button Display Logic");
-console.log("📱 Open browser console (F12) to see debug messages");
 
 // Test function to check API response
 async function testApiResponse() {
