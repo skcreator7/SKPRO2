@@ -1343,7 +1343,7 @@ class DuplicatePreventionSystem:
     async def add_file_hash(self, file_hash, normalized_title=None):
         """Add new file hash to tracking"""
         if not file_hash:
-        return
+            return
         
         async with self.lock:
             self.file_hashes.add(file_hash)
@@ -1354,7 +1354,7 @@ class DuplicatePreventionSystem:
     async def remove_file_hash(self, file_hash, normalized_title=None):
         """Remove file hash from tracking"""
         if not file_hash:
-        return
+            return
         
         async with self.lock:
             if file_hash in self.file_hashes:
