@@ -608,9 +608,9 @@ class BotHandler:
             return None
     
     async def get_file_download_url(self, file_id):
-    """Get direct download URL for file"""
-    if not self.initialized:
-        return None
+        """Get direct download URL for file"""
+        if not self.initialized:
+            return None
     
     try:
         # CORRECT WAY: Get file object from bot
@@ -633,8 +633,8 @@ class BotHandler:
         return direct_url
         
     except Exception as e:
-            logger.error(f"❌ Get file download URL error: {e}")
-            return None
+        logger.error(f"❌ Get file download URL error: {e}")
+        return None
     
     async def extract_thumbnail(self, channel_id, message_id):
         """Extract thumbnail from video file"""
