@@ -7,11 +7,15 @@
     <meta name="description" content="Stream and download movies in HD quality">
     <meta name="google-adsense-account" content="ca-pub-5244164301170945">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
+    
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <!-- Quality Level Selector -->
+    <link href="https://unpkg.com/videojs-http-source-selector@1.1.6/dist/videojs-http-source-selector.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <!-- Plyr Video Player CSS -->
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    
     <style>
         :root {
             --primary-color: #ff0000;
@@ -20,189 +24,257 @@
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
         }
+        
         body {
             font-family: 'Josefin Sans', sans-serif;
             background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
             color: #f8f9fa;
             min-height: 100vh;
-            padding-top: 80px;
+            padding-top: 70px;
         }
         
-        /* Navbar */
+        /* Navbar - Simplified */
         .navbar {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            padding: 0.5rem 0;
         }
+        
         .navbar-brand {
             font-family: 'Montserrat', sans-serif;
             font-weight: 800;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
+        
         .logo-img {
-            height: 40px;
-            width: 40px;
-            border-radius: 8px;
+            height: 35px;
+            width: 35px;
+            border-radius: 6px;
         }
+        
         .btn-back {
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            padding: 8px 20px;
-            font-weight: 600;
-            border-radius: 20px;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        .btn-back:hover {
-            transform: scale(1.05);
-        }
-        
-        /* Video Player Container */
-        .video-container {
-            background: var(--card-bg);
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 6px 15px;
             border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
-            overflow: hidden;
+            color: white;
+            font-size: 0.9rem;
+            transition: all 0.3s;
         }
         
-        /* Movie Info */
-        .movie-info {
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+        .btn-back:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        /* Video Player Container - Minimal */
+        .video-container {
+            background: #000;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Video.js Player Styling */
+        .custom-video-js {
+            width: 100%;
+            height: 65vh;
+            min-height: 350px;
+            max-height: 550px;
+        }
+        
+        /* Video.js Quality Selector Styling */
+        .vjs-icon-placeholder::before {
+            content: "HD";
+            font-size: 0.9em;
+        }
+        
+        /* File Information - Compact */
+        .file-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 1rem 0;
+            padding: 15px;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 8px;
             border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .movie-title {
-            color: var(--accent-color);
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            line-height: 1.3;
+        .info-item {
+            text-align: center;
+            padding: 8px;
         }
         
-        .movie-meta {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
+        .info-label {
+            display: block;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
         }
         
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #cbd5e1;
-            font-size: 0.9rem;
+        .info-value {
+            display: block;
+            color: #f8f9fa;
+            font-weight: 600;
+            font-size: 1rem;
         }
         
-        .meta-item i {
-            color: var(--accent-color);
+        /* Action Buttons - Minimal */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 1.5rem 0;
         }
         
-        /* Download Section */
-        .download-section {
-            background: var(--card-bg);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        @media (max-width: 576px) {
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
         }
         
-        .section-title {
-            color: var(--accent-color);
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .section-title i {
-            font-size: 1.2rem;
-        }
-        
-        /* Quality Buttons */
-        .quality-buttons-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 1rem;
-        }
-        
-        .quality-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px 25px;
+        /* Dropdown Button Styling */
+        .dropdown-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
             color: white;
-            text-decoration: none;
-            border-radius: 10px;
             font-weight: 700;
             font-size: 1rem;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
             cursor: pointer;
-            min-width: 120px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-            flex: 1 0 auto;
-            position: relative;
-            overflow: hidden;
-            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
         }
         
-        /* Stream Quality Button */
-        .quality-button.stream {
-            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
-            border: 1px solid rgba(255, 107, 107, 0.5);
+        .dropdown-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
-        /* Download Quality Button */
-        .quality-button.download {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            border: 1px solid rgba(40, 167, 69, 0.5);
+        .dropdown-btn.telegram {
+            background: linear-gradient(135deg, #0088cc 0%, #00aced 100%);
         }
         
-        /* Premium Hover Effects */
-        .quality-button:hover {
-            transform: translateY(-5px) scale(1.03);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4);
-            text-decoration: none;
+        /* Dropdown Content - Minimal */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: rgba(30, 41, 59, 0.98);
+            backdrop-filter: blur(10px);
+            min-width: 180px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            border-radius: 8px;
+            z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-top: 5px;
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        
+        /* Quality Buttons Only (No Text) */
+        .quality-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: rgba(255,255,255,0.1);
             color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         
-        .quality-button:active {
-            transform: translateY(-2px) scale(1.01);
-            transition: transform 0.1s ease;
+        .quality-btn:last-child {
+            border-bottom: none;
         }
         
-        /* Fast Download Section */
-        .fast-download-section {
-            background: linear-gradient(135deg, rgba(255, 65, 108, 0.1) 0%, rgba(255, 75, 43, 0.1) 100%);
-            border: 1px solid rgba(255, 107, 107, 0.3);
-            border-radius: 12px;
+        .quality-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .quality-btn i {
+            font-size: 1rem;
+        }
+        
+        /* Quality Badges */
+        .badge-4k {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+        
+        .badge-1080p {
+            background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
+        }
+        
+        .badge-720p {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .badge-480p {
+            background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+        }
+        
+        /* Donation Section - Clean */
+        .donation-section {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 8px;
             padding: 1.5rem;
-            margin-bottom: 2rem;
+            margin: 1.5rem 0;
+            text-align: center;
         }
         
-        /* Web Download Section */
-        .web-download-section {
-            background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(32, 201, 151, 0.1) 100%);
-            border: 1px solid rgba(40, 167, 69, 0.3);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+        .donation-title {
+            color: #FFC107;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        .donation-qr {
+            width: 180px;
+            height: 180px;
+            border-radius: 8px;
+            margin: 0 auto 1rem;
+            border: 2px solid rgba(255, 193, 7, 0.3);
+            padding: 5px;
+            background: white;
+        }
+        
+        .donate-btn {
+            background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+            color: #000;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.3s;
+        }
+        
+        .donate-btn:hover {
+            transform: scale(1.05);
+            color: #000;
         }
         
         /* Loading State */
@@ -211,126 +283,93 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 3rem 2rem;
+            height: 400px;
             text-align: center;
         }
         
         .loading-spinner {
-            width: 4rem;
-            height: 4rem;
-            border-width: 0.3rem;
-            margin-bottom: 1.5rem;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Error State */
         .error-container {
             text-align: center;
-            padding: 3rem 2rem;
+            padding: 3rem 1rem;
             background: rgba(255, 0, 0, 0.1);
-            border-radius: 15px;
+            border-radius: 8px;
             border: 1px solid rgba(255, 0, 0, 0.3);
-            margin-bottom: 2rem;
-        }
-        
-        .error-container i {
-            font-size: 3rem;
-            color: #ff4757;
             margin-bottom: 1rem;
-        }
-        
-        .retry-btn {
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            padding: 10px 25px;
-            border-radius: 25px;
-            color: white;
-            font-weight: 600;
-            margin-top: 1rem;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        
-        .retry-btn:hover {
-            transform: scale(1.05);
         }
         
         /* Ad Container */
         .ad-container {
-            margin: 2rem 0;
+            margin: 1rem 0;
             text-align: center;
         }
         
         /* Disclaimer */
         .disclaimer {
             background: rgba(255, 0, 0, 0.1);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 2rem;
+            border: 1px solid rgba(255, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 1.5rem;
             text-align: center;
             color: #ff6b6b;
-            font-size: 0.9rem;
-            backdrop-filter: blur(10px);
-        }
-        
-        .disclaimer strong {
-            color: #ff4757;
-            display: block;
-            margin-bottom: 8px;
-            font-size: 1rem;
+            font-size: 0.8rem;
         }
         
         /* Mobile Optimizations */
         @media (max-width: 768px) {
-            .movie-title {
-                font-size: 1.4rem;
+            body {
+                padding-top: 60px;
             }
             
-            .movie-meta {
-                gap: 15px;
+            .custom-video-js {
+                height: 45vh;
+                min-height: 250px;
             }
             
-            .meta-item {
-                font-size: 0.85rem;
+            .file-info-grid {
+                grid-template-columns: repeat(2, 1fr);
+                padding: 10px;
             }
             
-            .quality-button {
-                min-width: 100px;
-                padding: 12px 20px;
-                font-size: 0.9rem;
-            }
-            
-            .video-container,
-            .movie-info,
-            .download-section {
-                padding: 1rem;
+            .donation-qr {
+                width: 150px;
+                height: 150px;
             }
         }
         
         @media (max-width: 576px) {
-            .movie-title {
-                font-size: 1.2rem;
+            .custom-video-js {
+                height: 40vh;
+                min-height: 200px;
             }
             
-            .movie-meta {
-                flex-direction: column;
-                gap: 10px;
+            .file-info-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
             }
             
-            .quality-button {
-                min-width: 90px;
-                padding: 10px 15px;
-                font-size: 0.85rem;
-            }
-            
-            .section-title {
-                font-size: 1.2rem;
+            .info-item {
+                padding: 6px;
             }
         }
     </style>
 </head>
 <body>
-<!-- Navbar -->
+<!-- Minimal Navbar -->
 <nav class="navbar fixed-top">
     <div class="container d-flex align-items-center justify-content-between">
         <a href="index.html" class="navbar-brand">
@@ -338,13 +377,13 @@
             SK4FiLM
         </a>
         <button class="btn-back" onclick="window.history.back()">
-            <i class="fas fa-arrow-left me-2"></i>Back
+            <i class="fas fa-arrow-left"></i>
         </button>
     </div>
 </nav>
 
 <!-- Main Content -->
-<div class="container my-4">
+<div class="container my-3">
     <!-- Top Ad -->
     <div class="ad-container">
         <script type="text/javascript">
@@ -362,484 +401,389 @@
     <!-- Video Player Container -->
     <div class="video-container" id="videoContainer">
         <div class="loading-container">
-            <div class="spinner-border text-light loading-spinner" role="status">
-                <span class="visually-hidden">Loading video player...</span>
-            </div>
-            <h5>Loading video player...</h5>
-            <p class="text-muted">Please wait while we prepare your video for streaming</p>
+            <div class="loading-spinner"></div>
+            <h5>Loading Player...</h5>
         </div>
     </div>
 
-    <!-- Movie Info -->
-    <div class="movie-info" id="movieInfo">
-        <div class="loading-container">
-            <div class="spinner-border text-light" role="status">
-                <span class="visually-hidden">Loading movie info...</span>
+    <!-- File Information -->
+    <div class="file-info-grid" id="fileInfo">
+        <div class="info-item">
+            <span class="info-label">QUALITY</span>
+            <span class="info-value" id="infoQuality">HD</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">SIZE</span>
+            <span class="info-value" id="infoSize">...</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">FORMAT</span>
+            <span class="info-value" id="infoFormat">MP4</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">DURATION</span>
+            <span class="info-value" id="infoDuration">--:--</span>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <!-- Fast Download Button -->
+        <div class="dropdown">
+            <button class="dropdown-btn">
+                <i class="fas fa-bolt"></i>FAST DOWNLOAD
+            </button>
+            <div class="dropdown-content" id="fastDownloadMenu">
+                <!-- Quality buttons added by JS -->
+            </div>
+        </div>
+
+        <!-- Telegram Download Button -->
+        <div class="dropdown">
+            <button class="dropdown-btn telegram">
+                <i class="fab fa-telegram"></i>DOWNLOAD NOW
+            </button>
+            <div class="dropdown-content" id="telegramDownloadMenu">
+                <!-- Quality buttons added by JS -->
             </div>
         </div>
     </div>
 
-    <!-- Download Sections -->
-    <div id="downloadSections">
-        <!-- Loading state for download sections -->
-        <div class="loading-container">
-            <div class="spinner-border text-light" role="status">
-                <span class="visually-hidden">Loading download options...</span>
-            </div>
-        </div>
+    <!-- Donation Section -->
+    <div class="donation-section">
+        <h3 class="donation-title">
+            <i class="fas fa-heart me-2"></i>Support Streaming Service
+        </h3>
+        <img src="https://i.ibb.co/4RLgJ8Tp/QR-MY.jpg" 
+             alt="Donation QR Code" 
+             class="donation-qr img-fluid">
+        <p class="text-light mb-3">Scan QR to support SK4FiLM</p>
+        <a href="https://cfpe.me/skfilmbox" 
+           target="_blank" 
+           class="donate-btn">
+            <i class="fas fa-donate me-2"></i>DONATE NOW
+        </a>
     </div>
 
-    <!-- Bottom Ad Container -->
+    <!-- Bottom Ad -->
     <div class="ad-container">
         <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
         <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
     </div>
     
-    <!-- Disclaimer Section -->
+    <!-- Disclaimer -->
     <div class="disclaimer">
-        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
-        This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
+        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong>
+        Files are hosted on Telegram, not on our servers.
     </div>
 </div>
 
-<!-- Plyr Video Player JS -->
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+<!-- Video.js & Plugins -->
+<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<script src="https://unpkg.com/videojs-http-source-selector@1.1.6/dist/videojs-http-source-selector.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-// ✅ API endpoints
+// Configuration
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
-    'https://sk4film-backup.herokuapp.com',
-    'https://sk4film-alternate.onrender.com'
+    'https://sk4film-backup.herokuapp.com'
 ];
 
-// Current API index
-let currentAPI = 0;
+const CURRENT_API = 0;
 
-// Extract parameters from URL
+// URL Parameters
 const urlParams = new URLSearchParams(window.location.search);
 const channelId = urlParams.get('channel_id') || '-1001768249569';
 const messageId = urlParams.get('message_id');
-const quality = urlParams.get('quality') || 'HD';
+const initialQuality = urlParams.get('quality') || 'HD';
 
-// Video player instance
+// Variables
 let player = null;
+let movieMetadata = {};
 
-// Initialize the page
-window.addEventListener('DOMContentLoaded', async () => {
-    console.log("🎬 Video Player Page Loaded");
-    console.log("📋 URL Parameters:", { channelId, messageId, quality });
-    
+// Initialize Page
+document.addEventListener('DOMContentLoaded', async () => {
     if (!messageId) {
-        showError("No message ID provided");
+        showError("No video specified");
         return;
     }
-    
+
     try {
-        // Load movie metadata first
-        await loadMovieMetadata(channelId, messageId);
+        // Load metadata
+        await loadMetadata();
         
-        // Load streaming URL
-        await loadStreamingUrl(channelId, messageId, quality);
+        // Initialize video player
+        await initializePlayer();
         
-        // Load download options
-        loadDownloadOptions(channelId, messageId);
+        // Setup download menus
+        setupDownloadMenus();
         
     } catch (error) {
-        console.error("Error loading page:", error);
-        showError("Failed to load video. Please try again.");
+        console.error("Initialization error:", error);
+        showError("Failed to load. Please try again.");
     }
 });
 
-// Load movie metadata
-async function loadMovieMetadata(channelId, messageId) {
+// Load Metadata
+async function loadMetadata() {
     try {
-        const movieInfo = document.getElementById('movieInfo');
+        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
+        const response = await fetchWithTimeout(apiUrl, 5000);
+        const data = await response.json();
         
-        // Try multiple API endpoints
-        for (let i = 0; i < API_ENDPOINTS.length; i++) {
-            try {
-                const apiUrl = `${API_ENDPOINTS[i]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
-                console.log(`Fetching metadata from API ${i}: ${apiUrl}`);
-                
-                const response = await fetch(apiUrl, {
-                    signal: AbortSignal.timeout(8000)
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.status === 'success' && data.metadata) {
-                        currentAPI = i;
-                        displayMovieInfo(data.metadata);
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.log(`API ${i} metadata error:`, error.message);
-                continue;
-            }
+        if (data.status === 'success' && data.metadata) {
+            movieMetadata = data.metadata;
+            updateFileInfo();
         }
-        
-        // Fallback: Show basic info
-        displayMovieInfo({
-            title: 'Unknown Movie',
-            file_name: 'video.mp4',
-            file_size: 0,
-            quality: quality,
-            caption: '',
-            year: ''
-        });
-        
     } catch (error) {
-        console.error("Metadata load error:", error);
-        displayMovieInfo({
-            title: 'Unknown Movie',
+        console.warn("Metadata load failed:", error);
+        movieMetadata = {
             file_name: 'video.mp4',
             file_size: 0,
-            quality: quality,
-            caption: '',
-            year: ''
-        });
+            quality: initialQuality
+        };
     }
 }
 
-// Display movie info
-function displayMovieInfo(metadata) {
-    const movieInfo = document.getElementById('movieInfo');
-    const fileSize = metadata.file_size ? formatSize(metadata.file_size) : 'Unknown';
-    const title = metadata.title || metadata.file_name || 'Unknown Movie';
-    
-    movieInfo.innerHTML = `
-        <h1 class="movie-title">${escapeHtml(title)}</h1>
-        <div class="movie-meta">
-            ${metadata.year ? `<div class="meta-item"><i class="fas fa-calendar-alt"></i> ${metadata.year}</div>` : ''}
-            <div class="meta-item"><i class="fas fa-film"></i> ${metadata.quality || quality}</div>
-            <div class="meta-item"><i class="fas fa-hdd"></i> ${fileSize}</div>
-        </div>
-        ${metadata.caption ? `<div class="movie-description">${formatPostContent(metadata.caption)}</div>` : ''}
-    `;
+// Update File Information
+function updateFileInfo() {
+    document.getElementById('infoQuality').textContent = movieMetadata.quality || initialQuality;
+    document.getElementById('infoSize').textContent = formatSize(movieMetadata.file_size || 0);
+    document.getElementById('infoFormat').textContent = 'MP4';
 }
 
-// Load streaming URL
-async function loadStreamingUrl(channelId, messageId, quality) {
+// Initialize Video Player
+async function initializePlayer() {
     try {
+        // Get stream URL
+        const streamUrl = await getStreamUrl();
+        const fallbackUrl = await getFallbackUrl();
+        
+        // Create player HTML
         const videoContainer = document.getElementById('videoContainer');
+        videoContainer.innerHTML = `
+            <video id="sk4film-player" class="video-js custom-video-js vjs-default-skin" 
+                   controls preload="auto" playsinline>
+                <source src="${streamUrl}" type="video/mp4" label="${initialQuality}">
+                <source src="${fallbackUrl}" type="video/mp4" label="Fallback">
+            </video>
+        `;
         
-        // Try multiple API endpoints
-        for (let i = 0; i < API_ENDPOINTS.length; i++) {
-            try {
-                const apiUrl = `${API_ENDPOINTS[i]}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                console.log(`Fetching stream info from API ${i}: ${apiUrl}`);
-                
-                const response = await fetch(apiUrl, {
-                    signal: AbortSignal.timeout(8000)
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.status === 'success' && data.stream_info) {
-                        currentAPI = i;
-                        initializeVideoPlayer(data.stream_info);
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.log(`API ${i} stream info error:`, error.message);
-                continue;
+        // Initialize player
+        player = videojs('sk4film-player', {
+            controls: true,
+            autoplay: false,
+            preload: 'auto',
+            fluid: true,
+            playbackRates: [0.5, 1, 1.5, 2],
+            controlBar: {
+                children: [
+                    'playToggle',
+                    'volumePanel',
+                    'currentTimeDisplay',
+                    'timeDivider',
+                    'durationDisplay',
+                    'progressControl',
+                    'remainingTimeDisplay',
+                    'playbackRateMenuButton',
+                    'qualitySelector',
+                    'fullscreenToggle'
+                ]
             }
-        }
+        });
         
-        // Fallback: Try direct download URL
-        await tryDirectDownloadUrl(channelId, messageId);
+        // Register quality selector plugin
+        player.httpSourceSelector();
+        
+        // Events
+        player.on('loadedmetadata', () => {
+            const duration = formatDuration(player.duration());
+            document.getElementById('infoDuration').textContent = duration;
+        });
+        
+        player.on('error', (e) => {
+            console.error("Player error:", e);
+            // Try fallback source
+            if (player.currentSrc() !== fallbackUrl) {
+                player.src({ type: 'video/mp4', src: fallbackUrl });
+                player.play();
+            }
+        });
         
     } catch (error) {
-        console.error("Stream URL load error:", error);
-        showError("Failed to load streaming URL. Please try downloading instead.");
+        console.error("Player init error:", error);
+        throw error;
     }
 }
 
-// Try direct download URL as fallback
-async function tryDirectDownloadUrl(channelId, messageId) {
+// Get Streaming URL
+async function getStreamUrl() {
     try {
-        for (let i = 0; i < API_ENDPOINTS.length; i++) {
-            try {
-                const apiUrl = `${API_ENDPOINTS[i]}/api/download/url?channel_id=${channelId}&message_id=${messageId}`;
-                console.log(`Fetching direct download URL from API ${i}: ${apiUrl}`);
-                
-                const response = await fetch(apiUrl, {
-                    signal: AbortSignal.timeout(8000)
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.status === 'success' && data.download_url) {
-                        currentAPI = i;
-                        initializeVideoPlayer({
-                            stream_url: data.download_url,
-                            direct_url: data.download_url,
-                            file_name: data.file_info?.file_name || 'video.mp4',
-                            file_size: data.file_info?.file_size || 0,
-                            mime_type: data.file_info?.mime_type || 'video/mp4',
-                            is_streamable: true
-                        });
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.log(`API ${i} direct download error:`, error.message);
-                continue;
-            }
+        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${initialQuality}`;
+        const response = await fetchWithTimeout(apiUrl, 5000);
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.stream_info?.stream_url) {
+            return data.stream_info.stream_url;
         }
-        
-        // Last resort: Use Telegram CDN directly
-        showError("No streaming source available. Please use download options below.");
-        
+        throw new Error("No stream URL");
     } catch (error) {
-        console.error("Direct download URL error:", error);
-        showError("Failed to load video. Please try downloading instead.");
+        // Fallback to download URL
+        return await getDownloadUrl(initialQuality);
     }
 }
 
-// Initialize Plyr video player
-function initializeVideoPlayer(streamInfo) {
-    const videoContainer = document.getElementById('videoContainer');
-    
-    if (!streamInfo.stream_url) {
-        showError("No stream URL available");
-        return;
-    }
-    
-    // Create video player HTML
-    videoContainer.innerHTML = `
-        <video id="player" playsinline controls data-poster="${getPosterUrl()}">
-            <source src="${streamInfo.stream_url}" type="${streamInfo.mime_type || 'video/mp4'}" />
-            <track kind="captions" label="English" srclang="en" src="" default />
-        </video>
-        <div class="video-info mt-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="badge bg-primary">${streamInfo.quality || quality}</span>
-                    <span class="badge bg-secondary ms-2">${formatSize(streamInfo.file_size || 0)}</span>
-                </div>
-                <button class="btn btn-sm btn-outline-light" onclick="refreshStream()">
-                    <i class="fas fa-redo me-1"></i>Refresh
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Initialize Plyr player
-    player = new Plyr('#player', {
-        controls: [
-            'play',
-            'progress',
-            'current-time',
-            'duration',
-            'mute',
-            'volume',
-            'settings',
-            'fullscreen'
-        ],
-        settings: ['quality', 'speed'],
-        autoplay: false,
-        clickToPlay: true,
-        ratio: '16:9',
-        disableContextMenu: false
-    });
-    
-    // Handle player events
-    player.on('ready', () => {
-        console.log("✅ Plyr player ready");
-    });
-    
-    player.on('error', (error) => {
-        console.error("❌ Player error:", error);
-        showError("Video playback error. Please try downloading instead.");
-    });
-}
-
-// Get poster URL
-function getPosterUrl() {
-    return 'https://iili.io/fAeIwv9.th.png'; // Fallback poster
-}
-
-// Load download options
-function loadDownloadOptions(channelId, messageId) {
-    const downloadSections = document.getElementById('downloadSections');
-    
-    // Get bot username from config
-    const botUsername = 'sk4filmbot';
-    const fileId = `${channelId}_${messageId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
-    
-    downloadSections.innerHTML = `
-        <!-- Fast Download Section -->
-        <div class="fast-download-section">
-            <h3 class="section-title">
-                <i class="fas fa-bolt"></i>Fast Download
-            </h3>
-            <p class="text-light mb-3">Choose your preferred quality for immediate download:</p>
-            <div class="quality-buttons-container" id="fastDownloadButtons">
-                <!-- Quality buttons will be added here -->
-                <div class="quality-button download" onclick="downloadFile('${channelId}', '${messageId}', '2160p')">
-                    <i class="fas fa-download me-2"></i>2160p
-                </div>
-                <div class="quality-button download" onclick="downloadFile('${channelId}', '${messageId}', '1080p')">
-                    <i class="fas fa-download me-2"></i>1080p
-                </div>
-                <div class="quality-button download" onclick="downloadFile('${channelId}', '${messageId}', '720p')">
-                    <i class="fas fa-download me-2"></i>720p
-                </div>
-                <div class="quality-button download" onclick="downloadFile('${channelId}', '${messageId}', '480p')">
-                    <i class="fas fa-download me-2"></i>480p
-                </div>
-            </div>
-        </div>
-        
-        <!-- Web Download Section -->
-        <div class="web-download-section">
-            <h3 class="section-title">
-                <i class="fas fa-globe"></i>Web Download
-            </h3>
-            <p class="text-light mb-3">Download directly through your web browser:</p>
-            <div class="quality-buttons-container" id="webDownloadButtons">
-                <!-- Quality buttons will be added here -->
-                <a href="${API_ENDPOINTS[currentAPI]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=2160p" 
-                   target="_blank" 
-                   class="quality-button download">
-                    <i class="fas fa-download me-2"></i>2160p (Web)
-                </a>
-                <a href="${API_ENDPOINTS[currentAPI]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=1080p" 
-                   target="_blank" 
-                   class="quality-button download">
-                    <i class="fas fa-download me-2"></i>1080p (Web)
-                </a>
-                <a href="${API_ENDPOINTS[currentAPI]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=720p" 
-                   target="_blank" 
-                   class="quality-button download">
-                    <i class="fas fa-download me-2"></i>720p (Web)
-                </a>
-                <a href="${API_ENDPOINTS[currentAPI]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=480p" 
-                   target="_blank" 
-                   class="quality-button download">
-                    <i class="fas fa-download me-2"></i>480p (Web)
-                </a>
-            </div>
-        </div>
-        
-        <!-- Telegram Bot Download -->
-        <div class="download-section">
-            <h3 class="section-title">
-                <i class="fab fa-telegram"></i>Telegram Bot Download
-            </h3>
-            <p class="text-light mb-3">Download through Telegram bot for the best experience:</p>
-            <div class="quality-buttons-container">
-                <a href="https://t.me/${botUsername}?start=${fileId}" 
-                   target="_blank" 
-                   class="quality-button download">
-                    <i class="fas fa-robot me-2"></i>Download via Bot
-                </a>
-                <a href="https://t.me/${botUsername}" 
-                   target="_blank" 
-                   class="quality-button download">
-                    <i class="fab fa-telegram me-2"></i>Open Telegram Bot
-                </a>
-            </div>
-        </div>
-    `;
-}
-
-// Download file function
-async function downloadFile(channelId, messageId, quality) {
+// Get Fallback URL (Sample/Backup)
+async function getFallbackUrl() {
     try {
-        const apiUrl = `${API_ENDPOINTS[currentAPI]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-        
-        const response = await fetch(apiUrl);
+        // Try different quality
+        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=720p`;
+        const response = await fetchWithTimeout(apiUrl, 5000);
         const data = await response.json();
         
         if (data.status === 'success' && data.download_url) {
-            // Open download in new tab
-            window.open(data.download_url, '_blank');
+            return data.download_url;
+        }
+    } catch (error) {
+        // Ultimate fallback
+        return 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+    }
+}
+
+// Get Download URL
+async function getDownloadUrl(quality) {
+    const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    return data.status === 'success' ? data.download_url : null;
+}
+
+// Setup Download Menus
+function setupDownloadMenus() {
+    const qualities = [
+        { label: '4K', quality: '2160p', icon: 'fas fa-tv', badge: 'badge-4k' },
+        { label: '1080p', quality: '1080p', icon: 'fas fa-hd', badge: 'badge-1080p' },
+        { label: '720p', quality: '720p', icon: 'fas fa-video', badge: 'badge-720p' },
+        { label: '480p', quality: '480p', icon: 'fas fa-film', badge: 'badge-480p' }
+    ];
+    
+    // Fast Download Menu
+    const fastMenu = document.getElementById('fastDownloadMenu');
+    fastMenu.innerHTML = qualities.map(q => `
+        <button class="quality-btn" onclick="startFastDownload('${q.quality}')">
+            <i class="${q.icon}"></i>
+        </button>
+    `).join('');
+    
+    // Telegram Download Menu
+    const telegramMenu = document.getElementById('telegramDownloadMenu');
+    telegramMenu.innerHTML = qualities.map(q => `
+        <button class="quality-btn" onclick="startTelegramDownload('${q.quality}')">
+            <i class="fab fa-telegram"></i>
+        </button>
+    `).join('');
+}
+
+// Fast Download Function
+async function startFastDownload(quality) {
+    try {
+        const downloadUrl = await getDownloadUrl(quality);
+        if (downloadUrl) {
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `SK4FiLM_${quality}.mp4`;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast(`Downloading ${quality}...`);
         } else {
-            showError("Failed to get download URL");
+            showToast("Download failed. Try Telegram.");
         }
     } catch (error) {
         console.error("Download error:", error);
-        showError("Download failed. Please try again.");
+        showToast("Error. Try Telegram download.");
     }
 }
 
-// Refresh stream
-function refreshStream() {
-    if (player) {
-        player.restart();
-    }
+// Telegram Download Function
+function startTelegramDownload(quality) {
+    const botUsername = 'sk4filmbot';
+    const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
+    const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
+    window.open(telegramUrl, '_blank');
+    showToast(`Opening Telegram for ${quality}...`);
 }
 
-// Show error
+// Utility Functions
+function formatSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
+}
+
+function formatDuration(seconds) {
+    if (!seconds) return '--:--';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function showToast(message) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 10000;
+        font-size: 0.9rem;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
 function showError(message) {
     const videoContainer = document.getElementById('videoContainer');
     videoContainer.innerHTML = `
         <div class="error-container">
-            <i class="fas fa-exclamation-circle"></i>
-            <h4>Error</h4>
-            <p>${escapeHtml(message)}</p>
-            <button class="retry-btn" onclick="location.reload()">
+            <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
+            <h5>${escapeHtml(message)}</h5>
+            <button class="btn btn-sm btn-outline-light mt-2" onclick="location.reload()">
                 <i class="fas fa-redo me-1"></i>Retry
             </button>
         </div>
     `;
 }
 
-// Format size
-function formatSize(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+function fetchWithTimeout(url, timeout = 5000) {
+    return Promise.race([
+        fetch(url),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), timeout)
+        )
+    ]);
 }
 
-// Format post content
-function formatPostContent(content) {
-    let formatted = escapeHtml(content);
-    
-    // Replace newlines with <br> tags
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    // Detect and format URLs
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
-        const lastChar = url.slice(-1);
-        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
-        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-info">${cleanUrl}</a>${punctuation}`;
-    });
-    
-    return formatted;
-}
-
-// Escape HTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Add timeout to fetch (polyfill for older browsers)
-if (!AbortSignal.timeout) {
-    AbortSignal.timeout = function(ms) {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), ms);
-        return controller.signal;
-    };
-}
-
-// Debug info
-console.log("✅ SK4FiLM Video Player Page Loaded");
-console.log("🎯 Features: Streaming + Fast Download + Web Download + Telegram Bot Download");
-console.log("📱 Open browser console (F12) for debug messages");
+// Debug Info
+console.log("🎬 SK4FiLM Player Ready");
+console.log("📱 Clean Interface with Essential Features");
 </script>
 </body>
 </html>
