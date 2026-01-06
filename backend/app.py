@@ -1941,330 +1941,7 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
             
             # Add movie with fallback
             movie_with_fallback = movie.copy()
-            
-# ============================================================================
-# ✅ FILE STREAMING AND DOWNLOAD FUNCTIONS
-# ============================================================================
-
- class StreamingManager:
-    """Manage video streaming and downloading"""
-    
-    def __init__(self):
-        self.stream_cache = {}
-        self.cache_lock = asyncio.Lock()
-        
-    async def get_file_stream_info(self, channel_id, message_id):
-        """Get file information for streaming"""
-        try:
-            if bot_handler and bot_handler.initialized:
-                # Get message from Telegram
-                message = await bot_handler.bot.get_messages(channel_id, message_id)
-                if not message:
-                    return None
-                
-                file_info = {
-                    'channel_id': channel_id,
-                    'message_id': message_id,
-                    'has_file': False,
-                    'file_type': None,
-                    'file_size': 0,
-                    'file_name': '',
-                    'mime_type': '',
-                    'duration': 0,
-                    'width': 0,
-                    'height': 0
-                }
-                
-                if message.document:
-                    file_info.update({
-                        'has_file': True,
-                        'file_type': 'document',
-                        'file_size': message.document.file_size or 0,
-                        'file_name': message.document.file_name or '',
-                        'mime_type': message.document.mime_type or '',
-                        'file_id': message.document.file_id,
-                        'is_video': is_video_file(message.document.file_name or '')
-                    })
-                    
-                    # Try to get video attributes for video documents
-                    if message.document.mime_type and 'video' in message.document.mime_type:
-                        if hasattr(message.document, 'duration'):
-                            file_info['duration'] = message.document.duration
-                        if hasattr(message.document, 'width'):
-                            file_info['width'] = message.document.width
-                        if hasattr(message.document, 'height'):
-                            file_info['height'] = message.document.height
-                
-                elif message.video:
-                    file_info.update({
-                        'has_file': True,
-                        'file_type': 'video',
-                        'file_size': message.video.file_size or 0,
-                        'file_name': message.video.file_name or 'video.mp4',
-                        'mime_type': 'video/mp4',
-                        'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
-                        'width': message.video.width if hasattr(message.video, 'width') else 0,
-                        'height': message.video.height if hasattr(message.video, 'height') else 0,
-                        'file_id': message.video.file_id,
-                        'is_video': True
-                    })
-                
-                return file_info
-                
-        except Exception as e:
-            logger.error(f"❌ Get file stream info error: {e}")
-            return None
-    
-    async def get_direct_download_url(self, file_id):
-        """Get direct download URL for file"""
-        try:
-            if bot_handler and bot_handler.initialized:
-                # Use the fixed method from BotHandler
-                return await bot_handler.get_file_download_url(file_id)
-        except Exception as e:
-            logger.error(f"❌ Get direct download URL error: {e}")
-        
-        return None
-    
-    async def get_streaming_url(self, channel_id, message_id, quality=None):
-        """Get streaming URL for video file"""
-        try:
-            # Get file info
-            file_info = await self.get_file_stream_info(channel_id, message_id)
-            if not file_info or not file_info['has_file']:
-                return None
-            
-            # Check if file is video
-            if not file_info.get('is_video', False):
-                return None
-            
-            # Get direct download URL
-            direct_url = await self.get_direct_download_url(file_info['file_id'])
-            if direct_url:
-                return {
-                    'stream_url': direct_url,
-                    'direct_url': direct_url,
-                    'file_name': file_info['file_name'],
-                    'file_size': file_info['file_size'],
-                    'duration': file_info.get('duration', 0),
-                    'quality': quality or 'Unknown',
-                    'mime_type': file_info['mime_type'],
-                    'is_streamable': True
-                }
-            
-        except Exception as e:
-            logger.error(f"❌ Get streaming URL error: {e}")
-        
-        return None
-    
-    async def get_file_metadata(self, channel_id, message_id):
-        """Get file metadata"""
-        try:
-            if files_col is not None:
-                # Try to get from database first
-                doc = await files_col.find_one({
-                    'channel_id': channel_id,
-                    'message_id': int(message_id)
-                }, {
-                    'title': 1,
-                    'file_name': 1,
-                    'file_size': 1,
-                    'quality': 1,
-                    'thumbnail_url': 1,
-                    'caption': 1,
-                    'year': 1,
-                    '_id': 0
-                })
-                
-                if doc:
-                    return doc
-            
-            # Fallback to Telegram API
-            if bot_handler and bot_handler.initialized:
-                message = await bot_handler.bot.get_messages(channel_id, int(message_id))
-                if message and (message.document or message.video):
-                    file_name = ''
-                    file_size = 0
-                    
-                    if message.document:
-                        file_name = message.document.file_name
-                        file_size = message.document.file_size or 0
-                    elif message.video:
-                        file_name = message.video.file_name
-                        file_size = message.video.file_size or 0
-                    
-                    return {
-                        'title': file_name,
-                        'file_name': file_name,
-                        'file_size': file_size,
-                        'quality': detect_quality_enhanced(file_name),
-                        'caption': message.caption or '',
-                        'year': ''
-                    }
-        
-        except Exception as e:
-            logger.error(f"❌ Get file metadata error: {e}")
-        
-        return Noneclass StreamingManager:
-    """Manage video streaming and downloading"""
-    
-    def __init__(self):
-        self.stream_cache = {}
-        self.cache_lock = asyncio.Lock()
-        
-    async def get_file_stream_info(self, channel_id, message_id):
-        """Get file information for streaming"""
-        try:
-            if bot_handler and bot_handler.initialized:
-                # Get message from Telegram
-                message = await bot_handler.bot.get_messages(channel_id, message_id)
-                if not message:
-                    return None
-                
-                file_info = {
-                    'channel_id': channel_id,
-                    'message_id': message_id,
-                    'has_file': False,
-                    'file_type': None,
-                    'file_size': 0,
-                    'file_name': '',
-                    'mime_type': '',
-                    'duration': 0,
-                    'width': 0,
-                    'height': 0
-                }
-                
-                if message.document:
-                    file_info.update({
-                        'has_file': True,
-                        'file_type': 'document',
-                        'file_size': message.document.file_size or 0,
-                        'file_name': message.document.file_name or '',
-                        'mime_type': message.document.mime_type or '',
-                        'file_id': message.document.file_id,
-                        'is_video': is_video_file(message.document.file_name or '')
-                    })
-                    
-                    # Try to get video attributes for video documents
-                    if message.document.mime_type and 'video' in message.document.mime_type:
-                        if hasattr(message.document, 'duration'):
-                            file_info['duration'] = message.document.duration
-                        if hasattr(message.document, 'width'):
-                            file_info['width'] = message.document.width
-                        if hasattr(message.document, 'height'):
-                            file_info['height'] = message.document.height
-                
-                elif message.video:
-                    file_info.update({
-                        'has_file': True,
-                        'file_type': 'video',
-                        'file_size': message.video.file_size or 0,
-                        'file_name': message.video.file_name or 'video.mp4',
-                        'mime_type': 'video/mp4',
-                        'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
-                        'width': message.video.width if hasattr(message.video, 'width') else 0,
-                        'height': message.video.height if hasattr(message.video, 'height') else 0,
-                        'file_id': message.video.file_id,
-                        'is_video': True
-                    })
-                
-                return file_info
-                
-        except Exception as e:
-            logger.error(f"❌ Get file stream info error: {e}")
-            return None
-    
-    async def get_direct_download_url(self, file_id):
-        """Get direct download URL for file"""
-        try:
-            if bot_handler and bot_handler.initialized:
-                # Use the fixed method from BotHandler
-                return await bot_handler.get_file_download_url(file_id)
-        except Exception as e:
-            logger.error(f"❌ Get direct download URL error: {e}")
-        
-        return None
-    
-    async def get_streaming_url(self, channel_id, message_id, quality=None):
-        """Get streaming URL for video file"""
-        try:
-            # Get file info
-            file_info = await self.get_file_stream_info(channel_id, message_id)
-            if not file_info or not file_info['has_file']:
-                return None
-            
-            # Check if file is video
-            if not file_info.get('is_video', False):
-                return None
-            
-            # Get direct download URL
-            direct_url = await self.get_direct_download_url(file_info['file_id'])
-            if direct_url:
-                return {
-                    'stream_url': direct_url,
-                    'direct_url': direct_url,
-                    'file_name': file_info['file_name'],
-                    'file_size': file_info['file_size'],
-                    'duration': file_info.get('duration', 0),
-                    'quality': quality or 'Unknown',
-                    'mime_type': file_info['mime_type'],
-                    'is_streamable': True
-                }
-            
-        except Exception as e:
-            logger.error(f"❌ Get streaming URL error: {e}")
-        
-        return None
-    
-    async def get_file_metadata(self, channel_id, message_id):
-        """Get file metadata"""
-        try:
-            if files_col is not None:
-                # Try to get from database first
-                doc = await files_col.find_one({
-                    'channel_id': channel_id,
-                    'message_id': int(message_id)
-                }, {
-                    'title': 1,
-                    'file_name': 1,
-                    'file_size': 1,
-                    'quality': 1,
-                    'thumbnail_url': 1,
-                    'caption': 1,
-                    'year': 1,
-                    '_id': 0
-                })
-                
-                if doc:
-                    return doc
-            
-            # Fallback to Telegram API
-            if bot_handler and bot_handler.initialized:
-                message = await bot_handler.bot.get_messages(channel_id, int(message_id))
-                if message and (message.document or message.video):
-                    file_name = ''
-                    file_size = 0
-                    
-                    if message.document:
-                        file_name = message.document.file_name
-                        file_size = message.document.file_size or 0
-                    elif message.video:
-                        file_name = message.video.file_name
-                        file_size = message.video.file_size or 0
-                    
-                    return {
-                        'title': file_name,
-                        'file_name': file_name,
-                        'file_size': file_size,
-                        'quality': detect_quality_enhanced(file_name),
-                        'caption': message.caption or '',
-                        'year': ''
-                    }
-        
-        except Exception as e:
-            logger.error(f"❌ Get file metadata error: {e}")
-        
-        return None           movie_with_fallback.update({
+            movie_with_fallback.update({
                 'poster_url': Config.FALLBACK_POSTER,
                 'poster_source': 'fallback',
                 'poster_rating': '0.0',
@@ -2276,6 +1953,171 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
             results.append(movie_with_fallback)
     
     return results
+
+# ============================================================================
+# ✅ FILE STREAMING AND DOWNLOAD FUNCTIONS
+# ============================================================================
+
+class StreamingManager:
+    """Manage video streaming and downloading"""
+    
+    def __init__(self):
+        self.stream_cache = {}
+        self.cache_lock = asyncio.Lock()
+        
+    async def get_file_stream_info(self, channel_id, message_id):
+        """Get file information for streaming"""
+        try:
+            if bot_handler and bot_handler.initialized:
+                # Get message from Telegram
+                message = await bot_handler.bot.get_messages(channel_id, message_id)
+                if not message:
+                    return None
+                
+                file_info = {
+                    'channel_id': channel_id,
+                    'message_id': message_id,
+                    'has_file': False,
+                    'file_type': None,
+                    'file_size': 0,
+                    'file_name': '',
+                    'mime_type': '',
+                    'duration': 0,
+                    'width': 0,
+                    'height': 0
+                }
+                
+                if message.document:
+                    file_info.update({
+                        'has_file': True,
+                        'file_type': 'document',
+                        'file_size': message.document.file_size or 0,
+                        'file_name': message.document.file_name or '',
+                        'mime_type': message.document.mime_type or '',
+                        'file_id': message.document.file_id,
+                        'is_video': is_video_file(message.document.file_name or '')
+                    })
+                    
+                    # Try to get video attributes for video documents
+                    if message.document.mime_type and 'video' in message.document.mime_type:
+                        if hasattr(message.document, 'duration'):
+                            file_info['duration'] = message.document.duration
+                        if hasattr(message.document, 'width'):
+                            file_info['width'] = message.document.width
+                        if hasattr(message.document, 'height'):
+                            file_info['height'] = message.document.height
+                
+                elif message.video:
+                    file_info.update({
+                        'has_file': True,
+                        'file_type': 'video',
+                        'file_size': message.video.file_size or 0,
+                        'file_name': message.video.file_name or 'video.mp4',
+                        'mime_type': 'video/mp4',
+                        'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
+                        'width': message.video.width if hasattr(message.video, 'width') else 0,
+                        'height': message.video.height if hasattr(message.video, 'height') else 0,
+                        'file_id': message.video.file_id,
+                        'is_video': True
+                    })
+                
+                return file_info
+                
+        except Exception as e:
+            logger.error(f"❌ Get file stream info error: {e}")
+            return None
+    
+    async def get_direct_download_url(self, file_id):
+        """Get direct download URL for file"""
+        try:
+            if bot_handler and bot_handler.initialized:
+                # Use the fixed method from BotHandler
+                return await bot_handler.get_file_download_url(file_id)
+        except Exception as e:
+            logger.error(f"❌ Get direct download URL error: {e}")
+        
+        return None
+    
+    async def get_streaming_url(self, channel_id, message_id, quality=None):
+        """Get streaming URL for video file"""
+        try:
+            # Get file info
+            file_info = await self.get_file_stream_info(channel_id, message_id)
+            if not file_info or not file_info['has_file']:
+                return None
+            
+            # Check if file is video
+            if not file_info.get('is_video', False):
+                return None
+            
+            # Get direct download URL
+            direct_url = await self.get_direct_download_url(file_info['file_id'])
+            if direct_url:
+                return {
+                    'stream_url': direct_url,
+                    'direct_url': direct_url,
+                    'file_name': file_info['file_name'],
+                    'file_size': file_info['file_size'],
+                    'duration': file_info.get('duration', 0),
+                    'quality': quality or 'Unknown',
+                    'mime_type': file_info['mime_type'],
+                    'is_streamable': True
+                }
+            
+        except Exception as e:
+            logger.error(f"❌ Get streaming URL error: {e}")
+        
+        return None
+    
+    async def get_file_metadata(self, channel_id, message_id):
+        """Get file metadata"""
+        try:
+            if files_col is not None:
+                # Try to get from database first
+                doc = await files_col.find_one({
+                    'channel_id': channel_id,
+                    'message_id': int(message_id)
+                }, {
+                    'title': 1,
+                    'file_name': 1,
+                    'file_size': 1,
+                    'quality': 1,
+                    'thumbnail_url': 1,
+                    'caption': 1,
+                    'year': 1,
+                    '_id': 0
+                })
+                
+                if doc:
+                    return doc
+            
+            # Fallback to Telegram API
+            if bot_handler and bot_handler.initialized:
+                message = await bot_handler.bot.get_messages(channel_id, int(message_id))
+                if message and (message.document or message.video):
+                    file_name = ''
+                    file_size = 0
+                    
+                    if message.document:
+                        file_name = message.document.file_name
+                        file_size = message.document.file_size or 0
+                    elif message.video:
+                        file_name = message.video.file_name
+                        file_size = message.video.file_size or 0
+                    
+                    return {
+                        'title': file_name,
+                        'file_name': file_name,
+                        'file_size': file_size,
+                        'quality': detect_quality_enhanced(file_name),
+                        'caption': message.caption or '',
+                        'year': ''
+                    }
+        
+        except Exception as e:
+            logger.error(f"❌ Get file metadata error: {e}")
+        
+        return None
 
 streaming_manager = StreamingManager()
 
