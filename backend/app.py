@@ -607,30 +607,44 @@ class BotHandler:
             logger.error(f"❌ Get file info error: {e}")
             return None
     
-    async def get_file_download_url(self, file_id):
-        """Get direct download URL for file"""
-        if not self.initialized:
-            return None
-    
+async def get_direct_download_url(self, file_id):
+    """Get direct download URL for file - ALTERNATIVE METHOD"""
     try:
-        # CORRECT WAY: Get file object from bot
-        # Pyrogram's get_file returns a file object, not a dict
-        file = await self.bot.get_file(file_id)
-        if not file:
+        if not self.initialized or not self.bot_token:
             return None
         
-        # File path format: "documents/file_12345"
-        file_path = file.file_path
-        if not file_path:
-            return None
+        # Telegram CDN URL format: https://api.telegram.org/file/bot{token}/{file_path}
+        # We need to get file_path first
+        try:
+            # Try to get file info using get_file
+            file = await self.bot.get_file(file_id)
+            if file and hasattr(file, 'file_path') and file.file_path:
+                return f"https://api.telegram.org/file/bot{self.bot_token}/{file.file_path}"
+        except Exception as get_file_error:
+            logger.debug(f"Get file error, trying alternative: {get_file_error}")
         
-        # Create direct URL using bot token
-        bot_token = self.bot_token
-        if not bot_token:
-            return None
+        # Alternative: Use file_id directly (may not work for all files)
+        # Format: file_id -> extract file_unique_id
+        if isinstance(file_id, str) and len(file_id) > 20:
+            # Try to extract file_unique_id
+            # This is a fallback method
+            try:
+                # Use bot API to get file info
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    api_url = f"https://api.telegram.org/bot{self.bot_token}/getFile"
+                    params = {'file_id': file_id}
+                    
+                    async with session.get(api_url, params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            if data.get('ok') and data.get('result'):
+                                file_path = data['result']['file_path']
+                                return f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
+            except Exception as api_error:
+                logger.debug(f"API fallback error: {api_error}")
         
-        direct_url = f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
-        return direct_url
+        return None
         
     except Exception as e:
         logger.error(f"❌ Get file download URL error: {e}")
