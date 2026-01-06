@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - STREAMING & DOWNLOAD SUPPORT WITH REAL MESSAGE IDS
+# 🚀 SK4FiLM v9.0 - STREAMING & DOWNLOAD SUPPORT WITH REAL MESSAGE IDS - FIXED
 # ============================================================================
 
 import asyncio
@@ -428,62 +428,11 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ BOT INITIALIZATION FUNCTION
-# ============================================================================
-
-async def start_telegram_bot():
-    """Start Telegram bot with handlers"""
-    try:
-        if not PYROGRAM_AVAILABLE:
-            logger.warning("❌ Pyrogram not available, bot won't start")
-            return None
-        
-        # Check if bot token is available
-        if not Config.BOT_TOKEN:
-            logger.warning("❌ Bot token not configured, bot won't start")
-            return None
-        
-        logger.info("🤖 Starting SK4FiLM Telegram Bot...")
-        
-        # Import bot handler
-        try:
-            from bot_handlers import SK4FiLMBot
-            logger.info("✅ Bot handler module imported")
-        except ImportError as e:
-            logger.error(f"❌ Bot handler import error: {e}")
-            # Create fallback bot
-            class FallbackBot:
-                def __init__(self):
-                    self.bot_started = False
-                async def initialize(self): 
-                    logger.warning("⚠️ Using fallback bot")
-                    return False
-                async def shutdown(self): pass
-            return FallbackBot()
-        
-        # Initialize bot
-        bot_instance = SK4FiLMBot(Config, db_manager=None)
-        
-        # Start bot
-        bot_started = await bot_instance.initialize()
-        
-        if bot_started:
-            logger.info("✅ Telegram Bot started successfully!")
-            return bot_instance
-        else:
-            logger.error("❌ Failed to start Telegram Bot")
-            return None
-            
-    except Exception as e:
-        logger.error(f"❌ Bot startup error: {e}")
-        return None
-
-# ============================================================================
-# ✅ BOT HANDLER MODULE
+# ✅ BOT HANDLER MODULE - FIXED WITH MISSING METHODS
 # ============================================================================
 
 class BotHandler:
-    """Bot handler for Telegram bot operations"""
+    """Bot handler for Telegram bot operations - FIXED VERSION"""
     
     def __init__(self, bot_token=None, api_id=None, api_hash=None):
         self.bot_token = bot_token or Config.BOT_TOKEN
@@ -492,6 +441,7 @@ class BotHandler:
         self.bot = None
         self.initialized = False
         self.last_update = None
+        self.bot_username = None
         
     async def initialize(self):
         """Initialize bot handler"""
@@ -507,6 +457,14 @@ class BotHandler:
                 logger.info("✅ Bot Handler using existing Bot session")
                 self.initialized = True
                 self.last_update = datetime.now()
+                
+                # Get bot info
+                try:
+                    bot_info = await self.bot.get_me()
+                    self.bot_username = bot_info.username
+                except:
+                    self.bot_username = "unknown"
+                    
                 return True
             
             # Otherwise create new session
@@ -522,7 +480,8 @@ class BotHandler:
             
             await self.bot.start()
             bot_info = await self.bot.get_me()
-            logger.info(f"✅ Bot Handler Ready: @{bot_info.username}")
+            self.bot_username = bot_info.username
+            logger.info(f"✅ Bot Handler Ready: @{self.bot_username}")
             self.initialized = True
             self.last_update = datetime.now()
             
@@ -607,30 +566,22 @@ class BotHandler:
             logger.error(f"❌ Get file info error: {e}")
             return None
     
-async def get_direct_download_url(self, file_id):
-    """Get direct download URL for file - ALTERNATIVE METHOD"""
-    try:
-        if not self.initialized or not self.bot_token:
-            return None
-        
-        # Telegram CDN URL format: https://api.telegram.org/file/bot{token}/{file_path}
-        # We need to get file_path first
+    async def get_file_download_url(self, file_id):
+        """Get direct download URL for file"""
         try:
+            if not self.initialized or not self.bot_token:
+                return None
+            
             # Try to get file info using get_file
-            file = await self.bot.get_file(file_id)
-            if file and hasattr(file, 'file_path') and file.file_path:
-                return f"https://api.telegram.org/file/bot{self.bot_token}/{file.file_path}"
-        except Exception as get_file_error:
-            logger.debug(f"Get file error, trying alternative: {get_file_error}")
-        
-        # Alternative: Use file_id directly (may not work for all files)
-        # Format: file_id -> extract file_unique_id
-        if isinstance(file_id, str) and len(file_id) > 20:
-            # Try to extract file_unique_id
-            # This is a fallback method
             try:
-                # Use bot API to get file info
-                import aiohttp
+                file = await self.bot.get_file(file_id)
+                if file and hasattr(file, 'file_path') and file.file_path:
+                    return f"https://api.telegram.org/file/bot{self.bot_token}/{file.file_path}"
+            except Exception as get_file_error:
+                logger.debug(f"Get file error, trying alternative: {get_file_error}")
+            
+            # Alternative: Use Telegram Bot API
+            try:
                 async with aiohttp.ClientSession() as session:
                     api_url = f"https://api.telegram.org/bot{self.bot_token}/getFile"
                     params = {'file_id': file_id}
@@ -643,12 +594,12 @@ async def get_direct_download_url(self, file_id):
                                 return f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
             except Exception as api_error:
                 logger.debug(f"API fallback error: {api_error}")
-        
-        return None
-        
-    except Exception as e:
-        logger.error(f"❌ Get file download URL error: {e}")
-        return None
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Get file download URL error: {e}")
+            return None
     
     async def extract_thumbnail(self, channel_id, message_id):
         """Extract thumbnail from video file"""
@@ -715,21 +666,99 @@ async def get_direct_download_url(self, file_id):
         except:
             return False
     
+    # ✅ FIXED: ADD MISSING METHOD
     async def get_bot_status(self):
         """Get bot handler status"""
-        return {
-            'initialized': self.initialized,
-            'last_update': self.last_update.isoformat() if self.last_update else None,
-            'bot_username': (await self.bot.get_me()).username if self.initialized else None
-        }
+        if not self.initialized:
+            return {
+                'initialized': False,
+                'last_update': None,
+                'bot_username': None
+            }
+        
+        try:
+            bot_info = await self.bot.get_me()
+            return {
+                'initialized': self.initialized,
+                'last_update': self.last_update.isoformat() if self.last_update else None,
+                'bot_username': bot_info.username if bot_info else self.bot_username,
+                'bot_id': bot_info.id if bot_info else None,
+                'session_active': True
+            }
+        except:
+            return {
+                'initialized': self.initialized,
+                'last_update': self.last_update.isoformat() if self.last_update else None,
+                'bot_username': self.bot_username,
+                'session_active': False
+            }
     
+    # ✅ FIXED: ADD MISSING METHOD
     async def shutdown(self):
         """Shutdown bot handler"""
-        if self.bot and not bot_session_ready:
-            await self.bot.stop()
+        if self.bot:
+            try:
+                await self.bot.stop()
+                logger.info("✅ Bot Handler shutdown complete")
+            except Exception as e:
+                logger.error(f"❌ Bot Handler shutdown error: {e}")
+        
         self.initialized = False
+        self.bot = None
 
 bot_handler = BotHandler()
+
+# ============================================================================
+# ✅ BOT INITIALIZATION FUNCTION
+# ============================================================================
+
+async def start_telegram_bot():
+    """Start Telegram bot with handlers"""
+    try:
+        if not PYROGRAM_AVAILABLE:
+            logger.warning("❌ Pyrogram not available, bot won't start")
+            return None
+        
+        # Check if bot token is available
+        if not Config.BOT_TOKEN:
+            logger.warning("❌ Bot token not configured, bot won't start")
+            return None
+        
+        logger.info("🤖 Starting SK4FiLM Telegram Bot...")
+        
+        # Import bot handler
+        try:
+            from bot_handlers import SK4FiLMBot
+            logger.info("✅ Bot handler module imported")
+        except ImportError as e:
+            logger.error(f"❌ Bot handler import error: {e}")
+            # Create fallback bot
+            class FallbackBot:
+                def __init__(self):
+                    self.bot_started = False
+                async def initialize(self): 
+                    logger.warning("⚠️ Using fallback bot")
+                    return False
+                async def shutdown(self): 
+                    logger.info("✅ Fallback bot shutdown")
+            return FallbackBot()
+        
+        # Initialize bot
+        bot_instance = SK4FiLMBot(Config, db_manager=None)
+        
+        # Start bot
+        bot_started = await bot_instance.initialize()
+        
+        if bot_started:
+            logger.info("✅ Telegram Bot started successfully!")
+            return bot_instance
+        else:
+            logger.error("❌ Failed to start Telegram Bot")
+            return None
+            
+    except Exception as e:
+        logger.error(f"❌ Bot startup error: {e}")
+        return None
 
 # ============================================================================
 # ✅ ASYNC CACHE DECORATOR
@@ -2946,8 +2975,14 @@ async def root():
     # Get indexing status
     indexing_status = await file_indexing_manager.get_indexing_status()
     
-    # Get bot handler status
-    bot_status = await bot_handler.get_bot_status() if bot_handler else None
+    # Get bot handler status - ✅ FIXED: Handle None properly
+    bot_status = None
+    if bot_handler:
+        try:
+            bot_status = await bot_handler.get_bot_status()
+        except Exception as e:
+            logger.error(f"❌ Error getting bot status: {e}")
+            bot_status = {'initialized': False, 'error': str(e)}
     
     # Get Telegram bot status
     bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
@@ -3004,7 +3039,14 @@ async def root():
 @performance_monitor.measure("health_endpoint")
 async def health():
     indexing_status = await file_indexing_manager.get_indexing_status()
-    bot_status = await bot_handler.get_bot_status() if bot_handler else None
+    
+    # ✅ FIXED: Safe bot status retrieval
+    bot_status = None
+    if bot_handler:
+        try:
+            bot_status = await bot_handler.get_bot_status()
+        except:
+            bot_status = {'initialized': False}
     
     return jsonify({
         'status': 'ok',
@@ -3284,8 +3326,13 @@ async def api_stats():
             indexing_status = {}
             duplicate_stats = {}
         
-        # Get bot handler status
-        bot_status = await bot_handler.get_bot_status() if bot_handler else None
+        # Get bot handler status - ✅ FIXED: Safe retrieval
+        bot_status = None
+        if bot_handler:
+            try:
+                bot_status = await bot_handler.get_bot_status()
+            except:
+                bot_status = {'initialized': False}
         
         # Get Telegram bot status
         bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
@@ -3497,7 +3544,7 @@ async def api_admin_bot_status():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
-# ✅ STARTUP AND SHUTDOWN
+# ✅ STARTUP AND SHUTDOWN - FIXED
 # ============================================================================
 
 app_start_time = time.time()
@@ -3512,11 +3559,14 @@ async def shutdown():
     
     shutdown_tasks = []
     
-    # Stop Telegram bot
+    # ✅ FIXED: Safely shutdown Telegram bot
     if telegram_bot:
         try:
-            await telegram_bot.shutdown()
-            logger.info("✅ Telegram Bot stopped")
+            if hasattr(telegram_bot, 'shutdown'):
+                await telegram_bot.shutdown()
+                logger.info("✅ Telegram Bot stopped")
+            else:
+                logger.warning("⚠️ Telegram Bot has no shutdown method")
         except Exception as e:
             logger.error(f"❌ Telegram Bot shutdown error: {e}")
     
@@ -3524,16 +3574,21 @@ async def shutdown():
     await file_indexing_manager.stop_indexing()
     await channel_sync_manager.stop_sync_monitoring()
     
-    # Shutdown bot handler
+    # ✅ FIXED: Safely shutdown bot handler
     if bot_handler:
-        await bot_handler.shutdown()
+        try:
+            await bot_handler.shutdown()
+            logger.info("✅ Bot Handler stopped")
+        except Exception as e:
+            logger.error(f"❌ Bot Handler shutdown error: {e}")
     
     # Close poster fetcher session
     if poster_fetcher is not None and hasattr(poster_fetcher, 'close'):
         try:
             await poster_fetcher.close()
+            logger.info("✅ Poster Fetcher closed")
         except:
-            pass
+            logger.warning("⚠️ Could not close Poster Fetcher")
     
     # Close Telegram sessions
     if User is not None:
@@ -3556,11 +3611,15 @@ async def shutdown():
     
     # Execute all shutdown tasks
     if shutdown_tasks:
-        await asyncio.gather(*shutdown_tasks, return_exceptions=True)
+        results = await asyncio.gather(*shutdown_tasks, return_exceptions=True)
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"❌ Shutdown task {i} failed: {result}")
     
     # Close MongoDB
     if mongo_client is not None:
         mongo_client.close()
+        logger.info("✅ MongoDB connection closed")
     
     logger.info(f"👋 Shutdown complete. Uptime: {time.time() - app_start_time:.1f}s")
 
@@ -3592,4 +3651,9 @@ if __name__ == "__main__":
     logger.info(f"   • Multi-Quality Merging: ✅ FIXED")
     logger.info(f"   • Single Title Results: ✅ ENABLED")
     
-    asyncio.run(serve(app, config))
+    try:
+        asyncio.run(serve(app, config))
+    except KeyboardInterrupt:
+        logger.info("👋 Interrupted by user")
+    except Exception as e:
+        logger.error(f"❌ Server error: {e}")
