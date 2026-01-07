@@ -79,7 +79,7 @@
             position: relative;
         }
         
-        /* HTML5 Native Player */
+        /* HTML5 Video Player */
         .html5-video-container {
             width: 100%;
             position: relative;
@@ -87,47 +87,54 @@
         
         .html5-video {
             width: 100%;
-            height: 65vh;
-            min-height: 350px;
-            max-height: 550px;
+            height: 70vh;
+            min-height: 400px;
+            max-height: 600px;
             background: #000;
             border-radius: 8px;
             outline: none;
         }
         
-        /* Custom Controls */
-        .custom-controls {
+        /* Advanced Controls Container */
+        .advanced-controls {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(transparent, rgba(0,0,0,0.9));
-            padding: 12px 15px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.95));
+            padding: 15px 20px;
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 12px;
             opacity: 0;
             transition: opacity 0.3s;
             z-index: 10;
         }
         
-        .html5-video-container:hover .custom-controls {
+        .html5-video-container:hover .advanced-controls {
             opacity: 1;
+        }
+        
+        /* Top Controls Bar */
+        .top-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         
         .control-btn {
             background: rgba(255,255,255,0.15);
             border: none;
             color: white;
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 1rem;
+            font-size: 1.1rem;
         }
         
         .control-btn:hover {
@@ -137,14 +144,21 @@
         
         .control-btn.active {
             background: var(--primary-color);
-            box-shadow: 0 0 10px rgba(255,0,0,0.3);
+            box-shadow: 0 0 15px rgba(255,0,0,0.4);
+        }
+        
+        /* Progress Section */
+        .progress-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         
         .progress-container {
             flex: 1;
-            height: 4px;
+            height: 5px;
             background: rgba(255,255,255,0.2);
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
             cursor: pointer;
             position: relative;
@@ -155,6 +169,8 @@
             background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
             width: 0%;
             transition: width 0.1s;
+            position: relative;
+            z-index: 2;
         }
         
         .progress-buffer {
@@ -164,28 +180,61 @@
             height: 100%;
             background: rgba(255,255,255,0.1);
             width: 0%;
+            z-index: 1;
+        }
+        
+        .progress-time {
+            position: absolute;
+            top: -30px;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            display: none;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .progress-container:hover .progress-time {
+            display: block;
         }
         
         .time-display {
             color: white;
-            font-size: 0.85rem;
-            min-width: 100px;
+            font-size: 0.9rem;
+            min-width: 110px;
             text-align: center;
             font-variant-numeric: tabular-nums;
         }
         
-        .volume-control {
-            width: 100px;
+        /* Bottom Controls Bar */
+        .bottom-controls {
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+        }
+        
+        .left-controls, .right-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Volume Control */
+        .volume-control {
+            width: 120px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .volume-slider {
             flex: 1;
-            height: 3px;
+            height: 4px;
             background: rgba(255,255,255,0.2);
-            border-radius: 1.5px;
+            border-radius: 2px;
             cursor: pointer;
             position: relative;
         }
@@ -195,11 +244,11 @@
             height: 100%;
             background: white;
             width: 70%;
-            border-radius: 1.5px;
+            border-radius: 2px;
         }
         
-        /* Combined Settings Dropdown */
-        .settings-selector {
+        /* Advanced Settings Dropdown */
+        .advanced-settings {
             position: relative;
         }
         
@@ -207,14 +256,14 @@
             position: absolute;
             bottom: 45px;
             right: 0;
-            background: rgba(30, 41, 59, 0.95);
+            background: rgba(30, 41, 59, 0.98);
             backdrop-filter: blur(10px);
-            border-radius: 8px;
-            padding: 8px 0;
-            min-width: 180px;
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 250px;
             display: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
             z-index: 100;
         }
         
@@ -223,77 +272,151 @@
         }
         
         .settings-section {
-            padding: 8px 15px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 15px;
         }
         
         .settings-section:last-child {
-            border-bottom: none;
+            margin-bottom: 0;
         }
         
         .settings-title {
             color: #94a3b8;
-            font-size: 0.8rem;
-            margin-bottom: 5px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-        }
-        
-        .settings-option {
-            padding: 6px 8px;
-            color: white;
-            cursor: pointer;
-            transition: background 0.2s;
             display: flex;
             align-items: center;
             gap: 8px;
-            border-radius: 4px;
-            margin: 2px 0;
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .settings-option {
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         .settings-option:hover {
             background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
         }
         
         .settings-option.active {
             background: rgba(255,0,0,0.2);
             color: var(--primary-color);
+            border-color: rgba(255,0,0,0.3);
+            box-shadow: 0 0 10px rgba(255,0,0,0.2);
         }
         
         .settings-option i {
-            width: 20px;
-            text-align: center;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.2rem;
         }
         
-        /* In-Player Ad Overlay */
-        .ad-overlay {
+        /* Speed Controls */
+        .speed-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .speed-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .speed-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .speed-btn.active {
+            background: rgba(0,102,255,0.2);
+            color: var(--secondary-color);
+            border-color: rgba(0,102,255,0.3);
+        }
+        
+        /* Mini Progress for Ads */
+        .mini-progress {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            z-index: 20;
+            display: none;
+        }
+        
+        .mini-progress-bar {
             height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 15;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+            background: linear-gradient(90deg, #ff9900, #ff3300);
+            width: 0%;
+            transition: width 0.1s linear;
         }
         
-        .ad-content {
-            text-align: center;
-            padding: 20px;
-            max-width: 90%;
-        }
-        
-        .ad-text {
+        /* Ad Indicator */
+        .ad-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 68, 0, 0.8);
             color: white;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            background: rgba(255,0,0,0.1);
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,0,0,0.3);
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            z-index: 15;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
+        /* Chapter Marks */
+        .chapter-mark {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background: rgba(255,255,255,0.3);
+            z-index: 1;
+            cursor: pointer;
+        }
+        
+        .chapter-mark:hover::after {
+            content: attr(data-title);
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            white-space: nowrap;
         }
         
         /* File Information */
@@ -412,13 +535,13 @@
         
         /* Ad Notice */
         .ad-notice {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
+            background: rgba(255, 68, 0, 0.1);
+            border: 1px solid rgba(255, 68, 0, 0.3);
             border-radius: 6px;
             padding: 10px;
             margin: 10px 0;
             text-align: center;
-            color: #FFC107;
+            color: #ff4400;
             font-size: 0.9rem;
         }
         
@@ -546,6 +669,11 @@
             to { transform: translate(-50%, 0); opacity: 1; }
         }
         
+        /* Picture-in-Picture Button */
+        .pip-btn {
+            display: none;
+        }
+        
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             body {
@@ -553,33 +681,36 @@
             }
             
             .html5-video {
-                height: 45vh;
-                min-height: 250px;
+                height: 50vh;
+                min-height: 300px;
             }
             
-            .custom-controls {
-                padding: 10px 12px;
+            .advanced-controls {
+                padding: 12px 15px;
+                gap: 10px;
+            }
+            
+            .top-controls {
                 gap: 10px;
             }
             
             .control-btn {
-                width: 34px;
-                height: 34px;
-                font-size: 0.9rem;
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
             }
             
             .volume-control {
-                width: 80px;
-            }
-            
-            .time-display {
-                min-width: 85px;
-                font-size: 0.8rem;
+                width: 100px;
             }
             
             .settings-dropdown {
-                min-width: 160px;
-                bottom: 40px;
+                min-width: 220px;
+                right: -50px;
+            }
+            
+            .settings-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
             
             .file-info-grid {
@@ -595,35 +726,40 @@
         
         @media (max-width: 576px) {
             .html5-video {
-                height: 40vh;
-                min-height: 200px;
+                height: 45vh;
+                min-height: 250px;
             }
             
-            .custom-controls {
-                flex-wrap: wrap;
-                padding: 8px 10px;
+            .advanced-controls {
+                padding: 10px 12px;
                 gap: 8px;
             }
             
-            .progress-container {
-                order: 1;
+            .top-controls {
+                flex-wrap: wrap;
+            }
+            
+            .progress-section {
                 width: 100%;
-                margin-top: 8px;
             }
             
-            .time-display {
-                order: 2;
-                min-width: 80px;
-                font-size: 0.75rem;
+            .bottom-controls {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
             }
             
-            .volume-control {
-                width: 70px;
+            .left-controls, .right-controls {
+                justify-content: center;
             }
             
             .settings-dropdown {
-                right: -50px;
-                min-width: 140px;
+                min-width: 200px;
+                right: -30px;
+            }
+            
+            .settings-grid {
+                grid-template-columns: 1fr;
             }
             
             .file-info-grid {
@@ -654,108 +790,171 @@
 <div class="container">
     <!-- Ad Notice -->
     <div class="ad-notice" id="adNotice">
-        <i class="fas fa-ad me-2"></i>Ads support our free streaming service
+        <i class="fas fa-ad me-2"></i>Ad-supported free streaming. Please wait for the ad to finish.
     </div>
 
     <!-- Video Container -->
     <div class="video-container" id="videoContainer">
-        <!-- HTML5 Player with In-Player Ads -->
+        <!-- Single HTML5 Video Player with Advanced Features -->
         <div class="html5-video-container">
-            <!-- Main Video -->
+            <!-- Single Video Element -->
             <video class="html5-video" id="mainVideo" playsinline>
-                <!-- Main video source will be added dynamically -->
+                <!-- Video sources will be added dynamically -->
             </video>
             
-            <!-- Ad Video -->
-            <video class="html5-video" id="adVideo" playsinline style="display: none;">
-                <!-- Ad video source will be added dynamically -->
-            </video>
-            
-            <!-- In-Player Ad Overlay -->
-            <div class="ad-overlay" id="adOverlay" style="display: none;">
-                <div class="ad-content">
-                    <div class="ad-text">
-                        <i class="fas fa-ad fa-2x mb-3"></i>
-                        <h5>Advertisement Playing</h5>
-                        <p>Your video will play after this ad</p>
-                    </div>
-                </div>
+            <!-- Mini Progress for Ads -->
+            <div class="mini-progress" id="miniProgress">
+                <div class="mini-progress-bar" id="miniProgressBar"></div>
             </div>
             
-            <!-- Custom Controls -->
-            <div class="custom-controls">
-                <button class="control-btn" id="playPauseBtn">
-                    <i class="fas fa-play"></i>
-                </button>
-                
-                <button class="control-btn" id="rewindBtn">
-                    <i class="fas fa-backward"></i>
-                </button>
-                
-                <button class="control-btn" id="forwardBtn">
-                    <i class="fas fa-forward"></i>
-                </button>
-                
-                <div class="progress-container" id="progressContainer">
-                    <div class="progress-buffer" id="progressBuffer"></div>
-                    <div class="progress-bar" id="progressBar"></div>
+            <!-- Ad Indicator -->
+            <div class="ad-indicator" id="adIndicator">
+                <i class="fas fa-ad"></i> Advertisement
+            </div>
+            
+            <!-- Chapter Marks Container -->
+            <div id="chapterMarks"></div>
+            
+            <!-- Advanced Controls -->
+            <div class="advanced-controls">
+                <!-- Top Controls -->
+                <div class="top-controls">
+                    <button class="control-btn" id="playPauseBtn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    
+                    <button class="control-btn" id="rewindBtn">
+                        <i class="fas fa-backward"></i>
+                    </button>
+                    
+                    <button class="control-btn" id="forwardBtn">
+                        <i class="fas fa-forward"></i>
+                    </button>
+                    
+                    <button class="control-btn" id="prevChapterBtn" title="Previous Chapter">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    
+                    <button class="control-btn" id="nextChapterBtn" title="Next Chapter">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
                 </div>
                 
-                <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+                <!-- Progress Section -->
+                <div class="progress-section">
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-buffer" id="progressBuffer"></div>
+                        <div class="progress-bar" id="progressBar"></div>
+                        <div class="progress-time" id="progressTime">0:00</div>
+                    </div>
+                    <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+                </div>
                 
-                <!-- Combined Settings Button -->
-                <div class="settings-selector">
-                    <button class="control-btn" id="settingsBtn">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                    <div class="settings-dropdown" id="settingsDropdown">
-                        <!-- Quality Settings -->
-                        <div class="settings-section">
-                            <div class="settings-title">Quality</div>
-                            <div id="qualityOptions">
-                                <!-- Quality options added by JS -->
+                <!-- Bottom Controls -->
+                <div class="bottom-controls">
+                    <div class="left-controls">
+                        <!-- Volume Control -->
+                        <div class="volume-control">
+                            <button class="control-btn" id="muteBtn">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                            <div class="volume-slider" id="volumeSlider">
+                                <div class="volume-level" id="volumeLevel"></div>
                             </div>
                         </div>
                         
-                        <!-- Speed Settings -->
-                        <div class="settings-section">
-                            <div class="settings-title">Playback Speed</div>
-                            <div class="settings-option" data-speed="0.5">
-                                <i class="fas fa-snail"></i> 0.5x
-                            </div>
-                            <div class="settings-option active" data-speed="1.0">
-                                <i class="fas fa-walking"></i> 1.0x (Normal)
-                            </div>
-                            <div class="settings-option" data-speed="1.5">
-                                <i class="fas fa-running"></i> 1.5x
-                            </div>
-                            <div class="settings-option" data-speed="2.0">
-                                <i class="fas fa-bolt"></i> 2.0x
+                        <!-- Subtitles Button -->
+                        <button class="control-btn" id="subtitlesBtn" title="Subtitles">
+                            <i class="fas fa-closed-captioning"></i>
+                        </button>
+                        
+                        <!-- Picture-in-Picture Button -->
+                        <button class="control-btn pip-btn" id="pipBtn" title="Picture-in-Picture">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="right-controls">
+                        <!-- Speed Control -->
+                        <div class="speed-controls">
+                            <button class="speed-btn" data-speed="0.5">0.5x</button>
+                            <button class="speed-btn active" data-speed="1.0">1x</button>
+                            <button class="speed-btn" data-speed="1.5">1.5x</button>
+                            <button class="speed-btn" data-speed="2.0">2x</button>
+                        </div>
+                        
+                        <!-- Advanced Settings Button -->
+                        <div class="advanced-settings">
+                            <button class="control-btn" id="settingsBtn" title="Settings">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <div class="settings-dropdown" id="settingsDropdown">
+                                <!-- Quality Settings -->
+                                <div class="settings-section">
+                                    <div class="settings-title">
+                                        <i class="fas fa-hd"></i> Quality
+                                    </div>
+                                    <div class="settings-grid" id="qualityOptions">
+                                        <!-- Quality options added by JS -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Audio Settings -->
+                                <div class="settings-section">
+                                    <div class="settings-title">
+                                        <i class="fas fa-volume-up"></i> Audio
+                                    </div>
+                                    <div class="settings-grid">
+                                        <div class="settings-option" id="audioNormalize" title="Normalize Audio">
+                                            <i class="fas fa-wave-square"></i>
+                                            <span>Normalize</span>
+                                        </div>
+                                        <div class="settings-option" id="audioBoost" title="Boost Audio">
+                                            <i class="fas fa-bullhorn"></i>
+                                            <span>Boost</span>
+                                        </div>
+                                        <div class="settings-option active" id="audioDefault" title="Default Audio">
+                                            <i class="fas fa-music"></i>
+                                            <span>Default</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Video Settings -->
+                                <div class="settings-section">
+                                    <div class="settings-title">
+                                        <i class="fas fa-video"></i> Video
+                                    </div>
+                                    <div class="settings-grid">
+                                        <div class="settings-option" id="videoBrightness" title="Brightness">
+                                            <i class="fas fa-sun"></i>
+                                            <span>Bright</span>
+                                        </div>
+                                        <div class="settings-option" id="videoContrast" title="Contrast">
+                                            <i class="fas fa-adjust"></i>
+                                            <span>Contrast</span>
+                                        </div>
+                                        <div class="settings-option active" id="videoDefault" title="Default Video">
+                                            <i class="fas fa-eye"></i>
+                                            <span>Default</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                        
+                        <!-- Fullscreen Button -->
+                        <button class="control-btn" id="fullscreenBtn">
+                            <i class="fas fa-expand"></i>
+                        </button>
                     </div>
                 </div>
-                
-                <!-- Volume Control -->
-                <div class="volume-control">
-                    <button class="control-btn" id="muteBtn">
-                        <i class="fas fa-volume-up"></i>
-                    </button>
-                    <div class="volume-slider" id="volumeSlider">
-                        <div class="volume-level" id="volumeLevel"></div>
-                    </div>
-                </div>
-                
-                <!-- Fullscreen Button -->
-                <button class="control-btn" id="fullscreenBtn">
-                    <i class="fas fa-expand"></i>
-                </button>
             </div>
         </div>
 
         <div class="loading-container" id="loadingContainer">
             <div class="loading-spinner"></div>
-            <h5>Loading Player...</h5>
+            <h5>Loading Advanced Player...</h5>
         </div>
     </div>
 
@@ -845,11 +1044,10 @@ const API_ENDPOINTS = [
 
 const CURRENT_API = 0;
 
-// Ad Videos (Simple MP4 ads - you can replace with your own)
+// Ad Videos (Replace with your actual ad URLs)
 const AD_VIDEOS = [
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4'
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'
 ];
 
 // URL Parameters
@@ -859,14 +1057,23 @@ const messageId = urlParams.get('message_id');
 const initialQuality = urlParams.get('quality') || 'HD';
 
 // Variables
-let mainVideo = null;
-let adVideo = null;
+let player = null;
 let movieMetadata = {};
 let currentQuality = initialQuality;
 let availableQualities = [];
-let isAdPlaying = false;
 let currentSpeed = 1.0;
+let isAdPlaying = false;
 let adIndex = 0;
+let currentAdDuration = 0;
+let adInterval = null;
+let videoQueue = [];
+let chapters = [];
+let audioContext = null;
+let gainNode = null;
+let isAudioNormalized = false;
+let isAudioBoosted = false;
+let videoBrightness = 1.0;
+let videoContrast = 1.0;
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
@@ -879,17 +1086,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load metadata
         await loadMetadata();
         
-        // Initialize videos
-        await initializeVideos();
+        // Initialize advanced player
+        await initializePlayer();
         
         // Setup download menus
         setupDownloadMenus();
         
-        // Start ad playback
-        startAdPlayback();
+        // Setup advanced controls
+        setupAdvancedControls();
         
-        // Setup controls
-        setupControls();
+        // Start video playback with ad
+        startVideoPlayback();
+        
+        // Setup chapters
+        setupChapters();
+        
+        console.log("🚀 Advanced HTML5 Player Initialized");
         
     } catch (error) {
         console.error("Initialization error:", error);
@@ -925,30 +1137,14 @@ function updateFileInfo() {
     document.getElementById('infoFormat').textContent = 'MP4';
 }
 
-// Initialize Videos
-async function initializeVideos() {
-    mainVideo = document.getElementById('mainVideo');
-    adVideo = document.getElementById('adVideo');
+// Initialize Advanced Player
+async function initializePlayer() {
+    player = document.getElementById('mainVideo');
     const loadingContainer = document.getElementById('loadingContainer');
     
     try {
         // Get available qualities
         await loadAvailableQualities();
-        
-        // Get main video URL
-        const videoUrl = await getVideoUrl(currentQuality);
-        
-        // Set main video source
-        const source = document.createElement('source');
-        source.src = videoUrl;
-        source.type = 'video/mp4';
-        mainVideo.appendChild(source);
-        
-        // Set ad video source
-        const adSource = document.createElement('source');
-        adSource.src = AD_VIDEOS[adIndex];
-        adSource.type = 'video/mp4';
-        adVideo.appendChild(adSource);
         
         // Hide loading
         loadingContainer.style.display = 'none';
@@ -956,40 +1152,22 @@ async function initializeVideos() {
         // Setup quality options
         setupQualityOptions();
         
-        // Event listeners for main video
-        mainVideo.addEventListener('loadedmetadata', () => {
-            const duration = formatDuration(mainVideo.duration);
-            document.getElementById('infoDuration').textContent = duration;
-            updateTimeDisplay();
-        });
+        // Setup player event listeners
+        setupPlayerEvents();
         
-        mainVideo.addEventListener('timeupdate', updateProgress);
-        mainVideo.addEventListener('progress', updateBuffer);
-        mainVideo.addEventListener('ended', () => {
-            document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
-            showToast('Video ended');
-        });
+        // Check for Picture-in-Picture support
+        if (document.pictureInPictureEnabled) {
+            document.getElementById('pipBtn').style.display = 'flex';
+        }
         
-        mainVideo.addEventListener('volumechange', updateVolumeDisplay);
-        mainVideo.addEventListener('fullscreenchange', updateFullscreenIcon);
+        // Setup Web Audio API for audio processing
+        setupAudioProcessing();
         
-        // Event listeners for ad video
-        adVideo.addEventListener('ended', onAdEnded);
-        
-        // Set initial volume
-        mainVideo.volume = 0.7;
-        adVideo.volume = 0.7;
-        updateVolumeDisplay();
-        
-        // Set initial speed
-        mainVideo.playbackRate = currentSpeed;
-        adVideo.playbackRate = 1.0; // Ads play at normal speed
-        
-        console.log("🎬 Videos initialized");
+        console.log("🎬 Advanced Player initialized");
         
     } catch (error) {
-        console.error("Video init error:", error);
-        showError("Failed to load video");
+        console.error("Player init error:", error);
+        showError("Failed to initialize player");
     }
 }
 
@@ -1003,13 +1181,11 @@ async function loadAvailableQualities() {
         if (data.status === 'success' && data.qualities) {
             availableQualities = data.qualities;
         } else {
-            // Fallback qualities
             availableQualities = [
                 { quality: '2160p', label: '4K', icon: 'fas fa-tv' },
                 { quality: '1080p', label: '1080p', icon: 'fas fa-hd' },
                 { quality: '720p', label: '720p', icon: 'fas fa-video' },
-                { quality: '480p', label: '480p', icon: 'fas fa-film' },
-                { quality: '360p', label: '360p', icon: 'fas fa-mobile' }
+                { quality: '480p', label: '480p', icon: 'fas fa-film' }
             ];
         }
     } catch (error) {
@@ -1022,72 +1198,83 @@ async function loadAvailableQualities() {
     }
 }
 
-// Setup Quality Options in Settings
+// Setup Quality Options
 function setupQualityOptions() {
     const qualityOptions = document.getElementById('qualityOptions');
     
     qualityOptions.innerHTML = availableQualities.map(q => `
         <div class="settings-option ${q.quality === currentQuality ? 'active' : ''}" 
-             data-quality="${q.quality}">
+             data-quality="${q.quality}"
+             title="${q.label}">
             <i class="${q.icon}"></i>
             <span>${q.label}</span>
         </div>
     `).join('');
 }
 
-// Start Ad Playback
-function startAdPlayback() {
-    isAdPlaying = true;
+// Setup Player Events
+function setupPlayerEvents() {
+    player.addEventListener('loadedmetadata', () => {
+        const duration = formatDuration(player.duration);
+        document.getElementById('infoDuration').textContent = duration;
+        updateTimeDisplay();
+    });
     
-    // Show ad overlay
-    document.getElementById('adOverlay').style.display = 'flex';
+    player.addEventListener('timeupdate', updateProgress);
+    player.addEventListener('progress', updateBuffer);
+    player.addEventListener('ended', onVideoEnded);
+    player.addEventListener('volumechange', updateVolumeDisplay);
+    player.addEventListener('fullscreenchange', updateFullscreenIcon);
+    player.addEventListener('enterpictureinpicture', () => {
+        document.getElementById('pipBtn').innerHTML = '<i class="fas fa-times"></i>';
+    });
+    player.addEventListener('leavepictureinpicture', () => {
+        document.getElementById('pipBtn').innerHTML = '<i class="fas fa-compress-arrows-alt"></i>';
+    });
     
-    // Show ad video, hide main video
-    mainVideo.style.display = 'none';
-    adVideo.style.display = 'block';
+    // Set initial volume
+    player.volume = 0.7;
+    updateVolumeDisplay();
     
-    // Play ad video
-    setTimeout(() => {
-        adVideo.play().catch(e => {
-            console.error("Ad play error:", e);
-            onAdEnded(); // Skip to main video if ad fails
-        });
-    }, 500);
+    // Set initial speed
+    player.playbackRate = currentSpeed;
 }
 
-// When ad ends
-function onAdEnded() {
-    isAdPlaying = false;
-    
-    // Hide ad overlay
-    document.getElementById('adOverlay').style.display = 'none';
-    
-    // Hide ad video, show main video
-    adVideo.style.display = 'none';
-    mainVideo.style.display = 'block';
-    
-    // Hide ad notice
-    document.getElementById('adNotice').style.display = 'none';
-    
-    // Auto-play main video
-    setTimeout(() => {
-        mainVideo.play();
-        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
-        showToast('Video playing...');
-    }, 500);
+// Setup Audio Processing
+function setupAudioProcessing() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioContext = new AudioContext();
+            gainNode = audioContext.createGain();
+            
+            // Create media element source
+            const source = audioContext.createMediaElementSource(player);
+            source.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            console.log("🔊 Web Audio API initialized");
+        }
+    } catch (error) {
+        console.warn("Web Audio API not supported:", error);
+    }
 }
 
-// Setup Controls
-function setupControls() {
+// Setup Advanced Controls
+function setupAdvancedControls() {
     const playPauseBtn = document.getElementById('playPauseBtn');
     const rewindBtn = document.getElementById('rewindBtn');
     const forwardBtn = document.getElementById('forwardBtn');
+    const prevChapterBtn = document.getElementById('prevChapterBtn');
+    const nextChapterBtn = document.getElementById('nextChapterBtn');
     const progressContainer = document.getElementById('progressContainer');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const muteBtn = document.getElementById('muteBtn');
     const volumeSlider = document.getElementById('volumeSlider');
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsDropdown = document.getElementById('settingsDropdown');
+    const pipBtn = document.getElementById('pipBtn');
+    const subtitlesBtn = document.getElementById('subtitlesBtn');
 
     // Play/Pause
     playPauseBtn.addEventListener('click', togglePlayPause);
@@ -1095,7 +1282,7 @@ function setupControls() {
     // Rewind 10 seconds
     rewindBtn.addEventListener('click', () => {
         if (!isAdPlaying) {
-            mainVideo.currentTime = Math.max(0, mainVideo.currentTime - 10);
+            player.currentTime = Math.max(0, player.currentTime - 10);
             showToast('Rewind 10 seconds');
         }
     });
@@ -1103,38 +1290,56 @@ function setupControls() {
     // Forward 10 seconds
     forwardBtn.addEventListener('click', () => {
         if (!isAdPlaying) {
-            mainVideo.currentTime = Math.min(mainVideo.duration, mainVideo.currentTime + 10);
+            player.currentTime = Math.min(player.duration, player.currentTime + 10);
             showToast('Forward 10 seconds');
         }
     });
 
-    // Progress bar click (only for main video)
-    progressContainer.addEventListener('click', (e) => {
-        if (!isAdPlaying && mainVideo.duration) {
+    // Previous Chapter
+    prevChapterBtn.addEventListener('click', goToPreviousChapter);
+
+    // Next Chapter
+    nextChapterBtn.addEventListener('click', goToNextChapter);
+
+    // Progress bar with hover time
+    progressContainer.addEventListener('mousemove', (e) => {
+        if (player.duration) {
             const rect = progressContainer.getBoundingClientRect();
             const pos = (e.clientX - rect.left) / rect.width;
-            mainVideo.currentTime = pos * mainVideo.duration;
+            const time = pos * player.duration;
+            document.getElementById('progressTime').textContent = formatDuration(time);
+            document.getElementById('progressTime').style.left = `${pos * 100}%`;
+        }
+    });
+
+    progressContainer.addEventListener('click', (e) => {
+        if (!isAdPlaying && player.duration) {
+            const rect = progressContainer.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            player.currentTime = pos * player.duration;
         }
     });
 
     // Fullscreen
     fullscreenBtn.addEventListener('click', toggleFullscreen);
 
-    // Mute/Unmute (controls both videos)
+    // Mute/Unmute
     muteBtn.addEventListener('click', toggleMute);
 
-    // Volume slider (controls both videos)
+    // Volume slider
     volumeSlider.addEventListener('click', (e) => {
         const rect = volumeSlider.getBoundingClientRect();
         const pos = (e.clientX - rect.left) / rect.width;
-        const volume = Math.min(1, Math.max(0, pos));
-        
-        mainVideo.volume = volume;
-        adVideo.volume = volume;
-        mainVideo.muted = false;
-        adVideo.muted = false;
+        player.volume = Math.min(1, Math.max(0, pos));
+        player.muted = false;
         updateVolumeDisplay();
     });
+
+    // Picture-in-Picture
+    pipBtn.addEventListener('click', togglePictureInPicture);
+
+    // Subtitles
+    subtitlesBtn.addEventListener('click', toggleSubtitles);
 
     // Settings button
     settingsBtn.addEventListener('click', (e) => {
@@ -1154,25 +1359,31 @@ function setupControls() {
         }
     });
 
-    // Handle speed selection (only for main video)
-    settingsDropdown.querySelectorAll('.settings-option[data-speed]').forEach(option => {
-        option.addEventListener('click', (e) => {
+    // Handle speed selection
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
             const speed = parseFloat(e.currentTarget.dataset.speed);
             
             // Update active state
-            settingsDropdown.querySelectorAll('.settings-option[data-speed]').forEach(opt => {
-                opt.classList.remove('active');
-            });
+            document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
             e.currentTarget.classList.add('active');
             
-            // Change playback rate (only for main video)
-            mainVideo.playbackRate = speed;
+            // Change playback rate
+            player.playbackRate = speed;
             currentSpeed = speed;
             showToast(`Playback speed: ${speed}x`);
-            
-            settingsDropdown.classList.remove('show');
         });
     });
+
+    // Audio settings
+    document.getElementById('audioNormalize').addEventListener('click', toggleAudioNormalize);
+    document.getElementById('audioBoost').addEventListener('click', toggleAudioBoost);
+    document.getElementById('audioDefault').addEventListener('click', resetAudio);
+
+    // Video settings
+    document.getElementById('videoBrightness').addEventListener('click', toggleBrightness);
+    document.getElementById('videoContrast').addEventListener('click', toggleContrast);
+    document.getElementById('videoDefault').addEventListener('click', resetVideo);
 
     // Close dropdown when clicking outside
     document.addEventListener('click', () => {
@@ -1180,12 +1391,415 @@ function setupControls() {
     });
 
     // Keyboard shortcuts
+    setupKeyboardShortcuts();
+}
+
+// Setup Chapters
+function setupChapters() {
+    // Sample chapters - in real implementation, fetch from API
+    chapters = [
+        { time: 0, title: 'Start' },
+        { time: 300, title: 'Intro Complete' },
+        { time: 600, title: 'Plot Development' },
+        { time: 1200, title: 'Climax' },
+        { time: 1800, title: 'Conclusion' }
+    ];
+    
+    const chapterMarks = document.getElementById('chapterMarks');
+    chapterMarks.innerHTML = '';
+    
+    chapters.forEach(chapter => {
+        if (chapter.time < player.duration) {
+            const mark = document.createElement('div');
+            mark.className = 'chapter-mark';
+            mark.style.left = `${(chapter.time / player.duration) * 100}%`;
+            mark.dataset.title = chapter.title;
+            mark.addEventListener('click', () => {
+                player.currentTime = chapter.time;
+                showToast(`Jumped to: ${chapter.title}`);
+            });
+            chapterMarks.appendChild(mark);
+        }
+    });
+}
+
+// Go to previous chapter
+function goToPreviousChapter() {
+    if (chapters.length < 2) return;
+    
+    const currentTime = player.currentTime;
+    let prevChapter = chapters[0];
+    
+    for (let i = chapters.length - 1; i >= 0; i--) {
+        if (chapters[i].time < currentTime - 5) { // 5 seconds buffer
+            prevChapter = chapters[i];
+            break;
+        }
+    }
+    
+    player.currentTime = prevChapter.time;
+    showToast(`Previous chapter: ${prevChapter.title}`);
+}
+
+// Go to next chapter
+function goToNextChapter() {
+    if (chapters.length < 2) return;
+    
+    const currentTime = player.currentTime;
+    let nextChapter = chapters[chapters.length - 1];
+    
+    for (let i = 0; i < chapters.length; i++) {
+        if (chapters[i].time > currentTime + 5) { // 5 seconds buffer
+            nextChapter = chapters[i];
+            break;
+        }
+    }
+    
+    player.currentTime = nextChapter.time;
+    showToast(`Next chapter: ${nextChapter.title}`);
+}
+
+// Start Video Playback with Ad
+async function startVideoPlayback() {
+    try {
+        // Load ad first
+        await loadAdVideo();
+        
+        // Show ad indicator
+        document.getElementById('adIndicator').style.display = 'block';
+        document.getElementById('miniProgress').style.display = 'block';
+        
+        // Play ad
+        isAdPlaying = true;
+        player.play();
+        
+        // Track ad progress
+        trackAdProgress();
+        
+        // When ad ends, load main video
+        player.addEventListener('ended', function adEndHandler() {
+            if (isAdPlaying) {
+                player.removeEventListener('ended', adEndHandler);
+                loadMainVideo();
+            }
+        }, { once: true });
+        
+    } catch (error) {
+        console.error("Failed to start playback:", error);
+        loadMainVideo(); // Fallback to main video
+    }
+}
+
+// Load Ad Video
+async function loadAdVideo() {
+    const adUrl = AD_VIDEOS[adIndex % AD_VIDEOS.length];
+    adIndex++;
+    
+    player.src = adUrl;
+    player.load();
+    
+    return new Promise((resolve) => {
+        player.addEventListener('loadedmetadata', () => {
+            currentAdDuration = player.duration;
+            resolve();
+        }, { once: true });
+    });
+}
+
+// Track Ad Progress
+function trackAdProgress() {
+    adInterval = setInterval(() => {
+        if (isAdPlaying && player.currentTime <= currentAdDuration) {
+            const progress = (player.currentTime / currentAdDuration) * 100;
+            document.getElementById('miniProgressBar').style.width = `${progress}%`;
+        }
+    }, 100);
+}
+
+// Load Main Video
+async function loadMainVideo() {
+    clearInterval(adInterval);
+    isAdPlaying = false;
+    
+    // Hide ad indicators
+    document.getElementById('adIndicator').style.display = 'none';
+    document.getElementById('miniProgress').style.display = 'none';
+    document.getElementById('miniProgressBar').style.width = '0%';
+    document.getElementById('adNotice').style.display = 'none';
+    
+    try {
+        // Get main video URL
+        const videoUrl = await getVideoUrl(currentQuality);
+        
+        // Load main video
+        player.src = videoUrl;
+        player.load();
+        
+        // Set playback speed
+        player.playbackRate = currentSpeed;
+        
+        // Auto-play main video
+        await player.play();
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+        
+        // Setup chapters for main video
+        player.addEventListener('loadedmetadata', () => {
+            setupChapters();
+        }, { once: true });
+        
+        showToast('Main video playing...');
+        
+    } catch (error) {
+        console.error("Failed to load main video:", error);
+        showToast("Failed to load video");
+    }
+}
+
+// On Video Ended
+function onVideoEnded() {
+    if (!isAdPlaying) {
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+        showToast('Video ended');
+    }
+}
+
+// Change Quality
+async function changeQuality(newQuality) {
+    try {
+        if (isAdPlaying) {
+            showToast("Cannot change quality during ad");
+            return;
+        }
+        
+        const wasPlaying = !player.paused;
+        const currentTime = player.currentTime;
+        
+        showToast(`Changing to ${newQuality}...`);
+        
+        // Get new video URL
+        const newVideoUrl = await getVideoUrl(newQuality);
+        
+        // Update video source
+        player.src = newVideoUrl;
+        player.load();
+        
+        // Restore playback state
+        if (wasPlaying) {
+            await player.play();
+        }
+        player.currentTime = currentTime;
+        player.playbackRate = currentSpeed;
+        
+        // Update UI
+        currentQuality = newQuality;
+        document.getElementById('infoQuality').textContent = newQuality;
+        
+        // Update active quality
+        document.querySelectorAll('.settings-option[data-quality]').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.quality === newQuality);
+        });
+        
+        showToast(`Quality changed to ${newQuality}`);
+        
+    } catch (error) {
+        console.error("Error changing quality:", error);
+        showToast("Failed to change quality");
+    }
+}
+
+// Audio Processing Functions
+function toggleAudioNormalize() {
+    if (!audioContext || !gainNode) {
+        showToast("Audio processing not supported");
+        return;
+    }
+    
+    isAudioNormalized = !isAudioNormalized;
+    isAudioBoosted = false;
+    
+    if (isAudioNormalized) {
+        gainNode.gain.value = 1.5; // Normalize gain
+        document.getElementById('audioNormalize').classList.add('active');
+        document.getElementById('audioBoost').classList.remove('active');
+        document.getElementById('audioDefault').classList.remove('active');
+        showToast("Audio normalized");
+    } else {
+        resetAudio();
+    }
+}
+
+function toggleAudioBoost() {
+    if (!audioContext || !gainNode) {
+        showToast("Audio processing not supported");
+        return;
+    }
+    
+    isAudioBoosted = !isAudioBoosted;
+    isAudioNormalized = false;
+    
+    if (isAudioBoosted) {
+        gainNode.gain.value = 2.0; // Boost gain
+        document.getElementById('audioBoost').classList.add('active');
+        document.getElementById('audioNormalize').classList.remove('active');
+        document.getElementById('audioDefault').classList.remove('active');
+        showToast("Audio boosted");
+    } else {
+        resetAudio();
+    }
+}
+
+function resetAudio() {
+    if (gainNode) {
+        gainNode.gain.value = 1.0;
+    }
+    isAudioNormalized = false;
+    isAudioBoosted = false;
+    document.getElementById('audioNormalize').classList.remove('active');
+    document.getElementById('audioBoost').classList.remove('active');
+    document.getElementById('audioDefault').classList.add('active');
+    showToast("Audio reset to default");
+}
+
+// Video Processing Functions
+function toggleBrightness() {
+    videoBrightness = videoBrightness === 1.0 ? 1.3 : 1.0;
+    player.style.filter = `brightness(${videoBrightness}) contrast(${videoContrast})`;
+    
+    const btn = document.getElementById('videoBrightness');
+    btn.classList.toggle('active', videoBrightness !== 1.0);
+    document.getElementById('videoDefault').classList.remove('active');
+    
+    showToast(videoBrightness !== 1.0 ? "Brightness increased" : "Brightness normal");
+}
+
+function toggleContrast() {
+    videoContrast = videoContrast === 1.0 ? 1.3 : 1.0;
+    player.style.filter = `brightness(${videoBrightness}) contrast(${videoContrast})`;
+    
+    const btn = document.getElementById('videoContrast');
+    btn.classList.toggle('active', videoContrast !== 1.0);
+    document.getElementById('videoDefault').classList.remove('active');
+    
+    showToast(videoContrast !== 1.0 ? "Contrast increased" : "Contrast normal");
+}
+
+function resetVideo() {
+    videoBrightness = 1.0;
+    videoContrast = 1.0;
+    player.style.filter = 'none';
+    
+    document.getElementById('videoBrightness').classList.remove('active');
+    document.getElementById('videoContrast').classList.remove('active');
+    document.getElementById('videoDefault').classList.add('active');
+    
+    showToast("Video reset to default");
+}
+
+// Advanced Control Functions
+function togglePlayPause() {
+    if (player.paused) {
+        player.play();
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+    } else {
+        player.pause();
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+    }
+}
+
+function toggleFullscreen() {
+    const container = document.querySelector('.html5-video-container');
+    
+    if (!document.fullscreenElement) {
+        if (container.requestFullscreen) container.requestFullscreen();
+        else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+        else if (container.mozRequestFullScreen) container.mozRequestFullScreen();
+        else if (container.msRequestFullscreen) container.msRequestFullscreen();
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+}
+
+function toggleMute() {
+    player.muted = !player.muted;
+    updateVolumeDisplay();
+}
+
+function togglePictureInPicture() {
+    if (document.pictureInPictureElement) {
+        document.exitPictureInPicture();
+    } else if (document.pictureInPictureEnabled) {
+        player.requestPictureInPicture();
+    }
+}
+
+function toggleSubtitles() {
+    // In real implementation, toggle text tracks
+    showToast("Subtitles feature coming soon");
+}
+
+function updateProgress() {
+    if (player.duration && !isNaN(player.duration)) {
+        const percent = (player.currentTime / player.duration) * 100;
+        document.getElementById('progressBar').style.width = percent + '%';
+        updateTimeDisplay();
+    }
+}
+
+function updateBuffer() {
+    if (player.buffered.length > 0 && player.duration > 0) {
+        const bufferedEnd = player.buffered.end(player.buffered.length - 1);
+        const percent = (bufferedEnd / player.duration) * 100;
+        document.getElementById('progressBuffer').style.width = percent + '%';
+    }
+}
+
+function updateTimeDisplay() {
+    if (player.duration && !isNaN(player.duration)) {
+        const current = formatDuration(player.currentTime);
+        const total = formatDuration(player.duration);
+        document.getElementById('timeDisplay').textContent = `${current} / ${total}`;
+    }
+}
+
+function updateVolumeDisplay() {
+    const muteBtn = document.getElementById('muteBtn');
+    const volumeLevel = document.getElementById('volumeLevel');
+    
+    if (player.muted) {
+        muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+        volumeLevel.style.width = '0%';
+    } else {
+        if (player.volume === 0) {
+            muteBtn.innerHTML = '<i class="fas fa-volume-off"></i>';
+        } else if (player.volume < 0.5) {
+            muteBtn.innerHTML = '<i class="fas fa-volume-down"></i>';
+        } else {
+            muteBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+        }
+        volumeLevel.style.width = (player.volume * 100) + '%';
+    }
+}
+
+function updateFullscreenIcon() {
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const isFullscreen = !!document.fullscreenElement;
+    
+    if (isFullscreen) {
+        fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+    } else {
+        fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+    }
+}
+
+// Setup Keyboard Shortcuts
+function setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
             return;
         }
-        
-        const currentVideo = isAdPlaying ? adVideo : mainVideo;
         
         switch(e.key.toLowerCase()) {
             case ' ':
@@ -1207,7 +1821,7 @@ function setupControls() {
             case 'arrowleft':
                 e.preventDefault();
                 if (!isAdPlaying) {
-                    mainVideo.currentTime = Math.max(0, mainVideo.currentTime - 10);
+                    player.currentTime = Math.max(0, player.currentTime - 10);
                     showToast('Rewind 10 seconds');
                 }
                 break;
@@ -1215,25 +1829,46 @@ function setupControls() {
             case 'arrowright':
                 e.preventDefault();
                 if (!isAdPlaying) {
-                    mainVideo.currentTime = Math.min(mainVideo.duration, mainVideo.currentTime + 10);
+                    player.currentTime = Math.min(player.duration, player.currentTime + 10);
                     showToast('Forward 10 seconds');
                 }
                 break;
                 
             case 'arrowup':
                 e.preventDefault();
-                const newVolUp = Math.min(1, currentVideo.volume + 0.1);
-                mainVideo.volume = newVolUp;
-                adVideo.volume = newVolUp;
+                player.volume = Math.min(1, player.volume + 0.1);
                 updateVolumeDisplay();
                 break;
                 
             case 'arrowdown':
                 e.preventDefault();
-                const newVolDown = Math.max(0, currentVideo.volume - 0.1);
-                mainVideo.volume = newVolDown;
-                adVideo.volume = newVolDown;
+                player.volume = Math.max(0, player.volume - 0.1);
                 updateVolumeDisplay();
+                break;
+                
+            case 'p':
+                e.preventDefault();
+                togglePictureInPicture();
+                break;
+                
+            case 'c':
+                e.preventDefault();
+                goToPreviousChapter();
+                break;
+                
+            case 'v':
+                e.preventDefault();
+                goToNextChapter();
+                break;
+                
+            case 'b':
+                e.preventDefault();
+                toggleBrightness();
+                break;
+                
+            case 'n':
+                e.preventDefault();
+                toggleContrast();
                 break;
                 
             case 'escape':
@@ -1245,155 +1880,7 @@ function setupControls() {
     });
 }
 
-// Change Quality
-async function changeQuality(newQuality) {
-    try {
-        const wasPlaying = !mainVideo.paused;
-        const currentTime = mainVideo.currentTime;
-        
-        showToast(`Changing to ${newQuality}...`);
-        
-        // Get new video URL
-        const newVideoUrl = await getVideoUrl(newQuality);
-        
-        // Update main video source
-        mainVideo.src = newVideoUrl;
-        mainVideo.load();
-        
-        // Restore playback state
-        if (wasPlaying) {
-            await mainVideo.play();
-        }
-        mainVideo.currentTime = currentTime;
-        
-        // Update UI
-        currentQuality = newQuality;
-        document.getElementById('infoQuality').textContent = newQuality;
-        
-        // Update active quality in dropdown
-        const qualityOptions = document.querySelectorAll('.settings-option[data-quality]');
-        qualityOptions.forEach(opt => {
-            opt.classList.toggle('active', opt.dataset.quality === newQuality);
-        });
-        
-        showToast(`Quality changed to ${newQuality}`);
-        
-    } catch (error) {
-        console.error("Error changing quality:", error);
-        showToast("Failed to change quality");
-    }
-}
-
 // Utility Functions
-function togglePlayPause() {
-    const currentVideo = isAdPlaying ? adVideo : mainVideo;
-    
-    if (currentVideo.paused) {
-        currentVideo.play();
-        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
-    } else {
-        currentVideo.pause();
-        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
-    }
-}
-
-function toggleFullscreen() {
-    const container = document.querySelector('.html5-video-container');
-    
-    if (!document.fullscreenElement) {
-        if (container.requestFullscreen) {
-            container.requestFullscreen();
-        } else if (container.webkitRequestFullscreen) {
-            container.webkitRequestFullscreen();
-        } else if (container.mozRequestFullScreen) {
-            container.mozRequestFullScreen();
-        } else if (container.msRequestFullscreen) {
-            container.msRequestFullscreen();
-        }
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        } else if (document.mozCancelFullScreen) {
-            document.mozCancelFullScreen();
-        } else if (document.msExitFullscreen) {
-            document.msExitFullscreen();
-        }
-    }
-}
-
-function toggleMute() {
-    mainVideo.muted = !mainVideo.muted;
-    adVideo.muted = mainVideo.muted;
-    updateVolumeDisplay();
-}
-
-function updateFullscreenIcon() {
-    const fullscreenBtn = document.getElementById('fullscreenBtn');
-    const isFullscreen = !!document.fullscreenElement;
-    
-    if (isFullscreen) {
-        fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-    } else {
-        fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-    }
-}
-
-function updateProgress() {
-    if (isAdPlaying) return;
-    
-    if (mainVideo.duration && !isNaN(mainVideo.duration)) {
-        const percent = (mainVideo.currentTime / mainVideo.duration) * 100;
-        document.getElementById('progressBar').style.width = percent + '%';
-        updateTimeDisplay();
-    }
-}
-
-function updateBuffer() {
-    if (isAdPlaying) return;
-    
-    if (mainVideo.buffered.length > 0 && mainVideo.duration > 0) {
-        const bufferedEnd = mainVideo.buffered.end(mainVideo.buffered.length - 1);
-        const percent = (bufferedEnd / mainVideo.duration) * 100;
-        document.getElementById('progressBuffer').style.width = percent + '%';
-    }
-}
-
-function updateTimeDisplay() {
-    if (isAdPlaying) {
-        document.getElementById('timeDisplay').textContent = 'Ad Playing';
-        return;
-    }
-    
-    if (mainVideo.duration && !isNaN(mainVideo.duration)) {
-        const current = formatDuration(mainVideo.currentTime);
-        const total = formatDuration(mainVideo.duration);
-        document.getElementById('timeDisplay').textContent = `${current} / ${total}`;
-    }
-}
-
-function updateVolumeDisplay() {
-    const muteBtn = document.getElementById('muteBtn');
-    const volumeLevel = document.getElementById('volumeLevel');
-    const currentVideo = isAdPlaying ? adVideo : mainVideo;
-    
-    if (currentVideo.muted) {
-        muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
-        volumeLevel.style.width = '0%';
-    } else {
-        if (currentVideo.volume === 0) {
-            muteBtn.innerHTML = '<i class="fas fa-volume-off"></i>';
-        } else if (currentVideo.volume < 0.5) {
-            muteBtn.innerHTML = '<i class="fas fa-volume-down"></i>';
-        } else {
-            muteBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-        }
-        volumeLevel.style.width = (currentVideo.volume * 100) + '%';
-    }
-}
-
-// Get Video URL
 async function getVideoUrl(quality = currentQuality) {
     try {
         const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
@@ -1405,12 +1892,10 @@ async function getVideoUrl(quality = currentQuality) {
         }
         throw new Error("No stream URL");
     } catch (error) {
-        // Fallback to download URL
         return await getDownloadUrl(quality);
     }
 }
 
-// Get Download URL
 async function getDownloadUrl(quality) {
     const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
     const response = await fetch(apiUrl);
@@ -1418,7 +1903,6 @@ async function getDownloadUrl(quality) {
     return data.status === 'success' ? data.download_url : null;
 }
 
-// Setup Download Menus
 function setupDownloadMenus() {
     const qualities = [
         { label: '4K', quality: '2160p', icon: 'fas fa-tv' },
@@ -1427,7 +1911,6 @@ function setupDownloadMenus() {
         { label: '480p', quality: '480p', icon: 'fas fa-film' }
     ];
     
-    // Fast Download Menu
     const fastMenu = document.getElementById('fastDownloadMenu');
     fastMenu.innerHTML = qualities.map(q => `
         <button class="quality-btn" onclick="startFastDownload('${q.quality}')">
@@ -1435,7 +1918,6 @@ function setupDownloadMenus() {
         </button>
     `).join('');
     
-    // Telegram Download Menu
     const telegramMenu = document.getElementById('telegramDownloadMenu');
     telegramMenu.innerHTML = qualities.map(q => `
         <button class="quality-btn" onclick="startTelegramDownload('${q.quality}')">
@@ -1444,7 +1926,6 @@ function setupDownloadMenus() {
     `).join('');
 }
 
-// Fast Download Function
 async function startFastDownload(quality) {
     try {
         const downloadUrl = await getDownloadUrl(quality);
@@ -1456,7 +1937,6 @@ async function startFastDownload(quality) {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
             showToast(`Downloading ${quality}...`);
         } else {
             showToast("Download failed. Try Telegram.");
@@ -1467,7 +1947,6 @@ async function startFastDownload(quality) {
     }
 }
 
-// Telegram Download Function
 function startTelegramDownload(quality) {
     const botUsername = 'sk4filmbot';
     const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
@@ -1476,7 +1955,6 @@ function startTelegramDownload(quality) {
     showToast(`Opening Telegram for ${quality}...`);
 }
 
-// Utility Functions
 function formatSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -1530,32 +2008,29 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Debug Info
-console.log("🎬 SK4FiLM HTML5 Player Ready");
-console.log("📱 In-player ads (no skip/timer)");
-console.log("⚙️ Combined Speed/Quality settings");
-console.log("🎥 Two video elements: one for ads, one for main content");
-
-// Add touch controls for mobile
+// Mobile touch controls
 if ('ontouchstart' in window) {
     let tapTimer;
     let lastTap = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
     
     const container = document.querySelector('.html5-video-container');
     
     container.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        
         if (e.touches.length === 1) {
             const now = Date.now();
             const timeSinceLastTap = now - lastTap;
             
             if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-                // Double tap
                 e.preventDefault();
                 togglePlayPause();
             } else {
-                // Single tap (show/hide controls)
                 tapTimer = setTimeout(() => {
-                    const controls = document.querySelector('.custom-controls');
+                    const controls = document.querySelector('.advanced-controls');
                     controls.style.opacity = controls.style.opacity === '0' ? '1' : '0';
                 }, 200);
             }
@@ -1564,10 +2039,59 @@ if ('ontouchstart' in window) {
         }
     });
     
-    container.addEventListener('touchend', () => {
+    container.addEventListener('touchend', (e) => {
         clearTimeout(tapTimer);
+        
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffX = touchStartX - touchEndX;
+        const diffY = touchStartY - touchEndY;
+        
+        // Horizontal swipe for seek
+        if (Math.abs(diffX) > 50 && Math.abs(diffY) < 30) {
+            if (diffX > 0) {
+                // Swipe left - forward
+                player.currentTime = Math.min(player.duration, player.currentTime + 10);
+                showToast('Forward 10 seconds');
+            } else {
+                // Swipe right - rewind
+                player.currentTime = Math.max(0, player.currentTime - 10);
+                showToast('Rewind 10 seconds');
+            }
+        }
+        
+        // Vertical swipe for volume/brightness
+        if (Math.abs(diffY) > 50 && Math.abs(diffX) < 30) {
+            if (touchStartX < window.innerWidth / 2) {
+                // Left side - brightness
+                if (diffY > 0) {
+                    // Swipe up - increase brightness
+                    videoBrightness = Math.min(2.0, videoBrightness + 0.1);
+                } else {
+                    // Swipe down - decrease brightness
+                    videoBrightness = Math.max(0.5, videoBrightness - 0.1);
+                }
+                player.style.filter = `brightness(${videoBrightness}) contrast(${videoContrast})`;
+                showToast(`Brightness: ${Math.round(videoBrightness * 100)}%`);
+            } else {
+                // Right side - volume
+                if (diffY > 0) {
+                    // Swipe up - increase volume
+                    player.volume = Math.min(1, player.volume + 0.1);
+                } else {
+                    // Swipe down - decrease volume
+                    player.volume = Math.max(0, player.volume - 0.1);
+                }
+                updateVolumeDisplay();
+            }
+        }
     });
 }
+
+console.log("🚀 SK4FiLM Advanced HTML5 Player Ready!");
+console.log("🎬 Single video element for ads + main content");
+console.log("⚡ Advanced features: Chapters, Audio/Video processing, PiP, Gesture controls");
+console.log("📱 Responsive design with touch gestures");
 </script>
 </body>
 </html>
