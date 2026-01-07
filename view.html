@@ -105,10 +105,10 @@
             left: 0;
             right: 0;
             background: linear-gradient(transparent, rgba(0,0,0,0.9));
-            padding: 15px 20px;
+            padding: 12px 15px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             opacity: 0;
             transition: opacity 0.3s;
             z-index: 10;
@@ -119,12 +119,12 @@
         }
         
         .control-btn {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.15);
             border: none;
             color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -134,15 +134,20 @@
         }
         
         .control-btn:hover {
-            background: rgba(255,255,255,0.3);
-            transform: scale(1.1);
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+        
+        .control-btn.active {
+            background: var(--primary-color);
+            box-shadow: 0 0 10px rgba(255,0,0,0.3);
         }
         
         .progress-container {
             flex: 1;
-            height: 5px;
+            height: 4px;
             background: rgba(255,255,255,0.2);
-            border-radius: 3px;
+            border-radius: 2px;
             overflow: hidden;
             cursor: pointer;
             position: relative;
@@ -166,24 +171,24 @@
         
         .time-display {
             color: white;
-            font-size: 0.9rem;
-            min-width: 110px;
+            font-size: 0.85rem;
+            min-width: 100px;
             text-align: center;
             font-variant-numeric: tabular-nums;
         }
         
         .volume-control {
-            width: 120px;
+            width: 100px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
         
         .volume-slider {
             flex: 1;
-            height: 4px;
+            height: 3px;
             background: rgba(255,255,255,0.2);
-            border-radius: 2px;
+            border-radius: 1.5px;
             cursor: pointer;
             position: relative;
         }
@@ -193,91 +198,74 @@
             height: 100%;
             background: white;
             width: 70%;
-            border-radius: 2px;
+            border-radius: 1.5px;
         }
         
-        /* Quality Selector */
-        .quality-selector {
+        /* Combined Settings Dropdown */
+        .settings-selector {
             position: relative;
         }
         
-        .quality-dropdown {
+        .settings-dropdown {
             position: absolute;
-            bottom: 50px;
+            bottom: 45px;
             right: 0;
             background: rgba(30, 41, 59, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 8px;
-            padding: 10px 0;
-            min-width: 150px;
+            padding: 8px 0;
+            min-width: 180px;
             display: none;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.1);
             z-index: 100;
         }
         
-        .quality-dropdown.show {
+        .settings-dropdown.show {
             display: block;
         }
         
-        .quality-option {
-            padding: 10px 15px;
+        .settings-section {
+            padding: 8px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .settings-section:last-child {
+            border-bottom: none;
+        }
+        
+        .settings-title {
+            color: #94a3b8;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .settings-option {
+            padding: 6px 8px;
             color: white;
             cursor: pointer;
             transition: background 0.2s;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            border-radius: 4px;
+            margin: 2px 0;
         }
         
-        .quality-option:hover {
+        .settings-option:hover {
             background: rgba(255,255,255,0.1);
         }
         
-        .quality-option.active {
+        .settings-option.active {
             background: rgba(255,0,0,0.2);
             color: var(--primary-color);
         }
         
-        /* Playback Rate Selector */
-        .speed-selector {
-            position: relative;
-        }
-        
-        .speed-dropdown {
-            position: absolute;
-            bottom: 50px;
-            right: 0;
-            background: rgba(30, 41, 59, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 8px;
-            padding: 10px 0;
-            min-width: 100px;
-            display: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
-            z-index: 100;
-        }
-        
-        .speed-dropdown.show {
-            display: block;
-        }
-        
-        .speed-option {
-            padding: 8px 15px;
-            color: white;
-            cursor: pointer;
+        .settings-option i {
+            width: 20px;
             text-align: center;
-            transition: background 0.2s;
-        }
-        
-        .speed-option:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .speed-option.active {
-            background: rgba(0,102,255,0.2);
-            color: var(--secondary-color);
         }
         
         /* Ad Overlay */
@@ -287,9 +275,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             z-index: 20;
-            display: none;
+            display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
@@ -297,29 +285,37 @@
         
         .ad-content {
             background: #1a1a2e;
-            padding: 30px;
+            padding: 25px;
             border-radius: 10px;
             text-align: center;
-            max-width: 80%;
+            max-width: 85%;
             border: 2px solid var(--primary-color);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255,0,0,0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255,0,0,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,0,0,0); }
         }
         
         .ad-timer {
             margin-top: 20px;
             color: white;
-            font-size: 1.2rem;
-            background: rgba(255,0,0,0.2);
-            padding: 10px 20px;
-            border-radius: 20px;
+            font-size: 1.3rem;
+            background: linear-gradient(90deg, #ff0000, #ff9900);
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-weight: 600;
         }
         
         .skip-ad-btn {
             margin-top: 20px;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.15);
             border: 1px solid rgba(255,255,255,0.3);
             color: white;
             padding: 10px 25px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 1rem;
             transition: all 0.3s;
@@ -327,7 +323,7 @@
         }
         
         .skip-ad-btn:hover {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.25);
         }
         
         .skip-ad-btn.show {
@@ -340,10 +336,9 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 3px;
+            height: 4px;
             background: rgba(255,255,255,0.2);
             z-index: 21;
-            display: none;
         }
         
         .ad-progress-bar {
@@ -351,28 +346,6 @@
             background: linear-gradient(90deg, #ff0000, #ff9900);
             width: 0%;
             transition: width 0.1s linear;
-        }
-        
-        /* Keyboard Shortcuts Help */
-        .shortcuts-help {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
-            z-index: 30;
-            max-width: 300px;
-        }
-        
-        .shortcut-item {
-            display: flex;
-            justify-content: space-between;
-            margin: 5px 0;
-            padding: 3px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
         /* File Information */
@@ -499,7 +472,6 @@
             text-align: center;
             color: #FFC107;
             font-size: 0.9rem;
-            display: none;
         }
         
         /* Donation Section */
@@ -638,13 +610,13 @@
             }
             
             .custom-controls {
-                padding: 10px 15px;
+                padding: 10px 12px;
                 gap: 10px;
             }
             
             .control-btn {
-                width: 35px;
-                height: 35px;
+                width: 34px;
+                height: 34px;
                 font-size: 0.9rem;
             }
             
@@ -653,8 +625,13 @@
             }
             
             .time-display {
-                min-width: 90px;
+                min-width: 85px;
                 font-size: 0.8rem;
+            }
+            
+            .settings-dropdown {
+                min-width: 160px;
+                bottom: 40px;
             }
             
             .file-info-grid {
@@ -677,16 +654,28 @@
             .custom-controls {
                 flex-wrap: wrap;
                 padding: 8px 10px;
+                gap: 8px;
             }
             
             .progress-container {
                 order: 1;
                 width: 100%;
-                margin-top: 10px;
+                margin-top: 8px;
             }
             
             .time-display {
                 order: 2;
+                min-width: 80px;
+                font-size: 0.75rem;
+            }
+            
+            .volume-control {
+                width: 70px;
+            }
+            
+            .settings-dropdown {
+                right: -50px;
+                min-width: 140px;
             }
             
             .file-info-grid {
@@ -701,7 +690,7 @@
     </style>
 </head>
 <body>
-<!-- Minimal Navbar -->
+<!-- Navbar -->
 <nav class="navbar fixed-top">
     <div class="container d-flex align-items-center justify-content-between">
         <a href="index.html" class="navbar-brand">
@@ -717,12 +706,12 @@
 <div class="container">
     <!-- Ad Notice -->
     <div class="ad-notice" id="adNotice">
-        <i class="fas fa-ad me-2"></i>Ads support our free service. Please wait...
+        <i class="fas fa-ad me-2"></i>Ads support our free service. Ads will play automatically...
     </div>
 
     <!-- Video Container -->
     <div class="video-container" id="videoContainer">
-        <!-- HTML5 Player with Video.js Features -->
+        <!-- HTML5 Player with Auto-Play Ads -->
         <div class="html5-video-container">
             <video class="html5-video" id="nativePlayer" playsinline>
                 <!-- Sources will be added dynamically -->
@@ -731,6 +720,19 @@
             <!-- Ad Progress Bar -->
             <div class="ad-progress" id="adProgress">
                 <div class="ad-progress-bar" id="adProgressBar"></div>
+            </div>
+            
+            <!-- Ad Overlay -->
+            <div class="ad-overlay" id="adOverlay">
+                <div class="ad-content">
+                    <h4><i class="fas fa-ad"></i> Advertisement</h4>
+                    <p>Your video will play after this ad</p>
+                    <p class="text-muted">Thank you for supporting free streaming</p>
+                </div>
+                <div class="ad-timer">
+                    Ad: <span id="adTimer">15</span>s
+                </div>
+                <button class="skip-ad-btn" id="skipAdBtn">Skip Ad</button>
             </div>
             
             <!-- Custom Controls -->
@@ -754,26 +756,36 @@
                 
                 <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
                 
-                <!-- Quality Selector -->
-                <div class="quality-selector">
-                    <button class="control-btn" id="qualityBtn">
-                        <i class="fas fa-hd"></i>
+                <!-- Combined Settings Button -->
+                <div class="settings-selector">
+                    <button class="control-btn" id="settingsBtn">
+                        <i class="fas fa-cog"></i>
                     </button>
-                    <div class="quality-dropdown" id="qualityDropdown">
-                        <!-- Quality options added by JS -->
-                    </div>
-                </div>
-                
-                <!-- Playback Rate Selector -->
-                <div class="speed-selector">
-                    <button class="control-btn" id="speedBtn">
-                        <i class="fas fa-tachometer-alt"></i>
-                    </button>
-                    <div class="speed-dropdown" id="speedDropdown">
-                        <div class="speed-option" data-speed="0.5">0.5x</div>
-                        <div class="speed-option active" data-speed="1.0">1.0x</div>
-                        <div class="speed-option" data-speed="1.5">1.5x</div>
-                        <div class="speed-option" data-speed="2.0">2.0x</div>
+                    <div class="settings-dropdown" id="settingsDropdown">
+                        <!-- Quality Settings -->
+                        <div class="settings-section">
+                            <div class="settings-title">Quality</div>
+                            <div id="qualityOptions">
+                                <!-- Quality options added by JS -->
+                            </div>
+                        </div>
+                        
+                        <!-- Speed Settings -->
+                        <div class="settings-section">
+                            <div class="settings-title">Playback Speed</div>
+                            <div class="settings-option" data-speed="0.5">
+                                <i class="fas fa-snail"></i> 0.5x
+                            </div>
+                            <div class="settings-option active" data-speed="1.0">
+                                <i class="fas fa-walking"></i> 1.0x (Normal)
+                            </div>
+                            <div class="settings-option" data-speed="1.5">
+                                <i class="fas fa-running"></i> 1.5x
+                            </div>
+                            <div class="settings-option" data-speed="2.0">
+                                <i class="fas fa-bolt"></i> 2.0x
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -791,61 +803,6 @@
                 <button class="control-btn" id="fullscreenBtn">
                     <i class="fas fa-expand"></i>
                 </button>
-                
-                <!-- Keyboard Shortcuts Help -->
-                <button class="control-btn" id="helpBtn">
-                    <i class="fas fa-keyboard"></i>
-                </button>
-            </div>
-            
-            <!-- Ad Overlay -->
-            <div class="ad-overlay" id="adOverlay">
-                <div class="ad-content">
-                    <h4><i class="fas fa-ad"></i> Advertisement</h4>
-                    <p>Thank you for using our free service</p>
-                    <p class="text-muted">This ad helps us keep the service running</p>
-                </div>
-                <div class="ad-timer">
-                    Ad will play in: <span id="adTimer">5</span>s
-                </div>
-                <button class="skip-ad-btn" id="skipAdBtn">Skip Ad</button>
-            </div>
-            
-            <!-- Keyboard Shortcuts Help Modal -->
-            <div class="shortcuts-help" id="shortcutsHelp">
-                <h6><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h6>
-                <div class="shortcut-item">
-                    <span>Space / K</span>
-                    <span>Play/Pause</span>
-                </div>
-                <div class="shortcut-item">
-                    <span>F</span>
-                    <span>Fullscreen</span>
-                </div>
-                <div class="shortcut-item">
-                    <span>M</span>
-                    <span>Mute/Unmute</span>
-                </div>
-                <div class="shortcut-item">
-                    <span>← →</span>
-                    <span>Seek 10s</span>
-                </div>
-                <div class="shortcut-item">
-                    <span>↑ ↓</span>
-                    <span>Volume</span>
-                </div>
-                <div class="shortcut-item">
-                    <span>0-9</span>
-                    <span>Seek to %</span>
-                </div>
-                <div class="shortcut-item">
-                    <span>C</span>
-                    <span>Captions</span>
-                </div>
-                <div class="shortcut-item">
-                    <span>?</span>
-                    <span>This Help</span>
-                </div>
             </div>
         </div>
 
@@ -955,9 +912,10 @@ let currentQuality = initialQuality;
 let availableQualities = [];
 let isAdPlaying = false;
 let adInterval = null;
-let adDuration = 0;
+let adDuration = 15; // 15 seconds ad
 let adCurrentTime = 0;
 let isFullscreen = false;
+let currentSpeed = 1.0;
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
@@ -970,17 +928,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load metadata
         await loadMetadata();
         
-        // Initialize HTML5 player with all features
+        // Initialize HTML5 player
         await initializePlayer();
         
         // Setup download menus
         setupDownloadMenus();
         
-        // Setup VAST ads
-        setupVastAds();
+        // Start auto-play ad
+        startAutoPlayAd();
         
-        // Setup keyboard shortcuts
-        setupKeyboardShortcuts();
+        // Setup controls
+        setupControls();
         
     } catch (error) {
         console.error("Initialization error:", error);
@@ -1016,7 +974,7 @@ function updateFileInfo() {
     document.getElementById('infoFormat').textContent = 'MP4';
 }
 
-// Initialize HTML5 Player with Video.js Features
+// Initialize HTML5 Player
 async function initializePlayer() {
     player = document.getElementById('nativePlayer');
     const loadingContainer = document.getElementById('loadingContainer');
@@ -1037,14 +995,8 @@ async function initializePlayer() {
         // Hide loading
         loadingContainer.style.display = 'none';
         
-        // Setup custom controls
-        setupCustomControls();
-        
-        // Setup quality selector
-        setupQualitySelector();
-        
-        // Setup playback rate selector
-        setupSpeedSelector();
+        // Setup quality options
+        setupQualityOptions();
         
         // Event listeners
         player.addEventListener('loadedmetadata', () => {
@@ -1067,7 +1019,10 @@ async function initializePlayer() {
         player.volume = 0.7;
         updateVolumeDisplay();
         
-        console.log("🎬 HTML5 Player initialized with Video.js features");
+        // Set initial speed
+        player.playbackRate = currentSpeed;
+        
+        console.log("🎬 HTML5 Player initialized");
         
     } catch (error) {
         console.error("Player init error:", error);
@@ -1090,7 +1045,8 @@ async function loadAvailableQualities() {
                 { quality: '2160p', label: '4K', icon: 'fas fa-tv' },
                 { quality: '1080p', label: '1080p', icon: 'fas fa-hd' },
                 { quality: '720p', label: '720p', icon: 'fas fa-video' },
-                { quality: '480p', label: '480p', icon: 'fas fa-film' }
+                { quality: '480p', label: '480p', icon: 'fas fa-film' },
+                { quality: '360p', label: '360p', icon: 'fas fa-mobile' }
             ];
         }
     } catch (error) {
@@ -1103,8 +1059,21 @@ async function loadAvailableQualities() {
     }
 }
 
-// Setup Custom Controls
-function setupCustomControls() {
+// Setup Quality Options in Settings
+function setupQualityOptions() {
+    const qualityOptions = document.getElementById('qualityOptions');
+    
+    qualityOptions.innerHTML = availableQualities.map(q => `
+        <div class="settings-option ${q.quality === currentQuality ? 'active' : ''}" 
+             data-quality="${q.quality}">
+            <i class="${q.icon}"></i>
+            <span>${q.label}</span>
+        </div>
+    `).join('');
+}
+
+// Setup Controls
+function setupControls() {
     const playPauseBtn = document.getElementById('playPauseBtn');
     const rewindBtn = document.getElementById('rewindBtn');
     const forwardBtn = document.getElementById('forwardBtn');
@@ -1112,29 +1081,36 @@ function setupCustomControls() {
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const muteBtn = document.getElementById('muteBtn');
     const volumeSlider = document.getElementById('volumeSlider');
-    const helpBtn = document.getElementById('helpBtn');
-    const shortcutsHelp = document.getElementById('shortcutsHelp');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsDropdown = document.getElementById('settingsDropdown');
+    const skipAdBtn = document.getElementById('skipAdBtn');
 
     // Play/Pause
     playPauseBtn.addEventListener('click', togglePlayPause);
 
     // Rewind 10 seconds
     rewindBtn.addEventListener('click', () => {
-        player.currentTime = Math.max(0, player.currentTime - 10);
-        showToast('Rewind 10 seconds');
+        if (!isAdPlaying) {
+            player.currentTime = Math.max(0, player.currentTime - 10);
+            showToast('Rewind 10 seconds');
+        }
     });
 
     // Forward 10 seconds
     forwardBtn.addEventListener('click', () => {
-        player.currentTime = Math.min(player.duration, player.currentTime + 10);
-        showToast('Forward 10 seconds');
+        if (!isAdPlaying) {
+            player.currentTime = Math.min(player.duration, player.currentTime + 10);
+            showToast('Forward 10 seconds');
+        }
     });
 
     // Progress bar click
     progressContainer.addEventListener('click', (e) => {
-        const rect = progressContainer.getBoundingClientRect();
-        const pos = (e.clientX - rect.left) / rect.width;
-        player.currentTime = pos * player.duration;
+        if (!isAdPlaying) {
+            const rect = progressContainer.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            player.currentTime = pos * player.duration;
+        }
     });
 
     // Fullscreen
@@ -1152,97 +1128,205 @@ function setupCustomControls() {
         updateVolumeDisplay();
     });
 
-    // Help button
-    helpBtn.addEventListener('click', () => {
-        shortcutsHelp.style.display = shortcutsHelp.style.display === 'block' ? 'none' : 'block';
-    });
-
-    // Close help when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!shortcutsHelp.contains(e.target) && e.target !== helpBtn) {
-            shortcutsHelp.style.display = 'none';
-        }
-    });
-}
-
-// Setup Quality Selector
-function setupQualitySelector() {
-    const qualityBtn = document.getElementById('qualityBtn');
-    const qualityDropdown = document.getElementById('qualityDropdown');
-    
-    // Populate quality dropdown
-    qualityDropdown.innerHTML = availableQualities.map(q => `
-        <div class="quality-option ${q.quality === currentQuality ? 'active' : ''}" 
-             data-quality="${q.quality}">
-            <i class="${q.icon}"></i>
-            <span>${q.label}</span>
-        </div>
-    `).join('');
-    
-    // Toggle dropdown
-    qualityBtn.addEventListener('click', (e) => {
+    // Settings button
+    settingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        qualityDropdown.classList.toggle('show');
-        
-        // Close other dropdowns
-        document.getElementById('speedDropdown').classList.remove('show');
+        settingsDropdown.classList.toggle('show');
     });
-    
+
     // Handle quality selection
-    qualityDropdown.addEventListener('click', async (e) => {
-        const qualityOption = e.target.closest('.quality-option');
+    document.getElementById('qualityOptions').addEventListener('click', async (e) => {
+        const qualityOption = e.target.closest('.settings-option');
         if (qualityOption) {
             const newQuality = qualityOption.dataset.quality;
             if (newQuality !== currentQuality) {
                 await changeQuality(newQuality);
             }
-            qualityDropdown.classList.remove('show');
+            settingsDropdown.classList.remove('show');
         }
     });
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', () => {
-        qualityDropdown.classList.remove('show');
-    });
-}
 
-// Setup Speed Selector
-function setupSpeedSelector() {
-    const speedBtn = document.getElementById('speedBtn');
-    const speedDropdown = document.getElementById('speedDropdown');
-    const speedOptions = speedDropdown.querySelectorAll('.speed-option');
-    
-    // Toggle dropdown
-    speedBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        speedDropdown.classList.toggle('show');
-        
-        // Close other dropdowns
-        document.getElementById('qualityDropdown').classList.remove('show');
-    });
-    
     // Handle speed selection
-    speedDropdown.addEventListener('click', (e) => {
-        const speedOption = e.target.closest('.speed-option');
-        if (speedOption) {
-            const speed = parseFloat(speedOption.dataset.speed);
+    settingsDropdown.querySelectorAll('.settings-option[data-speed]').forEach(option => {
+        option.addEventListener('click', (e) => {
+            const speed = parseFloat(e.currentTarget.dataset.speed);
             
             // Update active state
-            speedOptions.forEach(opt => opt.classList.remove('active'));
-            speedOption.classList.add('active');
+            settingsDropdown.querySelectorAll('.settings-option[data-speed]').forEach(opt => {
+                opt.classList.remove('active');
+            });
+            e.currentTarget.classList.add('active');
             
             // Change playback rate
             player.playbackRate = speed;
+            currentSpeed = speed;
             showToast(`Playback speed: ${speed}x`);
             
-            speedDropdown.classList.remove('show');
-        }
+            settingsDropdown.classList.remove('show');
+        });
     });
-    
+
+    // Skip ad button
+    skipAdBtn.addEventListener('click', skipAd);
+
     // Close dropdown when clicking outside
     document.addEventListener('click', () => {
-        speedDropdown.classList.remove('show');
+        settingsDropdown.classList.remove('show');
     });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        switch(e.key.toLowerCase()) {
+            case ' ':
+            case 'k':
+                e.preventDefault();
+                togglePlayPause();
+                break;
+                
+            case 'f':
+                e.preventDefault();
+                toggleFullscreen();
+                break;
+                
+            case 'm':
+                e.preventDefault();
+                toggleMute();
+                break;
+                
+            case 'arrowleft':
+                e.preventDefault();
+                if (!isAdPlaying) {
+                    player.currentTime = Math.max(0, player.currentTime - 10);
+                    showToast('Rewind 10 seconds');
+                }
+                break;
+                
+            case 'arrowright':
+                e.preventDefault();
+                if (!isAdPlaying) {
+                    player.currentTime = Math.min(player.duration, player.currentTime + 10);
+                    showToast('Forward 10 seconds');
+                }
+                break;
+                
+            case 'arrowup':
+                e.preventDefault();
+                player.volume = Math.min(1, player.volume + 0.1);
+                updateVolumeDisplay();
+                break;
+                
+            case 'arrowdown':
+                e.preventDefault();
+                player.volume = Math.max(0, player.volume - 0.1);
+                updateVolumeDisplay();
+                break;
+                
+            case 'escape':
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                }
+                break;
+        }
+    });
+}
+
+// Start Auto-Play Ad
+function startAutoPlayAd() {
+    isAdPlaying = true;
+    
+    // Show ad overlay
+    const overlay = document.getElementById('adOverlay');
+    const timer = document.getElementById('adTimer');
+    const skipBtn = document.getElementById('skipAdBtn');
+    const adProgressBar = document.getElementById('adProgressBar');
+    
+    overlay.style.display = 'flex';
+    
+    // Start ad countdown
+    let countdown = adDuration;
+    adCurrentTime = 0;
+    
+    adInterval = setInterval(() => {
+        countdown--;
+        adCurrentTime++;
+        
+        timer.textContent = countdown;
+        
+        // Update progress bar
+        const progressPercent = (adCurrentTime / adDuration) * 100;
+        adProgressBar.style.width = progressPercent + '%';
+        
+        // Show skip button after 5 seconds
+        if (countdown <= (adDuration - 5) && !skipBtn.classList.contains('show')) {
+            skipBtn.classList.add('show');
+        }
+        
+        if (countdown <= 0) {
+            finishAd();
+        }
+    }, 1000);
+}
+
+// Finish Ad and Play Video
+function finishAd() {
+    if (!isAdPlaying) return;
+    
+    isAdPlaying = false;
+    
+    clearInterval(adInterval);
+    adInterval = null;
+    
+    // Hide ad overlay
+    const overlay = document.getElementById('adOverlay');
+    const skipBtn = document.getElementById('skipAdBtn');
+    
+    overlay.style.display = 'none';
+    skipBtn.classList.remove('show');
+    
+    // Reset ad progress bar
+    document.getElementById('adProgressBar').style.width = '0%';
+    
+    // Hide ad notice
+    document.getElementById('adNotice').style.display = 'none';
+    
+    // Auto-play video
+    setTimeout(() => {
+        player.play();
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+        showToast('Video playing...');
+    }, 500);
+}
+
+// Skip Ad
+function skipAd() {
+    if (!isAdPlaying) return;
+    
+    isAdPlaying = false;
+    
+    clearInterval(adInterval);
+    adInterval = null;
+    
+    // Hide ad overlay
+    const overlay = document.getElementById('adOverlay');
+    const skipBtn = document.getElementById('skipAdBtn');
+    
+    overlay.style.display = 'none';
+    skipBtn.classList.remove('show');
+    
+    // Reset ad progress bar
+    document.getElementById('adProgressBar').style.width = '0%';
+    
+    // Hide ad notice
+    document.getElementById('adNotice').style.display = 'none';
+    
+    // Auto-play video immediately
+    player.play();
+    document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+    showToast('Video playing...');
 }
 
 // Change Quality
@@ -1271,7 +1355,7 @@ async function changeQuality(newQuality) {
         document.getElementById('infoQuality').textContent = newQuality;
         
         // Update active quality in dropdown
-        const qualityOptions = document.querySelectorAll('.quality-option');
+        const qualityOptions = document.querySelectorAll('.settings-option[data-quality]');
         qualityOptions.forEach(opt => {
             opt.classList.toggle('active', opt.dataset.quality === newQuality);
         });
@@ -1284,255 +1368,10 @@ async function changeQuality(newQuality) {
     }
 }
 
-// Setup Keyboard Shortcuts
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // Don't trigger shortcuts when user is typing in inputs
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            return;
-        }
-        
-        switch(e.key.toLowerCase()) {
-            case ' ':
-            case 'k':
-                e.preventDefault();
-                togglePlayPause();
-                break;
-                
-            case 'f':
-                e.preventDefault();
-                toggleFullscreen();
-                break;
-                
-            case 'm':
-                e.preventDefault();
-                toggleMute();
-                break;
-                
-            case 'arrowleft':
-                e.preventDefault();
-                player.currentTime = Math.max(0, player.currentTime - 10);
-                showToast('Rewind 10 seconds');
-                break;
-                
-            case 'arrowright':
-                e.preventDefault();
-                player.currentTime = Math.min(player.duration, player.currentTime + 10);
-                showToast('Forward 10 seconds');
-                break;
-                
-            case 'arrowup':
-                e.preventDefault();
-                player.volume = Math.min(1, player.volume + 0.1);
-                updateVolumeDisplay();
-                break;
-                
-            case 'arrowdown':
-                e.preventDefault();
-                player.volume = Math.max(0, player.volume - 0.1);
-                updateVolumeDisplay();
-                break;
-                
-            case '0':
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-                e.preventDefault();
-                const percent = parseInt(e.key) / 10;
-                player.currentTime = player.duration * percent;
-                break;
-                
-            case 'c':
-                e.preventDefault();
-                // Toggle captions if available
-                showToast('Captions toggle not implemented');
-                break;
-                
-            case '?':
-                e.preventDefault();
-                const shortcutsHelp = document.getElementById('shortcutsHelp');
-                shortcutsHelp.style.display = shortcutsHelp.style.display === 'block' ? 'none' : 'block';
-                break;
-                
-            case 'escape':
-                if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                }
-                document.getElementById('shortcutsHelp').style.display = 'none';
-                break;
-        }
-    });
-}
-
-// Setup VAST Ads
-function setupVastAds() {
-    // Show ad notice
-    const adNotice = document.getElementById('adNotice');
-    adNotice.style.display = 'block';
-    
-    // Setup ad timers
-    player.addEventListener('play', () => {
-        if (!isAdPlaying) {
-            checkAndPlayAds();
-        }
-    });
-    
-    // Check for mid-roll ads every 5 minutes
-    setInterval(() => {
-        if (!player.paused && !isAdPlaying) {
-            playMidRollAd();
-        }
-    }, 5 * 60 * 1000);
-}
-
-// Check and play ads
-function checkAndPlayAds() {
-    // Play pre-roll ad (first time only)
-    if (!sessionStorage.getItem('adPlayed')) {
-        playPreRollAd();
-        sessionStorage.setItem('adPlayed', 'true');
-    }
-}
-
-// Play pre-roll ad
-function playPreRollAd() {
-    if (isAdPlaying) return;
-    isAdPlaying = true;
-    
-    const wasPlaying = !player.paused;
-    if (wasPlaying) {
-        player.pause();
-    }
-    
-    // Show ad overlay
-    const overlay = document.getElementById('adOverlay');
-    const timer = document.getElementById('adTimer');
-    const skipBtn = document.getElementById('skipAdBtn');
-    const adProgress = document.getElementById('adProgress');
-    const adProgressBar = document.getElementById('adProgressBar');
-    
-    overlay.style.display = 'flex';
-    adProgress.style.display = 'block';
-    
-    // Simulate ad loading
-    let countdown = 15;
-    adDuration = 15;
-    adCurrentTime = 0;
-    
-    adInterval = setInterval(() => {
-        countdown--;
-        adCurrentTime++;
-        
-        timer.textContent = countdown;
-        
-        // Update progress bar
-        const progressPercent = (adCurrentTime / adDuration) * 100;
-        adProgressBar.style.width = progressPercent + '%';
-        
-        // Show skip button after 5 seconds
-        if (countdown <= 10 && !skipBtn.classList.contains('show')) {
-            skipBtn.classList.add('show');
-            skipBtn.addEventListener('click', skipAd);
-        }
-        
-        if (countdown <= 0) {
-            skipAd();
-        }
-    }, 1000);
-}
-
-// Play mid-roll ad
-function playMidRollAd() {
-    if (isAdPlaying) return;
-    isAdPlaying = true;
-    
-    const wasPlaying = !player.paused;
-    if (wasPlaying) {
-        player.pause();
-    }
-    
-    // Show ad overlay
-    const overlay = document.getElementById('adOverlay');
-    const timer = document.getElementById('adTimer');
-    const skipBtn = document.getElementById('skipAdBtn');
-    const adProgress = document.getElementById('adProgress');
-    const adProgressBar = document.getElementById('adProgressBar');
-    
-    overlay.style.display = 'flex';
-    adProgress.style.display = 'block';
-    overlay.querySelector('.ad-content').innerHTML = `
-        <h4><i class="fas fa-ad"></i> Mid-Roll Advertisement</h4>
-        <p>Thank you for watching!</p>
-        <p class="text-muted">This ad helps us keep the service running</p>
-    `;
-    
-    // Simulate ad loading
-    let countdown = 10;
-    adDuration = 10;
-    adCurrentTime = 0;
-    
-    adInterval = setInterval(() => {
-        countdown--;
-        adCurrentTime++;
-        
-        timer.textContent = countdown;
-        
-        // Update progress bar
-        const progressPercent = (adCurrentTime / adDuration) * 100;
-        adProgressBar.style.width = progressPercent + '%';
-        
-        // Show skip button after 3 seconds
-        if (countdown <= 7 && !skipBtn.classList.contains('show')) {
-            skipBtn.classList.add('show');
-        }
-        
-        if (countdown <= 0) {
-            skipAd();
-        }
-    }, 1000);
-}
-
-// Skip ad
-function skipAd() {
-    if (!isAdPlaying) return;
-    
-    isAdPlaying = false;
-    
-    clearInterval(adInterval);
-    adInterval = null;
-    
-    // Hide ad overlay
-    const overlay = document.getElementById('adOverlay');
-    const adProgress = document.getElementById('adProgress');
-    const skipBtn = document.getElementById('skipAdBtn');
-    
-    overlay.style.display = 'none';
-    adProgress.style.display = 'none';
-    skipBtn.classList.remove('show');
-    
-    // Reset ad progress bar
-    document.getElementById('adProgressBar').style.width = '0%';
-    
-    // Resume video if it was playing
-    if (!player.paused) {
-        player.play();
-    }
-    
-    // Hide ad notice temporarily
-    document.getElementById('adNotice').style.display = 'none';
-    setTimeout(() => {
-        document.getElementById('adNotice').style.display = 'block';
-    }, 30000);
-}
-
 // Utility Functions
 function togglePlayPause() {
+    if (isAdPlaying) return;
+    
     if (player.paused) {
         player.play();
         document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
@@ -1766,9 +1605,9 @@ function escapeHtml(text) {
 
 // Debug Info
 console.log("🎬 SK4FiLM HTML5 Player Ready");
-console.log("📱 All Video.js features implemented in native HTML5 player");
+console.log("📱 Auto-play ads enabled");
+console.log("⚙️ Combined Speed/Quality settings in one button");
 console.log("📺 VAST Ad Tag:", VAST_AD_TAG);
-console.log("⚡ Features: Quality Selector, Playback Speed, Keyboard Shortcuts, Ads");
 
 // Add touch controls for mobile
 if ('ontouchstart' in window) {
