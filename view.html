@@ -203,7 +203,6 @@
             height: 3px;
             background: rgba(255,255,255,0.1);
             z-index: 1001;
-            display: none;
         }
         
         .ad-progress-bar {
@@ -226,7 +225,6 @@
             font-size: 0.8rem;
             cursor: pointer;
             z-index: 1002;
-            display: none;
             transition: all 0.3s;
         }
         
@@ -359,7 +357,6 @@
             text-align: center;
             color: #ff4400;
             font-size: 0.9rem;
-            display: block;
         }
         
         /* Donation Section */
@@ -618,7 +615,7 @@
     <!-- Ad Notice -->
     <div class="ad-notice" id="adNotice">
         <i class="fas fa-info-circle me-2"></i>
-        Please watch the ad to unlock video streaming.
+        Ads support our service. Please watch the advertisement.
     </div>
 
     <!-- Video Container -->
@@ -634,31 +631,31 @@
         </div>
         
         <!-- Skip Ad Button -->
-        <button class="skip-ad-btn" id="skipAdBtn">
+        <button class="skip-ad-btn" id="skipAdBtn" onclick="skipAd()">
             <i class="fas fa-forward"></i> Skip Ad <span id="skipTimer">5</span>s
         </button>
         
         <!-- Video.js Player -->
         <video id="sk4filmPlayer" class="video-js vjs-default-skin" controls preload="auto" playsinline>
-            <!-- Fallback video will be added if API fails -->
+            <!-- Ad video will be loaded here first -->
         </video>
         
-        <!-- Loading State (Hidden initially) -->
-        <div class="loading-container" id="loadingContainer" style="display: none;">
+        <!-- Loading State -->
+        <div class="loading-container" id="loadingContainer">
             <div class="loading-spinner"></div>
             <h5>Loading Content...</h5>
         </div>
     </div>
 
-    <!-- File Information - ONLY 2 ITEMS (NAME & SIZE) -->
+    <!-- File Information - ONLY 2 ITEMS -->
     <div class="file-info-grid" id="fileInfo">
         <div class="info-item">
             <span class="info-label">FILE NAME</span>
-            <span class="info-value" id="infoName">Movie.mp4</span>
+            <span class="info-value" id="infoName">Loading...</span>
         </div>
         <div class="info-item">
             <span class="info-label">FILE SIZE</span>
-            <span class="info-value" id="infoSize">1.2 GB</span>
+            <span class="info-value" id="infoSize">Loading...</span>
         </div>
     </div>
 
@@ -741,15 +738,17 @@ const API_ENDPOINTS = [
 
 const CURRENT_API = 0;
 
-// Onclick Ads VAST URL
-const ONCLICK_AD_URL = 'https://bid.onclckstr.com/vast?spot_id=6105392';
+// **FIXED: Using actual video URLs instead of VAST URLs**
+const AD_VIDEOS = [
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+];
 
-// Fallback Videos (Public Sample Videos)
+// Fallback Videos
 const FALLBACK_VIDEOS = [
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
 ];
 
 // URL Parameters
@@ -768,7 +767,7 @@ let skipTimer = 5;
 let skipInterval = null;
 let adDuration = 0;
 let isUsingFallback = false;
-let fallbackVideoIndex = 0;
+let currentAdIndex = 0;
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
@@ -778,48 +777,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // Initialize Video.js player immediately
+        // Show ad notice
+        document.getElementById('adNotice').style.display = 'block';
+        
+        // Initialize Video.js player
         await initializeVideoJSPlayer();
         
-        // Start with onclick ad immediately (NO loading spinner first)
-        await startOnclickAd();
+        // Start ad immediately
+        await startAd();
         
-        // Load metadata in background (don't wait for it)
+        // Load metadata in background
         loadMetadataInBackground();
         
         // Setup download menus
         setupDownloadMenus();
         
-        console.log("🎬 Video.js Player Initialized - Ads First");
+        console.log("🎬 Video.js Player Initialized - Ads Playing");
         
     } catch (error) {
         console.error("Initialization error:", error);
-        // If player init fails, try fallback
-        await initializeFallbackVideo();
+        showError("Failed to initialize. Please refresh.");
     }
 });
-
-// Load Metadata in Background
-async function loadMetadataInBackground() {
-    try {
-        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
-        const response = await fetchWithTimeout(apiUrl, 3000);
-        const data = await response.json();
-        
-        if (data.status === 'success' && data.metadata) {
-            movieMetadata = data.metadata;
-            updateFileInfo();
-        }
-    } catch (error) {
-        console.warn("Metadata load failed, using fallback info:", error);
-        // Use default metadata if API fails
-        movieMetadata = {
-            file_name: 'Movie.mp4',
-            file_size: 1200000000 // 1.2 GB
-        };
-        updateFileInfo();
-    }
-}
 
 // Initialize Video.js Player
 async function initializeVideoJSPlayer() {
@@ -851,7 +830,7 @@ async function initializeVideoJSPlayer() {
             }
         });
 
-        // Hide loading container initially
+        // Hide loading initially
         hideLoading();
         
         // Setup player events
@@ -884,12 +863,12 @@ async function initializeVideoJSPlayer() {
             console.error('Player error:', e);
             
             if (isAdPlaying) {
-                // If ad fails, try to load main video
-                clearAdTimers();
-                loadMainVideo();
+                // If ad fails, try another ad
+                showToast('Ad error, trying another...');
+                setTimeout(() => startAd(), 1000);
             } else if (!isUsingFallback) {
                 // If main video fails, try fallback
-                showToast('Video error, trying fallback...');
+                showToast('Video error, loading fallback...');
                 loadFallbackVideo();
             }
         });
@@ -902,42 +881,70 @@ async function initializeVideoJSPlayer() {
     }
 }
 
-// Start Onclick Ad Immediately
-async function startOnclickAd() {
+// Start Ad
+async function startAd() {
     try {
-        // Show ad UI elements
+        // Show ad UI
         document.getElementById('adIndicator').style.display = 'flex';
         document.getElementById('adProgressContainer').style.display = 'block';
+        document.getElementById('skipAdBtn').style.display = 'block';
         
         // Hide Video.js controls during ad
         player.controlBar.hide();
         
-        // Mark as ad playing
-        isAdPlaying = true;
+        // Set ad video
+        const adVideoUrl = AD_VIDEOS[currentAdIndex % AD_VIDEOS.length];
+        currentAdIndex++;
         
-        // Set onclick ad URL as source
         player.src({
-            src: ONCLICK_AD_URL,
-            type: 'application/dash+xml'
+            src: adVideoUrl,
+            type: 'video/mp4'
         });
         
         player.load();
         
-        // Try to auto-play the ad
+        // Mark as ad playing
+        isAdPlaying = true;
+        
+        // Reset skip timer
+        skipTimer = 5;
+        document.getElementById('skipTimer').textContent = skipTimer;
+        
+        // Auto-play the ad
         setTimeout(() => {
-            if (player.paused()) {
-                player.play().catch(e => {
-                    console.log("Autoplay blocked");
-                });
-            }
+            player.play().catch(e => {
+                console.log("Ad autoplay blocked");
+                showToast('Click play to start ad');
+            });
         }, 500);
         
-        showToast('Ad playing...');
+        showToast('Advertisement playing...');
         
     } catch (error) {
-        console.error("Failed to start onclick ad:", error);
-        // If ad fails, directly load main video
+        console.error("Failed to start ad:", error);
+        // If ad fails, load main video
         await loadMainVideo();
+    }
+}
+
+// Load Metadata in Background
+async function loadMetadataInBackground() {
+    try {
+        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
+        const response = await fetchWithTimeout(apiUrl, 3000);
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.metadata) {
+            movieMetadata = data.metadata;
+            updateFileInfo();
+        }
+    } catch (error) {
+        console.warn("Metadata load failed:", error);
+        movieMetadata = {
+            file_name: 'Movie.mp4',
+            file_size: 1200000000 // 1.2 GB
+        };
+        updateFileInfo();
     }
 }
 
@@ -947,15 +954,16 @@ async function loadMainVideo() {
         // Clear ad timers
         clearAdTimers();
         
-        // Hide ad UI elements
+        // Hide ad UI
         document.getElementById('adIndicator').style.display = 'none';
         document.getElementById('adProgressContainer').style.display = 'none';
         document.getElementById('skipAdBtn').style.display = 'none';
+        document.getElementById('adNotice').style.display = 'none';
         
-        // Show loading while fetching video
+        // Show loading
         showLoading();
         
-        // Get main video URL from API
+        // Get main video URL
         const videoUrl = await getVideoUrl();
         
         if (!videoUrl) {
@@ -977,15 +985,15 @@ async function loadMainVideo() {
         // Show Video.js controls
         player.controlBar.show();
         
-        // Hide loading when video loads
+        // When video loads
         player.one('loadedmetadata', () => {
             hideLoading();
             showToast('Video loaded successfully');
         });
         
     } catch (error) {
-        console.error("Failed to load main video from API:", error);
-        // Try fallback video
+        console.error("Failed to load main video:", error);
+        // Try fallback
         await loadFallbackVideo();
     }
 }
@@ -998,11 +1006,16 @@ async function loadFallbackVideo() {
         isUsingFallback = true;
         isAdPlaying = false;
         
-        // Get fallback video URL
-        const fallbackUrl = FALLBACK_VIDEOS[fallbackVideoIndex % FALLBACK_VIDEOS.length];
-        fallbackVideoIndex++;
+        // Hide ad UI
+        document.getElementById('adIndicator').style.display = 'none';
+        document.getElementById('adProgressContainer').style.display = 'none';
+        document.getElementById('skipAdBtn').style.display = 'none';
+        document.getElementById('adNotice').style.display = 'none';
         
-        // Set fallback video
+        // Get fallback video
+        const fallbackIndex = Math.floor(Math.random() * FALLBACK_VIDEOS.length);
+        const fallbackUrl = FALLBACK_VIDEOS[fallbackIndex];
+        
         player.src({
             src: fallbackUrl,
             type: 'video/mp4'
@@ -1010,7 +1023,7 @@ async function loadFallbackVideo() {
         
         player.load();
         
-        // Update file info for fallback
+        // Update file info
         movieMetadata = {
             file_name: 'Sample Video.mp4',
             file_size: 50000000 // 50 MB
@@ -1020,88 +1033,49 @@ async function loadFallbackVideo() {
         showToast('Using sample video');
         
     } catch (error) {
-        console.error("Fallback video also failed:", error);
-        showError("Failed to load any video source");
-    }
-}
-
-// Initialize Fallback Video (if everything fails)
-async function initializeFallbackVideo() {
-    try {
-        // Create a basic video player
-        const videoContainer = document.getElementById('videoContainer');
-        videoContainer.innerHTML = `
-            <video id="fallbackPlayer" class="video-js vjs-default-skin" controls autoplay preload="auto" playsinline>
-                <source src="${FALLBACK_VIDEOS[0]}" type="video/mp4">
-            </video>
-        `;
-        
-        player = videojs('fallbackPlayer', {
-            controls: true,
-            autoplay: true,
-            preload: 'auto'
-        });
-        
-        // Update file info
-        movieMetadata = {
-            file_name: 'Sample Video.mp4',
-            file_size: 50000000
-        };
-        updateFileInfo();
-        
-        showToast('Using fallback player');
-        
-    } catch (error) {
-        console.error("Everything failed:", error);
-        showError("Cannot load video player");
+        console.error("Fallback video failed:", error);
+        showError("Failed to load video");
     }
 }
 
 // Update File Information
 function updateFileInfo() {
-    // Show file name
     const fileName = movieMetadata.file_name || 'Movie.mp4';
-    document.getElementById('infoName').textContent = fileName;
-    
-    // Show file size
     const fileSize = formatSize(movieMetadata.file_size || 1200000000);
+    
+    document.getElementById('infoName').textContent = fileName;
     document.getElementById('infoSize').textContent = fileSize;
 }
 
-// Utility Functions
+// Get Video URL from API
 async function getVideoUrl() {
-    // Try all APIs with short timeout
     for (const endpoint of API_ENDPOINTS) {
         try {
-            const streamApiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${currentQuality}`;
-            const streamResponse = await fetchWithTimeout(streamApiUrl, 2000);
-            const streamData = await streamResponse.json();
+            const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${currentQuality}`;
+            const response = await fetchWithTimeout(apiUrl, 3000);
+            const data = await response.json();
             
-            if (streamData.status === 'success' && streamData.stream_info?.stream_url) {
-                return streamData.stream_info.stream_url;
+            if (data.status === 'success' && data.stream_info?.stream_url) {
+                return data.stream_info.stream_url;
             }
         } catch (error) {
             console.warn(`API ${endpoint} failed:`, error);
         }
     }
-    
-    // If all APIs fail, return null
     return null;
 }
 
-// Start Ad Timer
+// Ad Timer Functions
 function startAdTimer() {
     if (adInterval) clearInterval(adInterval);
     
     adInterval = setInterval(() => {
         if (isAdPlaying && player && !player.paused()) {
             const currentTime = player.currentTime();
-            const remaining = adDuration - currentTime;
+            const remaining = Math.max(0, adDuration - currentTime);
             
-            // Update timer display
             document.getElementById('adTimer').textContent = formatDuration(remaining);
             
-            // Update progress bar
             const progressPercent = (currentTime / adDuration) * 100;
             document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
             
@@ -1112,27 +1086,27 @@ function startAdTimer() {
     }, 100);
 }
 
-// Start Skip Timer
 function startSkipTimer() {
-    skipTimer = 5;
-    document.getElementById('skipTimer').textContent = skipTimer;
-    document.getElementById('skipAdBtn').style.display = 'block';
-    
     if (skipInterval) clearInterval(skipInterval);
     
     skipInterval = setInterval(() => {
         skipTimer--;
-        document.getElementById('skipTimer').textContent = skipTimer;
+        document.getElementById('skipTimer').textContent = Math.max(0, skipTimer);
         
         if (skipTimer <= 0) {
             clearInterval(skipInterval);
-            document.getElementById('skipAdBtn').innerHTML = '<i class="fas fa-forward"></i> Skip Ad';
-            document.getElementById('skipAdBtn').onclick = skipAd;
         }
     }, 1000);
 }
 
-// Skip Ad
+function updateAdProgress() {
+    if (isAdPlaying && player && player.currentTime()) {
+        const currentTime = player.currentTime();
+        const progressPercent = (currentTime / adDuration) * 100;
+        document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
+    }
+}
+
 function skipAd() {
     if (isAdPlaying) {
         clearAdTimers();
@@ -1141,7 +1115,6 @@ function skipAd() {
     }
 }
 
-// Clear Ad Timers
 function clearAdTimers() {
     if (adInterval) {
         clearInterval(adInterval);
@@ -1181,7 +1154,7 @@ function setupDownloadMenus() {
 async function startFastDownload(quality) {
     try {
         showToast(`Preparing ${quality} download...`);
-        // Try to get download URL from API
+        
         for (const endpoint of API_ENDPOINTS) {
             try {
                 const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
@@ -1204,7 +1177,6 @@ async function startFastDownload(quality) {
             }
         }
         
-        // If all APIs fail
         showToast("Download failed. Try Telegram.");
     } catch (error) {
         console.error("Download error:", error);
@@ -1283,7 +1255,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Global functions for buttons
+// Make functions global
 window.skipAd = skipAd;
 window.startFastDownload = startFastDownload;
 window.startTelegramDownload = startTelegramDownload;
@@ -1298,11 +1270,10 @@ window.changeQuality = async function(newQuality) {
         currentQuality = newQuality;
         
         if (isUsingFallback) {
-            showToast("Using fallback video, quality change not available");
+            showToast("Using fallback video");
             return;
         }
         
-        // Reload video with new quality
         await loadMainVideo();
         
     } catch (error) {
@@ -1311,7 +1282,10 @@ window.changeQuality = async function(newQuality) {
     }
 };
 
-console.log("🎬 SK4FiLM Player: Ads First, Fallback Videos Ready");
+console.log("🎬 SK4FiLM Player: Ads WILL Play Now!");
+console.log("📺 Using actual video ads instead of VAST");
+console.log("⏱️ Skip ad after 5 seconds");
+console.log("🔄 Fallback system ready");
 </script>
 </body>
 </html>
