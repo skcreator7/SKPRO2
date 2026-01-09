@@ -179,7 +179,55 @@
             border-radius: 15px;
             font-size: 0.8rem;
             z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .ad-timer {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        /* Ad Progress Bar */
+        .ad-progress-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            z-index: 1001;
+        }
+        
+        .ad-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9900, #ff3300);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        
+        /* Skip Ad Button */
+        .skip-ad-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            z-index: 1002;
             display: none;
+            transition: all 0.3s;
+        }
+        
+        .skip-ad-btn:hover {
+            background: rgba(255, 68, 0, 0.8);
         }
         
         /* File Information */
@@ -480,6 +528,11 @@
                 width: 150px;
                 height: 150px;
             }
+            
+            .skip-ad-btn {
+                padding: 3px 10px;
+                font-size: 0.7rem;
+            }
         }
         
         @media (max-width: 576px) {
@@ -499,6 +552,11 @@
             
             .info-item {
                 padding: 6px;
+            }
+            
+            .ad-indicator {
+                font-size: 0.7rem;
+                padding: 3px 8px;
             }
         }
     </style>
@@ -549,15 +607,25 @@
     <!-- Ad Notice -->
     <div class="ad-notice" id="adNotice">
         <i class="fas fa-info-circle me-2"></i>
-        Please support me For Providing free streaming service. 
+        Ads support our free streaming service. Please watch the ad to continue.
     </div>
 
     <!-- Video Container -->
     <div class="video-container" id="videoContainer">
+        <!-- Ad Progress Bar -->
+        <div class="ad-progress-container" id="adProgressContainer">
+            <div class="ad-progress-bar" id="adProgressBar"></div>
+        </div>
+        
         <!-- Ad Indicator -->
         <div class="ad-indicator" id="adIndicator">
-            <i class="fas fa-ad"></i> Advertisement
+            <i class="fas fa-ad"></i> <span id="adText">Advertisement</span> <span class="ad-timer" id="adTimer">0:00</span>
         </div>
+        
+        <!-- Skip Ad Button -->
+        <button class="skip-ad-btn" id="skipAdBtn">
+            <i class="fas fa-forward"></i> Skip Ad <span id="skipTimer">5</span>s
+        </button>
         
         <!-- Video.js Player -->
         <video id="sk4filmPlayer" class="video-js vjs-default-skin" controls preload="auto" playsinline>
@@ -623,7 +691,7 @@
              alt="Donation QR Code" 
              class="donation-qr img-fluid">
         <p class="text-light mb-3">UPI ID: cf.sk4film@cashfreensdlpb</p>
-        <a href="https://cfpe.me/skfilmbox"_blank" 
+        <a href="https://cfpe.me/skfilmbox" target="_blank" 
            class="donate-btn">
             <i class="fas fa-donate me-2"></i>DONATE NOW
         </a>
@@ -632,17 +700,16 @@
     <!-- Bottom Ad -->
     <div class="ad-container">
         <div id="adBottom">
-            <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234567890123456" crossorigin="anonymous"></script>
-            <!-- Display Ad -->
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-client="ca-pub-1234567890123456"
-                 data-ad-slot="1234567890"
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
-            <script>
-                 (adsbygoogle = window.adsbygoogle || []).push({});
+            <script type="text/javascript">
+                atOptions = {
+                    'key' : '749c7e5e2b59778c180dc6a600fa3b70',
+                    'format' : 'iframe',
+                    'height' : 250,
+                    'width' : 300,
+                    'params' : {}
+                };
             </script>
+            <script type="text/javascript" src="//marksdespitelinear.com/749c7e5e2b59778c180dc6a600fa3b70/invoke.js"></script>
         </div>
     </div>
     
@@ -658,9 +725,6 @@
 
 <!-- Video.js Library -->
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-<!-- Video.js Ads Plugin -->
-<script src="https://cdn.sc.gl/videojs-ima/1.11.0/videojs.ima.js"></script>
-<link href="https://cdn.sc.gl/videojs-ima/1.11.0/videojs.ima.css" rel="stylesheet">
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -674,12 +738,6 @@ const API_ENDPOINTS = [
 
 const CURRENT_API = 0;
 
-// Ad Videos
-const AD_VIDEOS = [
-    'https://bid.onclckstr.com/vast?spot_id=6105562',
-    'https://bid.onclckstr.com/vast?spot_id=6105367'
-];
-
 // URL Parameters
 const urlParams = new URLSearchParams(window.location.search);
 const channelId = urlParams.get('channel_id') || '-1001768249569';
@@ -692,7 +750,18 @@ let movieMetadata = {};
 let currentQuality = initialQuality;
 let isAdPlaying = false;
 let adIndex = 0;
-let currentAdDuration = 0;
+let adVideoUrl = null;
+let adDuration = 0;
+let adInterval = null;
+let skipTimer = 5;
+let skipInterval = null;
+
+// Ad Videos - Using sample ad videos (replace with your actual ad URLs)
+const AD_VIDEOS = [
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+];
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
@@ -705,16 +774,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load metadata
         await loadMetadata();
         
-        // Initialize Video.js player with ads
+        // Initialize Video.js player
         await initializeVideoJSPlayer();
         
         // Setup download menus
         setupDownloadMenus();
         
-        // Start playback with ad
-        await startPlaybackWithAd();
+        // Show loading state
+        showLoading();
         
-        console.log("🎬 Video.js Player Initialized with Ads");
+        // Start auto-playing ad immediately
+        await startAutoPlayAd();
+        
+        console.log("🎬 Video.js Player Initialized");
         
     } catch (error) {
         console.error("Initialization error:", error);
@@ -722,16 +794,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Initialize Video.js Player with IMA Ads
+// Initialize Video.js Player
 async function initializeVideoJSPlayer() {
     try {
-        // Hide loading
-        document.getElementById('loadingContainer').style.display = 'none';
-        
         // Initialize Video.js player
         player = videojs('sk4filmPlayer', {
             controls: true,
-            autoplay: false,
+            autoplay: true, // Enable autoplay
             preload: 'auto',
             responsive: true,
             fluid: true,
@@ -752,49 +821,71 @@ async function initializeVideoJSPlayer() {
                     'playbackRateMenuButton',
                     'fullscreenToggle'
                 ]
-            },
-            plugins: {
-                ima: {
-                    adTagUrl: AD_VIDEOS[0],
-                    prerollTimeout: 5000,
-                    postrollTimeout: 5000,
-                    debug: false
-                }
             }
         });
 
+        // Hide Video.js default controls during ads
+        player.controlBar.hide();
+        
         // Setup player events
         player.on('loadedmetadata', () => {
-            const duration = formatDuration(player.duration());
-            document.getElementById('infoDuration').textContent = duration;
+            if (isAdPlaying) {
+                adDuration = player.duration();
+                startAdTimer();
+                startSkipTimer();
+            } else {
+                const duration = formatDuration(player.duration());
+                document.getElementById('infoDuration').textContent = duration;
+                hideLoading();
+                // Show controls for main video
+                player.controlBar.show();
+            }
         });
         
         player.on('timeupdate', () => {
-            updateFileInfo();
+            if (isAdPlaying) {
+                updateAdProgress();
+            } else {
+                updateFileInfo();
+            }
         });
         
-        player.on('volumechange', () => {
-            updateVolumeDisplay();
+        player.on('play', () => {
+            if (isAdPlaying) {
+                // Hide Video.js controls during ad
+                player.controlBar.hide();
+            } else {
+                // Show controls for main video
+                player.controlBar.show();
+            }
         });
         
-        player.on('fullscreenchange', () => {
-            updateFullscreenIcon();
+        player.on('pause', () => {
+            // Don't hide controls on pause for main video
+            if (!isAdPlaying) {
+                player.controlBar.show();
+            }
         });
         
-        player.on('adstart', () => {
-            isAdPlaying = true;
-            document.getElementById('adIndicator').style.display = 'block';
-            showToast('Advertisement playing');
+        player.on('ended', () => {
+            if (isAdPlaying) {
+                // Ad finished, load main video
+                clearAdTimers();
+                loadMainVideo();
+            } else {
+                // Main video finished, show replay option
+                showToast('Video ended');
+            }
         });
         
-        player.on('adend', () => {
-            isAdPlaying = false;
-            document.getElementById('adIndicator').style.display = 'none';
-            showToast('Advertisement ended');
+        player.on('error', (e) => {
+            console.error('Player error:', e);
+            showToast('Error loading video');
+            if (isAdPlaying) {
+                // If ad fails, load main video
+                loadMainVideo();
+            }
         });
-        
-        // Load IMA plugin
-        player.ima();
         
         console.log("🎬 Video.js Player Ready");
         
@@ -804,38 +895,140 @@ async function initializeVideoJSPlayer() {
     }
 }
 
-// Start Playback with Ad
-async function startPlaybackWithAd() {
+// Start Auto-playing Ad Immediately
+async function startAutoPlayAd() {
     try {
-        // Show ad indicator
-        document.getElementById('adIndicator').style.display = 'block';
+        // Show ad UI elements
+        document.getElementById('adIndicator').style.display = 'flex';
+        document.getElementById('adProgressContainer').style.display = 'block';
+        document.getElementById('adNotice').style.display = 'block';
         
-        // Request ad
-        player.ima.requestAds();
+        // Select ad video
+        adVideoUrl = AD_VIDEOS[adIndex % AD_VIDEOS.length];
+        adIndex++;
         
-        // Load main video after ad
-        player.one('adend', async () => {
-            await loadMainVideo();
+        // Set ad video as source
+        player.src({
+            src: adVideoUrl,
+            type: 'video/mp4'
         });
         
-        // Auto-play after ad
-        player.one('adend', () => {
-            player.play();
+        player.load();
+        
+        // Mark as ad playing
+        isAdPlaying = true;
+        
+        // When ad metadata loads, it will auto-play due to autoplay: true
+        player.one('loadedmetadata', () => {
+            player.play().catch(e => {
+                console.log("Autoplay blocked, waiting for user interaction");
+                // If autoplay is blocked, show play button
+                showToast('Click play to start ad');
+            });
         });
         
     } catch (error) {
-        console.error("Failed to start playback:", error);
+        console.error("Failed to start ad:", error);
         // Fallback to main video
         await loadMainVideo();
-        player.play();
+    }
+}
+
+// Start Ad Timer
+function startAdTimer() {
+    if (adInterval) clearInterval(adInterval);
+    
+    adInterval = setInterval(() => {
+        if (isAdPlaying && player && !player.paused()) {
+            const currentTime = player.currentTime();
+            const remaining = adDuration - currentTime;
+            
+            // Update timer display
+            document.getElementById('adTimer').textContent = formatDuration(remaining);
+            
+            // Update progress bar
+            const progressPercent = (currentTime / adDuration) * 100;
+            document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
+            
+            // If ad is almost over, prepare for transition
+            if (remaining <= 1) {
+                clearInterval(adInterval);
+            }
+        }
+    }, 100);
+}
+
+// Start Skip Timer
+function startSkipTimer() {
+    skipTimer = 5;
+    document.getElementById('skipTimer').textContent = skipTimer;
+    document.getElementById('skipAdBtn').style.display = 'block';
+    
+    if (skipInterval) clearInterval(skipInterval);
+    
+    skipInterval = setInterval(() => {
+        skipTimer--;
+        document.getElementById('skipTimer').textContent = skipTimer;
+        
+        if (skipTimer <= 0) {
+            clearInterval(skipInterval);
+            document.getElementById('skipAdBtn').innerHTML = '<i class="fas fa-forward"></i> Skip Ad';
+            document.getElementById('skipAdBtn').onclick = skipAd;
+        }
+    }, 1000);
+}
+
+// Update Ad Progress
+function updateAdProgress() {
+    if (isAdPlaying && player && player.currentTime()) {
+        const currentTime = player.currentTime();
+        const progressPercent = (currentTime / adDuration) * 100;
+        document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
+    }
+}
+
+// Skip Ad
+function skipAd() {
+    if (isAdPlaying) {
+        clearAdTimers();
+        loadMainVideo();
+        showToast('Ad skipped');
+    }
+}
+
+// Clear Ad Timers
+function clearAdTimers() {
+    if (adInterval) {
+        clearInterval(adInterval);
+        adInterval = null;
+    }
+    if (skipInterval) {
+        clearInterval(skipInterval);
+        skipInterval = null;
     }
 }
 
 // Load Main Video
 async function loadMainVideo() {
     try {
+        // Clear ad timers
+        clearAdTimers();
+        
+        // Hide ad UI elements
+        document.getElementById('adIndicator').style.display = 'none';
+        document.getElementById('adProgressContainer').style.display = 'none';
+        document.getElementById('adNotice').style.display = 'none';
+        document.getElementById('skipAdBtn').style.display = 'none';
+        
+        // Show loading
+        showLoading();
+        
         // Get main video URL
         const videoUrl = await getVideoUrl(currentQuality);
+        
+        if (!videoUrl) {
+            throw new Error("No video URL available");
+        }
         
         // Set video source
         player.src({
@@ -843,17 +1036,31 @@ async function loadMainVideo() {
             type: 'video/mp4'
         });
         
-        // Load the video
         player.load();
         
-        // Update file info
-        updateFileInfo();
+        // Update state
+        isAdPlaying = false;
         
-        showToast('Video loaded successfully');
+        // When main video metadata loads
+        player.one('loadedmetadata', () => {
+            hideLoading();
+            updateFileInfo();
+            
+            // Try to auto-play main video
+            player.play().catch(e => {
+                console.log("Main video autoplay blocked");
+                // Show play button if autoplay is blocked
+            });
+            
+            // Show Video.js controls
+            player.controlBar.show();
+            
+            showToast('Video loaded successfully');
+        });
         
     } catch (error) {
         console.error("Failed to load main video:", error);
-        showToast("Failed to load video");
+        showError("Failed to load video. Please try again.");
     }
 }
 
@@ -866,7 +1073,6 @@ async function loadMetadata() {
         
         if (data.status === 'success' && data.metadata) {
             movieMetadata = data.metadata;
-            updateFileInfo();
         }
     } catch (error) {
         console.warn("Metadata load failed:", error);
@@ -901,8 +1107,15 @@ async function changeQuality(newQuality) {
         
         showToast(`Changing to ${newQuality}...`);
         
+        // Show loading
+        showLoading();
+        
         // Get new video URL
         const newVideoUrl = await getVideoUrl(newQuality);
+        
+        if (!newVideoUrl) {
+            throw new Error("No video URL available");
+        }
         
         // Update video source
         player.src({
@@ -910,20 +1123,24 @@ async function changeQuality(newQuality) {
             type: 'video/mp4'
         });
         
-        // Load the video
         player.load();
         
-        // Restore playback state
-        if (wasPlaying) {
-            await player.play();
-        }
-        player.currentTime(currentTime);
-        
-        // Update UI
-        currentQuality = newQuality;
-        document.getElementById('infoQuality').textContent = newQuality;
-        
-        showToast(`Quality changed to ${newQuality}`);
+        // When new video loads
+        player.one('loadedmetadata', () => {
+            hideLoading();
+            
+            // Restore playback state
+            if (wasPlaying) {
+                player.play();
+            }
+            player.currentTime(Math.min(currentTime, player.duration() - 1));
+            
+            // Update UI
+            currentQuality = newQuality;
+            document.getElementById('infoQuality').textContent = newQuality;
+            
+            showToast(`Quality changed to ${newQuality}`);
+        });
         
     } catch (error) {
         console.error("Error changing quality:", error);
@@ -934,22 +1151,31 @@ async function changeQuality(newQuality) {
 // Utility Functions
 async function getVideoUrl(quality = currentQuality) {
     try {
-        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-        const response = await fetchWithTimeout(apiUrl, 5000);
-        const data = await response.json();
+        // First try stream API
+        const streamApiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
+        const streamResponse = await fetchWithTimeout(streamApiUrl, 5000);
+        const streamData = await streamResponse.json();
         
-        if (data.status === 'success' && data.stream_info?.stream_url) {
-            return data.stream_info.stream_url;
+        if (streamData.status === 'success' && streamData.stream_info?.stream_url) {
+            return streamData.stream_info.stream_url;
         }
-        throw new Error("No stream URL");
     } catch (error) {
-        return await getDownloadUrl(quality);
+        console.warn("Stream API failed:", error);
+    }
+    
+    // Fallback to download API
+    try {
+        const downloadUrl = await getDownloadUrl(quality);
+        return downloadUrl;
+    } catch (error) {
+        console.error("All API calls failed:", error);
+        return null;
     }
 }
 
 async function getDownloadUrl(quality) {
     const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-    const response = await fetch(apiUrl);
+    const response = await fetchWithTimeout(apiUrl, 5000);
     const data = await response.json();
     return data.status === 'success' ? data.download_url : null;
 }
@@ -965,29 +1191,39 @@ function setupDownloadMenus() {
     const fastMenu = document.getElementById('fastDownloadMenu');
     fastMenu.innerHTML = qualities.map(q => `
         <button class="quality-btn" onclick="startFastDownload('${q.quality}')">
-            <i class="${q.icon}"></i>
+            <i class="${q.icon}"></i> ${q.label}
         </button>
     `).join('');
     
     const telegramMenu = document.getElementById('telegramDownloadMenu');
     telegramMenu.innerHTML = qualities.map(q => `
         <button class="quality-btn" onclick="startTelegramDownload('${q.quality}')">
-            <i class="fab fa-telegram"></i>
+            <i class="fab fa-telegram"></i> ${q.label}
         </button>
     `).join('');
 }
 
 async function startFastDownload(quality) {
     try {
+        showToast(`Preparing ${quality} download...`);
         const downloadUrl = await getDownloadUrl(quality);
         if (downloadUrl) {
+            // Create download link
             const link = document.createElement('a');
             link.href = downloadUrl;
-            link.download = `SK4FiLM_${quality}.mp4`;
+            link.download = `SK4FiLM_${movieMetadata.file_name || 'video'}_${quality}.mp4`;
             link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            
+            // Add to document and click
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(link);
+            }, 100);
+            
             showToast(`Downloading ${quality}...`);
         } else {
             showToast("Download failed. Try Telegram.");
@@ -1018,20 +1254,21 @@ function formatDuration(seconds) {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    const hours = Math.floor(mins / 60);
     
-    if (hours > 0) {
-        return `${hours}:${(mins % 60).toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    if (mins > 59) {
+        const hours = Math.floor(mins / 60);
+        const remainingMins = mins % 60;
+        return `${hours}:${remainingMins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function updateVolumeDisplay() {
-    // Volume is handled by Video.js
+function showLoading() {
+    document.getElementById('loadingContainer').style.display = 'flex';
 }
 
-function updateFullscreenIcon() {
-    // Fullscreen is handled by Video.js
+function hideLoading() {
+    document.getElementById('loadingContainer').style.display = 'none';
 }
 
 function showToast(message, duration = 3000) {
@@ -1050,11 +1287,12 @@ function showError(message) {
         <div class="error-container">
             <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
             <h5>${escapeHtml(message)}</h5>
-            <button class="btn btn-sm btn-outline-light mt-2" onclick="location.reload()">
+            <button class="btn btn-outline-light mt-2" onclick="location.reload()">
                 <i class="fas fa-redo me-1"></i>Retry
             </button>
         </div>
     `;
+    hideLoading();
 }
 
 function fetchWithTimeout(url, timeout = 5000) {
@@ -1072,9 +1310,18 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Add functions to window for button clicks
+window.changeQuality = changeQuality;
+window.startFastDownload = startFastDownload;
+window.startTelegramDownload = startTelegramDownload;
+window.skipAd = skipAd;
+
+// Initialize when page loads
 console.log("🎬 SK4FiLM Video.js Player Ready!");
-console.log("📺 Using Video.js with IMA ads plugin");
-console.log("⚡ Auto-play ads on click");
+console.log("⚡ Auto-play ads WITHOUT click - starts immediately");
+console.log("⏱️ Skip ad button after 5 seconds");
+console.log("📱 Responsive design with mobile ads");
+console.log("🎯 Top banner ads: Desktop (728x90), Mobile (320x50)");
 </script>
 </body>
 </html>
