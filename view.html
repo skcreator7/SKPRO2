@@ -234,10 +234,10 @@
             background: rgba(255, 68, 0, 0.8);
         }
         
-        /* File Information */
+        /* File Information - ONLY 2 ITEMS */
         .file-info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin: 1rem 0;
             padding: 15px;
@@ -263,6 +263,7 @@
             color: #f8f9fa;
             font-weight: 600;
             font-size: 1rem;
+            word-break: break-all;
         }
         
         /* Action Buttons */
@@ -441,6 +442,12 @@
             margin-bottom: 1rem;
         }
         
+        /* Bottom Ad */
+        .ad-container {
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
         /* Disclaimer */
         .disclaimer {
             background: rgba(255, 0, 0, 0.1);
@@ -525,7 +532,6 @@
             }
             
             .file-info-grid {
-                grid-template-columns: repeat(2, 1fr);
                 padding: 10px;
             }
             
@@ -551,7 +557,7 @@
             }
             
             .file-info-grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: 1fr;
                 gap: 8px;
             }
             
@@ -644,23 +650,15 @@
         </div>
     </div>
 
-    <!-- File Information -->
+    <!-- File Information - ONLY 2 ITEMS (NAME & SIZE) -->
     <div class="file-info-grid" id="fileInfo">
         <div class="info-item">
-            <span class="info-label">QUALITY</span>
-            <span class="info-value" id="infoQuality">HD</span>
+            <span class="info-label">FILE NAME</span>
+            <span class="info-value" id="infoName">Loading...</span>
         </div>
         <div class="info-item">
-            <span class="info-label">SIZE</span>
-            <span class="info-value" id="infoSize">...</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">FORMAT</span>
-            <span class="info-value" id="infoFormat">MP4</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">DURATION</span>
-            <span class="info-value" id="infoDuration">--:--</span>
+            <span class="info-label">FILE SIZE</span>
+            <span class="info-value" id="infoSize">Loading...</span>
         </div>
     </div>
 
@@ -830,8 +828,6 @@ async function initializeVideoJSPlayer() {
                 startAdTimer();
                 startSkipTimer();
             } else {
-                const duration = formatDuration(player.duration());
-                document.getElementById('infoDuration').textContent = duration;
                 hideLoading();
             }
         });
@@ -839,8 +835,6 @@ async function initializeVideoJSPlayer() {
         player.on('timeupdate', () => {
             if (isAdPlaying) {
                 updateAdProgress();
-            } else {
-                updateFileInfo();
             }
         });
         
@@ -913,6 +907,40 @@ async function initializeVideoJSPlayer() {
         console.error("Video.js init error:", error);
         throw error;
     }
+}
+
+// Load Metadata
+async function loadMetadata() {
+    try {
+        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
+        const response = await fetchWithTimeout(apiUrl, 5000);
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.metadata) {
+            movieMetadata = data.metadata;
+            updateFileInfo(); // Update only file name and size
+        } else {
+            throw new Error("Failed to load metadata");
+        }
+    } catch (error) {
+        console.warn("Metadata load failed:", error);
+        movieMetadata = {
+            file_name: 'Unknown File',
+            file_size: 0
+        };
+        updateFileInfo();
+    }
+}
+
+// Update File Information - ONLY NAME AND SIZE
+function updateFileInfo() {
+    // Show file name
+    const fileName = movieMetadata.file_name || 'Unknown File';
+    document.getElementById('infoName').textContent = fileName;
+    
+    // Show file size
+    const fileSize = formatSize(movieMetadata.file_size || 0);
+    document.getElementById('infoSize').textContent = fileSize;
 }
 
 // Start Onclick Ad
@@ -1066,7 +1094,6 @@ async function loadMainVideo() {
         // When main video metadata loads
         player.one('loadedmetadata', () => {
             hideLoading();
-            updateFileInfo();
             
             // Auto-play main video
             player.play().catch(e => {
@@ -1080,36 +1107,6 @@ async function loadMainVideo() {
     } catch (error) {
         console.error("Failed to load main video:", error);
         showError("Failed to load video. Please try again.");
-    }
-}
-
-// Load Metadata
-async function loadMetadata() {
-    try {
-        const apiUrl = `${API_ENDPOINTS[CURRENT_API]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
-        const response = await fetchWithTimeout(apiUrl, 5000);
-        const data = await response.json();
-        
-        if (data.status === 'success' && data.metadata) {
-            movieMetadata = data.metadata;
-        }
-    } catch (error) {
-        console.warn("Metadata load failed:", error);
-        movieMetadata = {
-            file_name: 'video.mp4',
-            file_size: 0,
-            quality: initialQuality
-        };
-    }
-}
-
-// Update File Information
-function updateFileInfo() {
-    if (player && player.duration()) {
-        document.getElementById('infoQuality').textContent = currentQuality;
-        document.getElementById('infoSize').textContent = formatSize(movieMetadata.file_size || 0);
-        document.getElementById('infoFormat').textContent = 'MP4';
-        document.getElementById('infoDuration').textContent = formatDuration(player.duration());
     }
 }
 
@@ -1156,7 +1153,6 @@ async function changeQuality(newQuality) {
             
             // Update UI
             currentQuality = newQuality;
-            document.getElementById('infoQuality').textContent = newQuality;
             
             showToast(`Quality changed to ${newQuality}`);
         });
@@ -1266,7 +1262,7 @@ function formatSize(bytes) {
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
 function formatDuration(seconds) {
@@ -1338,6 +1334,7 @@ window.skipAd = skipAd;
 // Initialize when page loads
 console.log("🎬 SK4FiLM Video.js Player Ready!");
 console.log("⚡ Onclick Ads System Integrated");
+console.log("📁 File Information: Name & Size only");
 console.log("🎯 VAST Ad URL: " + ONCLICK_AD_URL);
 console.log("⏱️ Skip ad button after 5 seconds");
 console.log("📱 Responsive design with mobile ads");
