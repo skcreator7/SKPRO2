@@ -6,20 +6,6 @@
     <title>Stream Movie - SK4FiLM</title>
     <meta name="description" content="Stream and download movies in HD quality">
     
-    <!-- HilltopAds Script -->
-    <script>
-        // HilltopAds Configuration
-        const HILLTOPADS_CONFIG = {
-            publisherId: '6744533-6744534', // Replace with your HilltopAds publisher ID
-            adTagUrl: 'https://firsthandhall.com/d/m/F.zZdQGeN/vwZoGxUl/leGm/9PuWZnU/lwk/P/TTYL3oNcDqQm1MMUz/M-tON/j/c/0LN_DeUYz/NIAG', // Replace with your tag
-            preRoll: true,
-            midRoll: false, // Set to true if you want mid-roll ads
-            postRoll: false, // Set to true if you want post-roll ads
-            skipOffset: 0, // No skip button (0 seconds)
-            adTimeout: 10000 // 10 seconds timeout for ad loading
-        };
-    </script>
-
     <!-- Video.js VAST Plugin -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/videojs-vast-vpaid/2.0.5/videojs.vast.vpaid.min.js"></script>
     
@@ -228,6 +214,48 @@
             background: linear-gradient(135deg, #0088cc 0%, #00aced 100%);
         }
         
+        /* Dropdown Content */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: rgba(30, 41, 59, 0.98);
+            backdrop-filter: blur(10px);
+            min-width: 180px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            border-radius: 8px;
+            z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-top: 5px;
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        
+        /* Quality Buttons */
+        .quality-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .quality-btn:last-child {
+            border-bottom: none;
+        }
+        
+        .quality-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
         /* Donation Section */
         .donation-section {
             background: rgba(255, 193, 7, 0.1);
@@ -238,6 +266,13 @@
             text-align: center;
         }
         
+        .donation-title {
+            color: #FFC107;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
         .donation-qr {
             width: 180px;
             height: 180px;
@@ -246,6 +281,49 @@
             border: 2px solid rgba(255, 193, 7, 0.3);
             padding: 5px;
             background: white;
+        }
+        
+        .donate-btn {
+            background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+            color: #000;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.3s;
+        }
+        
+        .donate-btn:hover {
+            transform: scale(1.05);
+            color: #000;
+        }
+        
+        /* Loading State */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Toast Notification */
@@ -339,8 +417,8 @@
         </video>
         
         <!-- Loading State -->
-        <div class="loading-container" id="loadingContainer" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 400px; text-align: center;">
-            <div class="loading-spinner" style="width: 50px; height: 50px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: var(--primary-color); animation: spin 1s ease-in-out infinite; margin-bottom: 1rem;"></div>
+        <div class="loading-container" id="loadingContainer" style="display: none;">
+            <div class="loading-spinner"></div>
             <h5>Loading Content...</h5>
         </div>
     </div>
@@ -363,7 +441,7 @@
             <button class="dropdown-btn">
                 <i class="fas fa-bolt"></i>FAST DOWNLOAD
             </button>
-            <div class="dropdown-content" id="fastDownloadMenu" style="display: none; position: absolute; background: rgba(30, 41, 59, 0.98); min-width: 180px; border-radius: 8px; z-index: 1000;">
+            <div class="dropdown-content" id="fastDownloadMenu">
                 <!-- Quality buttons added by JS -->
             </div>
         </div>
@@ -372,7 +450,7 @@
             <button class="dropdown-btn telegram">
                 <i class="fab fa-telegram"></i>DOWNLOAD NOW
             </button>
-            <div class="dropdown-content" id="telegramDownloadMenu" style="display: none; position: absolute; background: rgba(30, 41, 59, 0.98); min-width: 180px; border-radius: 8px; z-index: 1000;">
+            <div class="dropdown-content" id="telegramDownloadMenu">
                 <!-- Quality buttons added by JS -->
             </div>
         </div>
@@ -380,7 +458,7 @@
 
     <!-- Donation Section -->
     <div class="donation-section">
-        <h3 class="donation-title" style="color: #FFC107; font-size: 1.2rem; margin-bottom: 1rem; font-weight: 600;">
+        <h3 class="donation-title">
             <i class="fas fa-heart me-2"></i>Donate To Upgrade Direct Streaming Service
         </h3>
         <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
@@ -388,13 +466,13 @@
              class="donation-qr img-fluid">
         <p class="text-light mb-3">UPI ID: cf.sk4film@cashfreensdlpb</p>
         <a href="https://cfpe.me/skfilmbox" target="_blank" 
-           class="donate-btn" style="background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%); color: #000; border: none; padding: 12px 25px; border-radius: 25px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+           class="donate-btn">
             <i class="fas fa-donate me-2"></i>DONATE NOW
         </a>
     </div>
 
     <!-- Disclaimer -->
-    <div class="disclaimer" style="background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.2); border-radius: 6px; padding: 12px; margin-top: 1.5rem; text-align: center; color: #ff6b6b; font-size: 0.8rem;">
+    <div class="disclaimer">
         <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong>
         Files are hosted on Telegram, not on our servers.
     </div>
@@ -419,8 +497,8 @@ const API_ENDPOINTS = [
 
 const CURRENT_API = 0;
 
-// HilltopAds VAST Tag URL - REPLACE WITH YOUR ACTUAL TAG
-const HILLTOPADS_VAST_URL = 'https://vast.hilltopads.net/vast.php?publisher=YOUR_PUBLISHER_ID&format=video&ad_type=video';
+// **FIXED: Use the actual HilltopAds VAST tag you provided**
+const HILLTOPADS_VAST_URL = 'https://firsthandhall.com/d/m/F.zZdQGeN/vwZoGxUl/leGm/9PuWZnU/lwk/P/TTYL3oNcDqQm1MMUz/M-tON/j/c/0LN_DeUYz/NIAG';
 
 // URL Parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -492,17 +570,17 @@ async function initializeVideoJSWithVAST() {
             }
         });
 
-        // Initialize VAST plugin
+        // Initialize VAST plugin with NO SKIP functionality
         player.vast({
-            // HilltopAds VAST URL
+            // Use the actual HilltopAds VAST URL
             adTagUrl: HILLTOPADS_VAST_URL,
             
             // Play ad before content (pre-roll)
             playAdAlways: true,
             
-            // No skip button
-            adCancelTimeout: 0,
-            skipOffset: 0,
+            // **NO SKIP BUTTON - Set skipOffset to 99999 (effectively no skip)**
+            skipOffset: 99999,
+            adCancelTimeout: 10000,
             
             // Show ad progress
             showProgress: true,
@@ -513,6 +591,7 @@ async function initializeVideoJSWithVAST() {
                 isAdPlaying = true;
                 showAdUI();
                 showToast('Advertisement playing...');
+                player.trigger('play'); // Auto-play the ad
             },
             
             onAdEnd: function() {
@@ -539,11 +618,6 @@ async function initializeVideoJSWithVAST() {
             }
         });
 
-        // Start ad immediately
-        setTimeout(() => {
-            player.trigger('play');
-        }, 1000);
-        
         // Hide loading
         hideLoading();
         
@@ -561,6 +635,12 @@ async function initializeVideoJSWithVAST() {
                 loadFallbackVideo();
             }
         });
+        
+        // Start the ad immediately
+        setTimeout(() => {
+            // Trigger the ad to start
+            player.trigger('play');
+        }, 500);
         
         console.log("🎬 Video.js with HilltopAds Ready");
         
@@ -696,9 +776,6 @@ async function loadFallbackVideo() {
     }
 }
 
-// Rest of the functions remain similar to previous code...
-// (getVideoUrl, updateFileInfo, setupDownloadMenus, helper functions, etc.)
-
 // Load Metadata in Background
 async function loadMetadataInBackground() {
     try {
@@ -758,27 +835,17 @@ function setupDownloadMenus() {
     
     const fastMenu = document.getElementById('fastDownloadMenu');
     fastMenu.innerHTML = qualities.map(q => `
-        <button class="quality-btn" onclick="startFastDownload('${q.quality}')" style="width: 100%; padding: 12px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <button class="quality-btn" onclick="startFastDownload('${q.quality}')">
             <i class="${q.icon}"></i> ${q.label}
         </button>
     `).join('');
     
     const telegramMenu = document.getElementById('telegramDownloadMenu');
     telegramMenu.innerHTML = qualities.map(q => `
-        <button class="quality-btn" onclick="startTelegramDownload('${q.quality}')" style="width: 100%; padding: 12px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <button class="quality-btn" onclick="startTelegramDownload('${q.quality}')">
             <i class="fab fa-telegram"></i> ${q.label}
         </button>
     `).join('');
-    
-    // Show dropdown on hover
-    document.querySelectorAll('.dropdown').forEach(dropdown => {
-        dropdown.addEventListener('mouseenter', () => {
-            dropdown.querySelector('.dropdown-content').style.display = 'block';
-        });
-        dropdown.addEventListener('mouseleave', () => {
-            dropdown.querySelector('.dropdown-content').style.display = 'none';
-        });
-    });
 }
 
 // Download Functions
@@ -891,8 +958,9 @@ window.startFastDownload = startFastDownload;
 window.startTelegramDownload = startTelegramDownload;
 
 console.log("🎬 SK4FiLM Player with HilltopAds Initialized");
-console.log("📺 Real ads from HilltopAds will play without skip button");
+console.log("📺 Using HilltopAds VAST URL:", HILLTOPADS_VAST_URL);
 console.log("🔒 No skip option - users must watch full ads");
+console.log("⏱️ Ads will play automatically before content");
 </script>
 </body>
 </html>
