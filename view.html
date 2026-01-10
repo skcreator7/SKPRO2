@@ -105,29 +105,44 @@
             display: none !important;
         }
         
-        /* Ad Overlay */
+        /* Ad Overlay - Clean Version */
         .ad-overlay {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
             z-index: 1000;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
+        /* Ad Timer */
+        .ad-timer {
+            background: rgba(255, 68, 0, 0.9);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 12px;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        /* Ad Progress Bar - Minimal */
         .ad-progress {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.2);
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
             z-index: 1001;
         }
         
@@ -135,17 +150,8 @@
             height: 100%;
             background: linear-gradient(90deg, #ff6b00, #ff0000);
             width: 0%;
-            transition: width 0.1s linear;
-        }
-        
-        /* Ad Information */
-        .ad-info {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 11px;
-            z-index: 1000;
+            transition: width 0.3s linear;
+            border-radius: 0 2px 2px 0;
         }
         
         /* File Information */
@@ -364,8 +370,31 @@
             }
             
             .ad-overlay {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+            
+            .ad-timer {
+                font-size: 11px;
+                padding: 1px 6px;
+                min-width: 35px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .ad-overlay {
                 font-size: 10px;
-                padding: 3px 8px;
+                padding: 3px 6px;
+            }
+            
+            .ad-timer {
+                font-size: 10px;
+                padding: 1px 4px;
+                min-width: 30px;
+            }
+            
+            .ad-progress {
+                height: 3px;
             }
         }
     </style>
@@ -388,24 +417,20 @@
     <!-- Ad Notice -->
     <div class="ad-notice" style="background: rgba(255, 107, 0, 0.1); border: 1px solid rgba(255, 107, 0, 0.3); border-radius: 6px; padding: 10px; margin: 10px 0; text-align: center; color: #ff6b00; font-size: 0.9rem;">
         <i class="fas fa-ad me-2"></i>
-        Supporting our service with HilltopAds. Ads cannot be skipped.
+        Ads support our service. Please watch the advertisement.
     </div>
 
     <!-- Video Container -->
     <div class="video-container" id="videoContainer">
-        <!-- Ad Overlay -->
+        <!-- Ad Overlay - Simple Timer Only -->
         <div class="ad-overlay" id="adOverlay" style="display: none;">
-            <i class="fas fa-ad"></i> <span id="adText">Advertisement</span> <span id="adTimer">0:00</span>
+            <i class="fas fa-ad"></i> AD
+            <span class="ad-timer" id="adTimer">0:00</span>
         </div>
         
-        <!-- Ad Progress -->
+        <!-- Ad Progress Bar Only -->
         <div class="ad-progress" id="adProgress" style="display: none;">
             <div class="ad-progress-bar" id="adProgressBar"></div>
-        </div>
-        
-        <!-- Ad Info -->
-        <div class="ad-info" id="adInfo" style="display: none;">
-            Ad by HilltopAds
         </div>
         
         <!-- Video.js Player -->
@@ -472,7 +497,7 @@
     </div>
 
     <!-- Disclaimer -->
-    <div class="disclaimer">
+    <div class="disclaimer" style="background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.2); border-radius: 6px; padding: 12px; margin-top: 1.5rem; text-align: center; color: #ff6b6b; font-size: 0.8rem;">
         <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong>
         Files are hosted on Telegram, not on our servers.
     </div>
@@ -497,7 +522,7 @@ const API_ENDPOINTS = [
 
 const CURRENT_API = 0;
 
-// **FIXED: Use the actual HilltopAds VAST tag you provided**
+// HilltopAds VAST Tag URL
 const HILLTOPADS_VAST_URL = 'https://firsthandhall.com/d/m/F.zZdQGeN/vwZoGxUl/leGm/9PuWZnU/lwk/P/TTYL3oNcDqQm1MMUz/M-tON/j/c/0LN_DeUYz/NIAG';
 
 // URL Parameters
@@ -532,7 +557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Setup download menus
         setupDownloadMenus();
         
-        console.log("🎬 Video.js Player with HilltopAds Initialized");
+        console.log("🎬 Video.js Player Initialized");
         
     } catch (error) {
         console.error("Initialization error:", error);
@@ -572,37 +597,46 @@ async function initializeVideoJSWithVAST() {
 
         // Initialize VAST plugin with NO SKIP functionality
         player.vast({
-            // Use the actual HilltopAds VAST URL
+            // Use the HilltopAds VAST URL
             adTagUrl: HILLTOPADS_VAST_URL,
             
             // Play ad before content (pre-roll)
             playAdAlways: true,
             
-            // **NO SKIP BUTTON - Set skipOffset to 99999 (effectively no skip)**
+            // NO SKIP BUTTON - Set to very high number
             skipOffset: 99999,
             adCancelTimeout: 10000,
             
-            // Show ad progress
+            // Show ad progress (plugin's built-in)
             showProgress: true,
             
             // Callbacks
             onAdStart: function() {
-                console.log("HilltopAds: Ad started");
+                console.log("Ad started");
                 isAdPlaying = true;
                 showAdUI();
                 showToast('Advertisement playing...');
-                player.trigger('play'); // Auto-play the ad
+                
+                // Hide Video.js controls during ad
+                player.controlBar.hide();
+                
+                // Auto-play the ad
+                setTimeout(() => {
+                    player.play().catch(e => {
+                        console.log("Ad autoplay blocked");
+                    });
+                }, 300);
             },
             
             onAdEnd: function() {
-                console.log("HilltopAds: Ad ended");
+                console.log("Ad ended");
                 isAdPlaying = false;
                 hideAdUI();
                 loadMainVideo();
             },
             
             onAdError: function(error) {
-                console.error("HilltopAds Error:", error);
+                console.error("Ad Error:", error);
                 isAdPlaying = false;
                 hideAdUI();
                 showToast('Ad error, loading content...');
@@ -610,21 +644,35 @@ async function initializeVideoJSWithVAST() {
             },
             
             onAdTimeout: function() {
-                console.log("HilltopAds: Ad timeout");
+                console.log("Ad timeout");
                 isAdPlaying = false;
                 hideAdUI();
                 showToast('Ad timeout, loading content...');
                 loadMainVideo();
+            },
+            
+            // Additional ad events
+            onAdSkip: function() {
+                // This won't trigger since skipOffset is 99999
+                console.log("Ad skipped (should not happen)");
+            },
+            
+            onAdProgress: function(progress) {
+                // Update our custom progress bar
+                updateAdProgressBar(progress);
             }
         });
 
-        // Hide loading
-        hideLoading();
-        
         // Setup player events for main content
         player.on('loadedmetadata', () => {
             if (!isAdPlaying) {
                 showToast('Video loaded successfully');
+            }
+        });
+        
+        player.on('timeupdate', () => {
+            if (isAdPlaying) {
+                updateAdTimer();
             }
         });
         
@@ -636,11 +684,21 @@ async function initializeVideoJSWithVAST() {
             }
         });
         
+        player.on('ended', () => {
+            if (isAdPlaying) {
+                // Ad ended, load main video
+                clearAdTimer();
+                loadMainVideo();
+            }
+        });
+        
         // Start the ad immediately
         setTimeout(() => {
-            // Trigger the ad to start
             player.trigger('play');
         }, 500);
+        
+        // Hide loading
+        hideLoading();
         
         console.log("🎬 Video.js with HilltopAds Ready");
         
@@ -650,16 +708,12 @@ async function initializeVideoJSWithVAST() {
     }
 }
 
-// Show Ad UI
+// Show Ad UI - Only timer and progress bar
 function showAdUI() {
     document.getElementById('adOverlay').style.display = 'flex';
     document.getElementById('adProgress').style.display = 'block';
-    document.getElementById('adInfo').style.display = 'block';
     
-    // Hide player controls during ad
-    player.controlBar.hide();
-    
-    // Start ad timer
+    // Start ad timer update
     startAdTimer();
 }
 
@@ -667,7 +721,6 @@ function showAdUI() {
 function hideAdUI() {
     document.getElementById('adOverlay').style.display = 'none';
     document.getElementById('adProgress').style.display = 'none';
-    document.getElementById('adInfo').style.display = 'none';
     
     // Show player controls
     player.controlBar.show();
@@ -682,20 +735,35 @@ function startAdTimer() {
     
     adInterval = setInterval(() => {
         if (isAdPlaying && player && !player.paused()) {
-            const currentTime = player.currentTime();
-            adDuration = player.duration() || 30; // Default 30 seconds if unknown
-            
-            const remaining = Math.max(0, adDuration - currentTime);
-            const progressPercent = (currentTime / adDuration) * 100;
-            
-            document.getElementById('adTimer').textContent = formatDuration(remaining);
-            document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
-            
-            if (remaining <= 1) {
-                clearInterval(adInterval);
-            }
+            updateAdTimer();
         }
     }, 100);
+}
+
+// Update Ad Timer
+function updateAdTimer() {
+    if (isAdPlaying && player) {
+        const currentTime = player.currentTime();
+        adDuration = player.duration() || 30; // Default 30 seconds if unknown
+        
+        const remaining = Math.max(0, adDuration - currentTime);
+        document.getElementById('adTimer').textContent = formatDuration(remaining);
+        
+        // Update progress bar
+        const progressPercent = (currentTime / adDuration) * 100;
+        document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
+        
+        if (remaining <= 0.1) {
+            clearAdTimer();
+        }
+    }
+}
+
+// Update Ad Progress Bar (called by VAST plugin)
+function updateAdProgressBar(progress) {
+    if (isAdPlaying) {
+        document.getElementById('adProgressBar').style.width = `${progress * 100}%`;
+    }
 }
 
 // Clear Ad Timer
@@ -736,7 +804,7 @@ async function loadMainVideo() {
             hideLoading();
             showToast('Content playing...');
             player.play().catch(e => {
-                console.log("Autoplay blocked, user interaction required");
+                console.log("Autoplay blocked, click to play");
             });
         });
         
@@ -957,10 +1025,10 @@ function escapeHtml(text) {
 window.startFastDownload = startFastDownload;
 window.startTelegramDownload = startTelegramDownload;
 
-console.log("🎬 SK4FiLM Player with HilltopAds Initialized");
-console.log("📺 Using HilltopAds VAST URL:", HILLTOPADS_VAST_URL);
-console.log("🔒 No skip option - users must watch full ads");
-console.log("⏱️ Ads will play automatically before content");
+console.log("🎬 SK4FiLM Player Initialized");
+console.log("📺 Using HilltopAds VAST");
+console.log("⏱️ Ad timer and progress bar only");
+console.log("❌ No skip button");
 </script>
 </body>
 </html>
