@@ -6,8 +6,8 @@
     <title>Stream Movie - SK4FiLM</title>
     <meta name="description" content="Stream and download movies in HD quality">
     
-    <!-- Video.js CSS -->
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <!-- Plyr CSS -->
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -23,6 +23,7 @@
             --accent-color: #00ccff;
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
+            --plyr-color-main: #ff0000;
         }
         
         body {
@@ -82,31 +83,48 @@
             position: relative;
         }
         
-        /* Video.js Player Styling */
-        .video-js {
+        /* HTML5 Video Player */
+        .html5-video-player {
             width: 100%;
             height: 70vh;
             min-height: 400px;
             max-height: 600px;
             background: #000;
             border-radius: 8px;
+            overflow: hidden;
         }
         
-        .vjs-big-play-button {
-            background: rgba(255, 0, 0, 0.7) !important;
+        /* Custom Plyr Override */
+        .plyr {
+            height: 100%;
+            border-radius: 8px;
+        }
+        
+        .plyr__video-wrapper {
+            height: 100%;
+        }
+        
+        .plyr__video-embed,
+        .plyr__video-wrapper--fixed-ratio {
+            height: 100%;
+        }
+        
+        .plyr--video .plyr__controls {
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+            padding: 10px 20px;
+        }
+        
+        .plyr__control--overlaid {
+            background: rgba(255, 0, 0, 0.8) !important;
             border: 2px solid white !important;
-            border-radius: 50% !important;
-            width: 80px !important;
-            height: 80px !important;
-            line-height: 80px !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%);
-            font-size: 2.5rem !important;
         }
         
-        .vjs-big-play-button:hover {
+        .plyr__control--overlaid:hover {
             background: rgba(255, 0, 0, 0.9) !important;
+        }
+        
+        .plyr--fullscreen-active .plyr__video-wrapper {
+            height: 100vh;
         }
         
         /* Ad Overlay */
@@ -177,12 +195,31 @@
             height: 90%;
             border: none;
             background: white;
+            border-radius: 8px;
         }
         
         .ad-loading {
             color: white;
             text-align: center;
             margin-top: 20px;
+        }
+        
+        /* Separate Ad Video Player */
+        .ad-video-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 998;
+            background: #000;
+            display: none;
+        }
+        
+        .ad-video-player video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
         
         /* File Information */
@@ -405,21 +442,24 @@
                 padding-top: 60px;
             }
             
-            .video-js {
+            .html5-video-player {
                 height: 50vh;
                 min-height: 300px;
-            }
-            
-            .vjs-big-play-button {
-                width: 60px !important;
-                height: 60px !important;
-                line-height: 60px !important;
-                font-size: 2rem !important;
             }
             
             .hilltopad-frame {
                 width: 95%;
                 height: 85%;
+            }
+            
+            .plyr__control--overlaid {
+                width: 50px !important;
+                height: 50px !important;
+            }
+            
+            .plyr__control--overlaid svg {
+                width: 20px !important;
+                height: 20px !important;
             }
         }
     </style>
@@ -450,15 +490,21 @@
         <!-- HilltopAds Container -->
         <div class="hilltopad-container" id="hilltopadContainer">
             <iframe class="hilltopad-frame" id="hilltopadFrame" 
-                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
                     scrolling="no"
                     frameborder="0"
                     marginwidth="0"
-                    marginheight="0"></iframe>
+                    marginheight="0"
+                    allow="autoplay; fullscreen"></iframe>
             <div class="ad-loading" id="adLoading">
                 <div class="loading-spinner"></div>
-                <p>Loading advertisement...</p>
+                <p>Loading HilltopAds advertisement...</p>
             </div>
+        </div>
+        
+        <!-- Separate Ad Video Player (for fallback) -->
+        <div class="ad-video-player" id="adVideoPlayer">
+            <video id="fallbackAdVideo" playsinline></video>
         </div>
         
         <!-- Ad Overlay -->
@@ -471,13 +517,15 @@
             <div class="ad-progress-bar" id="adProgressBar"></div>
         </div>
         
-        <!-- Main Video.js Player -->
-        <video id="sk4filmPlayer" class="video-js vjs-default-skin" controls preload="auto" playsinline>
-            <p class="vjs-no-js">
-                To view this video please enable JavaScript, and consider upgrading to a
-                web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-            </p>
-        </video>
+        <!-- Main HTML5 Video Player with Plyr -->
+        <div class="html5-video-player" id="mainVideoPlayer">
+            <video id="sk4filmPlayer" playsinline controls>
+                <p class="vjs-no-js">
+                    To view this video please enable JavaScript, and consider upgrading to a
+                    web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                </p>
+            </video>
+        </div>
         
         <!-- Loading State -->
         <div class="loading-container" id="loadingContainer">
@@ -544,8 +592,8 @@
 <!-- Toast Notification Container -->
 <div class="toast" id="toast"></div>
 
-<!-- Video.js Library -->
-<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<!-- Plyr JS -->
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -557,20 +605,18 @@ const API_ENDPOINTS = [
     'https://fast-download-skcreator7.koyeb.app'
 ];
 
-// **FIXED: HilltopAds URL - Working Format**
-const HILLTOPADS_URL = 'https://hilltopads.com/page?ref=6744533-6744534';
-
-// Alternative HilltopAds URLs
+// HilltopAds URLs
 const HILLTOPADS_URLS = [
     'https://hilltopads.com/page?ref=6744533-6744534',
     'https://firsthandhall.com/dFmHF.zldMGPNXvfZLG/UA/HeEmN9Vu/ZPUllrk/PNTkYH3BNUD/Q/1nMlzxMct/NGj/c/0JNKD/U/zfNSCUZGswatW/1ypndcD/0TxL',
     'https://firsthandhall.com/d.mfFXzXdFGuN/v/ZvG/Uv/zeamk9uu/ZtUWlPkKPDTpYy3kN/DmQd1/M-zOM/t/NZjYct0/NwDwUVzONcAx'
 ];
 
-// Fallback ads if HilltopAds fails
+// Fallback video ads
 const FALLBACK_ADS = [
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
 ];
 
 // Main content fallback
@@ -586,6 +632,7 @@ const initialQuality = urlParams.get('quality') || 'HD';
 
 // Variables
 let player = null;
+let adPlayer = null;
 let movieMetadata = {};
 let currentQuality = initialQuality;
 let isAdPlaying = false;
@@ -594,10 +641,11 @@ let adDuration = 15; // 15 seconds for HilltopAds ads
 let isUsingFallback = false;
 let currentHilltopAdIndex = 0;
 let adStartTime = null;
+let currentFallbackAdIndex = 0;
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("🎬 SK4FiLM Player with HilltopAds Initializing...");
+    console.log("🎬 SK4FiLM Player with HTML5 Video + Plyr Initializing...");
     
     if (!messageId) {
         showError("No video specified");
@@ -605,8 +653,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // Initialize main Video.js player (hidden initially)
-        await initializeVideoJSPlayer();
+        // Initialize main video player (hidden initially)
+        await initializeMainPlayer();
         
         // Start HilltopAds ad immediately
         await startHilltopAd();
@@ -617,7 +665,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Setup download menus
         setupDownloadMenus();
         
-        console.log("✅ Player with HilltopAds Initialized Successfully");
+        console.log("✅ Player with HTML5 Video + Plyr Initialized Successfully");
         
     } catch (error) {
         console.error("❌ Initialization error:", error);
@@ -625,47 +673,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Initialize Main Video.js Player
-async function initializeVideoJSPlayer() {
+// Initialize Main Video Player with Plyr
+async function initializeMainPlayer() {
     try {
-        console.log("📹 Initializing main video player...");
+        console.log("📹 Initializing HTML5 video player with Plyr...");
         
-        player = videojs('sk4filmPlayer', {
-            controls: true,
+        const videoElement = document.getElementById('sk4filmPlayer');
+        
+        // Initialize Plyr player
+        player = new Plyr(videoElement, {
+            controls: [
+                'play-large',
+                'play',
+                'progress',
+                'current-time',
+                'duration',
+                'mute',
+                'volume',
+                'captions',
+                'settings',
+                'pip',
+                'airplay',
+                'fullscreen'
+            ],
+            settings: ['quality', 'speed'],
+            speed: { selected: 1, options: [0.5, 1, 1.5, 2] },
+            volume: 1,
+            muted: false,
+            clickToPlay: true,
+            disableContextMenu: false,
+            hideControls: false,
+            resetOnEnd: false,
+            keyboard: { focused: true, global: true },
+            tooltips: { controls: true, seek: true },
+            captions: { active: false, language: 'auto', update: false },
+            fullscreen: { enabled: true, fallback: true, iosNative: false },
+            storage: { enabled: true, key: 'plyr' },
             autoplay: false,
-            preload: 'auto',
-            responsive: true,
-            fluid: true,
-            playbackRates: [0.5, 1, 1.5, 2],
-            controlBar: {
-                volumePanel: {
-                    inline: false,
-                    vertical: false
-                },
-                children: [
-                    'playToggle',
-                    'volumePanel',
-                    'currentTimeDisplay',
-                    'timeDivider',
-                    'durationDisplay',
-                    'progressControl',
-                    'remainingTimeDisplay',
-                    'playbackRateMenuButton',
-                    'fullscreenToggle'
-                ]
-            }
+            seekTime: 10,
+            volumeMin: 0,
+            volumeMax: 1,
+            ratio: '16:9'
         });
-
+        
         // Hide main player initially
-        player.hide();
+        videoElement.style.display = 'none';
         
         // Setup player events for main content
-        player.on('loadedmetadata', () => {
-            console.log("✅ Main video loaded");
+        player.on('ready', () => {
+            console.log("✅ Plyr player ready");
+        });
+        
+        player.on('play', () => {
+            console.log("▶️ Video playing");
+        });
+        
+        player.on('pause', () => {
+            console.log("⏸️ Video paused");
+        });
+        
+        player.on('ended', () => {
+            console.log("✅ Video ended");
+            showToast('Video ended');
         });
         
         player.on('error', (e) => {
-            console.error('❌ Main video error:', e);
+            console.error('❌ Player error:', e);
             if (!isUsingFallback) {
                 showToast('Video error, loading fallback...');
                 loadFallbackVideo();
@@ -675,7 +748,7 @@ async function initializeVideoJSPlayer() {
         console.log("✅ Main video player ready (hidden)");
         
     } catch (error) {
-        console.error("❌ Video.js init error:", error);
+        console.error("❌ Player init error:", error);
         throw error;
     }
 }
@@ -691,7 +764,8 @@ async function startHilltopAd() {
         document.getElementById('adProgress').style.display = 'block';
         
         // Hide main player
-        player.hide();
+        document.getElementById('sk4filmPlayer').style.display = 'none';
+        player.pause();
         
         // Get HilltopAds URL
         const hilltopadUrl = HILLTOPADS_URLS[currentHilltopAdIndex % HILLTOPADS_URLS.length];
@@ -721,16 +795,31 @@ async function startHilltopAd() {
         // Set timeout for ad (15 seconds)
         setTimeout(() => {
             if (isAdPlaying) {
-                console.log("⏱️ Ad timeout reached, loading main video");
+                console.log("⏱️ HilltopAds ad timeout reached, loading main video");
                 hideHilltopAd();
                 loadMainVideo();
             }
         }, adDuration * 1000);
         
+        // Listen for iframe messages (if HilltopAds sends completion message)
+        window.addEventListener('message', handleAdMessage);
+        
     } catch (error) {
         console.error("❌ Failed to start HilltopAds ad:", error);
         // Try fallback video ad
         await startFallbackAd();
+    }
+}
+
+// Handle Ad Messages from iframe
+function handleAdMessage(event) {
+    console.log("📨 Received message from ad:", event.data);
+    
+    // Check if ad completed
+    if (event.data === 'adCompleted' || event.data === 'adFinished') {
+        console.log("✅ Ad reported completion via message");
+        hideHilltopAd();
+        loadMainVideo();
     }
 }
 
@@ -742,51 +831,77 @@ async function startFallbackAd() {
         // Hide HilltopAds container
         document.getElementById('hilltopadContainer').style.display = 'none';
         
-        // Show ad overlay
+        // Show ad video player
+        const adVideoPlayer = document.getElementById('adVideoPlayer');
+        const fallbackAdVideo = document.getElementById('fallbackAdVideo');
+        
+        adVideoPlayer.style.display = 'block';
         document.getElementById('adOverlay').style.display = 'flex';
         document.getElementById('adProgress').style.display = 'block';
         
         // Get fallback ad video
-        const fallbackAdUrl = FALLBACK_ADS[0];
+        const fallbackAdUrl = FALLBACK_ADS[currentFallbackAdIndex % FALLBACK_ADS.length];
+        currentFallbackAdIndex++;
         
         console.log(`🎬 Loading fallback ad: ${fallbackAdUrl}`);
         
-        // Use main player for fallback ad
-        player.src({
-            src: fallbackAdUrl,
-            type: 'video/mp4'
-        });
+        // Set ad video source
+        fallbackAdVideo.src = fallbackAdUrl;
+        fallbackAdVideo.load();
         
-        player.load();
-        player.show();
-        player.play().catch(e => {
-            console.log("⏸️ Ad autoplay blocked");
+        // Initialize ad player
+        adPlayer = new Plyr(fallbackAdVideo, {
+            controls: [],
+            autoplay: true,
+            muted: false,
+            clickToPlay: false,
+            hideControls: true,
+            disableContextMenu: true,
+            keyboard: { focused: false, global: false }
         });
         
         isAdPlaying = true;
         adStartTime = Date.now();
         
-        // Set ad duration (get from video metadata)
-        player.one('loadedmetadata', () => {
-            adDuration = player.duration() || 15;
+        // Set ad duration from video
+        fallbackAdVideo.addEventListener('loadedmetadata', () => {
+            adDuration = fallbackAdVideo.duration || 15;
+            console.log(`🎬 Fallback ad duration: ${adDuration}s`);
             startAdTimer();
         });
         
         // When ad ends
-        player.one('ended', () => {
+        fallbackAdVideo.addEventListener('ended', () => {
             if (isAdPlaying) {
                 console.log("✅ Fallback ad finished");
-                hideAd();
+                hideFallbackAd();
                 loadMainVideo();
             }
         });
+        
+        // Ad error handling
+        fallbackAdVideo.addEventListener('error', (e) => {
+            console.error('❌ Fallback ad error:', e);
+            if (isAdPlaying) {
+                hideFallbackAd();
+                loadMainVideo();
+            }
+        });
+        
+        // Try to auto-play
+        setTimeout(() => {
+            fallbackAdVideo.play().catch(e => {
+                console.log("⏸️ Fallback ad autoplay blocked, showing play button");
+                adPlayer.toggleControls(true);
+            });
+        }, 500);
         
         console.log("✅ Fallback ad started");
         
     } catch (error) {
         console.error("❌ Failed to start fallback ad:", error);
         // Skip to main video
-        hideAd();
+        hideAllAds();
         await loadMainVideo();
     }
 }
@@ -804,19 +919,40 @@ function hideHilltopAd() {
     const iframe = document.getElementById('hilltopadFrame');
     iframe.src = 'about:blank';
     
+    // Remove message listener
+    window.removeEventListener('message', handleAdMessage);
+    
     clearAdTimers();
     isAdPlaying = false;
 }
 
-// Hide Ad (for fallback ads)
-function hideAd() {
-    console.log("👋 Hiding ad...");
+// Hide Fallback Ad
+function hideFallbackAd() {
+    console.log("👋 Hiding fallback ad...");
     
+    document.getElementById('adVideoPlayer').style.display = 'none';
     document.getElementById('adOverlay').style.display = 'none';
     document.getElementById('adProgress').style.display = 'none';
     
+    // Pause and reset ad video
+    const fallbackAdVideo = document.getElementById('fallbackAdVideo');
+    fallbackAdVideo.pause();
+    fallbackAdVideo.currentTime = 0;
+    
+    // Destroy Plyr instance
+    if (adPlayer) {
+        adPlayer.destroy();
+        adPlayer = null;
+    }
+    
     clearAdTimers();
     isAdPlaying = false;
+}
+
+// Hide All Ads
+function hideAllAds() {
+    hideHilltopAd();
+    hideFallbackAd();
 }
 
 // Load Main Video
@@ -843,16 +979,19 @@ async function loadMainVideo() {
         isUsingFallback = false;
         
         // Set video source
-        player.src({
-            src: videoUrl,
-            type: 'video/mp4'
-        });
+        player.source = {
+            type: 'video',
+            sources: [{
+                src: videoUrl,
+                type: 'video/mp4'
+            }]
+        };
         
-        player.load();
-        player.show();
+        // Show main player
+        document.getElementById('sk4filmPlayer').style.display = 'block';
         
         // When video loads
-        player.one('loadedmetadata', () => {
+        player.once('loadeddata', () => {
             console.log("✅ Main video ready to play");
             hideLoading();
             showToast('Content playing...');
@@ -884,12 +1023,16 @@ async function loadFallbackVideo() {
         
         console.log(`🔄 Using fallback: ${fallbackUrl}`);
         
-        player.src({
-            src: fallbackUrl,
-            type: 'video/mp4'
-        });
+        player.source = {
+            type: 'video',
+            sources: [{
+                src: fallbackUrl,
+                type: 'video/mp4'
+            }]
+        };
         
-        player.load();
+        // Show main player
+        document.getElementById('sk4filmPlayer').style.display = 'block';
         
         // Update file info
         movieMetadata = {
@@ -922,6 +1065,12 @@ function startAdTimer() {
             
             if (remaining <= 0) {
                 clearInterval(adInterval);
+                // Auto-proceed when timer reaches 0
+                if (isAdPlaying) {
+                    console.log("⏱️ Timer reached 0, proceeding to main video");
+                    hideAllAds();
+                    loadMainVideo();
+                }
             }
         }
     }, 100);
@@ -1118,11 +1267,12 @@ window.startFastDownload = startFastDownload;
 window.startTelegramDownload = startTelegramDownload;
 
 console.log("🚀 SK4FiLM Player Ready!");
-console.log("🎬 HilltopAds ads WILL play first");
+console.log("🎬 HTML5 Video Player with Plyr UI");
+console.log("📺 HilltopAds ads in iframe");
 console.log("⏱️ 15-second timer countdown");
 console.log("📊 Progress bar shows remaining time");
 console.log("❌ No skip button - mandatory ad");
-console.log("🔄 Fallback system if ads fail");
+console.log("🔄 Fallback video ads if HilltopAds fails");
 </script>
 </body>
 </html>
