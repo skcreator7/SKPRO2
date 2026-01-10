@@ -147,6 +147,24 @@
             transition: width 0.1s linear;
         }
         
+        /* Ad Container - Separate from main player */
+        .ad-video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 999;
+            display: none;
+        }
+        
+        .ad-video-player {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
         /* File Information */
         .file-info-grid {
             display: grid;
@@ -361,38 +379,6 @@
             margin-bottom: 1rem;
         }
         
-        /* Debug Console */
-        .debug-console {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            width: 300px;
-            height: 200px;
-            background: rgba(0,0,0,0.9);
-            color: #0f0;
-            font-family: monospace;
-            font-size: 11px;
-            padding: 10px;
-            overflow-y: auto;
-            border: 1px solid #00ff00;
-            border-radius: 5px;
-            z-index: 9999;
-            display: none;
-        }
-        
-        .debug-toggle {
-            position: fixed;
-            bottom: 10px;
-            right: 320px;
-            background: #000;
-            color: #0f0;
-            border: 1px solid #00ff00;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            z-index: 10000;
-        }
-        
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             body {
@@ -414,10 +400,6 @@
     </style>
 </head>
 <body>
-<!-- Debug Toggle -->
-<div class="debug-toggle" onclick="toggleDebug()">DEBUG</div>
-<div class="debug-console" id="debugConsole"></div>
-
 <!-- Navbar -->
 <nav class="navbar fixed-top">
     <div class="container d-flex align-items-center justify-content-between">
@@ -440,6 +422,11 @@
 
     <!-- Video Container -->
     <div class="video-container" id="videoContainer">
+        <!-- Separate Ad Video Container -->
+        <div class="ad-video-container" id="adVideoContainer">
+            <video class="ad-video-player" id="adVideoPlayer" playsinline></video>
+        </div>
+        
         <!-- Ad Overlay -->
         <div class="ad-overlay" id="adOverlay">
             <i class="fas fa-ad"></i> AD <span id="adTimer">0:00</span>
@@ -450,7 +437,7 @@
             <div class="ad-progress-bar" id="adProgressBar"></div>
         </div>
         
-        <!-- Video.js Player -->
+        <!-- Main Video.js Player -->
         <video id="sk4filmPlayer" class="video-js vjs-default-skin" controls preload="auto" playsinline>
             <p class="vjs-no-js">
                 To view this video please enable JavaScript, and consider upgrading to a
@@ -530,34 +517,23 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-// Debugging utility
-function debugLog(message) {
-    const debugConsole = document.getElementById('debugConsole');
-    const timestamp = new Date().toLocaleTimeString();
-    debugConsole.innerHTML += `[${timestamp}] ${message}<br>`;
-    debugConsole.scrollTop = debugConsole.scrollHeight;
-    console.log(message);
-}
-
-function toggleDebug() {
-    const debugConsole = document.getElementById('debugConsole');
-    debugConsole.style.display = debugConsole.style.display === 'none' ? 'block' : 'none';
-}
-
 // Configuration
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
     'https://fast-download-skcreator7.koyeb.app'
 ];
 
-// Test HilltopAds URL - SIMPLIFIED version
-const HILLTOPADS_URL = 'https://firsthandhall.com/dFmHF.zldMGPNXvfZLG/UA/HeEmN9Vu/ZPUllrk/PNTkYH3BNUD/Q/1nMlzxMct/NGj/c/0JNKD/U/zfNSCUZGswatW/1ypndcD/0TxL';
-
-// Alternative test ad URLs if HilltopAds fails
-const FALLBACK_ADS = [
+// **FIXED: Using WORKING video ads (not HilltopAds tracking links)**
+const AD_VIDEOS = [
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+];
+
+// Main content fallback
+const FALLBACK_VIDEOS = [
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
 ];
 
 // URL Parameters
@@ -568,17 +544,18 @@ const initialQuality = urlParams.get('quality') || 'HD';
 
 // Variables
 let player = null;
+let adPlayer = null;
 let movieMetadata = {};
 let currentQuality = initialQuality;
 let isAdPlaying = false;
 let adInterval = null;
-let adDuration = 30; // Default 30 seconds
+let adDuration = 15; // Default 15 seconds for ads
 let isUsingFallback = false;
 let currentAdIndex = 0;
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
-    debugLog("=== SK4FiLM Player Initializing ===");
+    console.log("🎬 SK4FiLM Player Initializing...");
     
     if (!messageId) {
         showError("No video specified");
@@ -586,35 +563,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        debugLog("Step 1: Initializing Video.js Player");
+        // Initialize main Video.js player
         await initializeVideoJSPlayer();
         
-        debugLog("Step 2: Starting Advertisement");
+        // Initialize separate ad player
+        initializeAdPlayer();
+        
+        // Start ad immediately
         await startAd();
         
-        debugLog("Step 3: Loading metadata in background");
+        // Load metadata in background
         loadMetadataInBackground();
         
-        debugLog("Step 4: Setting up download menus");
+        // Setup download menus
         setupDownloadMenus();
         
-        debugLog("=== Player Initialized Successfully ===");
+        console.log("✅ Player Initialized Successfully");
         
     } catch (error) {
-        debugLog(`ERROR: Initialization failed - ${error.message}`);
+        console.error("❌ Initialization error:", error);
         showError("Failed to initialize. Please refresh.");
     }
 });
 
-// Initialize Video.js Player (SIMPLIFIED - NO VAST PLUGIN)
+// Initialize Main Video.js Player
 async function initializeVideoJSPlayer() {
     try {
-        debugLog("Initializing Video.js...");
+        console.log("📹 Initializing main video player...");
         
-        // Initialize Video.js player
         player = videojs('sk4filmPlayer', {
             controls: true,
-            autoplay: true, // Auto-play ads
+            autoplay: false, // Don't autoplay main video
             preload: 'auto',
             responsive: true,
             fluid: true,
@@ -638,147 +617,146 @@ async function initializeVideoJSPlayer() {
             }
         });
 
-        debugLog("Video.js player created successfully");
-        
-        // Setup player events
+        // Setup player events for main content
         player.on('loadedmetadata', () => {
-            debugLog(`Video metadata loaded. Duration: ${player.duration()}s`);
-            
-            if (isAdPlaying) {
-                adDuration = player.duration() || 30;
-                debugLog(`Ad duration set to: ${adDuration}s`);
-                startAdTimer();
-            }
-        });
-        
-        player.on('timeupdate', () => {
-            if (isAdPlaying) {
-                updateAdProgress();
-            }
-        });
-        
-        player.on('ended', () => {
-            if (isAdPlaying) {
-                debugLog("Ad finished playing");
-                clearAdTimers();
-                loadMainVideo();
-            } else {
-                showToast('Video ended');
-            }
+            console.log("✅ Main video loaded");
+            showToast('Video loaded successfully');
         });
         
         player.on('error', (e) => {
-            debugLog(`Player error: ${e.message || 'Unknown error'}`);
-            
-            if (isAdPlaying) {
-                // If ad fails, try another ad
-                debugLog("Ad failed, trying next...");
-                showToast('Ad error, trying another...');
-                setTimeout(() => startAd(), 1000);
-            } else if (!isUsingFallback) {
-                // If main video fails, try fallback
-                debugLog("Main video failed, loading fallback...");
+            console.error('❌ Main video error:', e);
+            if (!isUsingFallback) {
                 showToast('Video error, loading fallback...');
                 loadFallbackVideo();
             }
         });
         
-        player.on('play', () => {
-            debugLog("Video started playing");
-        });
-        
-        player.on('pause', () => {
-            debugLog("Video paused");
-        });
-        
-        // Hide loading
-        hideLoading();
-        
-        debugLog("Video.js player initialized successfully");
+        console.log("✅ Main video player ready");
         
     } catch (error) {
-        debugLog(`ERROR: Video.js init failed - ${error.message}`);
+        console.error("❌ Video.js init error:", error);
         throw error;
     }
 }
 
-// Start Ad - SIMPLE DIRECT VIDEO AD
+// Initialize Separate Ad Player
+function initializeAdPlayer() {
+    console.log("📺 Initializing ad player...");
+    
+    adPlayer = document.getElementById('adVideoPlayer');
+    
+    // Setup ad player events
+    adPlayer.addEventListener('loadedmetadata', () => {
+        console.log(`✅ Ad loaded. Duration: ${adPlayer.duration}s`);
+        if (isAdPlaying) {
+            adDuration = adPlayer.duration || 15;
+            startAdTimer();
+        }
+    });
+    
+    adPlayer.addEventListener('timeupdate', () => {
+        if (isAdPlaying) {
+            updateAdProgress();
+        }
+    });
+    
+    adPlayer.addEventListener('ended', () => {
+        console.log("✅ Ad finished");
+        if (isAdPlaying) {
+            clearAdTimers();
+            hideAd();
+            loadMainVideo();
+        }
+    });
+    
+    adPlayer.addEventListener('error', (e) => {
+        console.error('❌ Ad error:', e);
+        if (isAdPlaying) {
+            // Try another ad
+            showToast('Ad error, trying another...');
+            setTimeout(() => startAd(), 1000);
+        }
+    });
+    
+    console.log("✅ Ad player ready");
+}
+
+// Start Ad - Using WORKING video URLs
 async function startAd() {
     try {
-        debugLog("Starting advertisement...");
+        console.log("▶️ Starting advertisement...");
         
-        // Show ad UI
+        // Show ad container and UI
+        document.getElementById('adVideoContainer').style.display = 'block';
         document.getElementById('adOverlay').style.display = 'flex';
         document.getElementById('adProgress').style.display = 'block';
         
-        // Hide Video.js controls during ad
+        // Hide main player during ad
+        player.pause();
         player.controlBar.hide();
         
-        // Set ad video - Try HilltopAds first, then fallback
-        let adVideoUrl;
+        // Get ad video URL
+        const adVideoUrl = AD_VIDEOS[currentAdIndex % AD_VIDEOS.length];
+        currentAdIndex++;
         
-        try {
-            debugLog("Trying HilltopAds URL...");
-            adVideoUrl = HILLTOPADS_URL;
-            
-            // Test if URL is accessible
-            const testResponse = await fetch(adVideoUrl, { method: 'HEAD', mode: 'no-cors' });
-            debugLog("HilltopAds URL test completed");
-        } catch (error) {
-            debugLog("HilltopAds URL failed, using fallback ad");
-            adVideoUrl = FALLBACK_ADS[currentAdIndex % FALLBACK_ADS.length];
-            currentAdIndex++;
-        }
+        console.log(`🎬 Loading ad: ${adVideoUrl}`);
         
-        debugLog(`Using ad URL: ${adVideoUrl}`);
-        
-        player.src({
-            src: adVideoUrl,
-            type: 'video/mp4'
-        });
-        
-        player.load();
+        // Set ad video source
+        adPlayer.src = adVideoUrl;
+        adPlayer.load();
         
         // Mark as ad playing
         isAdPlaying = true;
         
         // Auto-play the ad
         setTimeout(() => {
-            player.play().catch(e => {
-                debugLog("Ad autoplay blocked, waiting for user interaction");
-                showToast('Click play to start ad');
+            adPlayer.play().catch(e => {
+                console.log("⏸️ Ad autoplay blocked, waiting for interaction");
+                showToast('Click to play ad');
             });
-        }, 500);
+        }, 300);
         
         showToast('Advertisement playing...');
-        debugLog("Ad started successfully");
+        console.log("✅ Ad started successfully");
         
     } catch (error) {
-        debugLog(`ERROR: Failed to start ad - ${error.message}`);
+        console.error("❌ Failed to start ad:", error);
         // If ad fails, load main video directly
+        hideAd();
         await loadMainVideo();
     }
+}
+
+// Hide Ad
+function hideAd() {
+    console.log("👋 Hiding ad...");
+    
+    document.getElementById('adVideoContainer').style.display = 'none';
+    document.getElementById('adOverlay').style.display = 'none';
+    document.getElementById('adProgress').style.display = 'none';
+    
+    // Pause ad player
+    if (adPlayer) {
+        adPlayer.pause();
+        adPlayer.currentTime = 0;
+    }
+    
+    // Show main player controls
+    player.controlBar.show();
+    
+    // Clear ad timers
+    clearAdTimers();
+    
+    isAdPlaying = false;
 }
 
 // Load Main Video
 async function loadMainVideo() {
     try {
-        debugLog("Loading main video...");
-        
-        // Clear ad timers
-        clearAdTimers();
-        
-        // Hide ad UI
-        document.getElementById('adOverlay').style.display = 'none';
-        document.getElementById('adProgress').style.display = 'none';
-        document.getElementById('adNotice').style.display = 'none';
+        console.log("🎥 Loading main video...");
         
         // Show loading
         showLoading();
-        
-        // Update state
-        isAdPlaying = false;
-        isUsingFallback = false;
         
         // Get main video URL
         const videoUrl = await getVideoUrl();
@@ -787,7 +765,10 @@ async function loadMainVideo() {
             throw new Error("No video URL from API");
         }
         
-        debugLog(`Main video URL: ${videoUrl}`);
+        console.log(`🔗 Main video URL: ${videoUrl}`);
+        
+        // Update state
+        isUsingFallback = false;
         
         // Set video source
         player.src({
@@ -797,25 +778,22 @@ async function loadMainVideo() {
         
         player.load();
         
-        // Show Video.js controls
-        player.controlBar.show();
-        
         // When video loads
         player.one('loadedmetadata', () => {
-            debugLog("Main video loaded successfully");
+            console.log("✅ Main video ready to play");
             hideLoading();
-            showToast('Video loaded successfully');
+            showToast('Content playing...');
             
             // Try to auto-play
             setTimeout(() => {
                 player.play().catch(e => {
-                    debugLog("Main video autoplay blocked");
+                    console.log("⏸️ Main video autoplay blocked");
                 });
-            }, 300);
+            }, 500);
         });
         
     } catch (error) {
-        debugLog(`ERROR: Failed to load main video - ${error.message}`);
+        console.error("❌ Failed to load main video:", error);
         // Try fallback
         await loadFallbackVideo();
     }
@@ -824,21 +802,15 @@ async function loadMainVideo() {
 // Load Fallback Video
 async function loadFallbackVideo() {
     try {
-        debugLog("Loading fallback video...");
+        console.log("🔄 Loading fallback video...");
         
         isUsingFallback = true;
-        isAdPlaying = false;
-        
-        // Hide ad UI
-        document.getElementById('adOverlay').style.display = 'none';
-        document.getElementById('adProgress').style.display = 'none';
-        document.getElementById('adNotice').style.display = 'none';
         
         // Get fallback video
-        const fallbackIndex = Math.floor(Math.random() * FALLBACK_ADS.length);
-        const fallbackUrl = FALLBACK_ADS[fallbackIndex];
+        const fallbackIndex = Math.floor(Math.random() * FALLBACK_VIDEOS.length);
+        const fallbackUrl = FALLBACK_VIDEOS[fallbackIndex];
         
-        debugLog(`Using fallback video: ${fallbackUrl}`);
+        console.log(`🔄 Using fallback: ${fallbackUrl}`);
         
         player.src({
             src: fallbackUrl,
@@ -850,14 +822,14 @@ async function loadFallbackVideo() {
         // Update file info
         movieMetadata = {
             file_name: 'Sample Video.mp4',
-            file_size: 50000000 // 50 MB
+            file_size: 50000000
         };
         updateFileInfo();
         
         showToast('Using sample video');
         
     } catch (error) {
-        debugLog(`ERROR: Fallback video failed - ${error.message}`);
+        console.error("❌ Fallback video failed:", error);
         showError("Failed to load video");
     }
 }
@@ -867,8 +839,8 @@ function startAdTimer() {
     if (adInterval) clearInterval(adInterval);
     
     adInterval = setInterval(() => {
-        if (isAdPlaying && player && !player.paused()) {
-            const currentTime = player.currentTime();
+        if (isAdPlaying && adPlayer && !adPlayer.paused) {
+            const currentTime = adPlayer.currentTime;
             const remaining = Math.max(0, adDuration - currentTime);
             
             document.getElementById('adTimer').textContent = formatDuration(remaining);
@@ -884,8 +856,8 @@ function startAdTimer() {
 }
 
 function updateAdProgress() {
-    if (isAdPlaying && player && player.currentTime()) {
-        const currentTime = player.currentTime();
+    if (isAdPlaying && adPlayer && adPlayer.currentTime) {
+        const currentTime = adPlayer.currentTime;
         const progressPercent = (currentTime / adDuration) * 100;
         document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
     }
@@ -898,26 +870,21 @@ function clearAdTimers() {
     }
 }
 
-// Rest of the functions (same as before but with debug logs)...
+// Rest of functions remain the same...
 
 // Load Metadata in Background
 async function loadMetadataInBackground() {
     try {
         const apiUrl = `${API_ENDPOINTS[0]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
-        debugLog(`Fetching metadata from: ${apiUrl}`);
-        
         const response = await fetchWithTimeout(apiUrl, 3000);
         const data = await response.json();
         
         if (data.status === 'success' && data.metadata) {
             movieMetadata = data.metadata;
             updateFileInfo();
-            debugLog("Metadata loaded successfully");
-        } else {
-            throw new Error("Invalid metadata response");
         }
     } catch (error) {
-        debugLog(`WARN: Metadata load failed - ${error.message}`);
+        console.warn("Metadata load failed:", error);
         movieMetadata = {
             file_name: 'Movie.mp4',
             file_size: 1200000000
@@ -940,20 +907,16 @@ async function getVideoUrl() {
     for (const endpoint of API_ENDPOINTS) {
         try {
             const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${currentQuality}`;
-            debugLog(`Trying API: ${apiUrl}`);
-            
             const response = await fetchWithTimeout(apiUrl, 3000);
             const data = await response.json();
             
             if (data.status === 'success' && data.stream_info?.stream_url) {
-                debugLog(`Got video URL from ${endpoint}`);
                 return data.stream_info.stream_url;
             }
         } catch (error) {
-            debugLog(`API ${endpoint} failed: ${error.message}`);
+            console.warn(`API ${endpoint} failed:`, error);
         }
     }
-    debugLog("All APIs failed to return video URL");
     return null;
 }
 
@@ -985,7 +948,6 @@ function setupDownloadMenus() {
 async function startFastDownload(quality) {
     try {
         showToast(`Preparing ${quality} download...`);
-        debugLog(`Starting ${quality} download...`);
         
         for (const endpoint of API_ENDPOINTS) {
             try {
@@ -1002,17 +964,16 @@ async function startFastDownload(quality) {
                     link.click();
                     document.body.removeChild(link);
                     showToast(`Downloading ${quality}...`);
-                    debugLog(`Download started for ${quality}`);
                     return;
                 }
             } catch (error) {
-                debugLog(`Download API ${endpoint} failed: ${error.message}`);
+                console.warn(`Download API ${endpoint} failed:`, error);
             }
         }
         
         showToast("Download failed. Try Telegram.");
     } catch (error) {
-        debugLog(`Download error: ${error.message}`);
+        console.error("Download error:", error);
         showToast("Error. Try Telegram download.");
     }
 }
@@ -1023,7 +984,6 @@ function startTelegramDownload(quality) {
     const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
     window.open(telegramUrl, '_blank');
     showToast(`Opening Telegram for ${quality}...`);
-    debugLog(`Opening Telegram for ${quality}`);
 }
 
 // Helper Functions
@@ -1092,14 +1052,12 @@ function escapeHtml(text) {
 // Make functions global
 window.startFastDownload = startFastDownload;
 window.startTelegramDownload = startTelegramDownload;
-window.toggleDebug = toggleDebug;
 
-debugLog("SK4FiLM Player Script Loaded");
-console.log("🎬 SK4FiLM Player: Simple Ad System");
-console.log("📺 Using direct video ads (no VAST plugin)");
-console.log("⏱️ Ad timer and progress bar");
+console.log("🚀 SK4FiLM Player Ready!");
+console.log("🎬 Ads WILL play first");
+console.log("⏱️ Timer and progress bar visible");
 console.log("❌ No skip button");
-console.log("🐛 Debug mode available - click DEBUG button");
+console.log("🔄 Fallback system active");
 </script>
 </body>
 </html>
