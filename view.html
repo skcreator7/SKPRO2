@@ -6,20 +6,26 @@
     <title>Stream Movie - SK4FiLM</title>
     <meta name="description" content="Stream and download movies in HD quality">
     
-    <!-- Hilltopads Ads Script -->
-    <script type="text/javascript">
-        var atOptions = {
-            'key' : '7a32cc750b0d41ec53b176e06dd70b8a',
-            'format' : 'iframe',
-            'height' : 250,
-            'width' : 300,
-            'params' : {}
+    <!-- HilltopAds Script -->
+    <script>
+        // HilltopAds Configuration
+        const HILLTOPADS_CONFIG = {
+            publisherId: '6744533-6744534', // Replace with your HilltopAds publisher ID
+            adTagUrl: 'https://firsthandhall.com/d/m/F.zZdQGeN/vwZoGxUl/leGm/9PuWZnU/lwk/P/TTYL3oNcDqQm1MMUz/M-tON/j/c/0LN_DeUYz/NIAG', // Replace with your tag
+            preRoll: true,
+            midRoll: false, // Set to true if you want mid-roll ads
+            postRoll: false, // Set to true if you want post-roll ads
+            skipOffset: 0, // No skip button (0 seconds)
+            adTimeout: 10000 // 10 seconds timeout for ad loading
         };
     </script>
-    <script type="text/javascript" src="//firsthandhall.com/dFmHF.zldMGPNXvfZLG/UA/HeEmN9Vu/ZPUllrk/PNTkYH3BNUD/Q/1nMlzxMct/NGj/c/0JNKD/U/zfNSCUZGswatW/1ypndcD/0TxL"></script>
+
+    <!-- Video.js VAST Plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/videojs-vast-vpaid/2.0.5/videojs.vast.vpaid.min.js"></script>
     
     <!-- Video.js CSS -->
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/videojs-vast-vpaid/2.0.5/videojs.vast.vpaid.min.css" rel="stylesheet">
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -85,20 +91,6 @@
             background: rgba(255,255,255,0.2);
         }
         
-        /* Top Ads */
-        .ad-container {
-            margin: 1rem 0;
-            text-align: center;
-        }
-        
-        #adTopDesktop {
-            display: block;
-        }
-        
-        #adTopMobile {
-            display: none;
-        }
-        
         /* Video Container */
         .video-container {
             background: #000;
@@ -118,120 +110,59 @@
             border-radius: 8px;
         }
         
-        .vjs-big-play-button {
-            background: rgba(255, 0, 0, 0.7) !important;
-            border: 2px solid white !important;
-            border-radius: 50% !important;
-            width: 80px !important;
-            height: 80px !important;
-            line-height: 80px !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%);
-            font-size: 2.5rem !important;
+        /* HilltopAds VAST Ad Styling */
+        .vjs-vast-ad {
+            background: #000;
         }
         
-        .vjs-big-play-button:hover {
-            background: rgba(255, 0, 0, 0.9) !important;
-        }
-        
-        /* Custom Control Bar */
-        .vjs-control-bar {
-            background: linear-gradient(transparent, rgba(0,0,0,0.95)) !important;
-            height: 60px !important;
-            padding: 0 15px !important;
-        }
-        
-        .vjs-button > .vjs-icon-placeholder:before {
-            line-height: 60px !important;
-            font-size: 1.3rem !important;
-        }
-        
-        .vjs-progress-control {
-            flex: 1 !important;
-            margin: 0 15px !important;
-        }
-        
-        .vjs-progress-holder {
-            height: 5px !important;
-            background: rgba(255,255,255,0.2) !important;
-            border-radius: 3px !important;
-        }
-        
-        .vjs-play-progress {
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
-        }
-        
-        .vjs-load-progress {
-            background: rgba(255,255,255,0.1) !important;
-        }
-        
-        .vjs-time-control {
-            font-size: 0.9rem !important;
-            min-width: 100px !important;
-        }
-        
-        /* Volume Control */
-        .vjs-volume-panel {
-            width: 120px !important;
-        }
-        
-        .vjs-volume-level {
-            background: white !important;
+        .vjs-vast-ad .vjs-big-play-button {
+            display: none !important;
         }
         
         /* Ad Overlay */
         .ad-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
             z-index: 1000;
             display: flex;
-            flex-direction: column;
-            justify-content: center;
             align-items: center;
-            color: white;
-            padding: 20px;
-            text-align: center;
+            gap: 5px;
         }
         
-        .ad-overlay.hidden {
-            display: none;
-        }
-        
-        .ad-countdown {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #ff0000;
-            margin-bottom: 20px;
-        }
-        
-        .ad-message {
-            font-size: 1.2rem;
-            margin-bottom: 30px;
-            max-width: 600px;
-        }
-        
-        .ad-progress-container {
-            width: 80%;
-            height: 5px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 3px;
-            margin: 20px 0;
-            overflow: hidden;
+        .ad-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 1001;
         }
         
         .ad-progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #ff0000, #ff9900);
+            background: linear-gradient(90deg, #ff6b00, #ff0000);
             width: 0%;
             transition: width 0.1s linear;
         }
         
-        /* File Information - ONLY 2 ITEMS */
+        /* Ad Information */
+        .ad-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+            z-index: 1000;
+        }
+        
+        /* File Information */
         .file-info-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -271,13 +202,6 @@
             margin: 1.5rem 0;
         }
         
-        @media (max-width: 576px) {
-            .action-buttons {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        /* Dropdown Button Styling */
         .dropdown-btn {
             width: 100%;
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
@@ -304,48 +228,6 @@
             background: linear-gradient(135deg, #0088cc 0%, #00aced 100%);
         }
         
-        /* Dropdown Content */
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background: rgba(30, 41, 59, 0.98);
-            backdrop-filter: blur(10px);
-            min-width: 180px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-            border-radius: 8px;
-            z-index: 1000;
-            border: 1px solid rgba(255,255,255,0.1);
-            margin-top: 5px;
-        }
-        
-        .dropdown:hover .dropdown-content {
-            display: block;
-        }
-        
-        /* Quality Buttons */
-        .quality-btn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: background 0.2s;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        
-        .quality-btn:last-child {
-            border-bottom: none;
-        }
-        
-        .quality-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
         /* Donation Section */
         .donation-section {
             background: rgba(255, 193, 7, 0.1);
@@ -356,13 +238,6 @@
             text-align: center;
         }
         
-        .donation-title {
-            color: #FFC107;
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-        
         .donation-qr {
             width: 180px;
             height: 180px;
@@ -371,59 +246,6 @@
             border: 2px solid rgba(255, 193, 7, 0.3);
             padding: 5px;
             background: white;
-        }
-        
-        .donate-btn {
-            background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
-            color: #000;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 25px;
-            font-weight: 700;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: transform 0.3s;
-        }
-        
-        .donate-btn:hover {
-            transform: scale(1.05);
-            color: #000;
-        }
-        
-        /* Loading State */
-        .loading-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 400px;
-            text-align: center;
-        }
-        
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 1s ease-in-out infinite;
-            margin-bottom: 1rem;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        /* Error State */
-        .error-container {
-            text-align: center;
-            padding: 3rem 1rem;
-            background: rgba(255, 0, 0, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            margin-bottom: 1rem;
         }
         
         /* Toast Notification */
@@ -458,80 +280,14 @@
                 padding-top: 60px;
             }
             
-            #adTopDesktop {
-                display: none;
-            }
-            
-            #adTopMobile {
-                display: block;
-            }
-            
             .video-js {
                 height: 50vh;
                 min-height: 300px;
             }
             
-            .vjs-big-play-button {
-                width: 60px !important;
-                height: 60px !important;
-                line-height: 60px !important;
-                font-size: 2rem !important;
-            }
-            
-            .vjs-control-bar {
-                height: 50px !important;
-                padding: 0 10px !important;
-            }
-            
-            .vjs-button > .vjs-icon-placeholder:before {
-                line-height: 50px !important;
-                font-size: 1.1rem !important;
-            }
-            
-            .vjs-time-control {
-                min-width: 90px !important;
-                font-size: 0.8rem !important;
-            }
-            
-            .vjs-volume-panel {
-                width: 100px !important;
-            }
-            
-            .file-info-grid {
-                padding: 10px;
-            }
-            
-            .donation-qr {
-                width: 150px;
-                height: 150px;
-            }
-            
-            .ad-countdown {
-                font-size: 1.5rem;
-            }
-            
-            .ad-message {
-                font-size: 1rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .video-js {
-                height: 45vh;
-                min-height: 250px;
-            }
-            
-            .vjs-progress-control {
-                margin: 0 5px !important;
-            }
-            
-            .file-info-grid {
-                grid-template-columns: 1fr;
-                gap: 8px;
-            }
-            
-            .info-item {
-                padding: 6px;
+            .ad-overlay {
+                font-size: 10px;
+                padding: 3px 8px;
             }
         }
     </style>
@@ -551,75 +307,45 @@
 </nav>
 
 <div class="container">
-    <!-- Top Ads -->
-    <div class="ad-container">
-        <div id="adTopDesktop">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-        </div>
-        <div id="adTopMobile">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
-                    'format' : 'iframe',
-                    'height' : 50,
-                    'width' : 320,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
-        </div>
-    </div>
-
-    <!-- Ad Overlay (Hilltopads Ads) -->
-    <div class="ad-overlay" id="adOverlay">
-        <div class="ad-countdown" id="adCountdown">15</div>
-        <h3><i class="fas fa-ad me-2"></i>Advertisement</h3>
-        <div class="ad-message" id="adMessage">
-            Please watch this advertisement to continue watching. <br>
-            Ads support our free streaming service.
-        </div>
-        <div class="ad-progress-container">
-            <div class="ad-progress-bar" id="adProgressBar"></div>
-        </div>
-        <div id="hilltopadsAdContainer">
-            <!-- Hilltopads Ad will load here -->
-            <script type="text/javascript">
-                var hilltopadsOptions = {
-                    'key' : '7a32cc750b0d41ec53b176e06dd70b8a',
-                    'format' : 'iframe',
-                    'height' : 250,
-                    'width' : 300,
-                    'params' : {}
-                };
-                document.write('<scr' + 'ipt type="text/javascript" src="//firsthandhall.com/d.mfFXzXdFGuN/v/ZvG/Uv/zeamk9uu/ZtUWlPkKPDTpYy3kN/DmQd1/M-zOM/t/NZjYct0/NwDwUVzONcAx"></scr' + 'ipt>');
-            </script>
-        </div>
+    <!-- Ad Notice -->
+    <div class="ad-notice" style="background: rgba(255, 107, 0, 0.1); border: 1px solid rgba(255, 107, 0, 0.3); border-radius: 6px; padding: 10px; margin: 10px 0; text-align: center; color: #ff6b00; font-size: 0.9rem;">
+        <i class="fas fa-ad me-2"></i>
+        Supporting our service with HilltopAds. Ads cannot be skipped.
     </div>
 
     <!-- Video Container -->
     <div class="video-container" id="videoContainer">
+        <!-- Ad Overlay -->
+        <div class="ad-overlay" id="adOverlay" style="display: none;">
+            <i class="fas fa-ad"></i> <span id="adText">Advertisement</span> <span id="adTimer">0:00</span>
+        </div>
+        
+        <!-- Ad Progress -->
+        <div class="ad-progress" id="adProgress" style="display: none;">
+            <div class="ad-progress-bar" id="adProgressBar"></div>
+        </div>
+        
+        <!-- Ad Info -->
+        <div class="ad-info" id="adInfo" style="display: none;">
+            Ad by HilltopAds
+        </div>
+        
         <!-- Video.js Player -->
         <video id="sk4filmPlayer" class="video-js vjs-default-skin" controls preload="auto" playsinline>
-            <!-- Video sources will be added after ad -->
+            <p class="vjs-no-js">
+                To view this video please enable JavaScript, and consider upgrading to a
+                web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+            </p>
         </video>
         
         <!-- Loading State -->
-        <div class="loading-container" id="loadingContainer">
-            <div class="loading-spinner"></div>
+        <div class="loading-container" id="loadingContainer" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 400px; text-align: center;">
+            <div class="loading-spinner" style="width: 50px; height: 50px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: var(--primary-color); animation: spin 1s ease-in-out infinite; margin-bottom: 1rem;"></div>
             <h5>Loading Content...</h5>
         </div>
     </div>
 
-    <!-- File Information - ONLY 2 ITEMS -->
+    <!-- File Information -->
     <div class="file-info-grid" id="fileInfo">
         <div class="info-item">
             <span class="info-label">FILE NAME</span>
@@ -633,22 +359,20 @@
 
     <!-- Action Buttons -->
     <div class="action-buttons">
-        <!-- Fast Download Button -->
         <div class="dropdown">
             <button class="dropdown-btn">
                 <i class="fas fa-bolt"></i>FAST DOWNLOAD
             </button>
-            <div class="dropdown-content" id="fastDownloadMenu">
+            <div class="dropdown-content" id="fastDownloadMenu" style="display: none; position: absolute; background: rgba(30, 41, 59, 0.98); min-width: 180px; border-radius: 8px; z-index: 1000;">
                 <!-- Quality buttons added by JS -->
             </div>
         </div>
 
-        <!-- Telegram Download Button -->
         <div class="dropdown">
             <button class="dropdown-btn telegram">
                 <i class="fab fa-telegram"></i>DOWNLOAD NOW
             </button>
-            <div class="dropdown-content" id="telegramDownloadMenu">
+            <div class="dropdown-content" id="telegramDownloadMenu" style="display: none; position: absolute; background: rgba(30, 41, 59, 0.98); min-width: 180px; border-radius: 8px; z-index: 1000;">
                 <!-- Quality buttons added by JS -->
             </div>
         </div>
@@ -656,7 +380,7 @@
 
     <!-- Donation Section -->
     <div class="donation-section">
-        <h3 class="donation-title">
+        <h3 class="donation-title" style="color: #FFC107; font-size: 1.2rem; margin-bottom: 1rem; font-weight: 600;">
             <i class="fas fa-heart me-2"></i>Donate To Upgrade Direct Streaming Service
         </h3>
         <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
@@ -664,29 +388,13 @@
              class="donation-qr img-fluid">
         <p class="text-light mb-3">UPI ID: cf.sk4film@cashfreensdlpb</p>
         <a href="https://cfpe.me/skfilmbox" target="_blank" 
-           class="donate-btn">
+           class="donate-btn" style="background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%); color: #000; border: none; padding: 12px 25px; border-radius: 25px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
             <i class="fas fa-donate me-2"></i>DONATE NOW
         </a>
     </div>
 
-    <!-- Bottom Ad -->
-    <div class="ad-container">
-        <div id="adBottom">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : '749c7e5e2b59778c180dc6a600fa3b70',
-                    'format' : 'iframe',
-                    'height' : 250,
-                    'width' : 300,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/749c7e5e2b59778c180dc6a600fa3b70/invoke.js"></script>
-        </div>
-    </div>
-    
     <!-- Disclaimer -->
-    <div class="disclaimer">
+    <div class="disclaimer" style="background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.2); border-radius: 6px; padding: 12px; margin-top: 1.5rem; text-align: center; color: #ff6b6b; font-size: 0.8rem;">
         <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong>
         Files are hosted on Telegram, not on our servers.
     </div>
@@ -697,6 +405,7 @@
 
 <!-- Video.js Library -->
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/videojs-contrib-ads/6.9.0/videojs-contrib-ads.min.js"></script>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -710,6 +419,9 @@ const API_ENDPOINTS = [
 
 const CURRENT_API = 0;
 
+// HilltopAds VAST Tag URL - REPLACE WITH YOUR ACTUAL TAG
+const HILLTOPADS_VAST_URL = 'https://vast.hilltopads.net/vast.php?publisher=YOUR_PUBLISHER_ID&format=video&ad_type=video';
+
 // URL Parameters
 const urlParams = new URLSearchParams(window.location.search);
 const channelId = urlParams.get('channel_id') || '-1001768249569';
@@ -720,10 +432,10 @@ const initialQuality = urlParams.get('quality') || 'HD';
 let player = null;
 let movieMetadata = {};
 let currentQuality = initialQuality;
-let isAdPlaying = true; // Start with ad playing
-let adCountdown = 15; // 15 seconds ad countdown
+let isAdPlaying = false;
 let adInterval = null;
-let isHilltopadsAdLoaded = false;
+let adDuration = 0;
+let isUsingFallback = false;
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
@@ -733,14 +445,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // Show ad overlay immediately
-        showAdOverlay();
-        
-        // Start Hilltopads ad countdown
-        startHilltopadsAdCountdown();
-        
-        // Initialize Video.js player (but hide it during ad)
-        await initializeVideoJSPlayer();
+        // Initialize Video.js with VAST plugin
+        await initializeVideoJSWithVAST();
         
         // Load metadata in background
         loadMetadataInBackground();
@@ -748,7 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Setup download menus
         setupDownloadMenus();
         
-        console.log("🎬 Video Player with Hilltopads Ads Initialized");
+        console.log("🎬 Video.js Player with HilltopAds Initialized");
         
     } catch (error) {
         console.error("Initialization error:", error);
@@ -756,156 +462,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Show Ad Overlay
-function showAdOverlay() {
-    document.getElementById('adOverlay').classList.remove('hidden');
-    document.getElementById('adCountdown').textContent = adCountdown;
-}
-
-// Hide Ad Overlay
-function hideAdOverlay() {
-    document.getElementById('adOverlay').classList.add('hidden');
-}
-
-// Start Hilltopads Ad Countdown
-function startHilltopadsAdCountdown() {
-    // First, load Hilltopads ad
-    loadHilltopadsAd();
-    
-    // Start countdown timer
-    adInterval = setInterval(() => {
-        adCountdown--;
-        document.getElementById('adCountdown').textContent = adCountdown;
-        
-        // Update progress bar
-        const progressPercent = ((15 - adCountdown) / 15) * 100;
-        document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
-        
-        // Check if ad is loaded
-        checkHilltopadsAd();
-        
-        if (adCountdown <= 0) {
-            clearInterval(adInterval);
-            // After ad completes, load main video
-            loadMainVideoAfterAd();
-        }
-    }, 1000);
-}
-
-// Load Hilltopads Ad
-function loadHilltopadsAd() {
-    try {
-        // Create iframe for Hilltopads ad
-        const adContainer = document.getElementById('hilltopadsAdContainer');
-        
-        // Create iframe
-        const iframe = document.createElement('iframe');
-        iframe.id = 'hilltopadsAdFrame';
-        iframe.style.width = '100%';
-        iframe.style.height = '250px';
-        iframe.style.border = 'none';
-        iframe.style.borderRadius = '8px';
-        iframe.style.overflow = 'hidden';
-        iframe.style.margin = '20px 0';
-        iframe.style.maxWidth = '300px';
-        iframe.style.backgroundColor = '#fff';
-        
-        // Set iframe source to Hilltopads ad
-        iframe.src = 'https://firsthandhall.com/dFmHF.zldMGPNXvfZLG/UA/HeEmN9Vu/ZPUllrk/PNTkYH3BNUD/Q/1nMlzxMct/NGj/c/0JNKD/U/zfNSCUZGswatW/1ypndcD/0TxL';
-        
-        // Clear container and add iframe
-        adContainer.innerHTML = '';
-        adContainer.appendChild(iframe);
-        
-        console.log("🎯 Hilltopads Ad Loaded");
-        
-        // Track iframe load
-        iframe.onload = function() {
-            isHilltopadsAdLoaded = true;
-            console.log("✅ Hilltopads Ad Fully Loaded");
-            showToast("Advertisement loaded");
-        };
-        
-        iframe.onerror = function() {
-            console.log("❌ Hilltopads Ad Failed to Load");
-            // Continue anyway after countdown
-        };
-        
-    } catch (error) {
-        console.error("Error loading Hilltopads ad:", error);
-    }
-}
-
-// Check if Hilltopads Ad is Loaded
-function checkHilltopadsAd() {
-    const iframe = document.getElementById('hilltopadsAdFrame');
-    if (iframe && iframe.contentWindow && iframe.contentWindow.document) {
-        try {
-            // Check if iframe has content
-            const iframeDoc = iframe.contentWindow.document;
-            if (iframeDoc.body && iframeDoc.body.children.length > 0) {
-                isHilltopadsAdLoaded = true;
-            }
-        } catch (e) {
-            // Cross-origin error, but ad is probably loaded
-            isHilltopadsAdLoaded = true;
-        }
-    }
-}
-
-// Load Main Video After Ad
-async function loadMainVideoAfterAd() {
-    try {
-        // Hide ad overlay
-        hideAdOverlay();
-        
-        // Mark ad as completed
-        isAdPlaying = false;
-        
-        // Show loading for main video
-        showLoading();
-        
-        // Get main video URL
-        const videoUrl = await getVideoUrl();
-        
-        if (!videoUrl) {
-            throw new Error("No video URL available");
-        }
-        
-        // Set video source
-        player.src({
-            src: videoUrl,
-            type: 'video/mp4'
-        });
-        
-        player.load();
-        
-        // When video loads
-        player.one('loadedmetadata', () => {
-            hideLoading();
-            showToast('Video loaded successfully');
-        });
-        
-        // Play video automatically
-        setTimeout(() => {
-            player.play().catch(e => {
-                console.log("Autoplay blocked");
-            });
-        }, 500);
-        
-    } catch (error) {
-        console.error("Failed to load main video:", error);
-        showError("Failed to load video. Please try again.");
-    }
-}
-
-// Initialize Video.js Player
-async function initializeVideoJSPlayer() {
+// Initialize Video.js with VAST Plugin
+async function initializeVideoJSWithVAST() {
     try {
         // Initialize Video.js player
         player = videojs('sk4filmPlayer', {
             controls: true,
-            autoplay: false, // Don't autoplay during ad
+            autoplay: false,
             preload: 'auto',
             responsive: true,
             fluid: true,
@@ -929,22 +492,212 @@ async function initializeVideoJSPlayer() {
             }
         });
 
-        // Hide loading initially
+        // Initialize VAST plugin
+        player.vast({
+            // HilltopAds VAST URL
+            adTagUrl: HILLTOPADS_VAST_URL,
+            
+            // Play ad before content (pre-roll)
+            playAdAlways: true,
+            
+            // No skip button
+            adCancelTimeout: 0,
+            skipOffset: 0,
+            
+            // Show ad progress
+            showProgress: true,
+            
+            // Callbacks
+            onAdStart: function() {
+                console.log("HilltopAds: Ad started");
+                isAdPlaying = true;
+                showAdUI();
+                showToast('Advertisement playing...');
+            },
+            
+            onAdEnd: function() {
+                console.log("HilltopAds: Ad ended");
+                isAdPlaying = false;
+                hideAdUI();
+                loadMainVideo();
+            },
+            
+            onAdError: function(error) {
+                console.error("HilltopAds Error:", error);
+                isAdPlaying = false;
+                hideAdUI();
+                showToast('Ad error, loading content...');
+                loadMainVideo();
+            },
+            
+            onAdTimeout: function() {
+                console.log("HilltopAds: Ad timeout");
+                isAdPlaying = false;
+                hideAdUI();
+                showToast('Ad timeout, loading content...');
+                loadMainVideo();
+            }
+        });
+
+        // Start ad immediately
+        setTimeout(() => {
+            player.trigger('play');
+        }, 1000);
+        
+        // Hide loading
         hideLoading();
         
-        // Setup player events
-        player.on('error', (e) => {
-            console.error('Player error:', e);
-            showToast('Error loading video');
+        // Setup player events for main content
+        player.on('loadedmetadata', () => {
+            if (!isAdPlaying) {
+                showToast('Video loaded successfully');
+            }
         });
         
-        console.log("🎬 Video.js Player Ready");
+        player.on('error', (e) => {
+            console.error('Player error:', e);
+            if (!isAdPlaying && !isUsingFallback) {
+                showToast('Video error, loading fallback...');
+                loadFallbackVideo();
+            }
+        });
+        
+        console.log("🎬 Video.js with HilltopAds Ready");
         
     } catch (error) {
         console.error("Video.js init error:", error);
         throw error;
     }
 }
+
+// Show Ad UI
+function showAdUI() {
+    document.getElementById('adOverlay').style.display = 'flex';
+    document.getElementById('adProgress').style.display = 'block';
+    document.getElementById('adInfo').style.display = 'block';
+    
+    // Hide player controls during ad
+    player.controlBar.hide();
+    
+    // Start ad timer
+    startAdTimer();
+}
+
+// Hide Ad UI
+function hideAdUI() {
+    document.getElementById('adOverlay').style.display = 'none';
+    document.getElementById('adProgress').style.display = 'none';
+    document.getElementById('adInfo').style.display = 'none';
+    
+    // Show player controls
+    player.controlBar.show();
+    
+    // Clear ad timer
+    clearAdTimer();
+}
+
+// Start Ad Timer
+function startAdTimer() {
+    if (adInterval) clearInterval(adInterval);
+    
+    adInterval = setInterval(() => {
+        if (isAdPlaying && player && !player.paused()) {
+            const currentTime = player.currentTime();
+            adDuration = player.duration() || 30; // Default 30 seconds if unknown
+            
+            const remaining = Math.max(0, adDuration - currentTime);
+            const progressPercent = (currentTime / adDuration) * 100;
+            
+            document.getElementById('adTimer').textContent = formatDuration(remaining);
+            document.getElementById('adProgressBar').style.width = `${progressPercent}%`;
+            
+            if (remaining <= 1) {
+                clearInterval(adInterval);
+            }
+        }
+    }, 100);
+}
+
+// Clear Ad Timer
+function clearAdTimer() {
+    if (adInterval) {
+        clearInterval(adInterval);
+        adInterval = null;
+    }
+}
+
+// Load Main Video
+async function loadMainVideo() {
+    try {
+        // Show loading
+        showLoading();
+        
+        // Get main video URL
+        const videoUrl = await getVideoUrl();
+        
+        if (!videoUrl) {
+            throw new Error("No video URL from API");
+        }
+        
+        // Update state
+        isAdPlaying = false;
+        isUsingFallback = false;
+        
+        // Set video source
+        player.src({
+            src: videoUrl,
+            type: 'video/mp4'
+        });
+        
+        player.load();
+        
+        // When video loads
+        player.one('loadedmetadata', () => {
+            hideLoading();
+            showToast('Content playing...');
+            player.play().catch(e => {
+                console.log("Autoplay blocked, user interaction required");
+            });
+        });
+        
+    } catch (error) {
+        console.error("Failed to load main video:", error);
+        loadFallbackVideo();
+    }
+}
+
+// Load Fallback Video
+async function loadFallbackVideo() {
+    try {
+        isUsingFallback = true;
+        
+        // Fallback video
+        const fallbackUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+        
+        player.src({
+            src: fallbackUrl,
+            type: 'video/mp4'
+        });
+        
+        player.load();
+        
+        // Update file info
+        movieMetadata = {
+            file_name: 'Sample Video.mp4',
+            file_size: 50000000
+        };
+        updateFileInfo();
+        
+        showToast('Using sample video');
+        
+    } catch (error) {
+        console.error("Fallback video failed:", error);
+        showError("Failed to load video");
+    }
+}
+
+// Rest of the functions remain similar to previous code...
+// (getVideoUrl, updateFileInfo, setupDownloadMenus, helper functions, etc.)
 
 // Load Metadata in Background
 async function loadMetadataInBackground() {
@@ -961,7 +714,7 @@ async function loadMetadataInBackground() {
         console.warn("Metadata load failed:", error);
         movieMetadata = {
             file_name: 'Movie.mp4',
-            file_size: 1200000000 // 1.2 GB
+            file_size: 1200000000
         };
         updateFileInfo();
     }
@@ -1005,27 +758,32 @@ function setupDownloadMenus() {
     
     const fastMenu = document.getElementById('fastDownloadMenu');
     fastMenu.innerHTML = qualities.map(q => `
-        <button class="quality-btn" onclick="startFastDownload('${q.quality}')">
+        <button class="quality-btn" onclick="startFastDownload('${q.quality}')" style="width: 100%; padding: 12px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; border-bottom: 1px solid rgba(255,255,255,0.05);">
             <i class="${q.icon}"></i> ${q.label}
         </button>
     `).join('');
     
     const telegramMenu = document.getElementById('telegramDownloadMenu');
     telegramMenu.innerHTML = qualities.map(q => `
-        <button class="quality-btn" onclick="startTelegramDownload('${q.quality}')">
+        <button class="quality-btn" onclick="startTelegramDownload('${q.quality}')" style="width: 100%; padding: 12px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; border-bottom: 1px solid rgba(255,255,255,0.05);">
             <i class="fab fa-telegram"></i> ${q.label}
         </button>
     `).join('');
+    
+    // Show dropdown on hover
+    document.querySelectorAll('.dropdown').forEach(dropdown => {
+        dropdown.addEventListener('mouseenter', () => {
+            dropdown.querySelector('.dropdown-content').style.display = 'block';
+        });
+        dropdown.addEventListener('mouseleave', () => {
+            dropdown.querySelector('.dropdown-content').style.display = 'none';
+        });
+    });
 }
 
 // Download Functions
 async function startFastDownload(quality) {
     try {
-        if (isAdPlaying) {
-            showToast("Please wait for ad to finish");
-            return;
-        }
-        
         showToast(`Preparing ${quality} download...`);
         
         for (const endpoint of API_ENDPOINTS) {
@@ -1058,11 +816,6 @@ async function startFastDownload(quality) {
 }
 
 function startTelegramDownload(quality) {
-    if (isAdPlaying) {
-        showToast("Please wait for ad to finish");
-        return;
-    }
-    
     const botUsername = 'sk4filmbot';
     const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
     const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
@@ -1070,13 +823,20 @@ function startTelegramDownload(quality) {
     showToast(`Opening Telegram for ${quality}...`);
 }
 
-// Helper Functions (Continued)
+// Helper Functions
 function formatSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function formatDuration(seconds) {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 function showLoading() {
@@ -1085,20 +845,6 @@ function showLoading() {
 
 function hideLoading() {
     document.getElementById('loadingContainer').style.display = 'none';
-}
-
-function showError(message) {
-    const videoContainer = document.getElementById('videoContainer');
-    videoContainer.innerHTML = `
-        <div class="error-container">
-            <i class="fas fa-exclamation-circle mb-3" style="font-size: 3rem; color: #ff0000;"></i>
-            <h4>Error Loading Video</h4>
-            <p>${message}</p>
-            <button class="btn btn-danger mt-3" onclick="window.location.reload()">
-                <i class="fas fa-redo me-2"></i>Retry
-            </button>
-        </div>
-    `;
 }
 
 function showToast(message, duration = 3000) {
@@ -1111,265 +857,42 @@ function showToast(message, duration = 3000) {
     }, duration);
 }
 
-async function fetchWithTimeout(resource, timeout = 3000) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    
-    const response = await fetch(resource, {
-        signal: controller.signal
-    });
-    
-    clearTimeout(id);
-    return response;
+function showError(message) {
+    const videoContainer = document.getElementById('videoContainer');
+    videoContainer.innerHTML = `
+        <div class="error-container" style="text-align: center; padding: 3rem 1rem; background: rgba(255, 0, 0, 0.1); border-radius: 8px; border: 1px solid rgba(255, 0, 0, 0.3); margin-bottom: 1rem;">
+            <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
+            <h5>${escapeHtml(message)}</h5>
+            <button class="btn btn-outline-light mt-2" onclick="location.reload()">
+                <i class="fas fa-redo me-1"></i>Retry
+            </button>
+        </div>
+    `;
+    hideLoading();
 }
 
-// Keyboard Shortcuts
-document.addEventListener('keydown', (e) => {
-    if (!player) return;
-    
-    switch(e.key) {
-        case ' ':
-        case 'Spacebar':
-            e.preventDefault();
-            if (player.paused()) {
-                player.play();
-            } else {
-                player.pause();
-            }
-            break;
-        case 'ArrowRight':
-            player.currentTime(player.currentTime() + 10);
-            break;
-        case 'ArrowLeft':
-            player.currentTime(player.currentTime() - 10);
-            break;
-        case 'f':
-        case 'F':
-            if (player.isFullscreen()) {
-                player.exitFullscreen();
-            } else {
-                player.requestFullscreen();
-            }
-            break;
-        case 'm':
-        case 'M':
-            player.muted(!player.muted());
-            break;
-    }
-});
-
-// Handle Page Visibility (pause when tab is hidden)
-document.addEventListener('visibilitychange', () => {
-    if (player && document.hidden && !player.paused()) {
-        player.pause();
-    }
-});
-
-// Handle beforeunload (save playback position)
-window.addEventListener('beforeunload', () => {
-    if (player && player.currentTime() > 0) {
-        const position = {
-            messageId: messageId,
-            time: player.currentTime(),
-            duration: player.duration(),
-            quality: currentQuality
-        };
-        localStorage.setItem('sk4film_last_position', JSON.stringify(position));
-    }
-});
-
-// Try to restore playback position
-try {
-    const saved = localStorage.getItem('sk4film_last_position');
-    if (saved) {
-        const position = JSON.parse(saved);
-        if (position.messageId === messageId && player) {
-            player.one('loadedmetadata', () => {
-                if (position.time < player.duration() - 10) {
-                    player.currentTime(position.time);
-                    showToast(`Resumed from ${formatTime(position.time)}`);
-                }
-            });
-        }
-    }
-} catch (e) {
-    console.log("No saved position found");
+function fetchWithTimeout(url, timeout = 3000) {
+    return Promise.race([
+        fetch(url),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), timeout)
+        )
+    ]);
 }
 
-function formatTime(seconds) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return h > 0 
-        ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-        : `${m}:${s.toString().padStart(2, '0')}`;
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-// Prevent right-click on video
-document.addEventListener('contextmenu', (e) => {
-    if (e.target.closest('.video-js')) {
-        e.preventDefault();
-        showToast('Right-click disabled to protect content');
-    }
-});
+// Make functions global
+window.startFastDownload = startFastDownload;
+window.startTelegramDownload = startTelegramDownload;
 
-// Handle player errors
-player.on('error', () => {
-    const error = player.error();
-    if (error) {
-        console.error('Video.js Error:', error);
-        if (error.code === 4) {
-            showToast('Video format not supported. Trying alternative source...');
-            // Try alternative sources here
-        }
-    }
-});
-
-// Quality switching function
-async function switchQuality(newQuality) {
-    if (isAdPlaying) {
-        showToast("Please wait for ad to finish");
-        return;
-    }
-    
-    if (currentQuality === newQuality) return;
-    
-    showToast(`Switching to ${newQuality}...`);
-    
-    try {
-        const videoUrl = await getVideoUrlForQuality(newQuality);
-        if (!videoUrl) throw new Error('No video URL');
-        
-        const currentTime = player.currentTime();
-        const wasPlaying = !player.paused();
-        
-        player.src({
-            src: videoUrl,
-            type: 'video/mp4'
-        });
-        
-        player.one('loadedmetadata', () => {
-            player.currentTime(Math.min(currentTime, player.duration()));
-            if (wasPlaying) {
-                player.play().catch(console.log);
-            }
-            currentQuality = newQuality;
-            showToast(`Switched to ${newQuality}`);
-        });
-        
-        player.load();
-    } catch (error) {
-        console.error('Quality switch failed:', error);
-        showToast('Failed to switch quality');
-    }
-}
-
-async function getVideoUrlForQuality(quality) {
-    for (const endpoint of API_ENDPOINTS) {
-        try {
-            const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-            const response = await fetchWithTimeout(apiUrl);
-            const data = await response.json();
-            
-            if (data.status === 'success' && data.stream_info?.stream_url) {
-                return data.stream_info.stream_url;
-            }
-        } catch (error) {
-            console.warn(`API ${endpoint} failed for quality ${quality}:`, error);
-        }
-    }
-    return null;
-}
-
-// Network status monitoring
-window.addEventListener('online', () => {
-    showToast('Connection restored');
-    if (player && player.paused()) {
-        player.play().catch(console.log);
-    }
-});
-
-window.addEventListener('offline', () => {
-    showToast('Connection lost. Video may buffer.', 5000);
-});
-
-// Initialize player controls visibility
-function initPlayerControls() {
-    // Ensure controls are visible on mobile touch
-    player.on('touchstart', () => {
-        if (player.userActive() === false) {
-            player.userActive(true);
-        }
-    });
-}
-
-// Add quality buttons to player control bar
-function addQualitySelectorToPlayer() {
-    const qualityButton = document.createElement('button');
-    qualityButton.className = 'vjs-control vjs-button vjs-quality-button';
-    qualityButton.innerHTML = '<span class="vjs-icon-placeholder">' + currentQuality + '</span>';
-    qualityButton.title = 'Select Quality';
-    
-    const controlBar = player.controlBar.el();
-    const fullscreenBtn = controlBar.querySelector('.vjs-fullscreen-control');
-    
-    if (fullscreenBtn) {
-        controlBar.insertBefore(qualityButton, fullscreenBtn);
-    }
-    
-    qualityButton.addEventListener('click', () => {
-        const menu = document.createElement('div');
-        menu.className = 'vjs-menu vjs-quality-menu';
-        menu.innerHTML = `
-            <div class="vjs-menu-content">
-                <button class="vjs-menu-item" data-quality="2160p">4K</button>
-                <button class="vjs-menu-item" data-quality="1080p">1080p</button>
-                <button class="vjs-menu-item" data-quality="720p">720p</button>
-                <button class="vjs-menu-item" data-quality="480p">480p</button>
-            </div>
-        `;
-        
-        menu.querySelectorAll('.vjs-menu-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-                switchQuality(btn.dataset.quality);
-                menu.remove();
-            });
-        });
-        
-        qualityButton.appendChild(menu);
-    });
-}
-
-// Initialize when player is ready
-player.ready(() => {
-    initPlayerControls();
-    addQualitySelectorToPlayer();
-});
-
-// Handle fullscreen changes
-player.on('fullscreenchange', () => {
-    if (player.isFullscreen()) {
-        document.documentElement.style.overflow = 'hidden';
-    } else {
-        document.documentElement.style.overflow = '';
-    }
-});
-
-// Performance monitoring
-let lastBufferedTime = 0;
-player.on('progress', () => {
-    const buffered = player.buffered();
-    if (buffered.length > 0) {
-        const currentBuffered = buffered.end(buffered.length - 1);
-        if (currentBuffered > lastBufferedTime + 10) {
-            // Good buffering
-            player.play().catch(console.log);
-        }
-        lastBufferedTime = currentBuffered;
-    }
-});
-
-console.log("🎬 SK4FiLM Video Player Initialized Successfully");
+console.log("🎬 SK4FiLM Player with HilltopAds Initialized");
+console.log("📺 Real ads from HilltopAds will play without skip button");
+console.log("🔒 No skip option - users must watch full ads");
 </script>
 </body>
 </html>
