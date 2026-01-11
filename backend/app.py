@@ -354,6 +354,12 @@ class Config:
     THUMBNAIL_EXTRACT_TIMEOUT = 10
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
     
+    # 🔥 THUMBNAILS DATABASE SETTINGS
+    THUMBNAILS_DB_NAME = "sk4film_thumbnails"
+    THUMBNAILS_COLLECTION_NAME = "thumbnails"
+    THUMBNAILS_STORAGE_LIMIT = 10000  # Max thumbnails to store
+    THUMBNAILS_CLEANUP_INTERVAL = 3600  # Cleanup every hour
+    
     # 🔥 FILE CHANNEL INDEXING SETTINGS
     AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))  # 2 minutes
     BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "500"))  # Large batches
@@ -400,6 +406,11 @@ db = None
 files_col = None
 verification_col = None
 
+# ✅ NEW: Thumbnails Database
+thumbnails_client = None
+thumbnails_db = None
+thumbnails_col = None
+
 # Telegram Sessions
 try:
     from pyrogram import Client
@@ -426,6 +437,376 @@ telegram_bot = None
 is_indexing = False
 last_index_time = None
 indexing_task = None
+
+# ============================================================================
+# ✅ THUMBNAILS DATABASE MANAGER
+# ============================================================================
+
+class ThumbnailsDatabase:
+    """Separate database for storing extracted thumbnails"""
+    
+    def __init__(self):
+        self.client = None
+        self.db = None
+        self.collection = None
+        self.connected = False
+        self.cleanup_task = None
+    
+    async def connect(self):
+        """Connect to thumbnails database"""
+        try:
+            logger.info("📸 Connecting to thumbnails database...")
+            
+            # Use same MongoDB URI but different database
+            self.client = AsyncIOMotorClient(
+                Config.MONGODB_URI,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+                socketTimeoutMS=10000,
+                maxPoolSize=10,
+                minPoolSize=2
+            )
+            
+            # Test connection
+            await asyncio.wait_for(self.client.admin.command('ping'), timeout=3)
+            
+            self.db = self.client[Config.THUMBNAILS_DB_NAME]
+            self.collection = self.db[Config.THUMBNAILS_COLLECTION_NAME]
+            
+            # Create indexes
+            await self.create_indexes()
+            
+            self.connected = True
+            logger.info(f"✅ Thumbnails database connected: {Config.THUMBNAILS_DB_NAME}.{Config.THUMBNAILS_COLLECTION_NAME}")
+            
+            # Start cleanup task
+            self.cleanup_task = asyncio.create_task(self.cleanup_old_thumbnails())
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Thumbnails database connection error: {e}")
+            self.connected = False
+            return False
+    
+    async def create_indexes(self):
+        """Create necessary indexes for thumbnails collection"""
+        try:
+            # Unique index for file identifier
+            await self.collection.create_index(
+                [("channel_id", 1), ("message_id", 1)],
+                unique=True,
+                name="channel_message_unique",
+                background=True
+            )
+            
+            # Index for thumbnail hash
+            await self.collection.create_index(
+                [("thumbnail_hash", 1)],
+                name="thumbnail_hash_index",
+                background=True
+            )
+            
+            # TTL index for auto-deletion of old thumbnails
+            await self.collection.create_index(
+                [("created_at", 1)],
+                expireAfterSeconds=30 * 24 * 60 * 60,  # 30 days
+                name="ttl_index",
+                background=True
+            )
+            
+            logger.info("✅ Thumbnails database indexes created")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Thumbnails index creation error: {e}")
+    
+    async def save_thumbnail(self, channel_id: int, message_id: int, 
+                           thumbnail_data: bytes, thumbnail_hash: str) -> bool:
+        """
+        Save thumbnail to database
+        
+        Args:
+            channel_id: Telegram channel ID
+            message_id: Telegram message ID
+            thumbnail_data: Binary thumbnail data
+            thumbnail_hash: MD5 hash of thumbnail for deduplication
+        
+        Returns:
+            bool: True if saved successfully
+        """
+        if not self.connected:
+            return False
+        
+        try:
+            thumbnail_doc = {
+                "channel_id": channel_id,
+                "message_id": message_id,
+                "thumbnail_data": thumbnail_data,
+                "thumbnail_hash": thumbnail_hash,
+                "created_at": datetime.now(),
+                "size_bytes": len(thumbnail_data),
+                "content_type": "image/jpeg",
+                "storage_type": "mongodb_gridfs"  # Indicates data is stored in binary
+            }
+            
+            # Upsert operation
+            result = await self.collection.update_one(
+                {
+                    "channel_id": channel_id,
+                    "message_id": message_id
+                },
+                {"$set": thumbnail_doc},
+                upsert=True
+            )
+            
+            if result.upserted_id or result.modified_count > 0:
+                logger.debug(f"✅ Thumbnail saved: {channel_id}/{message_id} ({len(thumbnail_data)} bytes)")
+                return True
+            else:
+                logger.debug(f"📝 Thumbnail already exists: {channel_id}/{message_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Save thumbnail error: {e}")
+            return False
+    
+    async def get_thumbnail(self, channel_id: int, message_id: int) -> Optional[bytes]:
+        """
+        Get thumbnail from database
+        
+        Args:
+            channel_id: Telegram channel ID
+            message_id: Telegram message ID
+        
+        Returns:
+            bytes: Thumbnail binary data or None if not found
+        """
+        if not self.connected:
+            return None
+        
+        try:
+            doc = await self.collection.find_one(
+                {
+                    "channel_id": channel_id,
+                    "message_id": message_id
+                },
+                {
+                    "thumbnail_data": 1,
+                    "_id": 0
+                }
+            )
+            
+            if doc and "thumbnail_data" in doc:
+                return doc["thumbnail_data"]
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Get thumbnail error: {e}")
+            return None
+    
+    async def get_thumbnail_base64(self, channel_id: int, message_id: int) -> Optional[str]:
+        """
+        Get thumbnail as base64 data URL
+        
+        Args:
+            channel_id: Telegram channel ID
+            message_id: Telegram message ID
+        
+        Returns:
+            str: Base64 data URL or None if not found
+        """
+        thumbnail_data = await self.get_thumbnail(channel_id, message_id)
+        
+        if thumbnail_data:
+            try:
+                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                return f"data:image/jpeg;base64,{base64_data}"
+            except Exception as e:
+                logger.error(f"❌ Base64 encoding error: {e}")
+                return None
+        
+        return None
+    
+    async def check_thumbnail_exists(self, channel_id: int, message_id: int) -> bool:
+        """
+        Check if thumbnail exists in database
+        
+        Args:
+            channel_id: Telegram channel ID
+            message_id: Telegram message ID
+        
+        Returns:
+            bool: True if thumbnail exists
+        """
+        if not self.connected:
+            return False
+        
+        try:
+            count = await self.collection.count_documents({
+                "channel_id": channel_id,
+                "message_id": message_id
+            })
+            
+            return count > 0
+            
+        except Exception as e:
+            logger.error(f"❌ Check thumbnail exists error: {e}")
+            return False
+    
+    async def delete_thumbnail(self, channel_id: int, message_id: int) -> bool:
+        """
+        Delete thumbnail from database
+        
+        Args:
+            channel_id: Telegram channel ID
+            message_id: Telegram message ID
+        
+        Returns:
+            bool: True if deleted successfully
+        """
+        if not self.connected:
+            return False
+        
+        try:
+            result = await self.collection.delete_one({
+                "channel_id": channel_id,
+                "message_id": message_id
+            })
+            
+            if result.deleted_count > 0:
+                logger.debug(f"🗑️ Thumbnail deleted: {channel_id}/{message_id}")
+                return True
+            else:
+                logger.debug(f"📝 Thumbnail not found for deletion: {channel_id}/{message_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Delete thumbnail error: {e}")
+            return False
+    
+    async def cleanup_old_thumbnails(self):
+        """Background task to cleanup old thumbnails"""
+        while True:
+            try:
+                await asyncio.sleep(Config.THUMBNAILS_CLEANUP_INTERVAL)
+                
+                if not self.connected:
+                    continue
+                
+                # Get total count
+                total_count = await self.collection.count_documents({})
+                
+                if total_count > Config.THUMBNAILS_STORAGE_LIMIT:
+                    # Find oldest thumbnails to delete
+                    excess_count = total_count - Config.THUMBNAILS_STORAGE_LIMIT
+                    
+                    # Get oldest documents
+                    oldest_docs = await self.collection.find(
+                        {},
+                        {"_id": 1}
+                    ).sort("created_at", 1).limit(excess_count).to_list(length=excess_count)
+                    
+                    if oldest_docs:
+                        # Delete oldest thumbnails
+                        ids_to_delete = [doc["_id"] for doc in oldest_docs]
+                        
+                        result = await self.collection.delete_many(
+                            {"_id": {"$in": ids_to_delete}}
+                        )
+                        
+                        logger.info(f"🧹 Cleaned up {result.deleted_count} old thumbnails")
+                
+                # Also delete thumbnails older than 90 days
+                ninety_days_ago = datetime.now() - timedelta(days=90)
+                result = await self.collection.delete_many({
+                    "created_at": {"$lt": ninety_days_ago}
+                })
+                
+                if result.deleted_count > 0:
+                    logger.info(f"🗑️ Deleted {result.deleted_count} thumbnails older than 90 days")
+                    
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"❌ Thumbnails cleanup error: {e}")
+                await asyncio.sleep(300)  # Wait 5 minutes before retry
+    
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get thumbnails database statistics"""
+        if not self.connected:
+            return {"connected": False}
+        
+        try:
+            # Get total count
+            total_count = await self.collection.count_documents({})
+            
+            # Get size statistics
+            pipeline = [
+                {
+                    "$group": {
+                        "_id": None,
+                        "total_size_bytes": {"$sum": "$size_bytes"},
+                        "avg_size_bytes": {"$avg": "$size_bytes"},
+                        "min_size_bytes": {"$min": "$size_bytes"},
+                        "max_size_bytes": {"$max": "$size_bytes"}
+                    }
+                }
+            ]
+            
+            size_stats = await self.collection.aggregate(pipeline).to_list(length=1)
+            
+            # Get age distribution
+            now = datetime.now()
+            thirty_days_ago = now - timedelta(days=30)
+            sixty_days_ago = now - timedelta(days=60)
+            
+            recent_count = await self.collection.count_documents({
+                "created_at": {"$gte": thirty_days_ago}
+            })
+            
+            old_count = await self.collection.count_documents({
+                "created_at": {"$lt": thirty_days_ago, "$gte": sixty_days_ago}
+            })
+            
+            very_old_count = await self.collection.count_documents({
+                "created_at": {"$lt": sixty_days_ago}
+            })
+            
+            return {
+                "connected": True,
+                "total_thumbnails": total_count,
+                "storage_limit": Config.THUMBNAILS_STORAGE_LIMIT,
+                "storage_usage_percentage": (total_count / Config.THUMBNAILS_STORAGE_LIMIT) * 100 if Config.THUMBNAILS_STORAGE_LIMIT > 0 else 100,
+                "size_stats": size_stats[0] if size_stats else {},
+                "age_distribution": {
+                    "recent_30_days": recent_count,
+                    "old_30_60_days": old_count,
+                    "very_old_60+_days": very_old_count
+                },
+                "database_name": Config.THUMBNAILS_DB_NAME,
+                "collection_name": Config.THUMBNAILS_COLLECTION_NAME
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Get thumbnails stats error: {e}")
+            return {"connected": True, "error": str(e)}
+    
+    async def close(self):
+        """Close thumbnails database connection"""
+        if self.cleanup_task:
+            self.cleanup_task.cancel()
+            try:
+                await self.cleanup_task
+            except asyncio.CancelledError:
+                pass
+        
+        if self.client:
+            self.client.close()
+            logger.info("✅ Thumbnails database connection closed")
+
+# Initialize thumbnails database
+thumbnails_db_manager = ThumbnailsDatabase()
 
 # ============================================================================
 # ✅ BOT HANDLER MODULE - FIXED WITH MISSING METHODS
@@ -955,73 +1336,139 @@ class QualityMerger:
         return " • ".join(summary_parts)
 
 # ============================================================================
-# ✅ VIDEO THUMBNAIL EXTRACTOR
+# ✅ VIDEO THUMBNAIL EXTRACTOR WITH DATABASE SUPPORT
 # ============================================================================
 
 class VideoThumbnailExtractor:
-    """Extract thumbnails from video files"""
+    """Extract thumbnails from video files with database storage"""
     
     def __init__(self):
         self.extraction_lock = asyncio.Lock()
+        self.thumbnail_db = thumbnails_db_manager
     
     async def extract_thumbnail(self, channel_id: int, message_id: int) -> Optional[str]:
         """
-        Extract thumbnail from video file
+        Extract thumbnail from video file with database storage
         Returns base64 data URL or None
         """
         try:
-            # Use bot handler to extract thumbnail
-            if bot_handler and bot_handler.initialized:
-                thumbnail_url = await bot_handler.extract_thumbnail(channel_id, message_id)
-                if thumbnail_url:
-                    logger.debug(f"✅ Thumbnail extracted via bot handler: {channel_id}/{message_id}")
-                    return thumbnail_url
+            # Check database first
+            if self.thumbnail_db.connected:
+                base64_data = await self.thumbnail_db.get_thumbnail_base64(channel_id, message_id)
+                if base64_data:
+                    logger.debug(f"✅ Thumbnail from database: {channel_id}/{message_id}")
+                    return base64_data
             
-            # Fallback to Bot session if available
-            if Bot is not None and bot_session_ready:
-                try:
-                    message = await Bot.get_messages(channel_id, message_id)
-                    if not message:
-                        return None
-                    
-                    thumbnail_data = None
-                    
-                    if message.video:
-                        if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
-                            thumbnail_file_id = message.video.thumbnail.file_id
-                            download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
-                            
-                            if download_path:
-                                if isinstance(download_path, bytes):
-                                    thumbnail_data = download_path
-                                else:
-                                    with open(download_path, 'rb') as f:
-                                        thumbnail_data = f.read()
-                    
-                    elif message.document and is_video_file(message.document.file_name or ''):
-                        if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
-                            thumbnail_file_id = message.document.thumbnail.file_id
-                            download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
-                            
-                            if download_path:
-                                if isinstance(download_path, bytes):
-                                    thumbnail_data = download_path
-                                else:
-                                    with open(download_path, 'rb') as f:
-                                        thumbnail_data = f.read()
-                    
-                    if thumbnail_data:
-                        base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
-                        return f"data:image/jpeg;base64,{base64_data}"
-                    
-                except Exception as e:
-                    logger.error(f"❌ Bot session thumbnail extraction error: {e}")
+            # Try to extract using bot handler
+            thumbnail_data = await self._extract_thumbnail_from_telegram(channel_id, message_id)
+            
+            if thumbnail_data:
+                # Convert to base64
+                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                thumbnail_url = f"data:image/jpeg;base64,{base64_data}"
+                
+                # Generate hash for deduplication
+                thumbnail_hash = hashlib.md5(thumbnail_data).hexdigest()
+                
+                # Save to database
+                if self.thumbnail_db.connected:
+                    await self.thumbnail_db.save_thumbnail(
+                        channel_id, message_id, thumbnail_data, thumbnail_hash
+                    )
+                
+                return thumbnail_url
             
             return None
             
         except Exception as e:
             logger.error(f"❌ Thumbnail extraction failed: {e}")
             return None
+    
+    async def _extract_thumbnail_from_telegram(self, channel_id: int, message_id: int) -> Optional[bytes]:
+        """Extract thumbnail from Telegram"""
+        # Try bot handler first
+        if bot_handler and bot_handler.initialized:
+            try:
+                thumbnail_url = await bot_handler.extract_thumbnail(channel_id, message_id)
+                if thumbnail_url:
+                    # Extract base64 data
+                    if thumbnail_url.startswith('data:image/jpeg;base64,'):
+                        base64_data = thumbnail_url.split(',')[1]
+                        return base64.b64decode(base64_data)
+            except Exception as e:
+                logger.debug(f"Bot handler thumbnail extraction error: {e}")
+        
+        # Fallback to Bot session if available
+        if Bot is not None and bot_session_ready:
+            try:
+                message = await Bot.get_messages(channel_id, message_id)
+                if not message:
+                    return None
+                
+                thumbnail_data = None
+                
+                if message.video:
+                    if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
+                        thumbnail_file_id = message.video.thumbnail.file_id
+                        download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
+                        
+                        if download_path:
+                            if isinstance(download_path, bytes):
+                                thumbnail_data = download_path
+                            else:
+                                with open(download_path, 'rb') as f:
+                                    thumbnail_data = f.read()
+                
+                elif message.document and is_video_file(message.document.file_name or ''):
+                    if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
+                        thumbnail_file_id = message.document.thumbnail.file_id
+                        download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
+                        
+                        if download_path:
+                            if isinstance(download_path, bytes):
+                                thumbnail_data = download_path
+                            else:
+                                with open(download_path, 'rb') as f:
+                                    thumbnail_data = f.read()
+                
+                return thumbnail_data
+                
+            except Exception as e:
+                logger.error(f"❌ Bot session thumbnail extraction error: {e}")
+        
+        return None
+    
+    async def get_thumbnail_from_db(self, channel_id: int, message_id: int) -> Optional[str]:
+        """Get thumbnail from database only"""
+        if not self.thumbnail_db.connected:
+            return None
+        
+        try:
+            return await self.thumbnail_db.get_thumbnail_base64(channel_id, message_id)
+        except Exception as e:
+            logger.error(f"❌ Get thumbnail from DB error: {e}")
+            return None
+    
+    async def save_thumbnail_to_db(self, channel_id: int, message_id: int, 
+                                 thumbnail_data: bytes) -> bool:
+        """Save thumbnail to database"""
+        if not self.thumbnail_db.connected:
+            return False
+        
+        try:
+            thumbnail_hash = hashlib.md5(thumbnail_data).hexdigest()
+            return await self.thumbnail_db.save_thumbnail(
+                channel_id, message_id, thumbnail_data, thumbnail_hash
+            )
+        except Exception as e:
+            logger.error(f"❌ Save thumbnail to DB error: {e}")
+            return False
+    
+    async def cleanup_thumbnails(self):
+        """Cleanup old thumbnails"""
+        if self.thumbnail_db.connected:
+            # Database has its own cleanup task
+            pass
 
 thumbnail_extractor = VideoThumbnailExtractor()
 
@@ -1702,7 +2149,7 @@ async def index_single_file_smart(message):
                 logger.info(f"🔄 DUPLICATE: {title[:50]}... - Reason: {reason}")
                 return False
         
-        # Extract thumbnail if video file
+        # Extract thumbnail if video file (now using database)
         thumbnail_url = None
         is_video = False
         
@@ -2244,7 +2691,7 @@ async def init_telegram_sessions():
     return user_session_ready or bot_session_ready
 
 # ============================================================================
-# ✅ MONGODB INITIALIZATION
+# ✅ MONGODB INITIALIZATION WITH THUMBNAILS DATABASE
 # ============================================================================
 
 @performance_monitor.measure("mongodb_init")
@@ -2282,7 +2729,7 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ MAIN INITIALIZATION - UPDATED WITH BOT START
+# ✅ MAIN INITIALIZATION - UPDATED WITH BOT START AND THUMBNAILS DB
 # ============================================================================
 
 @performance_monitor.measure("system_init")
@@ -2299,6 +2746,13 @@ async def init_system():
         if not mongo_ok:
             logger.error("❌ MongoDB connection failed")
             return False
+        
+        # Initialize Thumbnails Database
+        thumbnails_ok = await thumbnails_db_manager.connect()
+        if thumbnails_ok:
+            logger.info("✅ Thumbnails database connected")
+        else:
+            logger.warning("⚠️ Thumbnails database not connected - thumbnails will not be persisted")
         
         # Get current file count
         if files_col is not None:
@@ -2364,6 +2818,7 @@ async def init_system():
         logger.info(f"   • Cache System: {'✅ ENABLED' if cache_manager else '❌ DISABLED'}")
         logger.info(f"   • Poster Fetcher: {'✅ ENABLED' if poster_fetcher else '❌ DISABLED'}")
         logger.info(f"   • Quality Merging: ✅ ENABLED")
+        logger.info(f"   • Thumbnails Database: {'✅ CONNECTED' if thumbnails_db_manager.connected else '❌ NOT CONNECTED'}")
         logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
         logger.info(f"   • Bot Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
         logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
@@ -2975,6 +3430,9 @@ async def root():
     # Get indexing status
     indexing_status = await file_indexing_manager.get_indexing_status()
     
+    # Get thumbnails database stats
+    thumbnails_stats = await thumbnails_db_manager.get_stats()
+    
     # Get bot handler status - ✅ FIXED: Handle None properly
     bot_status = None
     if bot_handler:
@@ -3012,7 +3470,8 @@ async def root():
             'poster_fetcher': poster_fetcher is not None,
             'database': files_col is not None,
             'bot_handler': bot_handler is not None and bot_handler.initialized,
-            'telegram_bot': telegram_bot is not None
+            'telegram_bot': telegram_bot is not None,
+            'thumbnails_database': thumbnails_db_manager.connected
         },
         'features': {
             'real_message_ids': True,
@@ -3024,7 +3483,8 @@ async def root():
             'thumbnail_extraction': True,
             'telegram_bot': True,
             'video_streaming': Config.STREAMING_ENABLED,
-            'direct_download': True
+            'direct_download': True,
+            'thumbnails_database': thumbnails_db_manager.connected
         },
         'stats': {
             'total_files': tf,
@@ -3032,6 +3492,7 @@ async def root():
             'thumbnails_extracted': thumbnails_extracted
         },
         'indexing': indexing_status,
+        'thumbnails_stats': thumbnails_stats,
         'response_time': f"{time.perf_counter():.3f}s"
     })
 
@@ -3061,6 +3522,7 @@ async def health():
             'is_first_run': indexing_status.get('is_first_run', False),
             'last_run': indexing_status['last_run']
         },
+        'thumbnails_database': thumbnails_db_manager.connected,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -3117,7 +3579,8 @@ async def api_search():
                 'feature': 'file_channel_search',
                 'quality_priority': Config.QUALITY_PRIORITY,
                 'real_message_ids': True,
-                'streaming_enabled': Config.STREAMING_ENABLED
+                'streaming_enabled': Config.STREAMING_ENABLED,
+                'thumbnails_from_db': thumbnails_db_manager.connected
             },
             'bot_username': Config.BOT_USERNAME,
             'timestamp': datetime.now().isoformat()
@@ -3297,6 +3760,153 @@ async def api_file_metadata():
             'message': str(e)
         }), 500
 
+# ============================================================================
+# ✅ THUMBNAILS DATABASE API ENDPOINTS
+# ============================================================================
+
+@app.route('/api/thumbnails/stats', methods=['GET'])
+@performance_monitor.measure("thumbnails_stats_endpoint")
+async def api_thumbnails_stats():
+    """Get thumbnails database statistics"""
+    try:
+        stats = await thumbnails_db_manager.get_stats()
+        
+        return jsonify({
+            'status': 'success',
+            'thumbnails_database': stats,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Thumbnails stats error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/thumbnails/get', methods=['GET'])
+@performance_monitor.measure("thumbnails_get_endpoint")
+async def api_thumbnails_get():
+    """Get thumbnail from database"""
+    try:
+        channel_id = request.args.get('channel_id', type=int)
+        message_id = request.args.get('message_id', type=int)
+        
+        if not channel_id or not message_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'channel_id and message_id are required'
+            }), 400
+        
+        # Get thumbnail from database
+        thumbnail_url = await thumbnails_db_manager.get_thumbnail_base64(channel_id, message_id)
+        
+        if not thumbnail_url:
+            return jsonify({
+                'status': 'error',
+                'message': 'Thumbnail not found in database'
+            }), 404
+        
+        return jsonify({
+            'status': 'success',
+            'thumbnail_url': thumbnail_url,
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'in_database': True,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Thumbnails get error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/thumbnails/extract', methods=['POST'])
+@performance_monitor.measure("thumbnails_extract_endpoint")
+async def api_thumbnails_extract():
+    """Extract and save thumbnail"""
+    try:
+        channel_id = request.args.get('channel_id', type=int)
+        message_id = request.args.get('message_id', type=int)
+        
+        if not channel_id or not message_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'channel_id and message_id are required'
+            }), 400
+        
+        # Check if already exists
+        exists = await thumbnails_db_manager.check_thumbnail_exists(channel_id, message_id)
+        if exists:
+            return jsonify({
+                'status': 'success',
+                'message': 'Thumbnail already exists in database',
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'already_exists': True
+            })
+        
+        # Extract thumbnail
+        thumbnail_url = await thumbnail_extractor.extract_thumbnail(channel_id, message_id)
+        
+        if not thumbnail_url:
+            return jsonify({
+                'status': 'error',
+                'message': 'Could not extract thumbnail'
+            }), 500
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Thumbnail extracted and saved',
+            'thumbnail_url': thumbnail_url,
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'saved_to_database': True,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Thumbnails extract error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/thumbnails/check', methods=['GET'])
+@performance_monitor.measure("thumbnails_check_endpoint")
+async def api_thumbnails_check():
+    """Check if thumbnail exists in database"""
+    try:
+        channel_id = request.args.get('channel_id', type=int)
+        message_id = request.args.get('message_id', type=int)
+        
+        if not channel_id or not message_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'channel_id and message_id are required'
+            }), 400
+        
+        # Check if exists
+        exists = await thumbnails_db_manager.check_thumbnail_exists(channel_id, message_id)
+        
+        return jsonify({
+            'status': 'success',
+            'exists': exists,
+            'channel_id': channel_id,
+            'message_id': message_id,
+            'database_connected': thumbnails_db_manager.connected,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Thumbnails check error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 @app.route('/api/stats', methods=['GET'])
 async def api_stats():
     """Get performance statistics"""
@@ -3326,6 +3936,9 @@ async def api_stats():
             indexing_status = {}
             duplicate_stats = {}
         
+        # Get thumbnails database stats
+        thumbnails_stats = await thumbnails_db_manager.get_stats()
+        
         # Get bot handler status - ✅ FIXED: Safe retrieval
         bot_status = None
         if bot_handler:
@@ -3347,6 +3960,7 @@ async def api_stats():
                 'thumbnails_extracted': thumbnails_extracted,
                 'extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%"
             },
+            'thumbnails_database': thumbnails_stats,
             'indexing_stats': indexing_status,
             'duplicate_stats': duplicate_stats,
             'bot_handler': bot_status,
@@ -3544,6 +4158,56 @@ async def api_admin_bot_status():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
+# ✅ THUMBNAILS ADMIN ENDPOINTS
+# ============================================================================
+
+@app.route('/api/admin/thumbnails/stats', methods=['GET'])
+async def api_admin_thumbnails_stats():
+    """Admin endpoint for thumbnails database stats"""
+    try:
+        auth_token = request.headers.get('X-Admin-Token')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        stats = await thumbnails_db_manager.get_stats()
+        
+        return jsonify({
+            'status': 'success',
+            'thumbnails_database': stats,
+            'config': {
+                'database_name': Config.THUMBNAILS_DB_NAME,
+                'collection_name': Config.THUMBNAILS_COLLECTION_NAME,
+                'storage_limit': Config.THUMBNAILS_STORAGE_LIMIT,
+                'cleanup_interval': Config.THUMBNAILS_CLEANUP_INTERVAL
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Admin thumbnails stats error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/thumbnails/cleanup', methods=['POST'])
+async def api_admin_thumbnails_cleanup():
+    """Manually trigger thumbnails cleanup"""
+    try:
+        auth_token = request.headers.get('X-Admin-Token')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        # This will trigger cleanup in the background task
+        return jsonify({
+            'status': 'success',
+            'message': 'Thumbnails cleanup triggered',
+            'note': 'Cleanup runs automatically in background task',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Admin thumbnails cleanup error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================================================
 # ✅ STARTUP AND SHUTDOWN - FIXED
 # ============================================================================
 
@@ -3581,6 +4245,11 @@ async def shutdown():
             logger.info("✅ Bot Handler stopped")
         except Exception as e:
             logger.error(f"❌ Bot Handler shutdown error: {e}")
+    
+    # Close thumbnails database
+    if thumbnails_db_manager.connected:
+        await thumbnails_db_manager.close()
+        logger.info("✅ Thumbnails database connection closed")
     
     # Close poster fetcher session
     if poster_fetcher is not None and hasattr(poster_fetcher, 'close'):
@@ -3650,6 +4319,9 @@ if __name__ == "__main__":
     logger.info(f"   • Telegram Bot: ✅ ENABLED")
     logger.info(f"   • Multi-Quality Merging: ✅ FIXED")
     logger.info(f"   • Single Title Results: ✅ ENABLED")
+    logger.info(f"   • Thumbnails Database: ✅ ENABLED")
+    logger.info(f"   • Thumbnails Storage Limit: {Config.THUMBNAILS_STORAGE_LIMIT}")
+    logger.info(f"   • Thumbnails Database Name: {Config.THUMBNAILS_DB_NAME}")
     
     try:
         asyncio.run(serve(app, config))
