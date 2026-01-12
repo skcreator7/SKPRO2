@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
     <meta property="og:image" content="https://iili.io/KOlfc41.png" itemprop="thumbnailUrl">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SK4FiLM - Ad-Free HD Streaming</title>
+    <title>SK4FiLM - एड-फ्री HD स्ट्रीमिंग</title>
     
     <!-- Animation Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -38,7 +38,7 @@
             overflow-x: hidden;
         }
         
-        /* Navbar - Perfect Fit */
+        /* Navbar */
         .navbar {
             background: rgba(10, 10, 15, 0.95);
             backdrop-filter: blur(10px);
@@ -92,7 +92,7 @@
             gap: 5px;
         }
         
-        /* Main Container - Perfect Fit */
+        /* Main Container */
         .main-container {
             width: 100%;
             max-width: 100%;
@@ -101,7 +101,7 @@
             position: relative;
         }
         
-        /* Video Container - Perfect Fit for Mobile & Desktop */
+        /* Video Container */
         .video-wrapper {
             width: 100vw;
             position: relative;
@@ -109,11 +109,10 @@
             margin: 0 auto;
         }
         
-        /* Aspect Ratio Container */
         .aspect-ratio-box {
             position: relative;
             width: 100%;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            padding-top: 56.25%;
             background: #000;
         }
         
@@ -126,7 +125,6 @@
             background: #000;
         }
         
-        /* Video Element - Perfect Fit */
         #videoPlayer {
             width: 100%;
             height: 100%;
@@ -256,7 +254,7 @@
             transform: translate(-50%, -50%) scale(1.1);
         }
         
-        /* Custom Controls - Auto Hide */
+        /* Custom Controls */
         .video-controls {
             position: absolute;
             bottom: 0;
@@ -278,7 +276,7 @@
             transform: translateY(0);
         }
         
-        /* Control Buttons - Proper Icons */
+        /* Control Buttons */
         .control-btn {
             background: none;
             border: none;
@@ -378,8 +376,8 @@
             border: 2px solid var(--primary-red);
         }
         
-        /* Quality Selector */
-        .quality-selector {
+        /* Quality Selector in Controls */
+        .quality-selector-controls {
             background: rgba(0, 0, 0, 0.7);
             border: 1px solid rgba(255, 0, 0, 0.3);
             color: white;
@@ -388,9 +386,10 @@
             font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.2s;
+            min-width: 80px;
         }
         
-        .quality-selector:hover {
+        .quality-selector-controls:hover {
             background: rgba(255, 0, 0, 0.1);
         }
         
@@ -399,14 +398,14 @@
             margin-left: auto;
         }
         
-        /* Content Section - No Extra Space */
+        /* Content Section */
         .content-section {
             padding: 20px 15px;
             max-width: 1200px;
             margin: 0 auto;
         }
         
-        /* Action Buttons Grid */
+        /* Action Buttons Grid - UPDATED */
         .action-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -438,13 +437,62 @@
             -webkit-text-fill-color: transparent;
         }
         
-        /* Download Buttons */
+        /* NEW: Quality Selection Dropdown for Download */
+        .download-quality-selector {
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            display: none;
+            position: absolute;
+            z-index: 1000;
+            min-width: 200px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+        
+        .download-quality-selector.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .quality-option {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .quality-option:hover {
+            background: rgba(255, 0, 0, 0.2);
+        }
+        
+        .quality-option i {
+            width: 20px;
+        }
+        
+        .quality-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(0, 102, 255, 0.2);
+            color: #0066ff;
+        }
+        
+        /* Download Buttons - UPDATED */
         .download-buttons {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
             margin: 15px 0;
             justify-content: center;
+            position: relative;
         }
         
         .download-btn {
@@ -459,6 +507,7 @@
             gap: 8px;
             min-width: 160px;
             justify-content: center;
+            position: relative;
         }
         
         .fast-download {
@@ -469,6 +518,46 @@
         .telegram-download {
             background: linear-gradient(135deg, #0088cc, #00aced);
             color: white;
+        }
+        
+        .external-player {
+            background: linear-gradient(135deg, #6f42c1, #9b59b6);
+            color: white;
+        }
+        
+        /* NEW: External Players Section */
+        .external-players {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .player-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        .player-btn {
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .player-btn:hover {
+            background: rgba(255, 0, 0, 0.2);
+            transform: translateY(-2px);
         }
         
         /* Donation Section */
@@ -519,6 +608,11 @@
             to { transform: translate(-50%, 0); opacity: 1; }
         }
         
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             .navbar {
@@ -556,9 +650,10 @@
                 min-width: 85px;
             }
             
-            .quality-selector {
+            .quality-selector-controls {
                 font-size: 0.75rem;
                 padding: 4px 8px;
+                min-width: 70px;
             }
             
             .volume-slider {
@@ -586,6 +681,15 @@
             .content-section {
                 padding: 15px;
             }
+            
+            .player-buttons {
+                flex-direction: column;
+            }
+            
+            .player-btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
         
         @media (max-width: 480px) {
@@ -610,8 +714,9 @@
                 min-width: 75px;
             }
             
-            .quality-selector {
-                display: none; /* Hide on very small screens */
+            .quality-selector-controls {
+                min-width: 60px;
+                font-size: 0.7rem;
             }
             
             .mobile-quality {
@@ -645,28 +750,28 @@
                 <span class="logo-text">SK4FiLM</span>
             </div>
             <div class="ad-free-badge">
-                <i class="fas fa-bolt"></i> AD-FREE
+                <i class="fas fa-bolt"></i> एड-फ्री
             </div>
         </div>
     </nav>
 
     <!-- Main Content -->
     <div class="main-container">
-        <!-- Video Wrapper with Perfect Aspect Ratio -->
+        <!-- Video Wrapper -->
         <div class="video-wrapper">
             <div class="aspect-ratio-box">
                 <div class="video-container" id="videoContainer">
                     <!-- Video Element -->
                     <video id="videoPlayer" preload="auto" playsinline>
-                        Your browser does not support HTML5 video.
+                        आपका ब्राउज़र HTML5 वीडियो सपोर्ट नहीं करता।
                     </video>
                     
                     <!-- Loading Animation -->
                     <div class="player-loader" id="playerLoader">
                         <div class="loader-content">
                             <div class="spinner"></div>
-                            <div class="loader-text" id="loadingText">Loading SK4FiLM Player</div>
-                            <div class="loader-subtext" id="loadingSubtext">Preparing HD stream...</div>
+                            <div class="loader-text" id="loadingText">SK4FiLM प्लेयर लोड हो रहा है</div>
+                            <div class="loader-subtext" id="loadingSubtext">HD स्ट्रीम तैयार हो रही है...</div>
                             <div class="loading-bar">
                                 <div class="loading-progress" id="loadingProgress"></div>
                             </div>
@@ -683,7 +788,7 @@
                         <i class="fas fa-play"></i>
                     </div>
                     
-                    <!-- Custom Video Controls -->
+                    <!-- Custom Video Controls with Quality Selector -->
                     <div class="video-controls" id="videoControls">
                         <button class="control-btn play-pause-btn" onclick="togglePlay()" id="playBtn">
                             <i class="fas fa-play" id="playIcon"></i>
@@ -705,7 +810,8 @@
                             <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1">
                         </div>
                         
-                        <select class="quality-selector" id="qualitySelector" onchange="changeQuality(this.value)">
+                        <!-- Quality Selector in Controls -->
+                        <select class="quality-selector-controls" id="qualitySelectorControls" onchange="changeQuality(this.value)">
                             <option value="1080p">1080p FHD</option>
                             <option value="720p">720p HD</option>
                             <option value="480p">480p SD</option>
@@ -724,49 +830,122 @@
         <div class="content-section">
             <!-- Video Info -->
             <div class="text-center mb-4">
-                <h4 class="mb-2" id="videoTitle">Movie Title</h4>
+                <h4 class="mb-2" id="videoTitle">मूवी टाइटल</h4>
                 <div class="d-flex justify-content-center gap-3">
                     <span class="badge bg-danger">
                         <i class="fas fa-file me-1"></i> <span id="fileSize">-- MB</span>
                     </span>
                     <span class="badge bg-primary">
-                        <i class="fas fa-wifi me-1"></i> Direct Stream
+                        <i class="fas fa-wifi me-1"></i> डायरेक्ट स्ट्रीम
                     </span>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
+            <!-- Action Buttons with Quality Selection -->
             <div class="action-grid">
-                <div class="action-card" onclick="startFastDownload()">
+                <!-- Fast Download Card -->
+                <div class="action-card" id="fastDownloadCard">
                     <div class="action-icon">
                         <i class="fas fa-bolt"></i>
                     </div>
-                    <h5>Fast Download</h5>
-                    <p class="text-muted mb-3">Direct server download at maximum speed</p>
+                    <h5>फास्ट डाउनलोड</h5>
+                    <p class="text-muted mb-3">मैक्सिमम स्पीड से डायरेक्ट सर्वर डाउनलोड</p>
+                    
+                    <!-- Quality Selection Dropdown (Initially Hidden) -->
+                    <div class="download-quality-selector" id="fastDownloadQualitySelector">
+                        <div class="quality-option" onclick="startFastDownload('1080p')">
+                            <i class="fas fa-hd"></i>
+                            <span>1080p Full HD</span>
+                            <span class="quality-badge">बेस्ट</span>
+                        </div>
+                        <div class="quality-option" onclick="startFastDownload('720p')">
+                            <i class="fas fa-tv"></i>
+                            <span>720p HD</span>
+                            <span class="quality-badge">बैलेंस्ड</span>
+                        </div>
+                        <div class="quality-option" onclick="startFastDownload('480p')">
+                            <i class="fas fa-mobile-alt"></i>
+                            <span>480p SD</span>
+                            <span class="quality-badge">डेटा सेवर</span>
+                        </div>
+                        <div class="quality-option" onclick="startFastDownload('360p')">
+                            <i class="fas fa-compress-alt"></i>
+                            <span>360p</span>
+                            <span class="quality-badge">लो डेटा</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Download Button -->
                     <div class="download-buttons">
-                        <button class="download-btn fast-download" onclick="event.stopPropagation(); startFastDownload('1080p')">
-                            <i class="fas fa-download"></i> 1080p HD
-                        </button>
-                        <button class="download-btn fast-download" onclick="event.stopPropagation(); startFastDownload('720p')">
-                            <i class="fas fa-download"></i> 720p HD
+                        <button class="download-btn fast-download" onclick="showQualitySelector('fast')">
+                            <i class="fas fa-download"></i> फास्ट डाउनलोड
                         </button>
                     </div>
                 </div>
                 
-                <div class="action-card" onclick="startTelegramDownload()">
+                <!-- Telegram Download Card -->
+                <div class="action-card" id="telegramDownloadCard">
                     <div class="action-icon">
                         <i class="fab fa-telegram"></i>
                     </div>
-                    <h5>Telegram Download</h5>
-                    <p class="text-muted mb-3">Download via Telegram bot with resume support</p>
+                    <h5>Telegram डाउनलोड</h5>
+                    <p class="text-muted mb-3">Telegram बॉट के माध्यम से डाउनलोड करें</p>
+                    
+                    <!-- Quality Selection Dropdown (Initially Hidden) -->
+                    <div class="download-quality-selector" id="telegramDownloadQualitySelector">
+                        <div class="quality-option" onclick="startTelegramDownload('1080p')">
+                            <i class="fas fa-hd"></i>
+                            <span>1080p Full HD</span>
+                            <span class="quality-badge">बेस्ट</span>
+                        </div>
+                        <div class="quality-option" onclick="startTelegramDownload('720p')">
+                            <i class="fas fa-tv"></i>
+                            <span>720p HD</span>
+                            <span class="quality-badge">बैलेंस्ड</span>
+                        </div>
+                        <div class="quality-option" onclick="startTelegramDownload('480p')">
+                            <i class="fas fa-mobile-alt"></i>
+                            <span>480p SD</span>
+                            <span class="quality-badge">डेटा सेवर</span>
+                        </div>
+                        <div class="quality-option" onclick="startTelegramDownload('360p')">
+                            <i class="fas fa-compress-alt"></i>
+                            <span>360p</span>
+                            <span class="quality-badge">लो डेटा</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Download Button -->
                     <div class="download-buttons">
-                        <button class="download-btn telegram-download" onclick="event.stopPropagation(); startTelegramDownload('1080p')">
-                            <i class="fab fa-telegram"></i> 1080p HD
-                        </button>
-                        <button class="download-btn telegram-download" onclick="event.stopPropagation(); startTelegramDownload('720p')">
-                            <i class="fab fa-telegram"></i> 720p HD
+                        <button class="download-btn telegram-download" onclick="showQualitySelector('telegram')">
+                            <i class="fab fa-telegram"></i> Telegram डाउनलोड
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- NEW: External Players Section -->
+            <div class="external-players">
+                <h5 class="text-center mb-3">
+                    <i class="fas fa-external-link-alt me-2"></i> एक्सटर्नल प्लेयर्स में खोलें
+                </h5>
+                <p class="text-center text-muted mb-3">
+                    अगर वीडियो नहीं चल रहा, तो इन प्लेयर्स में खोलने का ट्राई करें
+                </p>
+                
+                <div class="player-buttons">
+                    <button class="player-btn" onclick="openInVLC()">
+                        <i class="fas fa-play-circle"></i> VLC में खोलें
+                    </button>
+                    <button class="player-btn" onclick="openInMXPlayer()">
+                        <i class="fas fa-play-circle"></i> MX Player में खोलें
+                    </button>
+                    <button class="player-btn" onclick="openInDefaultPlayer()">
+                        <i class="fas fa-play-circle"></i> डिफॉल्ट प्लेयर में खोलें
+                    </button>
+                    <button class="player-btn" onclick="openInBrowser()">
+                        <i class="fas fa-globe"></i> ब्राउज़र में खोलें
+                    </button>
                 </div>
             </div>
 
@@ -782,12 +961,12 @@
             <!-- Donation Section -->
             <div class="donation-card">
                 <h4 class="text-warning mb-3">
-                    <i class="fas fa-heart me-2"></i> Support SK4FiLM
+                    <i class="fas fa-heart me-2"></i> SK4FiLM को सपोर्ट करें
                 </h4>
-                <p class="mb-3">Help us maintain this ad-free streaming service. Your support allows us to provide better quality and more content.</p>
+                <p class="mb-3">इस एड-फ्री स्ट्रीमिंग सर्विस को मेंटेन रखने में हमारी मदद करें। आपका सपोर्ट बेहतर क्वालिटी और ज्यादा कंटेंट प्रदान करने में मदद करता है।</p>
                 
                 <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
-                     alt="Donation QR Code" 
+                     alt="डोनेशन QR कोड" 
                      class="donation-qr">
                 
                 <div class="mb-3">
@@ -802,14 +981,8 @@
                 </div>
                 
                 <a href="https://cfpe.me/skfilmbox" target="_blank" class="btn btn-warning px-4">
-                    <i class="fas fa-donate me-2"></i> DONATE NOW
+                    <i class="fas fa-donate me-2"></i> अभी डोनेट करें
                 </a>
-            </div>
-
-            <!-- Disclaimer -->
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>Note:</strong> Video not playing? Try downloading or use external players like VLC, MX Player.
             </div>
         </div>
     </div>
@@ -841,6 +1014,7 @@
         let movieMetadata = {};
         let controlsTimeout = null;
         let controlsVisible = false;
+        let currentVideoUrl = '';
         
         // URL Parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -850,10 +1024,10 @@
         
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player Initializing...");
+            console.log("🚀 SK4FiLM प्लेयर शुरू हो रहा है...");
             
             if (!messageId) {
-                showError("No video specified");
+                showError("कोई वीडियो निर्दिष्ट नहीं है");
                 return;
             }
             
@@ -873,10 +1047,13 @@
                 // Setup controls
                 setupControls();
                 
-                console.log("✅ Player Ready!");
+                // Setup click outside for quality selectors
+                setupClickOutside();
+                
+                console.log("✅ प्लेयर तैयार है!");
                 
             } catch (error) {
-                console.error("Initialization error:", error);
+                console.error("शुरुआती त्रुटि:", error);
                 loadFallbackVideo();
             }
         });
@@ -915,25 +1092,25 @@
         
         // Video Event Handlers
         function onVideoMetadataLoaded() {
-            console.log("Video metadata loaded");
+            console.log("वीडियो मेटाडेटा लोड हुआ");
             updateDurationDisplay();
-            updateLoadingProgress(80, "Video ready", "Preparing playback...");
+            updateLoadingProgress(80, "वीडियो तैयार", "प्लेबैक तैयार हो रहा है...");
         }
         
         function onVideoCanPlay() {
-            console.log("Video can play");
-            updateLoadingProgress(100, "Ready to play", "Enjoy your movie!");
+            console.log("वीडियो चल सकता है");
+            updateLoadingProgress(100, "चलाने के लिए तैयार", "अपनी मूवी का आनंद लें!");
             setTimeout(hideLoadingAnimation, 500);
             
             // Try autoplay
             video.play().catch(e => {
-                console.log("Autoplay blocked");
-                showToast("Click play to start video");
+                console.log("ऑटोप्ले ब्लॉक हुआ");
+                showToast("वीडियो शुरू करने के लिए प्ले बटन दबाएं");
             });
         }
         
         function onVideoPlaying() {
-            console.log("Video playing");
+            console.log("वीडियो चल रहा है");
             isPlaying = true;
             updatePlayButton();
             updateQualityIndicator(currentQuality);
@@ -943,7 +1120,7 @@
         }
         
         function onVideoPaused() {
-            console.log("Video paused");
+            console.log("वीडियो रुका हुआ है");
             isPlaying = false;
             updatePlayButton();
             
@@ -952,23 +1129,23 @@
         }
         
         function onVideoEnded() {
-            console.log("Video ended");
+            console.log("वीडियो समाप्त");
             isPlaying = false;
             updatePlayButton();
-            showToast("Video ended. Thanks for watching!");
+            showToast("वीडियो समाप्त। देखने के लिए धन्यवाद!");
             showControls(); // Show controls at the end
         }
         
         function onVideoError(e) {
-            console.error("Video error:", e);
+            console.error("वीडियो त्रुटि:", e);
             if (!isUsingFallback) {
-                showToast("Error loading. Trying fallback...");
+                showToast("लोड करने में त्रुटि। फॉलबैक ट्राई कर रहा हूं...");
                 loadFallbackVideo();
             }
         }
         
         function onVideoWaiting() {
-            console.log("Video buffering");
+            console.log("वीडियो बफर हो रहा है");
             showControls(); // Show controls while buffering
         }
         
@@ -984,11 +1161,11 @@
                 document.getElementById('loadingProgress').style.width = `${progress}%`;
                 
                 if (progress < 30) {
-                    updateLoadingText("Initializing player...");
+                    updateLoadingText("प्लेयर शुरू हो रहा है...");
                 } else if (progress < 60) {
-                    updateLoadingText("Connecting to server...");
+                    updateLoadingText("सर्वर से कनेक्ट हो रहा है...");
                 } else if (progress < 90) {
-                    updateLoadingText("Loading video data...");
+                    updateLoadingText("वीडियो डेटा लोड हो रहा है...");
                 }
             }, 100);
         }
@@ -1019,16 +1196,17 @@
                 if (videoUrl) {
                     video.src = videoUrl;
                     video.load();
+                    currentVideoUrl = videoUrl;
                     
                     currentQuality = quality;
                     updateQualityIndicator(quality);
                     updateQualitySelector(quality);
                     
                 } else {
-                    throw new Error("No video URL");
+                    throw new Error("कोई वीडियो URL नहीं");
                 }
             } catch (error) {
-                console.error("Video load error:", error);
+                console.error("वीडियो लोड त्रुटि:", error);
                 loadFallbackVideo();
             }
         }
@@ -1044,7 +1222,7 @@
                         return data.stream_info.stream_url;
                     }
                 } catch (error) {
-                    console.warn(`API ${endpoint} failed:`, error);
+                    console.warn(`API ${endpoint} फेल:`, error);
                 }
             }
             return null;
@@ -1054,18 +1232,104 @@
             const fallbackUrl = FALLBACK_VIDEOS[0];
             
             movieMetadata = {
-                file_name: 'Sample Movie',
+                file_name: 'सैंपल मूवी',
                 file_size: 50000000
             };
             
             updateFileInfo();
             updateVideoTitle();
             updateQualityIndicator('HD');
+            currentVideoUrl = fallbackUrl;
             
             video.src = fallbackUrl;
             video.load();
             
-            showToast("Playing sample video");
+            showToast("सैंपल वीडियो चल रहा है");
+        }
+        
+        // NEW: Quality Selection for Download
+        function showQualitySelector(type) {
+            // Hide all quality selectors first
+            hideAllQualitySelectors();
+            
+            // Show the selected one
+            const selectorId = type === 'fast' ? 'fastDownloadQualitySelector' : 'telegramDownloadQualitySelector';
+            const selector = document.getElementById(selectorId);
+            selector.classList.add('show');
+            
+            // Position it relative to the button
+            const card = type === 'fast' ? 
+                document.getElementById('fastDownloadCard') : 
+                document.getElementById('telegramDownloadCard');
+            
+            const rect = card.getBoundingClientRect();
+            selector.style.position = 'fixed';
+            selector.style.left = `${rect.left + 10}px`;
+            selector.style.top = `${rect.bottom + 10}px`;
+            selector.style.width = `${rect.width - 20}px`;
+        }
+        
+        function hideAllQualitySelectors() {
+            document.getElementById('fastDownloadQualitySelector').classList.remove('show');
+            document.getElementById('telegramDownloadQualitySelector').classList.remove('show');
+        }
+        
+        function setupClickOutside() {
+            document.addEventListener('click', (event) => {
+                const fastSelector = document.getElementById('fastDownloadQualitySelector');
+                const telegramSelector = document.getElementById('telegramDownloadQualitySelector');
+                
+                if (!event.target.closest('#fastDownloadCard') && !event.target.closest('#telegramDownloadCard')) {
+                    hideAllQualitySelectors();
+                }
+            });
+        }
+        
+        // NEW: External Player Functions
+        function openInVLC() {
+            if (currentVideoUrl) {
+                // VLC protocol handler
+                const vlcUrl = `vlc://${currentVideoUrl}`;
+                window.open(vlcUrl, '_blank');
+                showToast("VLC में खोल रहा हूं...");
+            } else {
+                showToast("वीडियो URL उपलब्ध नहीं है");
+            }
+        }
+        
+        function openInMXPlayer() {
+            if (currentVideoUrl) {
+                // MX Player protocol handler
+                const mxUrl = `intent:${currentVideoUrl}#Intent;package=com.mxtech.videoplayer.ad;end`;
+                window.open(mxUrl, '_blank');
+                showToast("MX Player में खोल रहा हूं...");
+            } else {
+                showToast("वीडियो URL उपलब्ध नहीं है");
+            }
+        }
+        
+        function openInDefaultPlayer() {
+            if (currentVideoUrl) {
+                // Direct download/open
+                const link = document.createElement('a');
+                link.href = currentVideoUrl;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showToast("डिफॉल्ट प्लेयर में खोल रहा हूं...");
+            } else {
+                showToast("वीडियो URL उपलब्ध नहीं है");
+            }
+        }
+        
+        function openInBrowser() {
+            if (currentVideoUrl) {
+                window.open(currentVideoUrl, '_blank');
+                showToast("नए टैब में खोल रहा हूं...");
+            } else {
+                showToast("वीडियो URL उपलब्ध नहीं है");
+            }
         }
         
         // Controls Management
@@ -1124,8 +1388,8 @@
         function togglePlay() {
             if (video.paused || video.ended) {
                 video.play().catch(e => {
-                    console.log("Play failed:", e);
-                    showToast("Click play to start");
+                    console.log("प्ले फेल:", e);
+                    showToast("शुरू करने के लिए प्ले बटन दबाएं");
                 });
             } else {
                 video.pause();
@@ -1151,8 +1415,8 @@
         async function changeQuality(quality) {
             if (quality === currentQuality) return;
             
-            showToast(`Switching to ${quality}...`);
-            showLoadingAnimation(`Loading ${quality}...`);
+            showToast(`${quality} में बदल रहा हूं...`);
+            showLoadingAnimation(`${quality} लोड हो रहा है...`);
             
             try {
                 const videoUrl = await getVideoUrl(quality);
@@ -1162,21 +1426,22 @@
                     
                     video.src = videoUrl;
                     video.load();
+                    currentVideoUrl = videoUrl;
                     
                     video.addEventListener('loadedmetadata', () => {
                         video.currentTime = Math.min(currentTime, video.duration);
-                        video.play().catch(e => console.log("Autoplay failed"));
+                        video.play().catch(e => console.log("ऑटोप्ले फेल"));
                     }, { once: true });
                     
                     currentQuality = quality;
                     updateQualityIndicator(quality);
                     
                 } else {
-                    showToast(`Quality ${quality} not available`);
+                    showToast(`${quality} क्वालिटी उपलब्ध नहीं है`);
                 }
             } catch (error) {
-                console.error("Quality switch error:", error);
-                showToast("Failed to switch quality");
+                console.error("क्वालिटी स्विच त्रुटि:", error);
+                showToast("क्वालिटी बदलने में असफल");
             }
             
             hideLoadingAnimation();
@@ -1287,12 +1552,12 @@
         }
         
         function updateQualitySelector(quality) {
-            document.getElementById('qualitySelector').value = quality;
+            document.getElementById('qualitySelectorControls').value = quality;
         }
         
         function updateVideoTitle() {
             document.getElementById('videoTitle').textContent = 
-                movieMetadata.file_name || 'SK4FiLM Movie';
+                movieMetadata.file_name || 'SK4FiLM मूवी';
         }
         
         function updateFileInfo() {
@@ -1313,9 +1578,9 @@
                     updateVideoTitle();
                 }
             } catch (error) {
-                console.warn("Metadata fetch failed");
+                console.warn("मेटाडेटा फेच फेल");
                 movieMetadata = {
-                    file_name: 'SK4FiLM Movie',
+                    file_name: 'SK4FiLM मूवी',
                     file_size: 1500000000
                 };
                 updateFileInfo();
@@ -1325,7 +1590,8 @@
         
         // Download Functions
         async function startFastDownload(quality = currentQuality) {
-            showToast(`Preparing ${quality} download...`);
+            hideAllQualitySelectors();
+            showToast(`${quality} डाउनलोड तैयार कर रहा हूं...`);
             
             try {
                 for (const endpoint of API_ENDPOINTS) {
@@ -1342,27 +1608,28 @@
                             link.click();
                             document.body.removeChild(link);
                             
-                            showToast(`Downloading ${quality}...`);
+                            showToast(`${quality} डाउनलोड हो रहा है...`);
                             return;
                         }
                     } catch (error) {
-                        console.warn(`Download API failed:`, error);
+                        console.warn(`डाउनलोड API फेल:`, error);
                     }
                 }
                 
-                showToast("Download failed. Try Telegram.");
+                showToast("डाउनलोड फेल। Telegram ट्राई करें।");
             } catch (error) {
-                console.error("Download error:", error);
-                showToast("Error. Try Telegram download.");
+                console.error("डाउनलोड त्रुटि:", error);
+                showToast("त्रुटि। Telegram डाउनलोड ट्राई करें।");
             }
         }
         
         function startTelegramDownload(quality = currentQuality) {
+            hideAllQualitySelectors();
             const botUsername = 'sk4filmbot';
             const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
             const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
             window.open(telegramUrl, '_blank');
-            showToast(`Opening Telegram for ${quality} download...`);
+            showToast(`${quality} के लिए Telegram खोल रहा हूं...`);
         }
         
         // Helper Functions
@@ -1392,7 +1659,7 @@
             return Promise.race([
                 fetch(url),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout')), timeout)
+                    setTimeout(() => reject(new Error('टाइमआउट')), timeout)
                 )
             ]);
         }
@@ -1401,7 +1668,7 @@
             const upiInput = document.getElementById('upiId');
             upiInput.select();
             document.execCommand('copy');
-            showToast("UPI ID copied to clipboard!");
+            showToast("UPI ID क्लिपबोर्ड में कॉपी हो गई!");
         }
         
         function setupControls() {
@@ -1448,7 +1715,7 @@
             // Mobile quality selector
             if (window.innerWidth <= 480) {
                 document.querySelector('.mobile-quality').classList.remove('d-none');
-                document.querySelector('.quality-selector').classList.add('d-none');
+                document.querySelector('.quality-selector-controls').classList.add('d-none');
             }
         }
         
@@ -1472,8 +1739,13 @@
         window.startFastDownload = startFastDownload;
         window.startTelegramDownload = startTelegramDownload;
         window.copyUPI = copyUPI;
+        window.showQualitySelector = showQualitySelector;
+        window.openInVLC = openInVLC;
+        window.openInMXPlayer = openInMXPlayer;
+        window.openInDefaultPlayer = openInDefaultPlayer;
+        window.openInBrowser = openInBrowser;
         
-        console.log("🎬 SK4FiLM Player Ready - Perfect Fit Edition!");
+        console.log("🎬 SK4FiLM प्लेयर तैयार - सभी नई विशेषताओं के साथ!");
     </script>
 </body>
 </html>
