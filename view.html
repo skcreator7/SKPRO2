@@ -6,9 +6,6 @@
     <title>Stream Movie - SK4FiLM</title>
     <meta name="description" content="Stream and download movies in HD quality">
     
-    <!-- Plyr CSS -->
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -23,7 +20,6 @@
             --accent-color: #00ccff;
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
-            --plyr-color-main: #ff0000;
         }
         
         body {
@@ -77,115 +73,340 @@
         /* Video Container */
         .video-container {
             background: #000;
-            border-radius: 8px;
+            border-radius: 12px;
             margin-bottom: 1rem;
             overflow: hidden;
             position: relative;
-            min-height: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         
-        /* HTML5 Video Player */
+        /* Pure HTML5 Video Player */
         .html5-video-player {
             width: 100%;
             height: 70vh;
             min-height: 400px;
-            max-height: 600px;
+            max-height: 700px;
             background: #000;
-            border-radius: 8px;
+            position: relative;
+            border-radius: 12px;
             overflow: hidden;
         }
         
-        /* Custom Plyr Override */
-        .plyr {
+        #videoPlayer {
+            width: 100%;
             height: 100%;
-            border-radius: 8px;
+            object-fit: contain;
+            background: #000;
         }
         
-        .plyr__video-wrapper {
-            height: 100%;
-        }
-        
-        .plyr__video-embed,
-        .plyr__video-wrapper--fixed-ratio {
-            height: 100%;
-        }
-        
-        .plyr--video .plyr__controls {
+        /* Custom HTML5 Video Controls */
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
             background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-            padding: 10px 20px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 100;
         }
         
-        .plyr__control--overlaid {
-            background: rgba(255, 0, 0, 0.8) !important;
-            border: 2px solid white !important;
+        .html5-video-player:hover .video-controls {
+            opacity: 1;
         }
         
-        .plyr__control--overlaid:hover {
-            background: rgba(255, 0, 0, 0.9) !important;
+        .control-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.2s;
         }
         
-        .plyr--fullscreen-active .plyr__video-wrapper {
-            height: 100vh;
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.1);
         }
         
-        /* Preloader */
-        .preloader {
+        .play-pause-btn {
+            background: var(--primary-color);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .play-pause-btn:hover {
+            background: #ff3333;
+        }
+        
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .volume-slider {
+            width: 80px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+        }
+        
+        .volume-slider::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            border: none;
+        }
+        
+        .time-display {
+            color: white;
+            font-size: 0.9rem;
+            font-family: monospace;
+            min-width: 100px;
+        }
+        
+        .progress-container {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            border-radius: 3px;
+            position: relative;
+            transition: width 0.1s;
+        }
+        
+        .buffer-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            width: 0%;
+        }
+        
+        .fullscreen-btn {
+            margin-left: auto;
+        }
+        
+        .quality-selector {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        /* Loading Animation INSIDE Player */
+        .player-loader {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            background: rgba(0, 0, 0, 0.9);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 10;
+            z-index: 50;
             transition: opacity 0.3s;
         }
         
-        .preloader.hidden {
+        .player-loader.hidden {
             opacity: 0;
             pointer-events: none;
         }
         
-        .loader {
-            width: 50px;
-            height: 50px;
-            border: 3px solid transparent;
+        .loader-content {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            min-width: 300px;
+        }
+        
+        /* Spinner Loader */
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
             border-top-color: var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            position: relative;
-        }
-        
-        .loader:before, .loader:after {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            border: 3px solid transparent;
-        }
-        
-        .loader:before {
-            top: 5px;
-            left: 5px;
-            right: 5px;
-            bottom: 5px;
-            border-top-color: var(--secondary-color);
-            animation: spin 2s linear infinite;
-        }
-        
-        .loader:after {
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            bottom: 12px;
-            border-top-color: var(--accent-color);
-            animation: spin 1.5s linear infinite;
+            margin: 0 auto 20px;
         }
         
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .loader-text {
+            color: white;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .loader-subtext {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+        
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Quality Indicator */
+        .quality-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Play Button Overlay */
+        .play-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 0, 0, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 5;
+            border: 3px solid white;
+        }
+        
+        .html5-video-player:hover .play-overlay {
+            opacity: 1;
+        }
+        
+        /* Speed Control */
+        .speed-control {
+            position: relative;
+        }
+        
+        .speed-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            padding: 5px 0;
+            min-width: 80px;
+            display: none;
+        }
+        
+        .speed-option {
+            color: white;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-align: center;
+            transition: background 0.2s;
+        }
+        
+        .speed-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .speed-option.active {
+            background: var(--primary-color);
+        }
+        
+        .speed-control:hover .speed-menu {
+            display: block;
+        }
+        
+        /* Error State */
+        .error-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 60;
+        }
+        
+        .error-icon {
+            font-size: 3rem;
+            color: #ff4444;
+            margin-bottom: 20px;
         }
         
         /* File Information */
@@ -342,32 +563,6 @@
             color: #000;
         }
         
-        /* Quality Indicator */
-        .quality-indicator {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            z-index: 5;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        /* Buffer Progress */
-        .buffer-progress {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 0%;
-            height: 4px;
-            background: linear-gradient(90deg, var(--secondary-color), var(--accent-color));
-            transition: width 0.3s;
-            z-index: 4;
-        }
-        
         /* Toast Notification */
         .toast {
             position: fixed;
@@ -395,16 +590,6 @@
             to { transform: translate(-50%, 0); opacity: 1; }
         }
         
-        /* Error State */
-        .error-container {
-            text-align: center;
-            padding: 3rem 1rem;
-            background: rgba(255, 0, 0, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            margin-bottom: 1rem;
-        }
-        
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             body {
@@ -414,6 +599,31 @@
             .html5-video-player {
                 height: 50vh;
                 min-height: 300px;
+            }
+            
+            .video-controls {
+                padding: 10px;
+                gap: 10px;
+            }
+            
+            .control-btn {
+                font-size: 1rem;
+                padding: 6px;
+            }
+            
+            .play-pause-btn {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .time-display {
+                font-size: 0.8rem;
+                min-width: 80px;
+            }
+            
+            .quality-selector {
+                font-size: 0.8rem;
+                padding: 4px 8px;
             }
             
             .action-buttons {
@@ -452,30 +662,99 @@
     <!-- No Ad Notice -->
     <div class="ad-notice" style="background: rgba(0, 123, 255, 0.1); border: 1px solid rgba(0, 123, 255, 0.3); border-radius: 6px; padding: 10px; margin: 10px 0; text-align: center; color: #007bff; font-size: 0.9rem;">
         <i class="fas fa-video me-2"></i>
-        No ads! Enjoy uninterrupted streaming.
+        Pure HTML5 Player • No Ads • Fast Loading
     </div>
 
     <!-- Video Container -->
-    <div class="video-container" id="videoContainer">
-        <!-- Preloader -->
-        <div class="preloader" id="preloader">
-            <div class="loader"></div>
-        </div>
-        
-        <!-- Buffer Progress -->
-        <div class="buffer-progress" id="bufferProgress"></div>
-        
-        <!-- Quality Indicator -->
-        <div class="quality-indicator" id="qualityIndicator">Loading...</div>
-        
-        <!-- Main HTML5 Video Player with Plyr -->
-        <div class="html5-video-player">
-            <video id="sk4filmPlayer" playsinline controls data-plyr-config='{"autoplay": true}' preload="auto">
-                <p class="vjs-no-js">
-                    To view this video please enable JavaScript, and consider upgrading to a
-                    web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-                </p>
+    <div class="video-container">
+        <!-- Pure HTML5 Video Player -->
+        <div class="html5-video-player" id="videoContainer">
+            <!-- Video Element -->
+            <video id="videoPlayer" preload="auto" playsinline>
+                Your browser does not support HTML5 video.
             </video>
+            
+            <!-- Loading Animation -->
+            <div class="player-loader" id="playerLoader">
+                <div class="loader-content">
+                    <div class="spinner"></div>
+                    <div class="loader-text" id="loadingText">Loading Video...</div>
+                    <div class="loader-subtext" id="loadingSubtext">Connecting to server</div>
+                    <div class="loading-bar">
+                        <div class="loading-progress" id="loadingProgress"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Container -->
+            <div class="error-container" id="errorContainer" style="display: none;">
+                <div class="error-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h5 id="errorMessage">Video Failed to Load</h5>
+                <button class="btn btn-outline-light mt-3" onclick="loadFallbackVideo()">
+                    <i class="fas fa-play me-2"></i>Play Sample Video
+                </button>
+                <button class="btn btn-outline-light mt-3" onclick="retryVideo()">
+                    <i class="fas fa-redo me-2"></i>Retry
+                </button>
+            </div>
+            
+            <!-- Quality Indicator -->
+            <div class="quality-indicator" id="qualityIndicator">HD</div>
+            
+            <!-- Play Button Overlay -->
+            <div class="play-overlay" id="playOverlay" onclick="togglePlay()">
+                <i class="fas fa-play"></i>
+            </div>
+            
+            <!-- Custom Video Controls -->
+            <div class="video-controls">
+                <button class="control-btn play-pause-btn" onclick="togglePlay()" id="playBtn">
+                    <i class="fas fa-play"></i>
+                </button>
+                
+                <div class="time-display">
+                    <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                </div>
+                
+                <div class="progress-container" onclick="seekVideo(event)">
+                    <div class="buffer-bar" id="bufferBar"></div>
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                
+                <div class="volume-control">
+                    <button class="control-btn" onclick="toggleMute()" id="muteBtn">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+                </div>
+                
+                <div class="speed-control">
+                    <button class="control-btn" id="speedBtn">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </button>
+                    <div class="speed-menu">
+                        <div class="speed-option" onclick="changeSpeed(0.5)">0.5x</div>
+                        <div class="speed-option" onclick="changeSpeed(0.75)">0.75x</div>
+                        <div class="speed-option active" onclick="changeSpeed(1)">1x</div>
+                        <div class="speed-option" onclick="changeSpeed(1.25)">1.25x</div>
+                        <div class="speed-option" onclick="changeSpeed(1.5)">1.5x</div>
+                        <div class="speed-option" onclick="changeSpeed(2)">2x</div>
+                    </div>
+                </div>
+                
+                <select class="quality-selector" id="qualitySelector" onchange="changeQuality(this.value)">
+                    <option value="1080p">1080p HD</option>
+                    <option value="720p">720p HD</option>
+                    <option value="480p">480p SD</option>
+                    <option value="360p">360p</option>
+                </select>
+                
+                <button class="control-btn fullscreen-btn" onclick="toggleFullscreen()">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -537,39 +816,38 @@
 <!-- Toast Notification Container -->
 <div class="toast" id="toast"></div>
 
-<!-- Plyr JS -->
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
-
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
 // ============================================================================
-// SK4FiLM - ULTRA FAST AD-FREE VIDEO STREAMING PLAYER
-// Features: Direct video loading, Autoplay, Multiple qualities, Downloads
+// PURE HTML5 VIDEO PLAYER - SK4FiLM
+// No External Player Libraries - Pure HTML5
 // ============================================================================
 
-// Configuration - FAST DIRECT VIDEO LOADING
+// Configuration
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
     'https://fast-download-skcreator7.koyeb.app'
 ];
 
-// Custom Fallback Videos - HIGH QUALITY SAMPLES
+// Fallback Videos
 const FALLBACK_VIDEOS = [
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
 ];
 
-// Available Video Qualities
-const VIDEO_QUALITIES = {
-    '2160p': '4K Ultra HD',
-    '1080p': 'Full HD',
-    '720p': 'HD Ready',
-    '480p': 'Standard',
-    '360p': 'Low Quality'
-};
+// Global Variables
+let video = null;
+let isPlaying = false;
+let isMuted = false;
+let currentVolume = 1;
+let currentSpeed = 1;
+let currentQuality = '1080p';
+let movieMetadata = {};
+let isUsingFallback = false;
+let loadingProgress = 0;
 
 // URL Parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -577,50 +855,36 @@ const channelId = urlParams.get('channel_id') || '-1001768249569';
 const messageId = urlParams.get('message_id');
 const initialQuality = urlParams.get('quality') || '1080p';
 
-// Global Variables
-let player = null;
-let movieMetadata = {
-    file_name: 'Movie.mp4',
-    file_size: 1500000000, // 1.5GB default
-    qualities: ['1080p', '720p', '480p']
-};
-let currentQuality = initialQuality;
-let isUsingFallback = false;
-let videoSources = {};
-let autoPlayAttempted = false;
-
 // ============================================================================
-// INITIALIZATION - ULTRA FAST LOADING
+// INITIALIZATION
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("🚀 SK4FiLM Player Initializing...");
-    console.log("⚡ Features: Direct Video Loading, No Ads, Multiple Qualities");
+    console.log("🚀 Pure HTML5 Video Player Initializing...");
     
-    // Validate parameters
     if (!messageId) {
         showError("No video specified. Please check the URL.");
         return;
     }
     
     try {
-        // STEP 1: Initialize video player immediately
-        await initializeVideoPlayer();
+        // Initialize video element
+        initializeVideoElement();
         
-        // STEP 2: Start loading video in parallel
-        Promise.all([
-            loadVideoImmediately(),
-            fetchMetadata(),
-            fetchAvailableQualities()
-        ]).catch(error => {
-            console.warn("Parallel loading warning:", error);
-        });
+        // Start loading
+        startLoading("Initializing player...");
         
-        // STEP 3: Setup UI components
+        // Load metadata
+        await loadMetadata();
+        
+        // Load video
+        await loadVideo(initialQuality);
+        
+        // Setup controls
+        setupControls();
         setupDownloadMenus();
-        setupKeyboardShortcuts();
         
-        console.log("✅ Player Initialized - Video Loading Started");
+        console.log("✅ Pure HTML5 Player Ready!");
         
     } catch (error) {
         console.error("❌ Initialization error:", error);
@@ -628,145 +892,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ============================================================================
-// VIDEO PLAYER INITIALIZATION
-// ============================================================================
-
-async function initializeVideoPlayer() {
-    try {
-        const videoElement = document.getElementById('sk4filmPlayer');
-        
-        // Configure Plyr with autoplay enabled
-        player = new Plyr(videoElement, {
-            controls: [
-                'play-large',
-                'play',
-                'progress',
-                'current-time',
-                'duration',
-                'mute',
-                'volume',
-                'captions',
-                'settings',
-                'pip',
-                'airplay',
-                'fullscreen'
-            ],
-            settings: ['quality', 'speed'],
-            quality: {
-                default: currentQuality,
-                options: ['2160p', '1080p', '720p', '480p'],
-                forced: true,
-                onChange: (quality) => switchQuality(quality)
-            },
-            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
-            volume: 0.8,
-            muted: false,
-            clickToPlay: true,
-            disableContextMenu: false,
-            hideControls: false,
-            resetOnEnd: false,
-            keyboard: { focused: true, global: true },
-            tooltips: { controls: true, seek: true },
-            captions: { active: false, language: 'auto', update: false },
-            fullscreen: { enabled: true, fallback: true, iosNative: false },
-            storage: { enabled: true, key: 'sk4film_player' },
-            autoplay: true, // Enable autoplay
-            seekTime: 10,
-            volumeMin: 0,
-            volumeMax: 1,
-            ratio: '16:9',
-            loadSprite: false, // Faster loading
-            iconUrl: false
-        });
-        
-        // Setup player event listeners
-        setupPlayerEvents();
-        
-        return player;
-        
-    } catch (error) {
-        console.error("Player init error:", error);
-        throw error;
-    }
+function initializeVideoElement() {
+    video = document.getElementById('videoPlayer');
+    currentQuality = initialQuality;
+    
+    // Set initial video attributes
+    video.controls = false; // We'll use custom controls
+    video.preload = 'auto';
+    video.playsInline = true;
+    
+    // Setup video event listeners
+    video.addEventListener('loadedmetadata', onVideoMetadataLoaded);
+    video.addEventListener('timeupdate', updateProgress);
+    video.addEventListener('progress', updateBuffer);
+    video.addEventListener('canplay', onVideoCanPlay);
+    video.addEventListener('playing', onVideoPlaying);
+    video.addEventListener('pause', onVideoPaused);
+    video.addEventListener('ended', onVideoEnded);
+    video.addEventListener('error', onVideoError);
+    video.addEventListener('waiting', onVideoWaiting);
+    video.addEventListener('stalled', onVideoStalled);
+    
+    // Set initial volume
+    video.volume = currentVolume;
+    video.playbackRate = currentSpeed;
 }
 
-function setupPlayerEvents() {
-    // Track loading progress
-    player.on('progress', (event) => {
-        const percent = event.detail.percent * 100;
-        updateBufferProgress(percent);
-    });
-    
-    // When video can play
-    player.on('canplay', () => {
-        hidePreloader();
+// ============================================================================
+// VIDEO LOADING FUNCTIONS
+// ============================================================================
+
+async function loadVideo(quality) {
+    try {
+        startLoading("Fetching video stream...");
         
-        // Attempt autoplay
-        if (!autoPlayAttempted) {
-            autoPlayAttempted = true;
-            player.play().catch(e => {
+        const videoUrl = await getVideoUrl(quality);
+        
+        if (!videoUrl) {
+            throw new Error("No video URL available");
+        }
+        
+        updateLoading("Loading video data...", 50);
+        
+        // Set video source
+        video.src = videoUrl;
+        video.load(); // Start loading
+        
+        currentQuality = quality;
+        updateQualityIndicator(quality);
+        updateQualitySelector(quality);
+        
+        // Try to play automatically
+        setTimeout(() => {
+            video.play().catch(e => {
                 console.log("Autoplay blocked:", e);
                 showToast("Click play to start video");
             });
-        }
-    });
-    
-    // When video starts playing
-    player.on('play', () => {
-        console.log("▶️ Video playing");
-        showToast(`Playing ${currentQuality} quality`);
-    });
-    
-    // When video is ready
-    player.on('ready', () => {
-        console.log("✅ Player ready");
-    });
-    
-    // Handle errors
-    player.on('error', (error) => {
-        console.error("Player error:", error);
-        if (!isUsingFallback) {
-            showToast("Switching to fallback video...");
-            loadFallbackVideo();
-        }
-    });
-    
-    // Track buffering
-    let buffering = false;
-    player.on('waiting', () => {
-        if (!buffering) {
-            buffering = true;
-            showToast("Buffering...");
-        }
-    });
-    
-    player.on('playing', () => {
-        if (buffering) {
-            buffering = false;
-        }
-    });
-}
-
-// ============================================================================
-// FAST VIDEO LOADING FUNCTIONS
-// ============================================================================
-
-async function loadVideoImmediately() {
-    console.log("⚡ Loading video immediately...");
-    showPreloader();
-    
-    try {
-        // Try to get video URL from APIs
-        const videoUrl = await getVideoUrlWithRetry(currentQuality);
-        
-        if (videoUrl) {
-            console.log(`🔗 Direct video URL: ${videoUrl}`);
-            await setVideoSource(videoUrl, currentQuality);
-        } else {
-            // If no URL from APIs, use fallback
-            throw new Error("No video URL available");
-        }
+        }, 500);
         
     } catch (error) {
         console.error("Video load error:", error);
@@ -774,70 +956,32 @@ async function loadVideoImmediately() {
     }
 }
 
-async function getVideoUrlWithRetry(quality, retries = 2) {
-    for (let attempt = 0; attempt < retries; attempt++) {
-        for (const endpoint of API_ENDPOINTS) {
-            try {
-                const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                console.log(`Trying API: ${apiUrl}`);
-                
-                const response = await fetchWithTimeout(apiUrl, 2000);
-                const data = await response.json();
-                
-                if (data.status === 'success' && data.stream_info?.stream_url) {
-                    return data.stream_info.stream_url;
-                }
-            } catch (error) {
-                console.warn(`API ${endpoint} failed:`, error);
+async function getVideoUrl(quality) {
+    for (const endpoint of API_ENDPOINTS) {
+        try {
+            const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
+            const response = await fetchWithTimeout(apiUrl, 3000);
+            const data = await response.json();
+            
+            if (data.status === 'success' && data.stream_info?.stream_url) {
+                return data.stream_info.stream_url;
             }
-        }
-        
-        if (attempt < retries - 1) {
-            await sleep(500 * (attempt + 1));
+        } catch (error) {
+            console.warn(`API ${endpoint} failed:`, error);
         }
     }
     return null;
 }
 
-async function setVideoSource(videoUrl, quality) {
-    // Set video source directly for fastest loading
-    const videoElement = document.querySelector('#sk4filmPlayer');
-    videoElement.src = videoUrl;
-    videoElement.load(); // Trigger loading
-    
-    // Update quality indicator
-    updateQualityIndicator(quality);
-    
-    // Update player source for Plyr controls
-    player.source = {
-        type: 'video',
-        sources: [{
-            src: videoUrl,
-            type: 'video/mp4',
-            size: quality === '2160p' ? 2160 : 
-                  quality === '1080p' ? 1080 :
-                  quality === '720p' ? 720 : 480
-        }]
-    };
-    
-    isUsingFallback = false;
-}
-
-// ============================================================================
-// FALLBACK SYSTEM
-// ============================================================================
-
 async function loadFallbackVideo() {
     console.log("🔄 Loading fallback video...");
-    showToast("Using high-quality sample video");
     
     isUsingFallback = true;
     
-    // Use a random fallback video
     const fallbackIndex = Math.floor(Math.random() * FALLBACK_VIDEOS.length);
     const fallbackUrl = FALLBACK_VIDEOS[fallbackIndex];
     
-    // Set fallback metadata
+    // Update metadata
     movieMetadata = {
         file_name: 'High Quality Sample.mp4',
         file_size: 50000000,
@@ -846,29 +990,343 @@ async function loadFallbackVideo() {
     
     updateFileInfo();
     updateQualityIndicator('1080p');
+    updateQualitySelector('1080p');
     
     // Load fallback video
-    const videoElement = document.querySelector('#sk4filmPlayer');
-    videoElement.src = fallbackUrl;
-    videoElement.load();
+    video.src = fallbackUrl;
+    video.load();
     
-    // Update Plyr source
-    player.source = {
-        type: 'video',
-        title: 'Sample Video',
-        sources: [{
-            src: fallbackUrl,
-            type: 'video/mp4',
-            size: 1080
-        }]
-    };
+    showToast("Playing sample video");
 }
 
 // ============================================================================
-// METADATA & QUALITY MANAGEMENT
+// VIDEO EVENT HANDLERS
 // ============================================================================
 
-async function fetchMetadata() {
+function onVideoMetadataLoaded() {
+    console.log("📊 Video metadata loaded");
+    updateDurationDisplay();
+    updateLoading("Video ready to play...", 80);
+}
+
+function onVideoCanPlay() {
+    console.log("✅ Video can play");
+    updateLoading("Ready to play!", 100);
+    hideLoading();
+    showToast("Video loaded successfully");
+}
+
+function onVideoPlaying() {
+    console.log("▶️ Video playing");
+    isPlaying = true;
+    updatePlayButton();
+    hidePlayOverlay();
+}
+
+function onVideoPaused() {
+    console.log("⏸️ Video paused");
+    isPlaying = false;
+    updatePlayButton();
+}
+
+function onVideoEnded() {
+    console.log("🏁 Video ended");
+    isPlaying = false;
+    updatePlayButton();
+    showToast("Video ended");
+}
+
+function onVideoError(e) {
+    console.error("❌ Video error:", e);
+    if (!isUsingFallback) {
+        showError("Video failed to load. Trying fallback...");
+        loadFallbackVideo();
+    }
+}
+
+function onVideoWaiting() {
+    console.log("⏳ Video waiting/buffering");
+    showToast("Buffering...", 1000);
+}
+
+function onVideoStalled() {
+    console.log("⚠️ Video stalled");
+    showToast("Buffering...", 1000);
+}
+
+// ============================================================================
+// CONTROL FUNCTIONS
+// ============================================================================
+
+function togglePlay() {
+    if (video.paused || video.ended) {
+        video.play().catch(e => {
+            console.log("Play failed:", e);
+            showToast("Click play to start video");
+        });
+    } else {
+        video.pause();
+    }
+}
+
+function toggleMute() {
+    video.muted = !video.muted;
+    isMuted = video.muted;
+    updateMuteButton();
+    updateVolumeSlider();
+}
+
+function changeVolume(value) {
+    video.volume = value;
+    currentVolume = value;
+    video.muted = value === 0;
+    isMuted = video.muted;
+    updateMuteButton();
+}
+
+function changeSpeed(speed) {
+    video.playbackRate = speed;
+    currentSpeed = speed;
+    updateSpeedButton();
+    
+    // Update active speed option
+    document.querySelectorAll('.speed-option').forEach(option => {
+        option.classList.remove('active');
+        if (parseFloat(option.textContent) === speed) {
+            option.classList.add('active');
+        }
+    });
+    
+    showToast(`Speed: ${speed}x`, 1500);
+}
+
+async function changeQuality(quality) {
+    if (quality === currentQuality) return;
+    
+    showToast(`Switching to ${quality}...`);
+    showLoading(`Loading ${quality} quality...`);
+    
+    try {
+        const videoUrl = await getVideoUrl(quality);
+        
+        if (videoUrl) {
+            // Save current time
+            const currentTime = video.currentTime;
+            
+            // Change source
+            video.src = videoUrl;
+            video.load();
+            
+            // Try to restore position
+            video.addEventListener('loadedmetadata', () => {
+                video.currentTime = Math.min(currentTime, video.duration);
+                video.play().catch(e => console.log("Autoplay after quality change failed:", e));
+            }, { once: true });
+            
+            currentQuality = quality;
+            updateQualityIndicator(quality);
+            
+        } else {
+            showToast(`Quality ${quality} not available`);
+        }
+    } catch (error) {
+        console.error("Quality switch error:", error);
+        showToast("Failed to switch quality");
+    }
+}
+
+function seekVideo(event) {
+    const progressContainer = event.currentTarget;
+    const clickPosition = event.offsetX;
+    const containerWidth = progressContainer.offsetWidth;
+    const seekPercentage = clickPosition / containerWidth;
+    
+    video.currentTime = seekPercentage * video.duration;
+}
+
+function toggleFullscreen() {
+    const videoContainer = document.getElementById('videoContainer');
+    
+    if (!document.fullscreenElement) {
+        if (videoContainer.requestFullscreen) {
+            videoContainer.requestFullscreen();
+        } else if (videoContainer.webkitRequestFullscreen) {
+            videoContainer.webkitRequestFullscreen();
+        } else if (videoContainer.msRequestFullscreen) {
+            videoContainer.msRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+}
+
+// ============================================================================
+| UI UPDATE FUNCTIONS
+// ============================================================================
+
+function updateProgress() {
+    const currentTime = video.currentTime;
+    const duration = video.duration;
+    
+    if (duration > 0) {
+        const progressPercent = (currentTime / duration) * 100;
+        document.getElementById('progressBar').style.width = `${progressPercent}%`;
+        
+        // Update time display
+        document.getElementById('currentTime').textContent = formatTime(currentTime);
+        document.getElementById('duration').textContent = formatTime(duration);
+    }
+}
+
+function updateBuffer() {
+    if (video.buffered.length > 0) {
+        const duration = video.duration;
+        if (duration > 0) {
+            const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+            const bufferPercent = (bufferedEnd / duration) * 100;
+            document.getElementById('bufferBar').style.width = `${bufferPercent}%`;
+        }
+    }
+}
+
+function updateDurationDisplay() {
+    const duration = video.duration;
+    if (duration > 0) {
+        document.getElementById('duration').textContent = formatTime(duration);
+    }
+}
+
+function updatePlayButton() {
+    const playBtn = document.getElementById('playBtn');
+    const playIcon = playBtn.querySelector('i');
+    
+    if (isPlaying) {
+        playIcon.classList.remove('fa-play');
+        playIcon.classList.add('fa-pause');
+    } else {
+        playIcon.classList.remove('fa-pause');
+        playIcon.classList.add('fa-play');
+    }
+}
+
+function updateMuteButton() {
+    const muteBtn = document.getElementById('muteBtn');
+    const muteIcon = muteBtn.querySelector('i');
+    
+    if (isMuted || currentVolume === 0) {
+        muteIcon.classList.remove('fa-volume-up');
+        muteIcon.classList.add('fa-volume-mute');
+    } else if (currentVolume < 0.5) {
+        muteIcon.classList.remove('fa-volume-up', 'fa-volume-mute');
+        muteIcon.classList.add('fa-volume-down');
+    } else {
+        muteIcon.classList.remove('fa-volume-mute', 'fa-volume-down');
+        muteIcon.classList.add('fa-volume-up');
+    }
+}
+
+function updateVolumeSlider() {
+    document.getElementById('volumeSlider').value = isMuted ? 0 : currentVolume;
+}
+
+function updateSpeedButton() {
+    const speedBtn = document.getElementById('speedBtn');
+    speedBtn.innerHTML = `<i class="fas fa-tachometer-alt"></i> ${currentSpeed}x`;
+}
+
+function updateQualityIndicator(quality) {
+    const indicator = document.getElementById('qualityIndicator');
+    const qualityNames = {
+        '2160p': '4K',
+        '1080p': 'FHD',
+        '720p': 'HD',
+        '480p': 'SD',
+        '360p': '360p'
+    };
+    indicator.textContent = qualityNames[quality] || quality;
+}
+
+function updateQualitySelector(quality) {
+    const selector = document.getElementById('qualitySelector');
+    selector.value = quality;
+}
+
+function hidePlayOverlay() {
+    document.getElementById('playOverlay').style.opacity = '0';
+}
+
+// ============================================================================
+// LOADING ANIMATION FUNCTIONS
+// ============================================================================
+
+function startLoading(message = "Loading...") {
+    const loader = document.getElementById('playerLoader');
+    const loadingText = document.getElementById('loadingText');
+    const loadingProgress = document.getElementById('loadingProgress');
+    
+    loader.classList.remove('hidden');
+    loadingText.textContent = message;
+    loadingProgress.style.width = '0%';
+    loadingProgress = 0;
+}
+
+function updateLoading(message, progress) {
+    const loadingText = document.getElementById('loadingText');
+    const loadingSubtext = document.getElementById('loadingSubtext');
+    const loadingProgress = document.getElementById('loadingProgress');
+    
+    if (message) loadingText.textContent = message;
+    if (progress !== undefined) {
+        loadingProgress.style.width = `${progress}%`;
+        loadingProgress = progress;
+        
+        // Update subtext based on progress
+        if (progress < 30) {
+            loadingSubtext.textContent = 'Initializing...';
+        } else if (progress < 60) {
+            loadingSubtext.textContent = 'Fetching video data...';
+        } else if (progress < 90) {
+            loadingSubtext.textContent = 'Buffering video...';
+        } else {
+            loadingSubtext.textContent = 'Almost ready...';
+        }
+    }
+}
+
+function hideLoading() {
+    const loader = document.getElementById('playerLoader');
+    loader.classList.add('hidden');
+}
+
+function showError(message) {
+    const errorContainer = document.getElementById('errorContainer');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    errorMessage.textContent = message;
+    errorContainer.style.display = 'flex';
+    hideLoading();
+}
+
+function hideError() {
+    document.getElementById('errorContainer').style.display = 'none';
+}
+
+function retryVideo() {
+    hideError();
+    loadVideo(currentQuality);
+}
+
+// ============================================================================
+// METADATA FUNCTIONS
+// ============================================================================
+
+async function loadMetadata() {
     try {
         const apiUrl = `${API_ENDPOINTS[0]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
         const response = await fetchWithTimeout(apiUrl, 3000);
@@ -880,60 +1338,38 @@ async function fetchMetadata() {
         }
     } catch (error) {
         console.warn("Metadata fetch failed, using defaults");
+        movieMetadata = {
+            file_name: 'Movie.mp4',
+            file_size: 1500000000,
+            qualities: ['1080p', '720p', '480p']
+        };
+        updateFileInfo();
     }
 }
 
-async function fetchAvailableQualities() {
-    try {
-        // Try to get available qualities
-        for (const endpoint of API_ENDPOINTS) {
-            try {
-                const apiUrl = `${endpoint}/api/file/qualities?channel_id=${channelId}&message_id=${messageId}`;
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-                
-                if (data.status === 'success' && data.qualities) {
-                    movieMetadata.qualities = data.qualities;
-                    updateQualityMenu();
-                    return;
-                }
-            } catch (error) {
-                console.warn(`Quality API ${endpoint} failed`);
-            }
-        }
-    } catch (error) {
-        // Use default qualities
-        movieMetadata.qualities = ['1080p', '720p', '480p'];
-    }
-}
-
-function updateQualityMenu() {
-    const availableQualities = movieMetadata.qualities || ['1080p', '720p', '480p'];
-    
-    // Update player quality options
-    if (player && player.options && player.options.quality) {
-        player.options.quality.options = availableQualities;
-    }
+function updateFileInfo() {
+    document.getElementById('infoName').textContent = 
+        movieMetadata.file_name || 'Movie.mp4';
+    document.getElementById('infoSize').textContent = 
+        formatSize(movieMetadata.file_size || 1500000000);
 }
 
 // ============================================================================
-| DOWNLOAD FUNCTIONS - FAST & TELEGRAM
+// DOWNLOAD FUNCTIONS
 // ============================================================================
 
 function setupDownloadMenus() {
-    const qualities = ['2160p', '1080p', '720p', '480p', '360p'];
+    const qualities = ['2160p', '1080p', '720p', '480p'];
+    const availableQualities = movieMetadata.qualities || ['1080p', '720p', '480p'];
     
     const fastMenu = document.getElementById('fastDownloadMenu');
     const telegramMenu = document.getElementById('telegramDownloadMenu');
-    
-    // Filter based on available qualities
-    const availableQualities = movieMetadata.qualities || ['1080p', '720p', '480p'];
     
     fastMenu.innerHTML = qualities
         .filter(q => availableQualities.includes(q))
         .map(q => `
             <button class="quality-btn" onclick="startFastDownload('${q}')">
-                <i class="fas fa-download"></i> ${q.toUpperCase()} 
+                <i class="fas fa-download"></i> ${q.toUpperCase()}
                 <small>${formatSize(getQualitySize(q))}</small>
             </button>
         `).join('');
@@ -951,33 +1387,34 @@ function setupDownloadMenus() {
 async function startFastDownload(quality) {
     showToast(`Preparing ${quality} download...`);
     
-    for (const endpoint of API_ENDPOINTS) {
-        try {
-            const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-            const response = await fetchWithTimeout(apiUrl, 3000);
-            const data = await response.json();
-            
-            if (data.status === 'success' && data.download_url) {
-                // Create hidden download link
-                const link = document.createElement('a');
-                link.href = data.download_url;
-                link.download = `SK4FiLM_${movieMetadata.file_name || 'video'}_${quality}.mp4`;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+    try {
+        for (const endpoint of API_ENDPOINTS) {
+            try {
+                const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
+                const response = await fetchWithTimeout(apiUrl, 3000);
+                const data = await response.json();
                 
-                showToast(`Downloading ${quality}...`);
-                return;
+                if (data.status === 'success' && data.download_url) {
+                    const link = document.createElement('a');
+                    link.href = data.download_url;
+                    link.download = `SK4FiLM_${movieMetadata.file_name || 'video'}_${quality}.mp4`;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    showToast(`Downloading ${quality}...`);
+                    return;
+                }
+            } catch (error) {
+                console.warn(`Download API ${endpoint} failed:`, error);
             }
-        } catch (error) {
-            console.warn(`Download API ${endpoint} failed:`, error);
         }
-    }
-    
-    // If direct download fails, offer Telegram
-    if (confirm('Direct download failed. Open Telegram for download?')) {
-        startTelegramDownload(quality);
+        
+        showToast("Download failed. Try Telegram.");
+    } catch (error) {
+        console.error("Download error:", error);
+        showToast("Error. Try Telegram download.");
     }
 }
 
@@ -990,94 +1427,19 @@ function startTelegramDownload(quality) {
 }
 
 // ============================================================================
-// QUALITY SWITCHING
-// ============================================================================
-
-async function switchQuality(quality) {
-    if (quality === currentQuality) return;
-    
-    showToast(`Switching to ${quality}...`);
-    showPreloader();
-    
-    try {
-        const videoUrl = await getVideoUrlWithRetry(quality);
-        
-        if (videoUrl) {
-            await setVideoSource(videoUrl, quality);
-            currentQuality = quality;
-            showToast(`Now playing in ${quality}`);
-        } else {
-            showToast(`Quality ${quality} not available`);
-            // Revert to current quality
-            player.quality = currentQuality;
-        }
-    } catch (error) {
-        console.error("Quality switch error:", error);
-        showToast("Failed to switch quality");
-        player.quality = currentQuality;
-    }
-    
-    hidePreloader();
-}
-
-// ============================================================================
-// UI UPDATE FUNCTIONS
-// ============================================================================
-
-function updateFileInfo() {
-    document.getElementById('infoName').textContent = 
-        movieMetadata.file_name || 'Movie.mp4';
-    document.getElementById('infoSize').textContent = 
-        formatSize(movieMetadata.file_size || 1500000000);
-}
-
-function updateQualityIndicator(quality) {
-    const indicator = document.getElementById('qualityIndicator');
-    indicator.textContent = `${quality.toUpperCase()} • ${VIDEO_QUALITIES[quality] || 'HD'}`;
-}
-
-function updateBufferProgress(percent) {
-    const bufferBar = document.getElementById('bufferProgress');
-    bufferBar.style.width = `${percent}%`;
-}
-
-function showPreloader() {
-    document.getElementById('preloader').classList.remove('hidden');
-}
-
-function hidePreloader() {
-    document.getElementById('preloader').classList.add('hidden');
-}
-
-function showToast(message, duration = 3000) {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.classList.add('show');
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, duration);
-}
-
-function showError(message) {
-    const videoContainer = document.getElementById('videoContainer');
-    videoContainer.innerHTML = `
-        <div class="error-container">
-            <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
-            <h5>${escapeHtml(message)}</h5>
-            <button class="btn btn-outline-light mt-2" onclick="loadFallbackVideo()">
-                <i class="fas fa-play me-1"></i>Play Sample Video
-            </button>
-            <button class="btn btn-outline-light mt-2 ms-2" onclick="location.reload()">
-                <i class="fas fa-redo me-1"></i>Retry
-            </button>
-        </div>
-    `;
-}
-
-// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+function formatTime(seconds) {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hrs > 0) {
+        return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 function formatSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
@@ -1093,11 +1455,20 @@ function getQualitySize(quality) {
         '2160p': 2.5,
         '1080p': 1,
         '720p': 0.6,
-        '480p': 0.3,
-        '360p': 0.15
+        '480p': 0.3
     }[quality] || 1;
     
     return Math.floor(baseSize * multiplier);
+}
+
+function showToast(message, duration = 3000) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, duration);
 }
 
 function fetchWithTimeout(url, timeout = 3000) {
@@ -1109,87 +1480,98 @@ function fetchWithTimeout(url, timeout = 3000) {
     ]);
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+function setupControls() {
+    // Volume slider
+    const volumeSlider = document.getElementById('volumeSlider');
+    volumeSlider.addEventListener('input', (e) => {
+        changeVolume(parseFloat(e.target.value));
+    });
+    
+    // Fullscreen change listener
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    document.addEventListener('msfullscreenchange', updateFullscreenButton);
+    
+    // Keyboard shortcuts
+    setupKeyboardShortcuts();
 }
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+function updateFullscreenButton() {
+    const fullscreenBtn = document.querySelector('.fullscreen-btn i');
+    if (document.fullscreenElement || 
+        document.webkitFullscreenElement || 
+        document.msFullscreenElement) {
+        fullscreenBtn.classList.remove('fa-expand');
+        fullscreenBtn.classList.add('fa-compress');
+    } else {
+        fullscreenBtn.classList.remove('fa-compress');
+        fullscreenBtn.classList.add('fa-expand');
+    }
 }
-
-// ============================================================================
-// KEYBOARD SHORTCUTS
-// ============================================================================
 
 function setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-        if (document.activeElement.tagName === 'INPUT') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
         
         switch(e.key.toLowerCase()) {
             case ' ':
             case 'k':
                 e.preventDefault();
-                player.togglePlay();
+                togglePlay();
                 break;
             case 'f':
                 e.preventDefault();
-                player.fullscreen.toggle();
+                toggleFullscreen();
                 break;
             case 'm':
                 e.preventDefault();
-                player.muted = !player.muted;
+                toggleMute();
                 break;
             case 'arrowright':
                 e.preventDefault();
-                player.currentTime += 10;
+                video.currentTime += 5;
                 break;
             case 'arrowleft':
                 e.preventDefault();
-                player.currentTime -= 10;
+                video.currentTime -= 5;
                 break;
             case '0':
                 e.preventDefault();
-                player.currentTime = 0;
+                video.currentTime = 0;
                 break;
-            case '1':
+            case '9':
                 e.preventDefault();
-                player.speed = 0.5;
+                video.currentTime = video.duration;
                 break;
-            case '2':
+            case 'up':
                 e.preventDefault();
-                player.speed = 1;
+                changeVolume(Math.min(1, currentVolume + 0.1));
                 break;
-            case '3':
+            case 'down':
                 e.preventDefault();
-                player.speed = 1.5;
-                break;
-            case 'c':
-                e.preventDefault();
-                player.toggleControls();
+                changeVolume(Math.max(0, currentVolume - 0.1));
                 break;
         }
     });
 }
 
 // ============================================================================
-// EXPORT FUNCTIONS TO WINDOW
+// EXPORT FUNCTIONS
 // ============================================================================
 
+window.togglePlay = togglePlay;
+window.toggleMute = toggleMute;
+window.changeSpeed = changeSpeed;
+window.changeQuality = changeQuality;
+window.seekVideo = seekVideo;
+window.toggleFullscreen = toggleFullscreen;
 window.startFastDownload = startFastDownload;
 window.startTelegramDownload = startTelegramDownload;
 window.loadFallbackVideo = loadFallbackVideo;
-window.switchQuality = switchQuality;
+window.retryVideo = retryVideo;
 
-console.log("🚀 SK4FiLM Player Ready!");
-console.log("⚡ Features Enabled:");
-console.log("   • Direct Video Loading");
-console.log("   • Autoplay Enabled");
-console.log("   • No Advertisements");
-console.log("   • Multiple Quality Options");
-console.log("   • Fast & Telegram Downloads");
-console.log("   • Custom Fallback Videos");
+console.log("🚀 Pure HTML5 Video Player Ready!");
+console.log("⚡ Features: Native HTML5 • Custom Controls • No External Libraries");
 </script>
 </body>
 </html>
