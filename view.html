@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
     <meta property="og:image" content="https://iili.io/KOlfc41.png" itemprop="thumbnailUrl">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>SK4FiLM - Ad-Free HD Streaming</title>
     
     <!-- Animation Libraries -->
@@ -33,13 +33,28 @@
             --control-bg: rgba(0, 0, 0, 0.8);
         }
         
-        body {
+        html, body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: var(--dark-bg);
             color: #fff;
             min-height: 100vh;
+            width: 100%;
             overflow-x: hidden;
-            touch-action: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Enable scrolling */
+        body {
+            overflow-y: auto;
+            height: auto;
+            position: relative;
+        }
+        
+        /* Fix for iOS Safari */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                height: -webkit-fill-available;
+            }
         }
         
         /* Navbar */
@@ -49,6 +64,11 @@
             border-bottom: 1px solid rgba(255, 0, 0, 0.2);
             padding: 10px 0;
             height: 60px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
         }
         
         .navbar-content {
@@ -96,30 +116,30 @@
             gap: 5px;
         }
         
-        /* Main Container */
+        /* Main Container - Fixed for fullscreen */
         .main-container {
             width: 100%;
-            max-width: 100%;
-            padding: 0;
-            margin: 0;
+            padding-top: 60px; /* Navbar height */
+            min-height: 100vh;
             position: relative;
         }
         
-        /* Video Container */
+        /* Video Wrapper - Always visible */
         .video-wrapper {
-            width: 100vw;
+            width: 100%;
             position: relative;
             background: #000;
-            margin: 0 auto;
+            margin: 0;
         }
         
         .aspect-ratio-box {
             position: relative;
             width: 100%;
-            padding-top: 56.25%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
             background: #000;
         }
         
+        /* Video Container - Fullscreen compatible */
         .video-container {
             position: absolute;
             top: 0;
@@ -129,6 +149,8 @@
             background: #000;
             cursor: pointer;
             overflow: hidden;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
         
         #videoPlayer {
@@ -138,6 +160,69 @@
             background: #000;
             display: block;
             transition: filter 0.3s ease, object-fit 0.3s ease;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+        
+        /* Fullscreen styles for all browsers */
+        :fullscreen .video-wrapper,
+        :-webkit-full-screen .video-wrapper,
+        :-moz-full-screen .video-wrapper,
+        :-ms-fullscreen .video-wrapper {
+            width: 100vw;
+            height: 100vh;
+            padding-top: 0 !important;
+            margin: 0 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 999999 !important;
+            background: #000 !important;
+        }
+        
+        :fullscreen .aspect-ratio-box,
+        :-webkit-full-screen .aspect-ratio-box,
+        :-moz-full-screen .aspect-ratio-box,
+        :-ms-fullscreen .aspect-ratio-box {
+            width: 100vw !important;
+            height: 100vh !important;
+            padding-top: 0 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+        }
+        
+        :fullscreen .video-container,
+        :-webkit-full-screen .video-container,
+        :-moz-full-screen .video-container,
+        :-ms-fullscreen .video-container {
+            width: 100vw !important;
+            height: 100vh !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 999999 !important;
+        }
+        
+        :fullscreen #videoPlayer,
+        :-webkit-full-screen #videoPlayer,
+        :-moz-full-screen #videoPlayer,
+        :-ms-fullscreen #videoPlayer {
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: contain !important;
+        }
+        
+        /* Hide other content in fullscreen */
+        :fullscreen .content-section,
+        :-webkit-full-screen .content-section,
+        :-moz-full-screen .content-section,
+        :-ms-fullscreen .content-section,
+        :fullscreen .navbar,
+        :-webkit-full-screen .navbar,
+        :-moz-full-screen .navbar,
+        :-ms-fullscreen .navbar {
+            display: none !important;
         }
         
         /* Fullscreen Gesture Indicators */
@@ -475,11 +560,22 @@
             margin-left: auto;
         }
         
-        /* Content Section */
+        /* Content Section - Scrollable */
         .content-section {
             padding: 20px 15px;
             max-width: 1200px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            background: var(--dark-bg);
+            min-height: calc(100vh - 60px - 56.25vw); /* Account for video height */
+        }
+        
+        /* Fix for content visibility */
+        @media (min-width: 1200px) {
+            .content-section {
+                min-height: auto;
+            }
         }
         
         /* Action Buttons Grid */
@@ -679,7 +775,7 @@
             color: white;
             padding: 12px 25px;
             border-radius: 10px;
-            z-index: 1000;
+            z-index: 10000;
             font-size: 0.9rem;
             display: none;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -714,6 +810,10 @@
             .navbar {
                 padding: 8px 0;
                 height: 55px;
+            }
+            
+            .main-container {
+                padding-top: 55px;
             }
             
             .logo-text {
@@ -771,6 +871,11 @@
                 right: 20px;
             }
             
+            .content-section {
+                padding: 15px;
+                min-height: auto;
+            }
+            
             .action-grid {
                 grid-template-columns: 1fr;
             }
@@ -781,10 +886,6 @@
             
             .download-btn {
                 width: 100%;
-            }
-            
-            .content-section {
-                padding: 15px;
             }
             
             .player-buttons {
@@ -847,12 +948,18 @@
             opacity: 1;
             transform: translateY(0);
         }
+        
+        /* Fix for iOS scroll */
+        .ios-scroll-fix {
+            -webkit-overflow-scrolling: touch;
+            overflow-y: scroll;
+        }
     </style>
 </head>
 
-<body>
+<body class="ios-scroll-fix">
     <!-- Navbar -->
-    <nav class="navbar fixed-top">
+    <nav class="navbar">
         <div class="navbar-content">
             <div class="logo-container">
                 <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
@@ -864,7 +971,7 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
+    <!-- Main Container -->
     <div class="main-container">
         <!-- Video Wrapper -->
         <div class="video-wrapper">
@@ -952,7 +1059,7 @@
             </div>
         </div>
 
-        <!-- Content Section -->
+        <!-- Content Section - Scrollable -->
         <div class="content-section">
             <!-- Video Info -->
             <div class="text-center mb-4">
@@ -1145,10 +1252,10 @@
         let initialTouchY2 = 0;
         let initialDistance = 0;
         let isGestureActive = false;
-        let currentBrightness = 1.0; // 0.0 to 1.0
-        let currentVolume = 1.0; // 0.0 to 1.0
+        let currentBrightness = 1.0;
+        let currentVolume = 1.0;
         let lastGestureTime = 0;
-        let gestureCooldown = 100; // ms
+        let gestureCooldown = 100;
         
         // URL Parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -1166,6 +1273,9 @@
             }
             
             try {
+                // Fix iOS scrolling
+                fixIOSScrolling();
+                
                 // Initialize video element
                 initializeVideoElement();
                 
@@ -1194,6 +1304,30 @@
                 loadFallbackVideo();
             }
         });
+        
+        // Fix iOS scrolling issues
+        function fixIOSScrolling() {
+            // iOS specific fixes
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+                document.body.style.height = '-webkit-fill-available';
+                document.body.style.overflowY = 'scroll';
+                document.body.style.webkitOverflowScrolling = 'touch';
+                
+                // Prevent elastic bounce on iOS
+                document.addEventListener('touchmove', function(e) {
+                    if (isFullscreen) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                // Fix for iOS address bar
+                window.addEventListener('load', function() {
+                    setTimeout(function() {
+                        window.scrollTo(0, 1);
+                    }, 0);
+                });
+            }
+        }
         
         // Initialize Video Element
         function initializeVideoElement() {
@@ -1228,12 +1362,14 @@
             videoContainer.addEventListener('touchmove', handleTouchMove);
             videoContainer.addEventListener('touchend', handleTouchEnd);
             
-            // Fullscreen change event
+            // Fullscreen change event for all browsers
             document.addEventListener('fullscreenchange', handleFullscreenChange);
             document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.addEventListener('MSFullscreenChange', handleFullscreenChange);
         }
         
-        // Setup Fullscreen Detection
+        // Setup Fullscreen Detection for all browsers
         function setupFullscreenDetection() {
             // Check current fullscreen state
             isFullscreen = !!(document.fullscreenElement || 
@@ -1253,7 +1389,19 @@
                              document.webkitFullscreenElement || 
                              document.mozFullScreenElement || 
                              document.msFullscreenElement);
+            
             console.log("Fullscreen state:", isFullscreen);
+            
+            // Enable/disable scrolling based on fullscreen state
+            if (isFullscreen) {
+                document.body.style.overflow = 'hidden';
+                document.documentElement.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = 'auto';
+                document.documentElement.style.overflow = 'auto';
+                // Reset video fit when exiting fullscreen
+                video.style.objectFit = 'contain';
+            }
         }
         
         // Video Event Handlers
@@ -1267,8 +1415,6 @@
             console.log("Video can play");
             updateLoadingProgress(100, "Ready to play", "Enjoy your movie!");
             setTimeout(hideLoadingAnimation, 500);
-            
-            // Don't autoplay - wait for user to click play button
         }
         
         function onVideoPlaying() {
@@ -1299,7 +1445,7 @@
             isPlaying = false;
             updatePlayButton();
             showToast("Video ended. Thanks for watching!");
-            showControls(); // Show controls at the end
+            showControls();
             
             // Show play overlay again
             document.getElementById('playOverlay').classList.remove('hidden');
@@ -1316,7 +1462,7 @@
         
         function onVideoWaiting() {
             console.log("Video buffering");
-            showControls(); // Show controls while buffering
+            showControls();
         }
         
         // Play from overlay (initial play)
@@ -1425,10 +1571,8 @@
         
         // Quality Selection for Download
         function showQualitySelector(type) {
-            // Hide all quality selectors first
             hideAllQualitySelectors();
             
-            // Show the selected one
             const selectorId = type === 'fast' ? 'fastDownloadQualitySelector' : 'telegramDownloadQualitySelector';
             const selector = document.getElementById(selectorId);
             selector.classList.add('show');
@@ -1447,15 +1591,12 @@
                 const fastSelector = document.getElementById('fastDownloadQualitySelector');
                 const telegramSelector = document.getElementById('telegramDownloadQualitySelector');
                 
-                // Check if click is inside any quality selector
                 const isClickInFastSelector = fastSelector.contains(event.target);
                 const isClickInTelegramSelector = telegramSelector.contains(event.target);
                 
-                // Check if click is on the download buttons
                 const isClickOnFastButton = event.target.closest('.fast-download');
                 const isClickOnTelegramButton = event.target.closest('.telegram-download');
                 
-                // If click is outside both selectors AND not on the buttons, hide them
                 if (!isClickInFastSelector && !isClickInTelegramSelector && 
                     !isClickOnFastButton && !isClickOnTelegramButton) {
                     hideAllQualitySelectors();
@@ -1466,7 +1607,6 @@
         // External Player Functions
         function openInVLC() {
             if (currentVideoUrl) {
-                // VLC protocol handler
                 const vlcUrl = `vlc://${currentVideoUrl}`;
                 window.open(vlcUrl, '_blank');
                 showToast("Opening in VLC...");
@@ -1477,7 +1617,6 @@
         
         function openInMXPlayer() {
             if (currentVideoUrl) {
-                // MX Player protocol handler
                 const mxUrl = `intent:${currentVideoUrl}#Intent;package=com.mxtech.videoplayer.ad;end`;
                 window.open(mxUrl, '_blank');
                 showToast("Opening in MX Player...");
@@ -1488,7 +1627,6 @@
         
         function openInDefaultPlayer() {
             if (currentVideoUrl) {
-                // Direct download/open
                 const link = document.createElement('a');
                 link.href = currentVideoUrl;
                 link.target = '_blank';
@@ -1510,9 +1648,60 @@
             }
         }
         
-        // NEW: Fullscreen Gesture Controls
+        // NEW: Universal Fullscreen Function for All Browsers
+        function toggleFullscreen() {
+            const videoContainer = document.getElementById('videoContainer');
+            
+            if (!isFullscreen) {
+                // Enter fullscreen
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) {
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.mozRequestFullScreen) {
+                    videoContainer.mozRequestFullScreen();
+                } else if (videoContainer.msRequestFullscreen) {
+                    videoContainer.msRequestFullscreen();
+                } else {
+                    // Fallback for browsers that don't support fullscreen
+                    videoContainer.style.position = 'fixed';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100vw';
+                    videoContainer.style.height = '100vh';
+                    videoContainer.style.zIndex = '999999';
+                    document.body.style.overflow = 'hidden';
+                    isFullscreen = true;
+                    showToast("Fullscreen mode");
+                }
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                } else {
+                    // Fallback exit
+                    videoContainer.style.position = 'absolute';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100%';
+                    videoContainer.style.height = '100%';
+                    videoContainer.style.zIndex = '1';
+                    document.body.style.overflow = 'auto';
+                    isFullscreen = false;
+                    showToast("Exited fullscreen");
+                }
+            }
+            
+            showControls();
+        }
         
-        // Touch Handlers for Gestures
+        // Fullscreen Gesture Controls
         function handleTouchStart(event) {
             if (!isFullscreen) return;
             
@@ -1521,14 +1710,12 @@
             
             const touches = event.touches;
             
-            // Single touch for brightness/volume
             if (touches.length === 1) {
                 const touch = touches[0];
                 const videoRect = video.getBoundingClientRect();
                 const touchX = touch.clientX - videoRect.left;
                 const touchY = touch.clientY - videoRect.top;
                 
-                // Determine if touch is on left or right side
                 const isLeftSide = touchX < videoRect.width * 0.3;
                 const isRightSide = touchX > videoRect.width * 0.7;
                 
@@ -1536,7 +1723,6 @@
                     isGestureActive = true;
                     initialTouchY1 = touch.clientY;
                     
-                    // Show appropriate indicator
                     if (isLeftSide) {
                         showGestureIndicator('brightness');
                     } else if (isRightSide) {
@@ -1546,7 +1732,6 @@
                     event.preventDefault();
                 }
             }
-            // Two-finger touch for pinch zoom
             else if (touches.length === 2) {
                 isGestureActive = true;
                 const touch1 = touches[0];
@@ -1559,7 +1744,6 @@
                 event.preventDefault();
             }
             
-            // Show controls on touch
             showControls();
         }
         
@@ -1568,24 +1752,20 @@
             
             const touches = event.touches;
             
-            // Single touch gesture
             if (touches.length === 1) {
                 const touch = touches[0];
                 const videoRect = video.getBoundingClientRect();
                 const touchX = touch.clientX - videoRect.left;
                 
-                // Determine if touch is on left or right side
                 const isLeftSide = touchX < videoRect.width * 0.3;
                 const isRightSide = touchX > videoRect.width * 0.7;
                 
                 if (isLeftSide) {
-                    // Brightness control on left side
                     const deltaY = initialTouchY1 - touch.clientY;
                     adjustBrightness(deltaY);
                     initialTouchY1 = touch.clientY;
                 } 
                 else if (isRightSide) {
-                    // Volume control on right side
                     const deltaY = initialTouchY1 - touch.clientY;
                     adjustVolume(deltaY);
                     initialTouchY1 = touch.clientY;
@@ -1593,23 +1773,19 @@
                 
                 event.preventDefault();
             }
-            // Two-finger pinch zoom
             else if (touches.length === 2) {
                 const touch1 = touches[0];
                 const touch2 = touches[1];
                 const currentDistance = getDistance(touch1, touch2);
                 
-                // Calculate zoom factor
                 const zoomFactor = currentDistance / initialDistance;
                 
                 if (zoomFactor > 1.2) {
-                    // Pinch out - zoom in (fill screen)
                     video.style.objectFit = 'cover';
                     showToast("Zoom: Fill Screen");
                     initialDistance = currentDistance;
                 } 
                 else if (zoomFactor < 0.8) {
-                    // Pinch in - zoom out (fit screen)
                     video.style.objectFit = 'contain';
                     showToast("Zoom: Fit Screen");
                     initialDistance = currentDistance;
@@ -1626,10 +1802,7 @@
                 isGestureActive = false;
                 lastGestureTime = Date.now();
                 
-                // Hide gesture indicators
                 hideGestureIndicators();
-                
-                // Hide controls after delay
                 hideControlsWithDelay();
                 
                 event.preventDefault();
@@ -1641,10 +1814,8 @@
                              document.webkitFullscreenElement);
             
             if (isFullscreen) {
-                // Enable gesture controls in fullscreen
                 console.log("Entered fullscreen - gestures enabled");
             } else {
-                // Reset video fit when exiting fullscreen
                 video.style.objectFit = 'contain';
                 console.log("Exited fullscreen - gestures disabled");
             }
@@ -1658,37 +1829,30 @@
         }
         
         function adjustBrightness(deltaY) {
-            // deltaY: positive = swipe up, negative = swipe down
-            // We'll adjust brightness based on vertical movement
             const sensitivity = 0.005;
             currentBrightness += deltaY * sensitivity;
             currentBrightness = Math.max(0.0, Math.min(1.0, currentBrightness));
             
             updateVideoBrightness();
             
-            // Update indicator
             document.getElementById('brightnessValue').textContent = 
                 `${Math.round(currentBrightness * 100)}%`;
             document.getElementById('brightnessIndicator').classList.add('show');
         }
         
         function adjustVolume(deltaY) {
-            // deltaY: positive = swipe up, negative = swipe down
             const sensitivity = 0.005;
             currentVolume += deltaY * sensitivity;
             currentVolume = Math.max(0.0, Math.min(1.0, currentVolume));
             
-            // Update video volume
             video.volume = currentVolume;
             
-            // Update indicator
             document.getElementById('volumeValue').textContent = 
                 `${Math.round(currentVolume * 100)}%`;
             document.getElementById('volumeIndicator').classList.add('show');
         }
         
         function updateVideoBrightness() {
-            // Apply brightness filter to video
             video.style.filter = `brightness(${currentBrightness})`;
         }
         
@@ -1708,20 +1872,17 @@
         // Enhanced Seek Video Functions
         function startSeeking(event) {
             isSeeking = true;
-            showControls(); // Show controls when seeking
+            showControls();
             
             const progressContainer = document.getElementById('progressContainer');
             const rect = progressContainer.getBoundingClientRect();
             
-            // Get clientX from mouse or touch event
             const clientX = event.clientX || (event.touches && event.touches[0].clientX);
             seekStartX = clientX - rect.left;
             seekStartPercent = video.currentTime / video.duration;
             
-            // Update immediately
             handleSeeking(event);
             
-            // Prevent default behavior
             event.preventDefault();
             event.stopPropagation();
         }
@@ -1732,24 +1893,19 @@
             const progressContainer = document.getElementById('progressContainer');
             const rect = progressContainer.getBoundingClientRect();
             
-            // Get clientX from mouse or touch event
             const clientX = event.clientX || (event.touches && event.touches[0].clientX);
             const clickPosition = clientX - rect.left;
             const containerWidth = progressContainer.offsetWidth;
             let seekPercentage = Math.max(0, Math.min(1, clickPosition / containerWidth));
             
-            // Calculate new time
             const newTime = seekPercentage * video.duration;
             
-            // Update progress bar immediately
             document.getElementById('progressBar').style.width = `${seekPercentage * 100}%`;
             
-            // Update thumb position
             const thumb = document.getElementById('progressThumb');
             thumb.style.left = `${seekPercentage * 100}%`;
             thumb.style.opacity = '1';
             
-            // Update time display
             document.getElementById('currentTime').textContent = formatTime(newTime);
             
             event.preventDefault();
@@ -1764,25 +1920,20 @@
             const rect = progressContainer.getBoundingClientRect();
             const containerWidth = progressContainer.offsetWidth;
             
-            // Get final position
             const finalPosition = seekStartX;
             const seekPercentage = Math.max(0, Math.min(1, finalPosition / containerWidth));
             
-            // Seek to final position
             video.currentTime = seekPercentage * video.duration;
             
-            // Hide thumb after delay
             setTimeout(() => {
                 if (!isSeeking) {
                     document.getElementById('progressThumb').style.opacity = '0';
                 }
             }, 500);
             
-            // Show controls for a bit longer
             hideControlsWithDelay();
         }
         
-        // Original seek function (for click)
         function seekVideo(event) {
             const progressContainer = event.currentTarget;
             const rect = progressContainer.getBoundingClientRect();
@@ -1812,12 +1963,10 @@
             container.classList.remove('controls-hidden');
             controlsVisible = true;
             
-            // Clear previous timeout
             if (controlsTimeout) {
                 clearTimeout(controlsTimeout);
             }
             
-            // Hide controls after 3 seconds if video is playing
             if (isPlaying) {
                 controlsTimeout = setTimeout(() => {
                     if (isPlaying) {
@@ -1860,7 +2009,7 @@
             } else {
                 video.pause();
             }
-            showControls(); // Show controls when interacting
+            showControls();
         }
         
         async function changeQuality(quality) {
@@ -1897,28 +2046,9 @@
             }
         }
         
-        function toggleFullscreen() {
-            const videoContainer = document.getElementById('videoContainer');
-            
-            if (!document.fullscreenElement) {
-                if (videoContainer.requestFullscreen) {
-                    videoContainer.requestFullscreen();
-                } else if (videoContainer.webkitRequestFullscreen) {
-                    videoContainer.webkitRequestFullscreen();
-                }
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                }
-            }
-            showControls();
-        }
-        
         // UI Update Functions
         function updateProgress() {
-            if (isSeeking) return; // Don't update during seeking
+            if (isSeeking) return;
             
             const currentTime = video.currentTime;
             const duration = video.duration;
@@ -1927,7 +2057,6 @@
                 const progressPercent = (currentTime / duration) * 100;
                 document.getElementById('progressBar').style.width = `${progressPercent}%`;
                 
-                // Update thumb position
                 document.getElementById('progressThumb').style.left = `${progressPercent}%`;
                 
                 document.getElementById('currentTime').textContent = formatTime(currentTime);
@@ -2101,6 +2230,9 @@
         function setupControls() {
             // Fullscreen change
             document.addEventListener('fullscreenchange', updateFullscreenButton);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+            document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+            document.addEventListener('MSFullscreenChange', updateFullscreenButton);
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
@@ -2126,13 +2258,18 @@
                         video.currentTime -= 10;
                         showControls();
                         break;
+                    case 'escape':
+                        if (isFullscreen) {
+                            toggleFullscreen();
+                        }
+                        break;
                 }
             });
         }
         
         function updateFullscreenButton() {
             const fullscreenBtn = document.querySelector('.fullscreen-btn i');
-            if (document.fullscreenElement) {
+            if (isFullscreen) {
                 fullscreenBtn.classList.remove('fa-expand');
                 fullscreenBtn.classList.add('fa-compress');
             } else {
@@ -2162,7 +2299,7 @@
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
         
-        console.log("🎬 SK4FiLM Player Ready - Full Gesture Controls Added!");
+        console.log("🎬 SK4FiLM Player Ready - Full Browser Compatibility!");
     </script>
 </body>
 </html>
