@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>SK4FiLM - Ad-Free HD Streaming</title>
     
-    <!-- Animation Libraries -->
+    <!-- Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"></script>    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
@@ -43,14 +43,12 @@
             -webkit-overflow-scrolling: touch;
         }
         
-        /* Enable scrolling */
         body {
             overflow-y: auto;
             height: auto;
             position: relative;
         }
         
-        /* Fix for iOS Safari */
         @supports (-webkit-touch-callout: none) {
             body {
                 height: -webkit-fill-available;
@@ -116,15 +114,15 @@
             gap: 5px;
         }
         
-        /* Main Container - Fixed for fullscreen */
+        /* Main Container */
         .main-container {
             width: 100%;
-            padding-top: 60px; /* Navbar height */
+            padding-top: 60px;
             min-height: 100vh;
             position: relative;
         }
         
-        /* Video Wrapper - Always visible */
+        /* Video Wrapper */
         .video-wrapper {
             width: 100%;
             position: relative;
@@ -135,11 +133,10 @@
         .aspect-ratio-box {
             position: relative;
             width: 100%;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            padding-top: 56.25%; /* 16:9 */
             background: #000;
         }
         
-        /* Video Container - Fullscreen compatible */
         .video-container {
             position: absolute;
             top: 0;
@@ -164,7 +161,7 @@
             transform: translateZ(0);
         }
         
-        /* Fullscreen styles for all browsers */
+        /* Fullscreen styles */
         :fullscreen .video-wrapper,
         :-webkit-full-screen .video-wrapper,
         :-moz-full-screen .video-wrapper,
@@ -213,7 +210,6 @@
             object-fit: contain !important;
         }
         
-        /* Hide other content in fullscreen */
         :fullscreen .content-section,
         :-webkit-full-screen .content-section,
         :-moz-full-screen .content-section,
@@ -225,7 +221,7 @@
             display: none !important;
         }
         
-        /* Fullscreen Gesture Indicators */
+        /* Gesture Indicators */
         .gesture-indicator {
             position: absolute;
             top: 50%;
@@ -374,7 +370,7 @@
             gap: 5px;
         }
         
-        /* Play Overlay - Only for initial play */
+        /* Play Overlay */
         .play-overlay {
             position: absolute;
             top: 50%;
@@ -471,7 +467,7 @@
             text-align: center;
         }
         
-        /* Enhanced Progress Bar Container */
+        /* Progress Bar */
         .progress-container {
             flex: 1;
             height: 6px;
@@ -506,7 +502,6 @@
             transition: width 0.1s;
         }
         
-        /* Progress bar hover effect */
         .progress-container:hover .progress-bar {
             height: 8px;
             margin-top: -1px;
@@ -517,7 +512,6 @@
             margin-top: -1px;
         }
         
-        /* Progress bar thumb */
         .progress-thumb {
             position: absolute;
             top: 50%;
@@ -537,7 +531,7 @@
             opacity: 1;
         }
         
-        /* Quality Selector in Controls */
+        /* Quality Selector */
         .quality-selector-controls {
             background: rgba(0, 0, 0, 0.7);
             border: 1px solid rgba(255, 0, 0, 0.3);
@@ -560,7 +554,7 @@
             margin-left: auto;
         }
         
-        /* Content Section - Scrollable */
+        /* Content Section */
         .content-section {
             padding: 20px 15px;
             max-width: 1200px;
@@ -568,181 +562,160 @@
             position: relative;
             z-index: 1;
             background: var(--dark-bg);
-            min-height: calc(100vh - 60px - 56.25vw); /* Account for video height */
+            min-height: calc(100vh - 60px - 56.25vw);
         }
         
-        /* Fix for content visibility */
         @media (min-width: 1200px) {
             .content-section {
                 min-height: auto;
             }
         }
         
-        /* Action Buttons Grid */
+        /* Action Grid - FAST DOWNLOAD & TELEGRAM DOWNLOAD */
         .action-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+            gap: 20px;
+            margin: 30px 0;
         }
         
         .action-card {
-            background: rgba(30, 41, 59, 0.8);
-            border-radius: 12px;
-            padding: 20px;
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 15px;
+            padding: 25px;
             border: 1px solid rgba(255,255,255,0.1);
             transition: all 0.3s;
-            cursor: default;
             text-align: center;
             position: relative;
+            backdrop-filter: blur(10px);
         }
         
         .action-card:hover {
-            transform: translateY(-3px);
+            transform: translateY(-5px);
             border-color: rgba(255, 0, 0, 0.3);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         
         .action-icon {
-            font-size: 2rem;
+            font-size: 2.5rem;
             margin-bottom: 15px;
             background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         
-        /* Quality Selection Dropdown for Download */
-        .download-quality-selector {
-            background: rgba(0, 0, 0, 0.95);
+        .action-card h4 {
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 10px;
-            margin-top: 10px;
-            display: none;
-            position: absolute;
-            z-index: 1000;
-            width: calc(100% - 40px);
-            left: 20px;
-            top: 100%;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
+            margin-bottom: 10px;
+            font-weight: 700;
         }
         
-        .download-quality-selector.show {
-            display: block;
-            animation: fadeIn 0.3s ease;
+        .action-card p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        /* Quality Buttons Row */
+        .quality-buttons-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 15px;
         }
         
         .quality-option {
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px 0;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
+            display: inline-flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            padding: 12px 18px;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            min-width: 110px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            flex: 0 0 auto;
+            position: relative;
+            overflow: hidden;
         }
         
-        .quality-option:hover {
-            background: rgba(255, 0, 0, 0.2);
+        /* Fast Download Quality Buttons */
+        .fast-download-option {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+        }
+        
+        .fast-download-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        /* Telegram Quality Buttons */
+        .telegram-option {
+            background: linear-gradient(135deg, #0088cc, #34b7f1);
+            border: 1px solid rgba(52, 183, 241, 0.5);
+        }
+        
+        .telegram-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
         }
         
         .quality-option i {
-            width: 20px;
+            font-size: 1.2rem;
+            margin-bottom: 5px;
         }
         
-        .quality-badge {
-            font-size: 0.75rem;
-            padding: 2px 8px;
-            border-radius: 10px;
-            background: rgba(0, 102, 255, 0.2);
-            color: #0066ff;
-            margin-left: auto;
+        .quality-option small {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            margin-top: 4px;
         }
         
-        /* Download Buttons */
-        .download-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 15px 0;
-            justify-content: center;
-            position: relative;
-        }
-        
-        .download-btn {
-            padding: 10px 20px;
-            border-radius: 25px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-width: 160px;
-            justify-content: center;
-            position: relative;
-        }
-        
-        .fast-download {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-        }
-        
-        .fast-download:hover {
-            background: linear-gradient(135deg, #218838, #1ea384);
-        }
-        
-        .telegram-download {
-            background: linear-gradient(135deg, #0088cc, #00aced);
-            color: white;
-        }
-        
-        .telegram-download:hover {
-            background: linear-gradient(135deg, #0077b3, #0099d6);
-        }
-        
-        .external-player {
-            background: linear-gradient(135deg, #6f42c1, #9b59b6);
-            color: white;
-        }
-        
-        /* External Players Section */
+        /* External Players */
         .external-players {
-            margin: 20px 0;
-            padding: 15px;
-            background: rgba(30, 41, 59, 0.5);
-            border-radius: 10px;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 15px;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
         }
         
         .player-buttons {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
             justify-content: center;
-            margin-top: 15px;
+            margin-top: 20px;
         }
         
         .player-btn {
-            padding: 10px 15px;
-            border-radius: 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.3);
             color: white;
             cursor: pointer;
             transition: all 0.3s;
             display: flex;
             align-items: center;
             gap: 8px;
+            font-weight: 600;
         }
         
         .player-btn:hover {
             background: rgba(255, 0, 0, 0.2);
             transform: translateY(-2px);
+            border-color: rgba(255, 0, 0, 0.3);
         }
         
         /* Donation Section */
@@ -751,7 +724,7 @@
             border: 1px solid rgba(255, 193, 7, 0.2);
             border-radius: 15px;
             padding: 25px;
-            margin: 25px 0;
+            margin: 30px 0;
             text-align: center;
         }
         
@@ -788,6 +761,7 @@
             animation: slideUp 0.3s ease;
         }
         
+        /* Animations */
         @keyframes slideUp {
             from { transform: translate(-50%, 100%); opacity: 0; }
             to { transform: translate(-50%, 0); opacity: 1; }
@@ -878,14 +852,17 @@
             
             .action-grid {
                 grid-template-columns: 1fr;
+                gap: 15px;
             }
             
-            .download-buttons {
-                flex-direction: column;
+            .action-card {
+                padding: 20px;
             }
             
-            .download-btn {
-                width: 100%;
+            .quality-option {
+                min-width: 90px;
+                padding: 10px 12px;
+                font-size: 0.85rem;
             }
             
             .player-buttons {
@@ -897,7 +874,6 @@
                 justify-content: center;
             }
             
-            /* Adjust side click areas for mobile */
             .side-click-area {
                 width: 40%;
             }
@@ -933,6 +909,12 @@
             .gesture-indicator {
                 padding: 10px;
                 font-size: 1rem;
+            }
+            
+            .quality-option {
+                min-width: 80px;
+                padding: 8px 10px;
+                font-size: 0.8rem;
             }
         }
         
@@ -1014,7 +996,7 @@
                         <i class="fas fa-hd me-1"></i><span id="qualityText">HD</span>
                     </div>
                     
-                    <!-- Play Overlay - Only for initial play -->
+                    <!-- Play Overlay -->
                     <div class="play-overlay" id="playOverlay" onclick="playFromOverlay()">
                         <i class="fas fa-play"></i>
                     </div>
@@ -1029,7 +1011,7 @@
                             <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
                         </div>
                         
-                        <!-- Enhanced Progress Bar with Seek Functionality -->
+                        <!-- Enhanced Progress Bar -->
                         <div class="progress-container" id="progressContainer" 
                              onmousedown="startSeeking(event)"
                              onmousemove="handleSeeking(event)"
@@ -1043,7 +1025,7 @@
                             <div class="progress-thumb" id="progressThumb"></div>
                         </div>
                         
-                        <!-- Quality Selector in Controls -->
+                        <!-- Quality Selector -->
                         <select class="quality-selector-controls" id="qualitySelectorControls" onchange="changeQuality(this.value)">
                             <option value="1080p">1080p FHD</option>
                             <option value="720p">720p HD</option>
@@ -1059,100 +1041,49 @@
             </div>
         </div>
 
-        <!-- Content Section - Scrollable -->
+        <!-- Content Section -->
         <div class="content-section">
             <!-- Video Info -->
             <div class="text-center mb-4">
                 <h4 class="mb-2" id="videoTitle">Movie Title</h4>
-                <div class="d-flex justify-content-center gap-3">
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
                     <span class="badge bg-danger">
                         <i class="fas fa-file me-1"></i> <span id="fileSize">-- MB</span>
                     </span>
                     <span class="badge bg-primary">
                         <i class="fas fa-wifi me-1"></i> Direct Stream
                     </span>
+                    <span class="badge bg-success">
+                        <i class="fas fa-tachometer-alt me-1"></i> Fast Server
+                    </span>
                 </div>
             </div>
 
-            <!-- Action Buttons with Quality Selection -->
+            <!-- Action Grid - FAST DOWNLOAD & TELEGRAM DOWNLOAD -->
             <div class="action-grid">
                 <!-- Fast Download Card -->
-                <div class="action-card" id="fastDownloadCard">
+                <div class="action-card">
                     <div class="action-icon">
                         <i class="fas fa-bolt"></i>
                     </div>
-                    <h5>Fast Download</h5>
-                    <p class="text-muted mb-3">Direct server download at maximum speed</p>
+                    <h4>Fast Download</h4>
+                    <p>Direct server download at maximum speed</p>
                     
-                    <!-- Quality Selection Dropdown (Initially Hidden) -->
-                    <div class="download-quality-selector" id="fastDownloadQualitySelector">
-                        <div class="quality-option" onclick="startFastDownload('1080p')">
-                            <i class="fas fa-hd"></i>
-                            <span>1080p Full HD</span>
-                            <span class="quality-badge">Best</span>
-                        </div>
-                        <div class="quality-option" onclick="startFastDownload('720p')">
-                            <i class="fas fa-tv"></i>
-                            <span>720p HD</span>
-                            <span class="quality-badge">Balanced</span>
-                        </div>
-                        <div class="quality-option" onclick="startFastDownload('480p')">
-                            <i class="fas fa-mobile-alt"></i>
-                            <span>480p SD</span>
-                            <span class="quality-badge">Data Saver</span>
-                        </div>
-                        <div class="quality-option" onclick="startFastDownload('360p')">
-                            <i class="fas fa-compress-alt"></i>
-                            <span>360p</span>
-                            <span class="quality-badge">Low Data</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Main Download Button -->
-                    <div class="download-buttons">
-                        <button class="download-btn fast-download" onclick="showQualitySelector('fast')">
-                            <i class="fas fa-download"></i> Fast Download
-                        </button>
+                    <div class="quality-buttons-row" id="fastDownloadOptions">
+                        <!-- Quality buttons will be added dynamically -->
                     </div>
                 </div>
                 
                 <!-- Telegram Download Card -->
-                <div class="action-card" id="telegramDownloadCard">
+                <div class="action-card">
                     <div class="action-icon">
                         <i class="fab fa-telegram"></i>
                     </div>
-                    <h5>Telegram Download</h5>
-                    <p class="text-muted mb-3">Download via Telegram bot with resume support</p>
+                    <h4>Telegram Download</h4>
+                    <p>Download via Telegram bot with resume support</p>
                     
-                    <!-- Quality Selection Dropdown (Initially Hidden) -->
-                    <div class="download-quality-selector" id="telegramDownloadQualitySelector">
-                        <div class="quality-option" onclick="startTelegramDownload('1080p')">
-                            <i class="fas fa-hd"></i>
-                            <span>1080p Full HD</span>
-                            <span class="quality-badge">Best</span>
-                        </div>
-                        <div class="quality-option" onclick="startTelegramDownload('720p')">
-                            <i class="fas fa-tv"></i>
-                            <span>720p HD</span>
-                            <span class="quality-badge">Balanced</span>
-                        </div>
-                        <div class="quality-option" onclick="startTelegramDownload('480p')">
-                            <i class="fas fa-mobile-alt"></i>
-                            <span>480p SD</span>
-                            <span class="quality-badge">Data Saver</span>
-                        </div>
-                        <div class="quality-option" onclick="startTelegramDownload('360p')">
-                            <i class="fas fa-compress-alt"></i>
-                            <span>360p</span>
-                            <span class="quality-badge">Low Data</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Main Download Button -->
-                    <div class="download-buttons">
-                        <button class="download-btn telegram-download" onclick="showQualitySelector('telegram')">
-                            <i class="fab fa-telegram"></i> Telegram Download
-                        </button>
+                    <div class="quality-buttons-row" id="telegramDownloadOptions">
+                        <!-- Quality buttons will be added dynamically -->
                     </div>
                 </div>
             </div>
@@ -1239,7 +1170,6 @@
         let controlsVisible = false;
         let currentVideoUrl = '';
         let hasVideoStarted = false;
-        let activeQualitySelector = null;
         
         // Seek variables
         let isSeeking = false;
@@ -1262,6 +1192,10 @@
         const channelId = urlParams.get('channel_id') || '-1001768249569';
         const messageId = urlParams.get('message_id');
         const initialQuality = urlParams.get('quality') || '1080p';
+        const movieTitle = urlParams.get('title') || 'SK4FiLM Movie';
+        
+        // Quality options
+        const availableQualities = ['1080p', '720p', '480p', '360p'];
         
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1282,20 +1216,21 @@
                 // Start loading animation
                 startLoadingAnimation();
                 
-                // Load metadata
-                await loadMetadata();
+                // Set initial title
+                document.getElementById('videoTitle').textContent = decodeURIComponent(movieTitle);
                 
-                // Load video
+                // Load metadata and video
+                await loadMetadata();
                 await loadVideo(initialQuality);
                 
                 // Setup controls
                 setupControls();
                 
-                // Setup click outside for quality selectors
-                setupClickOutside();
-                
                 // Setup fullscreen detection
                 setupFullscreenDetection();
+                
+                // Generate download options
+                generateDownloadOptions();
                 
                 console.log("✅ Player Ready!");
                 
@@ -1305,22 +1240,19 @@
             }
         });
         
-        // Fix iOS scrolling issues
+        // Fix iOS scrolling
         function fixIOSScrolling() {
-            // iOS specific fixes
             if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
                 document.body.style.height = '-webkit-fill-available';
                 document.body.style.overflowY = 'scroll';
                 document.body.style.webkitOverflowScrolling = 'touch';
                 
-                // Prevent elastic bounce on iOS
                 document.addEventListener('touchmove', function(e) {
                     if (isFullscreen) {
                         e.preventDefault();
                     }
                 }, { passive: false });
                 
-                // Fix for iOS address bar
                 window.addEventListener('load', function() {
                     setTimeout(function() {
                         window.scrollTo(0, 1);
@@ -1362,22 +1294,20 @@
             videoContainer.addEventListener('touchmove', handleTouchMove);
             videoContainer.addEventListener('touchend', handleTouchEnd);
             
-            // Fullscreen change event for all browsers
+            // Fullscreen change event
             document.addEventListener('fullscreenchange', handleFullscreenChange);
             document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
             document.addEventListener('mozfullscreenchange', handleFullscreenChange);
             document.addEventListener('MSFullscreenChange', handleFullscreenChange);
         }
         
-        // Setup Fullscreen Detection for all browsers
+        // Setup Fullscreen Detection
         function setupFullscreenDetection() {
-            // Check current fullscreen state
             isFullscreen = !!(document.fullscreenElement || 
                              document.webkitFullscreenElement || 
                              document.mozFullScreenElement || 
                              document.msFullscreenElement);
             
-            // Listen for fullscreen changes
             document.addEventListener('fullscreenchange', updateFullscreenState);
             document.addEventListener('webkitfullscreenchange', updateFullscreenState);
             document.addEventListener('mozfullscreenchange', updateFullscreenState);
@@ -1392,14 +1322,12 @@
             
             console.log("Fullscreen state:", isFullscreen);
             
-            // Enable/disable scrolling based on fullscreen state
             if (isFullscreen) {
                 document.body.style.overflow = 'hidden';
                 document.documentElement.style.overflow = 'hidden';
             } else {
                 document.body.style.overflow = 'auto';
                 document.documentElement.style.overflow = 'auto';
-                // Reset video fit when exiting fullscreen
                 video.style.objectFit = 'contain';
             }
         }
@@ -1424,10 +1352,7 @@
             updateQualityIndicator(currentQuality);
             hasVideoStarted = true;
             
-            // Hide play overlay
             document.getElementById('playOverlay').classList.add('hidden');
-            
-            // Hide controls after 3 seconds
             hideControlsWithDelay();
         }
         
@@ -1435,8 +1360,6 @@
             console.log("Video paused");
             isPlaying = false;
             updatePlayButton();
-            
-            // Show controls when paused
             showControls();
         }
         
@@ -1447,7 +1370,6 @@
             showToast("Video ended. Thanks for watching!");
             showControls();
             
-            // Show play overlay again
             document.getElementById('playOverlay').classList.remove('hidden');
             hasVideoStarted = false;
         }
@@ -1559,7 +1481,6 @@
             };
             
             updateFileInfo();
-            updateVideoTitle();
             updateQualityIndicator('HD');
             currentVideoUrl = fallbackUrl;
             
@@ -1569,39 +1490,89 @@
             showToast("Playing sample video");
         }
         
-        // Quality Selection for Download
-        function showQualitySelector(type) {
-            hideAllQualitySelectors();
+        // Generate Download Options
+        function generateDownloadOptions() {
+            const fastDownloadContainer = document.getElementById('fastDownloadOptions');
+            const telegramDownloadContainer = document.getElementById('telegramDownloadOptions');
             
-            const selectorId = type === 'fast' ? 'fastDownloadQualitySelector' : 'telegramDownloadQualitySelector';
-            const selector = document.getElementById(selectorId);
-            selector.classList.add('show');
-            activeQualitySelector = selectorId;
-        }
-        
-        function hideAllQualitySelectors() {
-            document.getElementById('fastDownloadQualitySelector').classList.remove('show');
-            document.getElementById('telegramDownloadQualitySelector').classList.remove('show');
-            activeQualitySelector = null;
-        }
-        
-        // Click outside handler
-        function setupClickOutside() {
-            document.addEventListener('click', (event) => {
-                const fastSelector = document.getElementById('fastDownloadQualitySelector');
-                const telegramSelector = document.getElementById('telegramDownloadQualitySelector');
+            let fastHtml = '';
+            let telegramHtml = '';
+            
+            availableQualities.forEach(quality => {
+                // Fast Download Link
+                const fastDownloadUrl = `https://sk4film.koyeb.app/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
                 
-                const isClickInFastSelector = fastSelector.contains(event.target);
-                const isClickInTelegramSelector = telegramSelector.contains(event.target);
+                fastHtml += `
+                <a href="${fastDownloadUrl}" 
+                   target="_blank" 
+                   class="quality-option fast-download-option"
+                   onclick="startFastDownload('${quality}')">
+                    <i class="fas fa-download"></i>
+                    ${quality}<br>
+                    <small>Direct Download</small>
+                </a>`;
                 
-                const isClickOnFastButton = event.target.closest('.fast-download');
-                const isClickOnTelegramButton = event.target.closest('.telegram-download');
+                // Telegram Download Link
+                const botUsername = 'sk4filmbot';
+                const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
+                const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
                 
-                if (!isClickInFastSelector && !isClickInTelegramSelector && 
-                    !isClickOnFastButton && !isClickOnTelegramButton) {
-                    hideAllQualitySelectors();
-                }
+                telegramHtml += `
+                <a href="${telegramUrl}" 
+                   target="_blank" 
+                   class="quality-option telegram-option"
+                   onclick="startTelegramDownload('${quality}')">
+                    <i class="fab fa-telegram"></i>
+                    ${quality}<br>
+                    <small>Telegram Bot</small>
+                </a>`;
             });
+            
+            fastDownloadContainer.innerHTML = fastHtml;
+            telegramDownloadContainer.innerHTML = telegramHtml;
+        }
+        
+        // Start Fast Download
+        async function startFastDownload(quality = currentQuality) {
+            showToast(`Preparing ${quality} download...`);
+            
+            try {
+                for (const endpoint of API_ENDPOINTS) {
+                    try {
+                        const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
+                        const response = await fetchWithTimeout(apiUrl, 3000);
+                        const data = await response.json();
+                        
+                        if (data.status === 'success' && data.download_url) {
+                            const link = document.createElement('a');
+                            link.href = data.download_url;
+                            link.download = `SK4FiLM_${decodeURIComponent(movieTitle)}_${quality}.mp4`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            
+                            showToast(`Downloading ${quality}...`);
+                            return;
+                        }
+                    } catch (error) {
+                        console.warn(`Download API failed:`, error);
+                    }
+                }
+                
+                showToast("Download failed. Try Telegram.");
+            } catch (error) {
+                console.error("Download error:", error);
+                showToast("Error. Try Telegram download.");
+            }
+        }
+        
+        // Start Telegram Download
+        function startTelegramDownload(quality = currentQuality) {
+            const botUsername = 'sk4filmbot';
+            const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
+            const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
+            window.open(telegramUrl, '_blank');
+            showToast(`Opening Telegram for ${quality} download...`);
         }
         
         // External Player Functions
@@ -1648,7 +1619,7 @@
             }
         }
         
-        // NEW: Universal Fullscreen Function for All Browsers
+        // Universal Fullscreen Function
         function toggleFullscreen() {
             const videoContainer = document.getElementById('videoContainer');
             
@@ -1663,7 +1634,7 @@
                 } else if (videoContainer.msRequestFullscreen) {
                     videoContainer.msRequestFullscreen();
                 } else {
-                    // Fallback for browsers that don't support fullscreen
+                    // Fallback
                     videoContainer.style.position = 'fixed';
                     videoContainer.style.top = '0';
                     videoContainer.style.left = '0';
@@ -1934,17 +1905,6 @@
             hideControlsWithDelay();
         }
         
-        function seekVideo(event) {
-            const progressContainer = event.currentTarget;
-            const rect = progressContainer.getBoundingClientRect();
-            const clickPosition = event.clientX - rect.left;
-            const containerWidth = progressContainer.offsetWidth;
-            const seekPercentage = clickPosition / containerWidth;
-            
-            video.currentTime = seekPercentage * video.duration;
-            showControls();
-        }
-        
         // Toggle Controls on Side Click
         function toggleControls() {
             if (controlsVisible) {
@@ -2109,11 +2069,6 @@
             document.getElementById('qualitySelectorControls').value = quality;
         }
         
-        function updateVideoTitle() {
-            document.getElementById('videoTitle').textContent = 
-                movieMetadata.file_name || 'SK4FiLM Movie';
-        }
-        
         function updateFileInfo() {
             document.getElementById('fileSize').textContent = 
                 formatSize(movieMetadata.file_size || 1500000000);
@@ -2129,61 +2084,20 @@
                 if (data.status === 'success' && data.metadata) {
                     movieMetadata = data.metadata;
                     updateFileInfo();
-                    updateVideoTitle();
+                    
+                    // Update title if available from metadata
+                    if (movieMetadata.file_name && movieMetadata.file_name !== 'SK4FiLM Movie') {
+                        document.getElementById('videoTitle').textContent = movieMetadata.file_name;
+                    }
                 }
             } catch (error) {
                 console.warn("Metadata fetch failed");
                 movieMetadata = {
-                    file_name: 'SK4FiLM Movie',
+                    file_name: decodeURIComponent(movieTitle),
                     file_size: 1500000000
                 };
                 updateFileInfo();
-                updateVideoTitle();
             }
-        }
-        
-        // Download Functions
-        async function startFastDownload(quality = currentQuality) {
-            hideAllQualitySelectors();
-            showToast(`Preparing ${quality} download...`);
-            
-            try {
-                for (const endpoint of API_ENDPOINTS) {
-                    try {
-                        const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                        const response = await fetchWithTimeout(apiUrl, 3000);
-                        const data = await response.json();
-                        
-                        if (data.status === 'success' && data.download_url) {
-                            const link = document.createElement('a');
-                            link.href = data.download_url;
-                            link.download = `SK4FiLM_${movieMetadata.file_name || 'movie'}_${quality}.mp4`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            
-                            showToast(`Downloading ${quality}...`);
-                            return;
-                        }
-                    } catch (error) {
-                        console.warn(`Download API failed:`, error);
-                    }
-                }
-                
-                showToast("Download failed. Try Telegram.");
-            } catch (error) {
-                console.error("Download error:", error);
-                showToast("Error. Try Telegram download.");
-            }
-        }
-        
-        function startTelegramDownload(quality = currentQuality) {
-            hideAllQualitySelectors();
-            const botUsername = 'sk4filmbot';
-            const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
-            const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
-            window.open(telegramUrl, '_blank');
-            showToast(`Opening Telegram for ${quality} download...`);
         }
         
         // Helper Functions
@@ -2286,7 +2200,6 @@
         window.startFastDownload = startFastDownload;
         window.startTelegramDownload = startTelegramDownload;
         window.copyUPI = copyUPI;
-        window.showQualitySelector = showQualitySelector;
         window.openInVLC = openInVLC;
         window.openInMXPlayer = openInMXPlayer;
         window.openInDefaultPlayer = openInDefaultPlayer;
@@ -2299,7 +2212,7 @@
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
         
-        console.log("🎬 SK4FiLM Player Ready - Full Browser Compatibility!");
+        console.log("🎬 SK4FiLM Player Ready!");
     </script>
 </body>
 </html>
