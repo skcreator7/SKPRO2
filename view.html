@@ -406,6 +406,7 @@
             cursor: pointer;
             transition: all 0.2s;
             min-width: 80px;
+            z-index: 101;
         }
         
         .quality-selector-controls:hover {
@@ -457,7 +458,7 @@
             -webkit-text-fill-color: transparent;
         }
         
-        /* Quality Selection Dropdown for Download */
+        /* Quality Selection Dropdown for Download - FIXED */
         .download-quality-selector {
             background: rgba(0, 0, 0, 0.95);
             color: white;
@@ -470,6 +471,7 @@
             z-index: 1000;
             width: calc(100% - 40px);
             left: 20px;
+            top: 100%;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             backdrop-filter: blur(10px);
         }
@@ -753,12 +755,6 @@
                 min-width: 60px;
                 font-size: 0.7rem;
             }
-            
-            .mobile-quality {
-                display: block !important;
-                margin-top: 10px;
-                width: 100%;
-            }
         }
         
         /* Hide controls when not interacting */
@@ -988,15 +984,6 @@
                 </div>
             </div>
 
-            <!-- Quality Selector for Mobile -->
-            <div class="mobile-quality d-none mb-3">
-                <select class="form-select bg-dark text-light" onchange="changeQuality(this.value)">
-                    <option value="1080p">1080p Full HD</option>
-                    <option value="720p">720p HD</option>
-                    <option value="480p">480p Standard</option>
-                </select>
-            </div>
-
             <!-- Donation Section -->
             <div class="donation-card">
                 <h4 class="text-warning mb-3">
@@ -1055,6 +1042,7 @@
         let controlsVisible = false;
         let currentVideoUrl = '';
         let hasVideoStarted = false;
+        let activeQualitySelector = null;
         
         // URL Parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -1087,7 +1075,7 @@
                 // Setup controls
                 setupControls();
                 
-                // Setup click outside for quality selectors
+                // Setup click outside for quality selectors - FIXED
                 setupClickOutside();
                 
                 console.log("✅ Player Ready!");
@@ -1297,7 +1285,7 @@
             showToast("Playing sample video");
         }
         
-        // NEW: Quality Selection for Download
+        // NEW: Quality Selection for Download - FIXED
         function showQualitySelector(type) {
             // Hide all quality selectors first
             hideAllQualitySelectors();
@@ -1306,19 +1294,32 @@
             const selectorId = type === 'fast' ? 'fastDownloadQualitySelector' : 'telegramDownloadQualitySelector';
             const selector = document.getElementById(selectorId);
             selector.classList.add('show');
+            activeQualitySelector = selectorId;
         }
         
         function hideAllQualitySelectors() {
             document.getElementById('fastDownloadQualitySelector').classList.remove('show');
             document.getElementById('telegramDownloadQualitySelector').classList.remove('show');
+            activeQualitySelector = null;
         }
         
+        // FIXED: Click outside handler
         function setupClickOutside() {
             document.addEventListener('click', (event) => {
                 const fastSelector = document.getElementById('fastDownloadQualitySelector');
                 const telegramSelector = document.getElementById('telegramDownloadQualitySelector');
                 
-                if (!event.target.closest('#fastDownloadCard') && !event.target.closest('#telegramDownloadCard')) {
+                // Check if click is inside any quality selector
+                const isClickInFastSelector = fastSelector.contains(event.target);
+                const isClickInTelegramSelector = telegramSelector.contains(event.target);
+                
+                // Check if click is on the download buttons
+                const isClickOnFastButton = event.target.closest('.fast-download');
+                const isClickOnTelegramButton = event.target.closest('.telegram-download');
+                
+                // If click is outside both selectors AND not on the buttons, hide them
+                if (!isClickInFastSelector && !isClickInTelegramSelector && 
+                    !isClickOnFastButton && !isClickOnTelegramButton) {
                     hideAllQualitySelectors();
                 }
             });
@@ -1759,11 +1760,7 @@
                 }
             });
             
-            // Mobile quality selector
-            if (window.innerWidth <= 480) {
-                document.querySelector('.mobile-quality').classList.remove('d-none');
-                document.querySelector('.quality-selector-controls').classList.add('d-none');
-            }
+            // REMOVED: Mobile quality selector section
         }
         
         function updateFullscreenButton() {
@@ -1794,7 +1791,7 @@
         window.toggleControls = toggleControls;
         window.playFromOverlay = playFromOverlay;
         
-        console.log("🎬 SK4FiLM Player Ready - All Features Included!");
+        console.log("🎬 SK4FiLM Player Ready - Quality Selector Fixed!");
     </script>
 </body>
 </html>
