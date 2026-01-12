@@ -20,6 +20,9 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
         }
         
         :root {
@@ -36,6 +39,7 @@
             color: #fff;
             min-height: 100vh;
             overflow-x: hidden;
+            touch-action: none;
         }
         
         /* Navbar */
@@ -124,6 +128,7 @@
             height: 100%;
             background: #000;
             cursor: pointer;
+            overflow: hidden;
         }
         
         #videoPlayer {
@@ -132,6 +137,49 @@
             object-fit: contain;
             background: #000;
             display: block;
+            transition: filter 0.3s ease, object-fit 0.3s ease;
+        }
+        
+        /* Fullscreen Gesture Indicators */
+        .gesture-indicator {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 50%;
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .brightness-indicator {
+            left: 30px;
+        }
+        
+        .volume-indicator {
+            right: 30px;
+        }
+        
+        .gesture-indicator.show {
+            display: flex;
+            animation: fadeInOut 2s ease;
+        }
+        
+        .gesture-value {
+            position: absolute;
+            top: -40px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            white-space: nowrap;
         }
         
         /* Side Click Areas */
@@ -341,7 +389,7 @@
         /* Enhanced Progress Bar Container */
         .progress-container {
             flex: 1;
-            height: 6px; /* Increased height */
+            height: 6px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 3px;
             overflow: hidden;
@@ -649,6 +697,13 @@
             to { transform: translate(-50%, 0); opacity: 1; }
         }
         
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-50%) scale(0.8); }
+            20% { opacity: 1; transform: translateY(-50%) scale(1); }
+            80% { opacity: 1; transform: translateY(-50%) scale(1); }
+            100% { opacity: 0; transform: translateY(-50%) scale(0.8); }
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -701,6 +756,19 @@
                 width: 60px;
                 height: 60px;
                 font-size: 1.5rem;
+            }
+            
+            .gesture-indicator {
+                padding: 12px;
+                font-size: 1.2rem;
+            }
+            
+            .brightness-indicator {
+                left: 20px;
+            }
+            
+            .volume-indicator {
+                right: 20px;
             }
             
             .action-grid {
@@ -760,6 +828,11 @@
                 min-width: 60px;
                 font-size: 0.7rem;
             }
+            
+            .gesture-indicator {
+                padding: 10px;
+                font-size: 1rem;
+            }
         }
         
         /* Hide controls when not interacting */
@@ -797,6 +870,17 @@
         <div class="video-wrapper">
             <div class="aspect-ratio-box">
                 <div class="video-container" id="videoContainer">
+                    <!-- Fullscreen Gesture Indicators -->
+                    <div class="gesture-indicator brightness-indicator" id="brightnessIndicator">
+                        <i class="fas fa-sun"></i>
+                        <div class="gesture-value" id="brightnessValue">100%</div>
+                    </div>
+                    
+                    <div class="gesture-indicator volume-indicator" id="volumeIndicator">
+                        <i class="fas fa-volume-up"></i>
+                        <div class="gesture-value" id="volumeValue">100%</div>
+                    </div>
+                    
                     <!-- Side Click Areas -->
                     <div class="side-click-area left-click-area" onclick="toggleControls()"></div>
                     <div class="side-click-area right-click-area" onclick="toggleControls()"></div>
@@ -828,7 +912,7 @@
                         <i class="fas fa-play"></i>
                     </div>
                     
-                    <!-- Custom Video Controls - Volume Controller REMOVED -->
+                    <!-- Custom Video Controls -->
                     <div class="video-controls" id="videoControls">
                         <button class="control-btn play-pause-btn" onclick="togglePlay()" id="playBtn">
                             <i class="fas fa-play" id="playIcon"></i>
@@ -995,7 +1079,7 @@
             <div class="donation-card">
                 <h4 class="text-warning mb-3">
                     <i class="fas fa-heart me-2"></i> Support SK4FiLM
-                </h5>
+                </h4>
                 <p class="mb-3">Help us maintain this ad-free streaming service. Your support allows us to provide better quality and more content.</p>
                 
                 <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
@@ -1042,7 +1126,6 @@
         // Global Variables
         let video = null;
         let isPlaying = false;
-        let isMuted = false;
         let currentQuality = '1080p';
         let movieMetadata = {};
         let controlsTimeout = null;
@@ -1051,10 +1134,21 @@
         let hasVideoStarted = false;
         let activeQualitySelector = null;
         
-        // NEW: Seek variables
+        // Seek variables
         let isSeeking = false;
         let seekStartX = 0;
         let seekStartPercent = 0;
+        
+        // Gesture control variables
+        let isFullscreen = false;
+        let initialTouchY1 = 0;
+        let initialTouchY2 = 0;
+        let initialDistance = 0;
+        let isGestureActive = false;
+        let currentBrightness = 1.0; // 0.0 to 1.0
+        let currentVolume = 1.0; // 0.0 to 1.0
+        let lastGestureTime = 0;
+        let gestureCooldown = 100; // ms
         
         // URL Parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -1090,6 +1184,9 @@
                 // Setup click outside for quality selectors
                 setupClickOutside();
                 
+                // Setup fullscreen detection
+                setupFullscreenDetection();
+                
                 console.log("✅ Player Ready!");
                 
             } catch (error) {
@@ -1107,7 +1204,10 @@
             video.controls = false;
             video.preload = 'auto';
             video.playsInline = true;
-            video.volume = 1; // Default volume
+            video.volume = currentVolume;
+            
+            // Apply initial brightness
+            updateVideoBrightness();
             
             // Event Listeners
             video.addEventListener('loadedmetadata', onVideoMetadataLoaded);
@@ -1124,7 +1224,36 @@
             const videoContainer = document.getElementById('videoContainer');
             videoContainer.addEventListener('mousemove', showControls);
             videoContainer.addEventListener('mouseleave', hideControls);
-            videoContainer.addEventListener('touchstart', handleTouch);
+            videoContainer.addEventListener('touchstart', handleTouchStart);
+            videoContainer.addEventListener('touchmove', handleTouchMove);
+            videoContainer.addEventListener('touchend', handleTouchEnd);
+            
+            // Fullscreen change event
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        }
+        
+        // Setup Fullscreen Detection
+        function setupFullscreenDetection() {
+            // Check current fullscreen state
+            isFullscreen = !!(document.fullscreenElement || 
+                             document.webkitFullscreenElement || 
+                             document.mozFullScreenElement || 
+                             document.msFullscreenElement);
+            
+            // Listen for fullscreen changes
+            document.addEventListener('fullscreenchange', updateFullscreenState);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenState);
+            document.addEventListener('mozfullscreenchange', updateFullscreenState);
+            document.addEventListener('MSFullscreenChange', updateFullscreenState);
+        }
+        
+        function updateFullscreenState() {
+            isFullscreen = !!(document.fullscreenElement || 
+                             document.webkitFullscreenElement || 
+                             document.mozFullScreenElement || 
+                             document.msFullscreenElement);
+            console.log("Fullscreen state:", isFullscreen);
         }
         
         // Video Event Handlers
@@ -1381,7 +1510,202 @@
             }
         }
         
-        // NEW: Enhanced Seek Video Functions
+        // NEW: Fullscreen Gesture Controls
+        
+        // Touch Handlers for Gestures
+        function handleTouchStart(event) {
+            if (!isFullscreen) return;
+            
+            const now = Date.now();
+            if (now - lastGestureTime < gestureCooldown) return;
+            
+            const touches = event.touches;
+            
+            // Single touch for brightness/volume
+            if (touches.length === 1) {
+                const touch = touches[0];
+                const videoRect = video.getBoundingClientRect();
+                const touchX = touch.clientX - videoRect.left;
+                const touchY = touch.clientY - videoRect.top;
+                
+                // Determine if touch is on left or right side
+                const isLeftSide = touchX < videoRect.width * 0.3;
+                const isRightSide = touchX > videoRect.width * 0.7;
+                
+                if (isLeftSide || isRightSide) {
+                    isGestureActive = true;
+                    initialTouchY1 = touch.clientY;
+                    
+                    // Show appropriate indicator
+                    if (isLeftSide) {
+                        showGestureIndicator('brightness');
+                    } else if (isRightSide) {
+                        showGestureIndicator('volume');
+                    }
+                    
+                    event.preventDefault();
+                }
+            }
+            // Two-finger touch for pinch zoom
+            else if (touches.length === 2) {
+                isGestureActive = true;
+                const touch1 = touches[0];
+                const touch2 = touches[1];
+                
+                initialTouchY1 = touch1.clientY;
+                initialTouchY2 = touch2.clientY;
+                initialDistance = getDistance(touch1, touch2);
+                
+                event.preventDefault();
+            }
+            
+            // Show controls on touch
+            showControls();
+        }
+        
+        function handleTouchMove(event) {
+            if (!isFullscreen || !isGestureActive) return;
+            
+            const touches = event.touches;
+            
+            // Single touch gesture
+            if (touches.length === 1) {
+                const touch = touches[0];
+                const videoRect = video.getBoundingClientRect();
+                const touchX = touch.clientX - videoRect.left;
+                
+                // Determine if touch is on left or right side
+                const isLeftSide = touchX < videoRect.width * 0.3;
+                const isRightSide = touchX > videoRect.width * 0.7;
+                
+                if (isLeftSide) {
+                    // Brightness control on left side
+                    const deltaY = initialTouchY1 - touch.clientY;
+                    adjustBrightness(deltaY);
+                    initialTouchY1 = touch.clientY;
+                } 
+                else if (isRightSide) {
+                    // Volume control on right side
+                    const deltaY = initialTouchY1 - touch.clientY;
+                    adjustVolume(deltaY);
+                    initialTouchY1 = touch.clientY;
+                }
+                
+                event.preventDefault();
+            }
+            // Two-finger pinch zoom
+            else if (touches.length === 2) {
+                const touch1 = touches[0];
+                const touch2 = touches[1];
+                const currentDistance = getDistance(touch1, touch2);
+                
+                // Calculate zoom factor
+                const zoomFactor = currentDistance / initialDistance;
+                
+                if (zoomFactor > 1.2) {
+                    // Pinch out - zoom in (fill screen)
+                    video.style.objectFit = 'cover';
+                    showToast("Zoom: Fill Screen");
+                    initialDistance = currentDistance;
+                } 
+                else if (zoomFactor < 0.8) {
+                    // Pinch in - zoom out (fit screen)
+                    video.style.objectFit = 'contain';
+                    showToast("Zoom: Fit Screen");
+                    initialDistance = currentDistance;
+                }
+                
+                event.preventDefault();
+            }
+        }
+        
+        function handleTouchEnd(event) {
+            if (!isFullscreen) return;
+            
+            if (isGestureActive) {
+                isGestureActive = false;
+                lastGestureTime = Date.now();
+                
+                // Hide gesture indicators
+                hideGestureIndicators();
+                
+                // Hide controls after delay
+                hideControlsWithDelay();
+                
+                event.preventDefault();
+            }
+        }
+        
+        function handleFullscreenChange() {
+            isFullscreen = !!(document.fullscreenElement || 
+                             document.webkitFullscreenElement);
+            
+            if (isFullscreen) {
+                // Enable gesture controls in fullscreen
+                console.log("Entered fullscreen - gestures enabled");
+            } else {
+                // Reset video fit when exiting fullscreen
+                video.style.objectFit = 'contain';
+                console.log("Exited fullscreen - gestures disabled");
+            }
+        }
+        
+        // Gesture Helper Functions
+        function getDistance(touch1, touch2) {
+            const dx = touch1.clientX - touch2.clientX;
+            const dy = touch1.clientY - touch2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        function adjustBrightness(deltaY) {
+            // deltaY: positive = swipe up, negative = swipe down
+            // We'll adjust brightness based on vertical movement
+            const sensitivity = 0.005;
+            currentBrightness += deltaY * sensitivity;
+            currentBrightness = Math.max(0.0, Math.min(1.0, currentBrightness));
+            
+            updateVideoBrightness();
+            
+            // Update indicator
+            document.getElementById('brightnessValue').textContent = 
+                `${Math.round(currentBrightness * 100)}%`;
+            document.getElementById('brightnessIndicator').classList.add('show');
+        }
+        
+        function adjustVolume(deltaY) {
+            // deltaY: positive = swipe up, negative = swipe down
+            const sensitivity = 0.005;
+            currentVolume += deltaY * sensitivity;
+            currentVolume = Math.max(0.0, Math.min(1.0, currentVolume));
+            
+            // Update video volume
+            video.volume = currentVolume;
+            
+            // Update indicator
+            document.getElementById('volumeValue').textContent = 
+                `${Math.round(currentVolume * 100)}%`;
+            document.getElementById('volumeIndicator').classList.add('show');
+        }
+        
+        function updateVideoBrightness() {
+            // Apply brightness filter to video
+            video.style.filter = `brightness(${currentBrightness})`;
+        }
+        
+        function showGestureIndicator(type) {
+            if (type === 'brightness') {
+                document.getElementById('brightnessIndicator').classList.add('show');
+            } else if (type === 'volume') {
+                document.getElementById('volumeIndicator').classList.add('show');
+            }
+        }
+        
+        function hideGestureIndicators() {
+            document.getElementById('brightnessIndicator').classList.remove('show');
+            document.getElementById('volumeIndicator').classList.remove('show');
+        }
+        
+        // Enhanced Seek Video Functions
         function startSeeking(event) {
             isSeeking = true;
             showControls(); // Show controls when seeking
@@ -1400,8 +1724,6 @@
             // Prevent default behavior
             event.preventDefault();
             event.stopPropagation();
-            
-            console.log("Seek started at:", seekStartPercent);
         }
         
         function handleSeeking(event) {
@@ -1458,8 +1780,6 @@
             
             // Show controls for a bit longer
             hideControlsWithDelay();
-            
-            console.log("Seek ended at:", seekPercentage);
         }
         
         // Original seek function (for click)
@@ -1530,11 +1850,6 @@
             }, 3000);
         }
         
-        function handleTouch() {
-            showControls();
-            hideControlsWithDelay();
-        }
-        
         // Control Functions
         function togglePlay() {
             if (video.paused || video.ended) {
@@ -1547,8 +1862,6 @@
             }
             showControls(); // Show controls when interacting
         }
-        
-        // REMOVED: toggleMute function and volume controls
         
         async function changeQuality(quality) {
             if (quality === currentQuality) return;
@@ -1651,8 +1964,6 @@
                 playIcon.classList.add('fa-play');
             }
         }
-        
-        // REMOVED: updateMuteButton and updateVolumeSlider functions
         
         function updateQualityIndicator(quality) {
             const qualityText = document.getElementById('qualityText');
@@ -1788,8 +2099,6 @@
         }
         
         function setupControls() {
-            // REMOVED: Volume slider setup
-            
             // Fullscreen change
             document.addEventListener('fullscreenchange', updateFullscreenButton);
             
@@ -1853,7 +2162,7 @@
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
         
-        console.log("🎬 SK4FiLM Player Ready - Enhanced Seek & Progress Bars!");
+        console.log("🎬 SK4FiLM Player Ready - Full Gesture Controls Added!");
     </script>
 </body>
 </html>
