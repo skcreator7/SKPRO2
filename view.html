@@ -4,117 +4,150 @@
     <meta charset="UTF-8">
     <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
     <meta property="og:image" content="https://iili.io/KOlfc41.png" itemprop="thumbnailUrl">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SK4FiLM - Stream Movies in HD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SK4FiLM - Ad-Free HD Streaming</title>
     
     <!-- Animation Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"></script>    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Delius">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Custom CSS -->
     <style>
+        /* Reset & Base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         :root {
-            --primary-gradient: linear-gradient(135deg, #ff0000, #0066ff);
-            --secondary-gradient: linear-gradient(135deg, #28a745, #20c997);
-            --accent-gradient: linear-gradient(135deg, #0088cc, #00aced);
-            --danger-gradient: linear-gradient(135deg, #dc3545, #fd7e14);
-            --warning-gradient: linear-gradient(135deg, #FFC107, #FF9800);
+            --primary-red: #ff0000;
+            --primary-blue: #0066ff;
+            --dark-bg: #0a0a0f;
+            --darker-bg: #05050a;
+            --control-bg: rgba(0, 0, 0, 0.8);
         }
         
         body {
-            font-family: 'Raleway', sans-serif;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
-            color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--dark-bg);
+            color: #fff;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         
-        /* Navbar Styles */
+        /* Navbar - Perfect Fit */
         .navbar {
-            background: rgba(15, 23, 42, 0.98);
+            background: rgba(10, 10, 15, 0.95);
             backdrop-filter: blur(10px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 0, 0, 0.2);
+            padding: 10px 0;
+            height: 60px;
         }
         
-        .navbar-brand {
-            font-weight: 800;
-            font-size: 1.3rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 0 15px;
+        }
+        
+        .logo-container {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
         
         .logo-img {
-            height: 40px;
-            width: 40px;
+            width: 35px;
+            height: 35px;
             border-radius: 8px;
-            animation: pulse 2s infinite;
+            animation: logoPulse 2s infinite;
         }
         
-        @keyframes pulse {
-            0% { transform: scale(1); }
+        @keyframes logoPulse {
+            0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
         }
         
-        .gradient-text {
-            background: var(--primary-gradient);
+        .logo-text {
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         
-        /* Video Container */
-        .video-container {
-            background: #000;
-            border-radius: 12px;
-            margin: 1rem 0;
-            overflow: hidden;
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
+        .ad-free-badge {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
-        /* Pure HTML5 Video Player */
-        .html5-video-player {
+        /* Main Container - Perfect Fit */
+        .main-container {
             width: 100%;
-            height: 70vh;
-            min-height: 400px;
-            max-height: 700px;
-            background: #000;
+            max-width: 100%;
+            padding: 0;
+            margin: 0;
             position: relative;
-            border-radius: 12px;
-            overflow: hidden;
         }
         
+        /* Video Container - Perfect Fit for Mobile & Desktop */
+        .video-wrapper {
+            width: 100vw;
+            position: relative;
+            background: #000;
+            margin: 0 auto;
+        }
+        
+        /* Aspect Ratio Container */
+        .aspect-ratio-box {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background: #000;
+        }
+        
+        .video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        
+        /* Video Element - Perfect Fit */
         #videoPlayer {
             width: 100%;
             height: 100%;
             object-fit: contain;
             background: #000;
+            display: block;
         }
         
-        /* Loading Animation INSIDE Player */
+        /* Loading Animation */
         .player-loader {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 50;
+            z-index: 100;
             transition: opacity 0.3s;
         }
         
@@ -125,51 +158,41 @@
         
         .loader-content {
             text-align: center;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 30px;
-            border-radius: 15px;
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            min-width: 300px;
-            box-shadow: 0 10px 30px rgba(255,0,0,0.2);
+            padding: 20px;
+            max-width: 300px;
         }
         
-        /* Spinner Loader with Gradient */
         .spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid transparent;
-            border-top-color: #ff0000;
-            border-right-color: #0066ff;
+            width: 50px;
+            height: 50px;
+            border: 3px solid transparent;
+            border-top-color: var(--primary-red);
+            border-right-color: var(--primary-blue);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
         
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
         
         .loader-text {
             color: white;
-            font-size: 1.1rem;
+            font-size: 1rem;
             margin-bottom: 10px;
             font-weight: 600;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
         }
         
         .loader-subtext {
             color: rgba(255, 255, 255, 0.7);
-            font-size: 0.9rem;
-            margin-bottom: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
         }
         
         .loading-bar {
             width: 100%;
-            height: 4px;
+            height: 3px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 2px;
             overflow: hidden;
@@ -178,103 +201,137 @@
         .loading-progress {
             height: 100%;
             width: 0%;
-            background: var(--primary-gradient);
+            background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
             border-radius: 2px;
-            transition: width 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            transition: width 0.3s;
         }
         
-        .loading-progress::after {
-            content: '';
+        /* Quality Indicator */
+        .quality-indicator {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.4), 
-                transparent);
-            animation: shimmer 1.5s infinite;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            z-index: 50;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
+        /* Play Overlay */
+        .play-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: white;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 50;
+            border: 3px solid white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
-        /* Custom Video Controls */
+        .video-container:hover .play-overlay {
+            opacity: 1;
+        }
+        
+        .play-overlay:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        /* Custom Controls - Auto Hide */
         .video-controls {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.95));
-            padding: 15px 20px;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+            padding: 12px 15px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             opacity: 0;
             transition: opacity 0.3s;
             z-index: 100;
+            transform: translateY(100%);
         }
         
-        .html5-video-player:hover .video-controls {
+        .video-controls.visible {
             opacity: 1;
+            transform: translateY(0);
         }
         
+        /* Control Buttons - Proper Icons */
         .control-btn {
             background: none;
             border: none;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             cursor: pointer;
-            padding: 8px;
-            border-radius: 50%;
-            transition: all 0.2s;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
         }
         
         .control-btn:hover {
             background: rgba(255, 255, 255, 0.1);
-            transform: scale(1.1);
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
         }
         
         .play-pause-btn {
-            background: var(--primary-gradient);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
+            width: 45px;
+            height: 45px;
         }
         
         .play-pause-btn:hover {
-            transform: scale(1.1) rotate(5deg);
+            background: linear-gradient(135deg, #ff3333, #3388ff);
+        }
+        
+        /* Time Display */
+        .time-display {
+            color: white;
+            font-size: 0.85rem;
+            font-family: monospace;
+            min-width: 100px;
+            text-align: center;
         }
         
         /* Progress Bar */
         .progress-container {
             flex: 1;
-            height: 6px;
+            height: 4px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
+            border-radius: 2px;
             overflow: hidden;
             cursor: pointer;
             position: relative;
         }
         
-        .progress-bar {
-            height: 100%;
-            background: var(--primary-gradient);
-            width: 0%;
-            border-radius: 3px;
-            position: relative;
-            transition: width 0.1s;
-        }
-        
-        /* Buffer Bar */
         .buffer-bar {
             position: absolute;
             top: 0;
@@ -282,6 +339,17 @@
             height: 100%;
             background: rgba(255, 255, 255, 0.2);
             width: 0%;
+        }
+        
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
+            width: 0%;
+            border-radius: 2px;
+            z-index: 2;
         }
         
         /* Volume Control */
@@ -292,8 +360,8 @@
         }
         
         .volume-slider {
-            width: 80px;
-            height: 4px;
+            width: 70px;
+            height: 3px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 2px;
             -webkit-appearance: none;
@@ -302,12 +370,12 @@
         
         .volume-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none;
-            width: 15px;
-            height: 15px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: var(--primary-gradient);
+            background: white;
             cursor: pointer;
+            border: 2px solid var(--primary-red);
         }
         
         /* Quality Selector */
@@ -315,67 +383,35 @@
             background: rgba(0, 0, 0, 0.7);
             border: 1px solid rgba(255, 0, 0, 0.3);
             color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
         }
         
         .quality-selector:hover {
-            background: rgba(255, 0, 0, 0.2);
-            border-color: rgba(255, 0, 0, 0.5);
+            background: rgba(255, 0, 0, 0.1);
         }
         
-        /* Quality Indicator */
-        .quality-indicator {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            z-index: 10;
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            backdrop-filter: blur(5px);
-            font-weight: 600;
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            margin-left: auto;
         }
         
-        /* Play Overlay */
-        .play-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
-            background: var(--primary-gradient);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            color: white;
-            cursor: pointer;
-            opacity: 0;
-            transition: all 0.3s;
-            z-index: 5;
-            border: 3px solid white;
-            animation: pulse 2s infinite;
-        }
-        
-        .html5-video-player:hover .play-overlay {
-            opacity: 1;
+        /* Content Section - No Extra Space */
+        .content-section {
+            padding: 20px 15px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         
         /* Action Buttons Grid */
         .action-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 15px;
-            margin: 1.5rem 0;
+            margin: 20px 0;
         }
         
         .action-card {
@@ -389,14 +425,50 @@
         }
         
         .action-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            transform: translateY(-3px);
             border-color: rgba(255, 0, 0, 0.3);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         
-        .action-card .icon {
-            font-size: 2.5rem;
+        .action-icon {
+            font-size: 2rem;
             margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Download Buttons */
+        .download-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+            justify-content: center;
+        }
+        
+        .download-btn {
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 160px;
+            justify-content: center;
+        }
+        
+        .fast-download {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+        
+        .telegram-download {
+            background: linear-gradient(135deg, #0088cc, #00aced);
+            color: white;
         }
         
         /* Donation Section */
@@ -405,23 +477,18 @@
             border: 1px solid rgba(255, 193, 7, 0.2);
             border-radius: 15px;
             padding: 25px;
-            margin: 2rem 0;
+            margin: 25px 0;
             text-align: center;
         }
         
         .donation-qr {
-            width: 200px;
-            height: 200px;
+            width: 180px;
+            height: 180px;
             border-radius: 10px;
-            margin: 0 auto 20px;
-            border: 3px solid rgba(255, 193, 7, 0.3);
-            padding: 10px;
+            margin: 0 auto 15px;
+            border: 2px solid rgba(255, 193, 7, 0.3);
             background: white;
-            transition: transform 0.3s;
-        }
-        
-        .donation-qr:hover {
-            transform: scale(1.05);
+            padding: 10px;
         }
         
         /* Toast Notification */
@@ -430,11 +497,11 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
-            padding: 15px 25px;
+            padding: 12px 25px;
             border-radius: 10px;
-            z-index: 10000;
+            z-index: 1000;
             font-size: 0.9rem;
             display: none;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -452,80 +519,31 @@
             to { transform: translate(-50%, 0); opacity: 1; }
         }
         
-        /* External Players Grid */
-        .players-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 2rem 0;
-        }
-        
-        .player-card {
-            background: rgba(30, 41, 59, 0.7);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .player-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(255, 0, 0, 0.3);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-        }
-        
-        .player-card svg {
-            width: 50px;
-            height: 50px;
-            margin-bottom: 10px;
-        }
-        
-        /* Footer Styles */
-        .footer {
-            background: rgba(15, 23, 42, 0.95);
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 2rem 0;
-            margin-top: 3rem;
-        }
-        
-        .social-icons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .social-icon {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 1.2rem;
-            transition: all 0.3s;
-            text-decoration: none;
-        }
-        
-        .social-icon:hover {
-            transform: translateY(-3px);
-            background: var(--primary-gradient);
-        }
-        
-        /* Mobile Responsive */
+        /* Mobile Optimizations */
         @media (max-width: 768px) {
-            .html5-video-player {
-                height: 50vh;
-                min-height: 300px;
+            .navbar {
+                padding: 8px 0;
+                height: 55px;
+            }
+            
+            .logo-text {
+                font-size: 1.1rem;
+            }
+            
+            .ad-free-badge {
+                font-size: 0.7rem;
+                padding: 4px 8px;
             }
             
             .video-controls {
                 padding: 10px;
-                gap: 10px;
+                gap: 8px;
+            }
+            
+            .control-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
             }
             
             .play-pause-btn {
@@ -533,303 +551,275 @@
                 height: 40px;
             }
             
-            .control-btn {
-                font-size: 1rem;
-                padding: 6px;
+            .time-display {
+                font-size: 0.8rem;
+                min-width: 85px;
             }
             
             .quality-selector {
-                padding: 4px 10px;
-                font-size: 0.8rem;
+                font-size: 0.75rem;
+                padding: 4px 8px;
+            }
+            
+            .volume-slider {
+                width: 60px;
+            }
+            
+            .play-overlay {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
             }
             
             .action-grid {
                 grid-template-columns: 1fr;
             }
             
-            .players-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .download-buttons {
+                flex-direction: column;
             }
+            
+            .download-btn {
+                width: 100%;
+            }
+            
+            .content-section {
+                padding: 15px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .video-controls {
+                padding: 8px;
+                gap: 6px;
+            }
+            
+            .control-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.9rem;
+            }
+            
+            .play-pause-btn {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .time-display {
+                font-size: 0.75rem;
+                min-width: 75px;
+            }
+            
+            .quality-selector {
+                display: none; /* Hide on very small screens */
+            }
+            
+            .mobile-quality {
+                display: block !important;
+                margin-top: 10px;
+                width: 100%;
+            }
+        }
+        
+        /* Hide controls when not interacting */
+        .video-container.controls-hidden .video-controls {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        
+        /* Show controls on hover/touch */
+        .video-container:hover .video-controls,
+        .video-container.touch-active .video-controls {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
 
-<body class="wow fadeIn" data-wow-duration="1s">
+<body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg fixed-top">
-        <div class="container">
-            <a class="navbar-brand wow fadeInLeft" data-wow-delay="0.2s" href="#">
-                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img me-2">
-                SK4FiLM
-            </a>
-            
-            <div class="d-flex align-items-center">
-                <span class="me-3 text-warning wow fadeIn" data-wow-delay="0.5s">
-                    <i class="fas fa-video me-1"></i> Ad-Free Streaming
-                </span>
-                <button class="btn btn-outline-light wow fadeInRight" data-wow-delay="0.3s" onclick="window.history.back()">
-                    <i class="fas fa-arrow-left me-2"></i> Back
-                </button>
+    <nav class="navbar fixed-top">
+        <div class="navbar-content">
+            <div class="logo-container">
+                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+                <span class="logo-text">SK4FiLM</span>
+            </div>
+            <div class="ad-free-badge">
+                <i class="fas fa-bolt"></i> AD-FREE
             </div>
         </div>
     </nav>
 
-    <main class="container mt-5 pt-5">
-        <!-- Video Container -->
-        <div class="video-container wow fadeInUp" data-wow-delay="0.4s">
-            <!-- Pure HTML5 Video Player -->
-            <div class="html5-video-player" id="videoContainer">
-                <!-- Video Element -->
-                <video id="videoPlayer" preload="auto" playsinline poster="https://iili.io/KOlfc41.png">
-                    Your browser does not support HTML5 video.
-                </video>
-                
-                <!-- Loading Animation -->
-                <div class="player-loader" id="playerLoader">
-                    <div class="loader-content">
-                        <div class="spinner"></div>
-                        <div class="loader-text" id="loadingText">Loading SK4FiLM Player...</div>
-                        <div class="loader-subtext" id="loadingSubtext">Initializing video stream</div>
-                        <div class="loading-bar">
-                            <div class="loading-progress" id="loadingProgress"></div>
+    <!-- Main Content -->
+    <div class="main-container">
+        <!-- Video Wrapper with Perfect Aspect Ratio -->
+        <div class="video-wrapper">
+            <div class="aspect-ratio-box">
+                <div class="video-container" id="videoContainer">
+                    <!-- Video Element -->
+                    <video id="videoPlayer" preload="auto" playsinline>
+                        Your browser does not support HTML5 video.
+                    </video>
+                    
+                    <!-- Loading Animation -->
+                    <div class="player-loader" id="playerLoader">
+                        <div class="loader-content">
+                            <div class="spinner"></div>
+                            <div class="loader-text" id="loadingText">Loading SK4FiLM Player</div>
+                            <div class="loader-subtext" id="loadingSubtext">Preparing HD stream...</div>
+                            <div class="loading-bar">
+                                <div class="loading-progress" id="loadingProgress"></div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Quality Indicator -->
-                <div class="quality-indicator wow fadeIn" data-wow-delay="1s">
-                    <i class="fas fa-hd me-2"></i><span id="qualityText">HD READY</span>
-                </div>
-                
-                <!-- Play Overlay -->
-                <div class="play-overlay wow pulse" data-wow-iteration="infinite" id="playOverlay" onclick="togglePlay()">
-                    <i class="fas fa-play"></i>
-                </div>
-                
-                <!-- Custom Video Controls -->
-                <div class="video-controls">
-                    <button class="control-btn play-pause-btn wow fadeIn" data-wow-delay="0.6s" onclick="togglePlay()" id="playBtn">
+                    
+                    <!-- Quality Indicator -->
+                    <div class="quality-indicator" id="qualityIndicator">
+                        <i class="fas fa-hd me-1"></i><span id="qualityText">HD</span>
+                    </div>
+                    
+                    <!-- Play Overlay -->
+                    <div class="play-overlay" id="playOverlay" onclick="togglePlay()">
                         <i class="fas fa-play"></i>
-                    </button>
-                    
-                    <div class="time-display wow fadeIn" data-wow-delay="0.7s">
-                        <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
                     </div>
                     
-                    <div class="progress-container wow fadeIn" data-wow-delay="0.8s" onclick="seekVideo(event)" id="progressContainer">
-                        <div class="buffer-bar" id="bufferBar"></div>
-                        <div class="progress-bar" id="progressBar"></div>
-                    </div>
-                    
-                    <div class="volume-control wow fadeIn" data-wow-delay="0.9s">
-                        <button class="control-btn" onclick="toggleMute()" id="muteBtn">
-                            <i class="fas fa-volume-up"></i>
+                    <!-- Custom Video Controls -->
+                    <div class="video-controls" id="videoControls">
+                        <button class="control-btn play-pause-btn" onclick="togglePlay()" id="playBtn">
+                            <i class="fas fa-play" id="playIcon"></i>
                         </button>
-                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+                        
+                        <div class="time-display">
+                            <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                        </div>
+                        
+                        <div class="progress-container" onclick="seekVideo(event)" id="progressContainer">
+                            <div class="buffer-bar" id="bufferBar"></div>
+                            <div class="progress-bar" id="progressBar"></div>
+                        </div>
+                        
+                        <div class="volume-control">
+                            <button class="control-btn" onclick="toggleMute()" id="muteBtn">
+                                <i class="fas fa-volume-up" id="volumeIcon"></i>
+                            </button>
+                            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+                        </div>
+                        
+                        <select class="quality-selector" id="qualitySelector" onchange="changeQuality(this.value)">
+                            <option value="1080p">1080p FHD</option>
+                            <option value="720p">720p HD</option>
+                            <option value="480p">480p SD</option>
+                            <option value="360p">360p</option>
+                        </select>
+                        
+                        <button class="control-btn fullscreen-btn" onclick="toggleFullscreen()">
+                            <i class="fas fa-expand"></i>
+                        </button>
                     </div>
-                    
-                    <select class="quality-selector wow fadeIn" data-wow-delay="1s" id="qualitySelector" onchange="changeQuality(this.value)">
-                        <option value="1080p">1080p FHD</option>
-                        <option value="720p">720p HD</option>
-                        <option value="480p">480p SD</option>
-                        <option value="360p">360p</option>
-                    </select>
-                    
-                    <button class="control-btn fullscreen-btn wow fadeIn" data-wow-delay="1.1s" onclick="toggleFullscreen()">
-                        <i class="fas fa-expand"></i>
-                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Video Title -->
-        <div class="text-center my-4 wow fadeIn" data-wow-delay="0.5s">
-            <h3 class="gradient-text" id="videoTitle">Loading Movie...</h3>
-            <div class="file-info d-flex justify-content-center gap-4 mt-3">
-                <span class="badge bg-danger wow fadeIn" data-wow-delay="0.6s">
-                    <i class="fas fa-file me-1"></i> <span id="fileSize">Loading...</span>
-                </span>
-                <span class="badge bg-primary wow fadeIn" data-wow-delay="0.7s">
-                    <i class="fas fa-download me-1"></i> Direct Play
-                </span>
+        <!-- Content Section -->
+        <div class="content-section">
+            <!-- Video Info -->
+            <div class="text-center mb-4">
+                <h4 class="mb-2" id="videoTitle">Movie Title</h4>
+                <div class="d-flex justify-content-center gap-3">
+                    <span class="badge bg-danger">
+                        <i class="fas fa-file me-1"></i> <span id="fileSize">-- MB</span>
+                    </span>
+                    <span class="badge bg-primary">
+                        <i class="fas fa-wifi me-1"></i> Direct Stream
+                    </span>
+                </div>
             </div>
-        </div>
 
-        <!-- Action Buttons -->
-        <div class="action-grid wow fadeInUp" data-wow-delay="0.6s">
-            <div class="action-card" onclick="startFastDownload()">
-                <div class="icon gradient-text">
-                    <i class="fas fa-bolt"></i>
-                </div>
-                <h5 class="gradient-text">Fast Download</h5>
-                <p class="text-muted">Direct server download at high speed</p>
-                <div class="mt-3">
-                    <button class="btn btn-outline-success w-100">
-                        <i class="fas fa-download me-2"></i> Download Now
-                    </button>
-                </div>
-            </div>
-            
-            <div class="action-card" onclick="startTelegramDownload()">
-                <div class="icon gradient-text">
-                    <i class="fab fa-telegram"></i>
-                </div>
-                <h5 class="gradient-text">Telegram Download</h5>
-                <p class="text-muted">Download via Telegram bot</p>
-                <div class="mt-3">
-                    <button class="btn btn-outline-primary w-100">
-                        <i class="fab fa-telegram me-2"></i> Open Telegram
-                    </button>
-                </div>
-            </div>
-            
-            <div class="action-card" onclick="showDonation()">
-                <div class="icon gradient-text">
-                    <i class="fas fa-heart"></i>
-                </div>
-                <h5 class="gradient-text">Support Us</h5>
-                <p class="text-muted">Help us maintain this ad-free service</p>
-                <div class="mt-3">
-                    <button class="btn btn-outline-warning w-100">
-                        <i class="fas fa-donate me-2"></i> Donate Now
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- External Players -->
-        <div class="my-5 wow fadeIn" data-wow-delay="0.7s">
-            <h4 class="text-center mb-4 gradient-text">
-                <i class="fas fa-external-link-alt me-2"></i> Play with External Players
-            </h4>
-            <div class="players-grid">
-                <div class="player-card wow fadeInUp" data-wow-delay="0.8s" onclick="openVLC()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-                        <linearGradient id="vlc-grad" x1="32" x2="32" y1="16.021" y2="39.25">
-                            <stop offset=".437" stop-color="#6dc7ff"/>
-                            <stop offset="1" stop-color="#e6abff"/>
-                        </linearGradient>
-                        <path fill="url(#vlc-grad)" d="M32,31.25c2.891,0,5.255-0.323,6.939-0.712l2.409,7.664C37.765,39.116,33.881,39.25,32,39.25 c-1.88,0-5.765-0.134-9.347-1.049l2.408-7.663C26.745,30.927,29.11,31.25,32,31.25z M32.5,24.25c1.554,0,2.999-0.141,4.343-0.38 l-2.429-7.729c-0.587,0.063-1.211,0.109-1.914,0.109c-1.1,0-2.062-0.092-2.876-0.229l-2.404,7.651 C28.816,24.034,30.574,24.25,32.5,24.25z"/>
-                        <linearGradient id="vlc-grad2" x1="32.105" x2="32.105" y1="7.415" y2="56">
-                            <stop offset="0" stop-color="#1a6dff"/>
-                            <stop offset="1" stop-color="#c822ff"/>
-                        </linearGradient>
-                        <path fill="url(#vlc-grad2)" d="M56.903,50.041l-2.216-10.779c-0.513-2.265-2.52-3.847-4.881-3.847H45.09l-8.059-24.451 c-0.7-2.123-2.726-3.549-5.04-3.549c-2.314,0-4.339,1.426-5.039,3.549l-8.058,24.451h-4.491c-2.362,0-4.369,1.582-4.885,3.866 L7.31,50.021c-0.327,1.442,0.019,2.937,0.947,4.099C9.212,55.314,10.645,56,12.19,56h39.828c1.545,0,2.979-0.685,3.934-1.88 C56.88,52.958,57.226,51.464,56.903,50.041z"/>
-                    </svg>
-                    <h6 class="mt-2">VLC Player</h6>
+            <!-- Action Buttons -->
+            <div class="action-grid">
+                <div class="action-card" onclick="startFastDownload()">
+                    <div class="action-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h5>Fast Download</h5>
+                    <p class="text-muted mb-3">Direct server download at maximum speed</p>
+                    <div class="download-buttons">
+                        <button class="download-btn fast-download" onclick="event.stopPropagation(); startFastDownload('1080p')">
+                            <i class="fas fa-download"></i> 1080p HD
+                        </button>
+                        <button class="download-btn fast-download" onclick="event.stopPropagation(); startFastDownload('720p')">
+                            <i class="fas fa-download"></i> 720p HD
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="player-card wow fadeInUp" data-wow-delay="0.9s" onclick="openMXPlayer()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-                        <circle cx="32" cy="32" r="28" fill="#ffeb9b"/>
-                        <circle cx="32" cy="32" r="21" fill="#f9dd8f"/>
-                        <path fill="#8d6c9f" d="M32,6c14.336,0,26,11.664,26,26S46.336,58,32,58S6,46.336,6,32S17.664,6,32,6 M32,4 C16.536,4,4,16.536,4,32s12.536,28,28,28s28-12.536,28-28S47.464,4,32,4L32,4z"/>
-                        <path fill="#fff8ee" d="M42.5,31.134l-17-9.815c-0.667-0.385-1.5,0.096-1.5,0.866v19.63c0,0.77,0.833,1.251,1.5,0.866 l17-9.815C43.167,32.481,43.167,31.519,42.5,31.134z"/>
-                    </svg>
-                    <h6 class="mt-2">MX Player</h6>
+                <div class="action-card" onclick="startTelegramDownload()">
+                    <div class="action-icon">
+                        <i class="fab fa-telegram"></i>
+                    </div>
+                    <h5>Telegram Download</h5>
+                    <p class="text-muted mb-3">Download via Telegram bot with resume support</p>
+                    <div class="download-buttons">
+                        <button class="download-btn telegram-download" onclick="event.stopPropagation(); startTelegramDownload('1080p')">
+                            <i class="fab fa-telegram"></i> 1080p HD
+                        </button>
+                        <button class="download-btn telegram-download" onclick="event.stopPropagation(); startTelegramDownload('720p')">
+                            <i class="fab fa-telegram"></i> 720p HD
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quality Selector for Mobile -->
+            <div class="mobile-quality d-none mb-3">
+                <select class="form-select bg-dark text-light" onchange="changeQuality(this.value)">
+                    <option value="1080p">1080p Full HD</option>
+                    <option value="720p">720p HD</option>
+                    <option value="480p">480p Standard</option>
+                </select>
+            </div>
+
+            <!-- Donation Section -->
+            <div class="donation-card">
+                <h4 class="text-warning mb-3">
+                    <i class="fas fa-heart me-2"></i> Support SK4FiLM
+                </h4>
+                <p class="mb-3">Help us maintain this ad-free streaming service. Your support allows us to provide better quality and more content.</p>
+                
+                <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
+                     alt="Donation QR Code" 
+                     class="donation-qr">
+                
+                <div class="mb-3">
+                    <h6 class="text-light">UPI ID:</h6>
+                    <div class="input-group mx-auto" style="max-width: 300px;">
+                        <input type="text" class="form-control bg-dark text-light text-center" 
+                               value="cf.sk4film@cashfreensdlpb" readonly id="upiId">
+                        <button class="btn btn-warning" onclick="copyUPI()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="player-card wow fadeInUp" data-wow-delay="1s" onclick="openKMPlayer()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-                        <linearGradient id="km-grad" x1="76.124" x2="76.124" y1="12.7" y2="50.192">
-                            <stop offset="0" stop-color="#1a6dff"/>
-                            <stop offset="1" stop-color="#c822ff"/>
-                        </linearGradient>
-                        <path fill="url(#km-grad)" d="M50.999,50.192c-0.597,0-1.19-0.179-1.702-0.531L25.882,33.513 c-0.824-0.568-1.31-1.505-1.298-2.506c0.013-1,0.52-1.925,1.356-2.474l23.416-15.342c0.923-0.604,2.099-0.655,3.07-0.129 C53.397,13.587,54,14.598,54,15.701v31.49c0,1.118-0.615,2.136-1.605,2.656C51.955,50.078,51.476,50.192,50.999,50.192z"/>
-                    </svg>
-                    <h6 class="mt-2">KM Player</h6>
-                </div>
-                
-                <div class="player-card wow fadeInUp" data-wow-delay="1.1s" onclick="openHDPlayer()">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                        <polygon style="fill:#FFFFFF;" points="187.368,146.928 187.368,355.8 382.992,251.368 "/>
-                        <path style="fill:red;" d="M256,0.376C114.616,0.376,0,114.824,0,256s114.616,255.624,256,255.624S512,397.176,512,256 S397.384,0.376,256,0.376z M184.496,146.928l195.624,104.44L184.496,355.8V146.928z"/>
-                    </svg>
-                    <h6 class="mt-2">HD Player</h6>
-                </div>
+                <a href="https://cfpe.me/skfilmbox" target="_blank" class="btn btn-warning px-4">
+                    <i class="fas fa-donate me-2"></i> DONATE NOW
+                </a>
             </div>
-        </div>
 
-        <!-- Donation Section -->
-        <div class="donation-card wow fadeInUp" data-wow-delay="0.8s" id="donationSection">
-            <h3 class="text-warning mb-4">
-                <i class="fas fa-heart me-2"></i> Support SK4FiLM
-            </h3>
-            <p class="mb-4">Help us keep this service running and ad-free. Your support helps us provide better quality and more content.</p>
-            
-            <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
-                 alt="Donation QR Code" 
-                 class="donation-qr img-fluid mb-4">
-            
-            <div class="upi-info mb-4">
-                <h5 class="text-light mb-2">UPI ID:</h5>
-                <div class="input-group">
-                    <input type="text" class="form-control bg-dark text-light border-warning" 
-                           value="cf.sk4film@cashfreensdlpb" readonly id="upiId">
-                    <button class="btn btn-warning" onclick="copyUPI()">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <a href="https://cfpe.me/skfilmbox" target="_blank" class="btn btn-warning btn-lg px-5">
-                <i class="fas fa-donate me-2"></i> DONATE NOW
-            </a>
-        </div>
-
-        <!-- Disclaimer -->
-        <div class="alert alert-info wow fadeIn" data-wow-delay="0.9s">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>Note:</strong> Video not playing? Your browser might not support the codec. Try downloading or using an external player.
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer wow fadeIn" data-wow-delay="1s">
-        <div class="container">
-            <div class="social-icons">
-                <a href="https://t.me/sk4film_bot" target="_blank" class="social-icon wow fadeIn" data-wow-delay="1.1s">
-                    <i class="fab fa-telegram"></i>
-                </a>
-                <a href="https://github.com/sk4film" target="_blank" class="social-icon wow fadeIn" data-wow-delay="1.2s">
-                    <i class="fab fa-github"></i>
-                </a>
-                <a href="https://youtube.com/@sk4film" target="_blank" class="social-icon wow fadeIn" data-wow-delay="1.3s">
-                    <i class="fab fa-youtube"></i>
-                </a>
-                <a href="mailto:support@sk4film.com" class="social-icon wow fadeIn" data-wow-delay="1.4s">
-                    <i class="fas fa-envelope"></i>
-                </a>
-            </div>
-            
-            <div class="text-center mt-4">
-                <h5 class="gradient-text mb-3">SK4FiLM - Ad-Free Movie Streaming</h5>
-                <p class="text-muted mb-0">
-                    <i class="fas fa-exclamation-triangle me-1"></i>
-                    Disclaimer: Files are hosted on external servers, not on SK4FiLM.
-                </p>
-            </div>
-            
-            <hr class="my-4">
-            
-            <div class="text-center">
-                <p class="text-muted mb-0">
-                    © <script>document.write(new Date().getFullYear())</script> SK4FiLM. 
-                    All rights reserved. Made with <i class="fas fa-heart text-danger"></i> for movie lovers.
-                </p>
+            <!-- Disclaimer -->
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Note:</strong> Video not playing? Try downloading or use external players like VLC, MX Player.
             </div>
         </div>
-    </footer>
+    </div>
 
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
 
-    <!-- Font Awesome -->
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    
     <!-- JavaScript -->
     <script>
-        // Initialize WOW.js animations
+        // Initialize WOW.js
         new WOW().init();
         
         // Configuration
@@ -849,8 +839,8 @@
         let isMuted = false;
         let currentQuality = '1080p';
         let movieMetadata = {};
-        let isUsingFallback = false;
-        let loadingProgress = 0;
+        let controlsTimeout = null;
+        let controlsVisible = false;
         
         // URL Parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -858,24 +848,21 @@
         const messageId = urlParams.get('message_id');
         const initialQuality = urlParams.get('quality') || '1080p';
         
-        // ============================================================================
-        // INITIALIZATION
-        // ============================================================================
-        
+        // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player Initializing with Animations...");
+            console.log("🚀 SK4FiLM Player Initializing...");
             
             if (!messageId) {
-                showError("No video specified. Please check the URL.");
+                showError("No video specified");
                 return;
             }
             
             try {
-                // Start loading animation
-                startLoadingAnimation();
-                
                 // Initialize video element
                 initializeVideoElement();
+                
+                // Start loading animation
+                startLoadingAnimation();
                 
                 // Load metadata
                 await loadMetadata();
@@ -886,110 +873,26 @@
                 // Setup controls
                 setupControls();
                 
-                console.log("✅ SK4FiLM Player Ready with Animations!");
+                console.log("✅ Player Ready!");
                 
             } catch (error) {
-                console.error("❌ Initialization error:", error);
+                console.error("Initialization error:", error);
                 loadFallbackVideo();
             }
         });
         
-        // ============================================================================
-        // LOADING ANIMATION FUNCTIONS
-        // ============================================================================
-        
-        function startLoadingAnimation() {
-            console.log("🎬 Starting loading animation...");
-            
-            const loadingText = document.getElementById('loadingText');
-            const loadingSubtext = document.getElementById('loadingSubtext');
-            const loadingProgress = document.getElementById('loadingProgress');
-            
-            // Animated text updates
-            const messages = [
-                "Initializing SK4FiLM Player...",
-                "Connecting to secure server...",
-                "Loading video metadata...",
-                "Preparing HD stream...",
-                "Almost ready to play!"
-            ];
-            
-            let messageIndex = 0;
-            let progress = 0;
-            
-            const interval = setInterval(() => {
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    return;
-                }
-                
-                // Update progress
-                progress += 2;
-                loadingProgress.style.width = `${progress}%`;
-                
-                // Update messages based on progress
-                if (progress >= 20 && messageIndex < 1) {
-                    loadingText.textContent = messages[1];
-                    loadingSubtext.textContent = "Establishing secure connection...";
-                    messageIndex = 1;
-                } else if (progress >= 40 && messageIndex < 2) {
-                    loadingText.textContent = messages[2];
-                    loadingSubtext.textContent = "Fetching video information...";
-                    messageIndex = 2;
-                } else if (progress >= 60 && messageIndex < 3) {
-                    loadingText.textContent = messages[3];
-                    loadingSubtext.textContent = "Setting up HD quality stream...";
-                    messageIndex = 3;
-                } else if (progress >= 80 && messageIndex < 4) {
-                    loadingText.textContent = messages[4];
-                    loadingSubtext.textContent = "Finalizing player setup...";
-                    messageIndex = 4;
-                }
-                
-            }, 100);
-        }
-        
-        function updateLoadingProgress(progress, message = '', submessage = '') {
-            const loadingProgress = document.getElementById('loadingProgress');
-            const loadingText = document.getElementById('loadingText');
-            const loadingSubtext = document.getElementById('loadingSubtext');
-            
-            loadingProgress.style.width = `${progress}%`;
-            
-            if (message) {
-                loadingText.textContent = message;
-            }
-            
-            if (submessage) {
-                loadingSubtext.textContent = submessage;
-            }
-        }
-        
-        function hideLoadingAnimation() {
-            const loader = document.getElementById('playerLoader');
-            loader.style.opacity = '0';
-            loader.style.pointerEvents = 'none';
-            
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                showToast("🎬 Video ready to play!", 2000);
-            }, 300);
-        }
-        
-        // ============================================================================
-        // VIDEO PLAYER FUNCTIONS
-        // ============================================================================
-        
+        // Initialize Video Element
         function initializeVideoElement() {
             video = document.getElementById('videoPlayer');
             currentQuality = initialQuality;
             
-            // Set initial video attributes
+            // Set initial attributes
             video.controls = false;
             video.preload = 'auto';
             video.playsInline = true;
+            video.volume = 1;
             
-            // Setup video event listeners
+            // Event Listeners
             video.addEventListener('loadedmetadata', onVideoMetadataLoaded);
             video.addEventListener('timeupdate', updateProgress);
             video.addEventListener('progress', updateBuffer);
@@ -1000,75 +903,120 @@
             video.addEventListener('error', onVideoError);
             video.addEventListener('waiting', onVideoWaiting);
             
-            // Set initial volume
-            video.volume = 1;
-            video.playbackRate = 1;
+            // Click events for controls
+            video.addEventListener('click', togglePlay);
+            
+            // Mouse events for controls visibility
+            const videoContainer = document.getElementById('videoContainer');
+            videoContainer.addEventListener('mousemove', showControls);
+            videoContainer.addEventListener('mouseleave', hideControls);
+            videoContainer.addEventListener('touchstart', handleTouch);
         }
         
+        // Video Event Handlers
         function onVideoMetadataLoaded() {
-            console.log("📊 Video metadata loaded");
+            console.log("Video metadata loaded");
             updateDurationDisplay();
-            updateVideoTitle();
-            updateLoadingProgress(80, "Video ready to play!", "Starting playback...");
+            updateLoadingProgress(80, "Video ready", "Preparing playback...");
         }
         
         function onVideoCanPlay() {
-            console.log("✅ Video can play");
-            updateLoadingProgress(100, "Ready to play!", "Enjoy your movie!");
-            setTimeout(() => {
-                hideLoadingAnimation();
-            }, 500);
+            console.log("Video can play");
+            updateLoadingProgress(100, "Ready to play", "Enjoy your movie!");
+            setTimeout(hideLoadingAnimation, 500);
             
-            // Attempt autoplay
+            // Try autoplay
             video.play().catch(e => {
-                console.log("Autoplay blocked:", e);
+                console.log("Autoplay blocked");
                 showToast("Click play to start video");
             });
         }
         
         function onVideoPlaying() {
-            console.log("▶️ Video playing");
+            console.log("Video playing");
             isPlaying = true;
             updatePlayButton();
             updateQualityIndicator(currentQuality);
-            showToast(`Playing ${currentQuality} quality`);
+            
+            // Hide controls after 3 seconds
+            hideControlsWithDelay();
         }
         
         function onVideoPaused() {
-            console.log("⏸️ Video paused");
+            console.log("Video paused");
             isPlaying = false;
             updatePlayButton();
+            
+            // Show controls when paused
+            showControls();
         }
         
         function onVideoEnded() {
-            console.log("🏁 Video ended");
+            console.log("Video ended");
             isPlaying = false;
             updatePlayButton();
             showToast("Video ended. Thanks for watching!");
+            showControls(); // Show controls at the end
         }
         
         function onVideoError(e) {
-            console.error("❌ Video error:", e);
+            console.error("Video error:", e);
             if (!isUsingFallback) {
-                showToast("Error loading video. Trying fallback...");
+                showToast("Error loading. Trying fallback...");
                 loadFallbackVideo();
             }
         }
         
         function onVideoWaiting() {
-            showToast("Buffering...", 1000);
+            console.log("Video buffering");
+            showControls(); // Show controls while buffering
         }
         
+        // Loading Animation
+        function startLoadingAnimation() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    return;
+                }
+                progress += 2;
+                document.getElementById('loadingProgress').style.width = `${progress}%`;
+                
+                if (progress < 30) {
+                    updateLoadingText("Initializing player...");
+                } else if (progress < 60) {
+                    updateLoadingText("Connecting to server...");
+                } else if (progress < 90) {
+                    updateLoadingText("Loading video data...");
+                }
+            }, 100);
+        }
+        
+        function updateLoadingProgress(percent, text = '', subtext = '') {
+            document.getElementById('loadingProgress').style.width = `${percent}%`;
+            if (text) updateLoadingText(text);
+            if (subtext) updateLoadingSubtext(subtext);
+        }
+        
+        function updateLoadingText(text) {
+            document.getElementById('loadingText').textContent = text;
+        }
+        
+        function updateLoadingSubtext(text) {
+            document.getElementById('loadingSubtext').textContent = text;
+        }
+        
+        function hideLoadingAnimation() {
+            document.getElementById('playerLoader').classList.add('hidden');
+        }
+        
+        // Video Loading
         async function loadVideo(quality) {
             try {
-                updateLoadingProgress(50, "Loading video stream...", "Connecting to server");
-                
                 const videoUrl = await getVideoUrl(quality);
                 
                 if (videoUrl) {
-                    updateLoadingProgress(70, "Video URL received", "Starting video stream");
-                    
-                    // Set video source
                     video.src = videoUrl;
                     video.load();
                     
@@ -1077,12 +1025,10 @@
                     updateQualitySelector(quality);
                     
                 } else {
-                    throw new Error("No video URL available");
+                    throw new Error("No video URL");
                 }
-                
             } catch (error) {
                 console.error("Video load error:", error);
-                updateLoadingProgress(50, "Error loading main video", "Loading fallback video...");
                 loadFallbackVideo();
             }
         }
@@ -1105,45 +1051,86 @@
         }
         
         async function loadFallbackVideo() {
-            console.log("🔄 Loading fallback video...");
+            const fallbackUrl = FALLBACK_VIDEOS[0];
             
-            isUsingFallback = true;
-            
-            const fallbackIndex = Math.floor(Math.random() * FALLBACK_VIDEOS.length);
-            const fallbackUrl = FALLBACK_VIDEOS[fallbackIndex];
-            
-            // Update metadata
             movieMetadata = {
-                file_name: 'High Quality Sample Movie.mp4',
-                file_size: 50000000,
-                qualities: ['1080p', '720p']
+                file_name: 'Sample Movie',
+                file_size: 50000000
             };
             
             updateFileInfo();
             updateVideoTitle();
-            updateQualityIndicator('1080p');
-            updateQualitySelector('1080p');
+            updateQualityIndicator('HD');
             
-            // Load fallback video
             video.src = fallbackUrl;
             video.load();
             
-            showToast("🎬 Playing sample video");
+            showToast("Playing sample video");
         }
         
-        // ============================================================================
-        // CONTROL FUNCTIONS
-        // ============================================================================
+        // Controls Management
+        function showControls() {
+            const controls = document.getElementById('videoControls');
+            const container = document.getElementById('videoContainer');
+            
+            controls.classList.add('visible');
+            container.classList.remove('controls-hidden');
+            controlsVisible = true;
+            
+            // Clear previous timeout
+            if (controlsTimeout) {
+                clearTimeout(controlsTimeout);
+            }
+            
+            // Hide controls after 3 seconds if video is playing
+            if (isPlaying) {
+                controlsTimeout = setTimeout(() => {
+                    if (isPlaying) {
+                        hideControls();
+                    }
+                }, 3000);
+            }
+        }
         
+        function hideControls() {
+            const controls = document.getElementById('videoControls');
+            const container = document.getElementById('videoContainer');
+            
+            if (isPlaying && !document.fullscreenElement) {
+                controls.classList.remove('visible');
+                container.classList.add('controls-hidden');
+                controlsVisible = false;
+            }
+        }
+        
+        function hideControlsWithDelay() {
+            if (controlsTimeout) {
+                clearTimeout(controlsTimeout);
+            }
+            
+            controlsTimeout = setTimeout(() => {
+                if (isPlaying) {
+                    hideControls();
+                }
+            }, 3000);
+        }
+        
+        function handleTouch() {
+            showControls();
+            hideControlsWithDelay();
+        }
+        
+        // Control Functions
         function togglePlay() {
             if (video.paused || video.ended) {
                 video.play().catch(e => {
                     console.log("Play failed:", e);
-                    showToast("Click play to start video");
+                    showToast("Click play to start");
                 });
             } else {
                 video.pause();
             }
+            showControls(); // Show controls when interacting
         }
         
         function toggleMute() {
@@ -1151,58 +1138,59 @@
             isMuted = video.muted;
             updateMuteButton();
             updateVolumeSlider();
-            
-            showToast(isMuted ? "🔇 Muted" : "🔊 Unmuted");
+            showControls();
         }
         
         function changeVolume(value) {
             video.volume = value;
             isMuted = value === 0;
             updateMuteButton();
+            showControls();
         }
         
         async function changeQuality(quality) {
             if (quality === currentQuality) return;
             
-            showToast(`🔄 Switching to ${quality}...`);
-            showLoading(`Loading ${quality} quality...`);
+            showToast(`Switching to ${quality}...`);
+            showLoadingAnimation(`Loading ${quality}...`);
             
             try {
                 const videoUrl = await getVideoUrl(quality);
                 
                 if (videoUrl) {
-                    // Save current time
                     const currentTime = video.currentTime;
                     
-                    // Change source
                     video.src = videoUrl;
                     video.load();
                     
-                    // Try to restore position
                     video.addEventListener('loadedmetadata', () => {
                         video.currentTime = Math.min(currentTime, video.duration);
-                        video.play().catch(e => console.log("Autoplay after quality change failed:", e));
+                        video.play().catch(e => console.log("Autoplay failed"));
                     }, { once: true });
                     
                     currentQuality = quality;
                     updateQualityIndicator(quality);
                     
                 } else {
-                    showToast(`⚠️ Quality ${quality} not available`);
+                    showToast(`Quality ${quality} not available`);
                 }
             } catch (error) {
                 console.error("Quality switch error:", error);
-                showToast("❌ Failed to switch quality");
+                showToast("Failed to switch quality");
             }
+            
+            hideLoadingAnimation();
         }
         
         function seekVideo(event) {
             const progressContainer = event.currentTarget;
-            const clickPosition = event.offsetX;
+            const rect = progressContainer.getBoundingClientRect();
+            const clickPosition = event.clientX - rect.left;
             const containerWidth = progressContainer.offsetWidth;
             const seekPercentage = clickPosition / containerWidth;
             
             video.currentTime = seekPercentage * video.duration;
+            showControls();
         }
         
         function toggleFullscreen() {
@@ -1213,24 +1201,18 @@
                     videoContainer.requestFullscreen();
                 } else if (videoContainer.webkitRequestFullscreen) {
                     videoContainer.webkitRequestFullscreen();
-                } else if (videoContainer.msRequestFullscreen) {
-                    videoContainer.msRequestFullscreen();
                 }
             } else {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
                 } else if (document.webkitExitFullscreen) {
                     document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
                 }
             }
+            showControls();
         }
         
-        // ============================================================================
-        // UI UPDATE FUNCTIONS
-        // ============================================================================
-        
+        // UI Update Functions
         function updateProgress() {
             const currentTime = video.currentTime;
             const duration = video.duration;
@@ -1239,7 +1221,6 @@
                 const progressPercent = (currentTime / duration) * 100;
                 document.getElementById('progressBar').style.width = `${progressPercent}%`;
                 
-                // Update time display
                 document.getElementById('currentTime').textContent = formatTime(currentTime);
                 document.getElementById('duration').textContent = formatTime(duration);
             }
@@ -1264,8 +1245,7 @@
         }
         
         function updatePlayButton() {
-            const playBtn = document.getElementById('playBtn');
-            const playIcon = playBtn.querySelector('i');
+            const playIcon = document.getElementById('playIcon');
             
             if (isPlaying) {
                 playIcon.classList.remove('fa-play');
@@ -1277,18 +1257,17 @@
         }
         
         function updateMuteButton() {
-            const muteBtn = document.getElementById('muteBtn');
-            const muteIcon = muteBtn.querySelector('i');
+            const volumeIcon = document.getElementById('volumeIcon');
             
             if (isMuted || video.volume === 0) {
-                muteIcon.classList.remove('fa-volume-up');
-                muteIcon.classList.add('fa-volume-mute');
+                volumeIcon.classList.remove('fa-volume-up');
+                volumeIcon.classList.add('fa-volume-mute');
             } else if (video.volume < 0.5) {
-                muteIcon.classList.remove('fa-volume-up', 'fa-volume-mute');
-                muteIcon.classList.add('fa-volume-down');
+                volumeIcon.classList.remove('fa-volume-up', 'fa-volume-mute');
+                volumeIcon.classList.add('fa-volume-down');
             } else {
-                muteIcon.classList.remove('fa-volume-mute', 'fa-volume-down');
-                muteIcon.classList.add('fa-volume-up');
+                volumeIcon.classList.remove('fa-volume-mute', 'fa-volume-down');
+                volumeIcon.classList.add('fa-volume-up');
             }
         }
         
@@ -1297,25 +1276,23 @@
         }
         
         function updateQualityIndicator(quality) {
-            const indicator = document.getElementById('qualityText');
+            const qualityText = document.getElementById('qualityText');
             const qualityNames = {
-                '2160p': '4K ULTRA HD',
-                '1080p': 'FULL HD',
-                '720p': 'HD READY',
-                '480p': 'STANDARD',
-                '360p': 'BASIC'
+                '1080p': 'FHD',
+                '720p': 'HD',
+                '480p': 'SD',
+                '360p': '360p'
             };
-            indicator.textContent = qualityNames[quality] || quality.toUpperCase();
+            qualityText.textContent = qualityNames[quality] || quality;
         }
         
         function updateQualitySelector(quality) {
-            const selector = document.getElementById('qualitySelector');
-            selector.value = quality;
+            document.getElementById('qualitySelector').value = quality;
         }
         
         function updateVideoTitle() {
-            const title = movieMetadata.file_name || 'SK4FiLM Movie';
-            document.getElementById('videoTitle').textContent = title;
+            document.getElementById('videoTitle').textContent = 
+                movieMetadata.file_name || 'SK4FiLM Movie';
         }
         
         function updateFileInfo() {
@@ -1323,10 +1300,7 @@
                 formatSize(movieMetadata.file_size || 1500000000);
         }
         
-        // ============================================================================
-        // METADATA FUNCTIONS
-        // ============================================================================
-        
+        // Metadata
         async function loadMetadata() {
             try {
                 const apiUrl = `${API_ENDPOINTS[0]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
@@ -1339,134 +1313,69 @@
                     updateVideoTitle();
                 }
             } catch (error) {
-                console.warn("Metadata fetch failed, using defaults");
+                console.warn("Metadata fetch failed");
                 movieMetadata = {
-                    file_name: 'SK4FiLM Movie.mp4',
-                    file_size: 1500000000,
-                    qualities: ['1080p', '720p', '480p']
+                    file_name: 'SK4FiLM Movie',
+                    file_size: 1500000000
                 };
                 updateFileInfo();
                 updateVideoTitle();
             }
         }
         
-        // ============================================================================
-        // DOWNLOAD FUNCTIONS
-        // ============================================================================
-        
-        async function startFastDownload() {
-            showToast("⚡ Preparing fast download...");
+        // Download Functions
+        async function startFastDownload(quality = currentQuality) {
+            showToast(`Preparing ${quality} download...`);
             
             try {
                 for (const endpoint of API_ENDPOINTS) {
                     try {
-                        const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${currentQuality}`;
+                        const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
                         const response = await fetchWithTimeout(apiUrl, 3000);
                         const data = await response.json();
                         
                         if (data.status === 'success' && data.download_url) {
                             const link = document.createElement('a');
                             link.href = data.download_url;
-                            link.download = `SK4FiLM_${movieMetadata.file_name || 'movie'}_${currentQuality}.mp4`;
-                            link.style.display = 'none';
+                            link.download = `SK4FiLM_${movieMetadata.file_name || 'movie'}_${quality}.mp4`;
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
                             
-                            showToast(`📥 Downloading ${currentQuality}...`);
+                            showToast(`Downloading ${quality}...`);
                             return;
                         }
                     } catch (error) {
-                        console.warn(`Download API ${endpoint} failed:`, error);
+                        console.warn(`Download API failed:`, error);
                     }
                 }
                 
-                showToast("⚠️ Direct download failed. Try Telegram download.");
+                showToast("Download failed. Try Telegram.");
             } catch (error) {
                 console.error("Download error:", error);
-                showToast("❌ Error. Try Telegram download.");
+                showToast("Error. Try Telegram download.");
             }
         }
         
-        function startTelegramDownload() {
+        function startTelegramDownload(quality = currentQuality) {
             const botUsername = 'sk4filmbot';
-            const fileId = `${channelId}_${messageId}_${currentQuality.toLowerCase()}`;
+            const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
             const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
             window.open(telegramUrl, '_blank');
-            showToast("📱 Opening Telegram for download...");
+            showToast(`Opening Telegram for ${quality} download...`);
         }
         
-        // ============================================================================
-        // EXTERNAL PLAYER FUNCTIONS
-        // ============================================================================
-        
-        function openVLC() {
-            const videoUrl = video.src;
-            const openVlc = `vlc://${videoUrl}`;
-            window.location.href = openVlc;
-            showToast("Opening VLC Player...");
-        }
-        
-        function openMXPlayer() {
-            const videoUrl = video.src;
-            const openMx = `intent:${videoUrl}#Intent;package=com.mxtech.videoplayer.ad;end`;
-            window.location.href = openMx;
-            showToast("Opening MX Player...");
-        }
-        
-        function openKMPlayer() {
-            const videoUrl = video.src;
-            const openKmplayer = `intent:${videoUrl}#Intent;package=com.kmplayer;end`;
-            window.location.href = openKmplayer;
-            showToast("Opening KM Player...");
-        }
-        
-        function openHDPlayer() {
-            const videoUrl = video.src;
-            const openHDplayer = `intent:${videoUrl}#Intent;package=uplayer.video.player;end`;
-            window.location.href = openHDplayer;
-            showToast("Opening HD Player...");
-        }
-        
-        // ============================================================================
-        // DONATION FUNCTIONS
-        // ============================================================================
-        
-        function showDonation() {
-            const donationSection = document.getElementById('donationSection');
-            donationSection.scrollIntoView({ behavior: 'smooth' });
-            showToast("❤️ Thank you for considering to support us!");
-        }
-        
-        function copyUPI() {
-            const upiId = document.getElementById('upiId');
-            upiId.select();
-            upiId.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(upiId.value);
-            showToast("📋 UPI ID copied to clipboard!");
-        }
-        
-        // ============================================================================
-        // HELPER FUNCTIONS
-        // ============================================================================
-        
+        // Helper Functions
         function formatTime(seconds) {
-            const hrs = Math.floor(seconds / 3600);
-            const mins = Math.floor((seconds % 3600) / 60);
+            const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
-            
-            if (hrs > 0) {
-                return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            }
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
         
         function formatSize(bytes) {
-            if (!bytes || bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            if (!bytes) return '0 MB';
+            const mb = bytes / (1024 * 1024);
+            return `${mb.toFixed(1)} MB`;
         }
         
         function showToast(message, duration = 3000) {
@@ -1479,15 +1388,6 @@
             }, duration);
         }
         
-        function showLoading(message) {
-            const loader = document.getElementById('playerLoader');
-            const loadingText = document.getElementById('loadingText');
-            
-            loader.classList.remove('hidden');
-            loader.style.opacity = '1';
-            loadingText.textContent = message;
-        }
-        
         function fetchWithTimeout(url, timeout = 3000) {
             return Promise.race([
                 fetch(url),
@@ -1497,6 +1397,13 @@
             ]);
         }
         
+        function copyUPI() {
+            const upiInput = document.getElementById('upiId');
+            upiInput.select();
+            document.execCommand('copy');
+            showToast("UPI ID copied to clipboard!");
+        }
+        
         function setupControls() {
             // Volume slider
             const volumeSlider = document.getElementById('volumeSlider');
@@ -1504,32 +1411,10 @@
                 changeVolume(parseFloat(e.target.value));
             });
             
-            // Fullscreen change listener
+            // Fullscreen change
             document.addEventListener('fullscreenchange', updateFullscreenButton);
             
             // Keyboard shortcuts
-            setupKeyboardShortcuts();
-            
-            // Disable right-click
-            document.addEventListener("contextmenu", function (e) {
-                e.preventDefault();
-            });
-        }
-        
-        function updateFullscreenButton() {
-            const fullscreenBtn = document.querySelector('.fullscreen-btn i');
-            if (document.fullscreenElement || 
-                document.webkitFullscreenElement || 
-                document.msFullscreenElement) {
-                fullscreenBtn.classList.remove('fa-expand');
-                fullscreenBtn.classList.add('fa-compress');
-            } else {
-                fullscreenBtn.classList.remove('fa-compress');
-                fullscreenBtn.classList.add('fa-expand');
-            }
-        }
-        
-        function setupKeyboardShortcuts() {
             document.addEventListener('keydown', (e) => {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
                 
@@ -1549,25 +1434,36 @@
                         break;
                     case 'arrowright':
                         e.preventDefault();
-                        video.currentTime += 5;
+                        video.currentTime += 10;
+                        showControls();
                         break;
                     case 'arrowleft':
                         e.preventDefault();
-                        video.currentTime -= 5;
-                        break;
-                    case '0':
-                        e.preventDefault();
-                        video.currentTime = 0;
-                        break;
-                    case '9':
-                        e.preventDefault();
-                        video.currentTime = video.duration;
+                        video.currentTime -= 10;
+                        showControls();
                         break;
                 }
             });
+            
+            // Mobile quality selector
+            if (window.innerWidth <= 480) {
+                document.querySelector('.mobile-quality').classList.remove('d-none');
+                document.querySelector('.quality-selector').classList.add('d-none');
+            }
         }
         
-        // Export functions to window
+        function updateFullscreenButton() {
+            const fullscreenBtn = document.querySelector('.fullscreen-btn i');
+            if (document.fullscreenElement) {
+                fullscreenBtn.classList.remove('fa-expand');
+                fullscreenBtn.classList.add('fa-compress');
+            } else {
+                fullscreenBtn.classList.remove('fa-compress');
+                fullscreenBtn.classList.add('fa-expand');
+            }
+        }
+        
+        // Export functions
         window.togglePlay = togglePlay;
         window.toggleMute = toggleMute;
         window.changeQuality = changeQuality;
@@ -1575,15 +1471,9 @@
         window.toggleFullscreen = toggleFullscreen;
         window.startFastDownload = startFastDownload;
         window.startTelegramDownload = startTelegramDownload;
-        window.loadFallbackVideo = loadFallbackVideo;
         window.copyUPI = copyUPI;
-        window.openVLC = openVLC;
-        window.openMXPlayer = openMXPlayer;
-        window.openKMPlayer = openKMPlayer;
-        window.openHDPlayer = openHDPlayer;
-        window.showDonation = showDonation;
         
-        console.log("🚀 SK4FiLM Player with Animations Ready!");
+        console.log("🎬 SK4FiLM Player Ready - Perfect Fit Edition!");
     </script>
 </body>
 </html>
