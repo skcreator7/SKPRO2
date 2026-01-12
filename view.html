@@ -338,15 +338,16 @@
             text-align: center;
         }
         
-        /* Progress Bar */
+        /* Enhanced Progress Bar Container */
         .progress-container {
             flex: 1;
-            height: 4px;
+            height: 6px; /* Increased height */
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
             cursor: pointer;
             position: relative;
+            margin: 0 10px;
         }
         
         .buffer-bar {
@@ -356,6 +357,8 @@
             height: 100%;
             background: rgba(255, 255, 255, 0.2);
             width: 0%;
+            border-radius: 3px;
+            transition: width 0.2s;
         }
         
         .progress-bar {
@@ -365,34 +368,40 @@
             height: 100%;
             background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
             width: 0%;
-            border-radius: 2px;
+            border-radius: 3px;
             z-index: 2;
+            transition: width 0.1s;
         }
         
-        /* Volume Control */
-        .volume-control {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        /* Progress bar hover effect */
+        .progress-container:hover .progress-bar {
+            height: 8px;
+            margin-top: -1px;
         }
         
-        .volume-slider {
-            width: 70px;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            -webkit-appearance: none;
-            appearance: none;
+        .progress-container:hover .buffer-bar {
+            height: 8px;
+            margin-top: -1px;
         }
         
-        .volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
+        /* Progress bar thumb */
+        .progress-thumb {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
             width: 12px;
             height: 12px;
-            border-radius: 50%;
             background: white;
-            cursor: pointer;
+            border-radius: 50%;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.2s;
             border: 2px solid var(--primary-red);
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        
+        .progress-container:hover .progress-thumb {
+            opacity: 1;
         }
         
         /* Quality Selector in Controls */
@@ -458,7 +467,7 @@
             -webkit-text-fill-color: transparent;
         }
         
-        /* Quality Selection Dropdown for Download - FIXED */
+        /* Quality Selection Dropdown for Download */
         .download-quality-selector {
             background: rgba(0, 0, 0, 0.95);
             color: white;
@@ -688,10 +697,6 @@
                 min-width: 70px;
             }
             
-            .volume-slider {
-                width: 60px;
-            }
-            
             .play-overlay {
                 width: 60px;
                 height: 60px;
@@ -823,7 +828,7 @@
                         <i class="fas fa-play"></i>
                     </div>
                     
-                    <!-- Custom Video Controls with Quality Selector -->
+                    <!-- Custom Video Controls - Volume Controller REMOVED -->
                     <div class="video-controls" id="videoControls">
                         <button class="control-btn play-pause-btn" onclick="togglePlay()" id="playBtn">
                             <i class="fas fa-play" id="playIcon"></i>
@@ -833,16 +838,18 @@
                             <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
                         </div>
                         
-                        <div class="progress-container" onclick="seekVideo(event)" id="progressContainer">
+                        <!-- Enhanced Progress Bar with Seek Functionality -->
+                        <div class="progress-container" id="progressContainer" 
+                             onmousedown="startSeeking(event)"
+                             onmousemove="handleSeeking(event)"
+                             onmouseup="stopSeeking()"
+                             onmouseleave="stopSeeking()"
+                             ontouchstart="startSeeking(event)"
+                             ontouchmove="handleSeeking(event)"
+                             ontouchend="stopSeeking()">
                             <div class="buffer-bar" id="bufferBar"></div>
                             <div class="progress-bar" id="progressBar"></div>
-                        </div>
-                        
-                        <div class="volume-control">
-                            <button class="control-btn" onclick="toggleMute()" id="muteBtn">
-                                <i class="fas fa-volume-up" id="volumeIcon"></i>
-                            </button>
-                            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+                            <div class="progress-thumb" id="progressThumb"></div>
                         </div>
                         
                         <!-- Quality Selector in Controls -->
@@ -988,7 +995,7 @@
             <div class="donation-card">
                 <h4 class="text-warning mb-3">
                     <i class="fas fa-heart me-2"></i> Support SK4FiLM
-                </h4>
+                </h5>
                 <p class="mb-3">Help us maintain this ad-free streaming service. Your support allows us to provide better quality and more content.</p>
                 
                 <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
@@ -1044,6 +1051,11 @@
         let hasVideoStarted = false;
         let activeQualitySelector = null;
         
+        // NEW: Seek variables
+        let isSeeking = false;
+        let seekStartX = 0;
+        let seekStartPercent = 0;
+        
         // URL Parameters
         const urlParams = new URLSearchParams(window.location.search);
         const channelId = urlParams.get('channel_id') || '-1001768249569';
@@ -1075,7 +1087,7 @@
                 // Setup controls
                 setupControls();
                 
-                // Setup click outside for quality selectors - FIXED
+                // Setup click outside for quality selectors
                 setupClickOutside();
                 
                 console.log("✅ Player Ready!");
@@ -1095,7 +1107,7 @@
             video.controls = false;
             video.preload = 'auto';
             video.playsInline = true;
-            video.volume = 1;
+            video.volume = 1; // Default volume
             
             // Event Listeners
             video.addEventListener('loadedmetadata', onVideoMetadataLoaded);
@@ -1107,9 +1119,6 @@
             video.addEventListener('ended', onVideoEnded);
             video.addEventListener('error', onVideoError);
             video.addEventListener('waiting', onVideoWaiting);
-            
-            // REMOVED: Click event on video for play/pause
-            // video.addEventListener('click', togglePlay);
             
             // Mouse events for controls visibility
             const videoContainer = document.getElementById('videoContainer');
@@ -1181,7 +1190,7 @@
             showControls(); // Show controls while buffering
         }
         
-        // NEW: Play from overlay (initial play)
+        // Play from overlay (initial play)
         function playFromOverlay() {
             togglePlay();
             document.getElementById('playOverlay').classList.add('hidden');
@@ -1285,7 +1294,7 @@
             showToast("Playing sample video");
         }
         
-        // NEW: Quality Selection for Download - FIXED
+        // Quality Selection for Download
         function showQualitySelector(type) {
             // Hide all quality selectors first
             hideAllQualitySelectors();
@@ -1303,7 +1312,7 @@
             activeQualitySelector = null;
         }
         
-        // FIXED: Click outside handler
+        // Click outside handler
         function setupClickOutside() {
             document.addEventListener('click', (event) => {
                 const fastSelector = document.getElementById('fastDownloadQualitySelector');
@@ -1325,7 +1334,7 @@
             });
         }
         
-        // NEW: External Player Functions
+        // External Player Functions
         function openInVLC() {
             if (currentVideoUrl) {
                 // VLC protocol handler
@@ -1372,7 +1381,100 @@
             }
         }
         
-        // NEW: Toggle Controls on Side Click
+        // NEW: Enhanced Seek Video Functions
+        function startSeeking(event) {
+            isSeeking = true;
+            showControls(); // Show controls when seeking
+            
+            const progressContainer = document.getElementById('progressContainer');
+            const rect = progressContainer.getBoundingClientRect();
+            
+            // Get clientX from mouse or touch event
+            const clientX = event.clientX || (event.touches && event.touches[0].clientX);
+            seekStartX = clientX - rect.left;
+            seekStartPercent = video.currentTime / video.duration;
+            
+            // Update immediately
+            handleSeeking(event);
+            
+            // Prevent default behavior
+            event.preventDefault();
+            event.stopPropagation();
+            
+            console.log("Seek started at:", seekStartPercent);
+        }
+        
+        function handleSeeking(event) {
+            if (!isSeeking) return;
+            
+            const progressContainer = document.getElementById('progressContainer');
+            const rect = progressContainer.getBoundingClientRect();
+            
+            // Get clientX from mouse or touch event
+            const clientX = event.clientX || (event.touches && event.touches[0].clientX);
+            const clickPosition = clientX - rect.left;
+            const containerWidth = progressContainer.offsetWidth;
+            let seekPercentage = Math.max(0, Math.min(1, clickPosition / containerWidth));
+            
+            // Calculate new time
+            const newTime = seekPercentage * video.duration;
+            
+            // Update progress bar immediately
+            document.getElementById('progressBar').style.width = `${seekPercentage * 100}%`;
+            
+            // Update thumb position
+            const thumb = document.getElementById('progressThumb');
+            thumb.style.left = `${seekPercentage * 100}%`;
+            thumb.style.opacity = '1';
+            
+            // Update time display
+            document.getElementById('currentTime').textContent = formatTime(newTime);
+            
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        function stopSeeking() {
+            if (!isSeeking) return;
+            
+            isSeeking = false;
+            const progressContainer = document.getElementById('progressContainer');
+            const rect = progressContainer.getBoundingClientRect();
+            const containerWidth = progressContainer.offsetWidth;
+            
+            // Get final position
+            const finalPosition = seekStartX;
+            const seekPercentage = Math.max(0, Math.min(1, finalPosition / containerWidth));
+            
+            // Seek to final position
+            video.currentTime = seekPercentage * video.duration;
+            
+            // Hide thumb after delay
+            setTimeout(() => {
+                if (!isSeeking) {
+                    document.getElementById('progressThumb').style.opacity = '0';
+                }
+            }, 500);
+            
+            // Show controls for a bit longer
+            hideControlsWithDelay();
+            
+            console.log("Seek ended at:", seekPercentage);
+        }
+        
+        // Original seek function (for click)
+        function seekVideo(event) {
+            const progressContainer = event.currentTarget;
+            const rect = progressContainer.getBoundingClientRect();
+            const clickPosition = event.clientX - rect.left;
+            const containerWidth = progressContainer.offsetWidth;
+            const seekPercentage = clickPosition / containerWidth;
+            
+            video.currentTime = seekPercentage * video.duration;
+            showControls();
+        }
+        
+        // Toggle Controls on Side Click
         function toggleControls() {
             if (controlsVisible) {
                 hideControls();
@@ -1446,20 +1548,7 @@
             showControls(); // Show controls when interacting
         }
         
-        function toggleMute() {
-            video.muted = !video.muted;
-            isMuted = video.muted;
-            updateMuteButton();
-            updateVolumeSlider();
-            showControls();
-        }
-        
-        function changeVolume(value) {
-            video.volume = value;
-            isMuted = value === 0;
-            updateMuteButton();
-            showControls();
-        }
+        // REMOVED: toggleMute function and volume controls
         
         async function changeQuality(quality) {
             if (quality === currentQuality) return;
@@ -1495,17 +1584,6 @@
             }
         }
         
-        function seekVideo(event) {
-            const progressContainer = event.currentTarget;
-            const rect = progressContainer.getBoundingClientRect();
-            const clickPosition = event.clientX - rect.left;
-            const containerWidth = progressContainer.offsetWidth;
-            const seekPercentage = clickPosition / containerWidth;
-            
-            video.currentTime = seekPercentage * video.duration;
-            showControls();
-        }
-        
         function toggleFullscreen() {
             const videoContainer = document.getElementById('videoContainer');
             
@@ -1527,12 +1605,17 @@
         
         // UI Update Functions
         function updateProgress() {
+            if (isSeeking) return; // Don't update during seeking
+            
             const currentTime = video.currentTime;
             const duration = video.duration;
             
             if (duration > 0) {
                 const progressPercent = (currentTime / duration) * 100;
                 document.getElementById('progressBar').style.width = `${progressPercent}%`;
+                
+                // Update thumb position
+                document.getElementById('progressThumb').style.left = `${progressPercent}%`;
                 
                 document.getElementById('currentTime').textContent = formatTime(currentTime);
                 document.getElementById('duration').textContent = formatTime(duration);
@@ -1569,24 +1652,7 @@
             }
         }
         
-        function updateMuteButton() {
-            const volumeIcon = document.getElementById('volumeIcon');
-            
-            if (isMuted || video.volume === 0) {
-                volumeIcon.classList.remove('fa-volume-up');
-                volumeIcon.classList.add('fa-volume-mute');
-            } else if (video.volume < 0.5) {
-                volumeIcon.classList.remove('fa-volume-up', 'fa-volume-mute');
-                volumeIcon.classList.add('fa-volume-down');
-            } else {
-                volumeIcon.classList.remove('fa-volume-mute', 'fa-volume-down');
-                volumeIcon.classList.add('fa-volume-up');
-            }
-        }
-        
-        function updateVolumeSlider() {
-            document.getElementById('volumeSlider').value = isMuted ? 0 : video.volume;
-        }
+        // REMOVED: updateMuteButton and updateVolumeSlider functions
         
         function updateQualityIndicator(quality) {
             const qualityText = document.getElementById('qualityText');
@@ -1682,6 +1748,8 @@
         
         // Helper Functions
         function formatTime(seconds) {
+            if (!isFinite(seconds)) return '0:00';
+            
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -1720,11 +1788,7 @@
         }
         
         function setupControls() {
-            // Volume slider
-            const volumeSlider = document.getElementById('volumeSlider');
-            volumeSlider.addEventListener('input', (e) => {
-                changeVolume(parseFloat(e.target.value));
-            });
+            // REMOVED: Volume slider setup
             
             // Fullscreen change
             document.addEventListener('fullscreenchange', updateFullscreenButton);
@@ -1743,10 +1807,6 @@
                         e.preventDefault();
                         toggleFullscreen();
                         break;
-                    case 'm':
-                        e.preventDefault();
-                        toggleMute();
-                        break;
                     case 'arrowright':
                         e.preventDefault();
                         video.currentTime += 10;
@@ -1759,8 +1819,6 @@
                         break;
                 }
             });
-            
-            // REMOVED: Mobile quality selector section
         }
         
         function updateFullscreenButton() {
@@ -1776,7 +1834,6 @@
         
         // Export functions
         window.togglePlay = togglePlay;
-        window.toggleMute = toggleMute;
         window.changeQuality = changeQuality;
         window.seekVideo = seekVideo;
         window.toggleFullscreen = toggleFullscreen;
@@ -1791,7 +1848,12 @@
         window.toggleControls = toggleControls;
         window.playFromOverlay = playFromOverlay;
         
-        console.log("🎬 SK4FiLM Player Ready - Quality Selector Fixed!");
+        // Export new seek functions
+        window.startSeeking = startSeeking;
+        window.handleSeeking = handleSeeking;
+        window.stopSeeking = stopSeeking;
+        
+        console.log("🎬 SK4FiLM Player Ready - Enhanced Seek & Progress Bars!");
     </script>
 </body>
 </html>
