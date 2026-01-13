@@ -5,9 +5,13 @@
     <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
     <meta property="og:image" content="https://iili.io/KOlfc41.png" itemprop="thumbnailUrl">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>SK4FiLM - Ad-Free HD Streaming</title>
+    <title>SK4FiLM - Ad-Supported HD Streaming</title>
     
-    <!-- Libraries -->
+    <!-- Video.js & IMA3 CSS -->
+    <link href="https://vjs.zencdn.net/8.0.4/video-js.css" rel="stylesheet" />
+    <link href="https://imasdk.googleapis.com/js/sdkloader/ima3.css" rel="stylesheet">
+    
+    <!-- Existing Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"></script>    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
@@ -104,7 +108,7 @@
         }
         
         .ad-free-badge {
-            background: linear-gradient(135deg, #28a745, #20c997);
+            background: linear-gradient(135deg, #ff9900, #ff6600);
             color: white;
             padding: 5px 10px;
             border-radius: 15px;
@@ -150,15 +154,25 @@
             transform: translateZ(0);
         }
         
-        #videoPlayer {
+        /* Video.js Player Styling */
+        #my-video {
             width: 100%;
             height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
             object-fit: contain;
-            background: #000;
-            display: block;
-            transition: filter 0.3s ease, object-fit 0.3s ease;
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
+        }
+        
+        .video-js {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+        
+        /* Hide Video.js controls since we have custom ones */
+        .video-js .vjs-control-bar {
+            display: none !important;
         }
         
         /* Fullscreen styles */
@@ -201,10 +215,10 @@
             z-index: 999999 !important;
         }
         
-        :fullscreen #videoPlayer,
-        :-webkit-full-screen #videoPlayer,
-        :-moz-full-screen #videoPlayer,
-        :-ms-fullscreen #videoPlayer {
+        :fullscreen #my-video,
+        :-webkit-full-screen #my-video,
+        :-moz-full-screen #my-video,
+        :-ms-fullscreen #my-video {
             width: 100vw !important;
             height: 100vh !important;
             object-fit: contain !important;
@@ -761,6 +775,25 @@
             animation: slideUp 0.3s ease;
         }
         
+        /* Ad Warning Banner */
+        .ad-warning {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 193, 7, 0.9);
+            color: #000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+        }
+        
         /* Animations */
         @keyframes slideUp {
             from { transform: translate(-50%, 100%); opacity: 0; }
@@ -948,7 +981,7 @@
                 <span class="logo-text">SK4FiLM</span>
             </div>
             <div class="ad-free-badge">
-                <i class="fas fa-bolt"></i> AD-FREE
+                <i class="fas fa-ad"></i> AD-SUPPORTED
             </div>
         </div>
     </nav>
@@ -959,6 +992,11 @@
         <div class="video-wrapper">
             <div class="aspect-ratio-box">
                 <div class="video-container" id="videoContainer">
+                    <!-- Ad Warning Banner -->
+                    <div class="ad-warning">
+                        <i class="fas fa-info-circle"></i> Ads support free streaming
+                    </div>
+                    
                     <!-- Fullscreen Gesture Indicators -->
                     <div class="gesture-indicator brightness-indicator" id="brightnessIndicator">
                         <i class="fas fa-sun"></i>
@@ -974,17 +1012,26 @@
                     <div class="side-click-area left-click-area" onclick="toggleControls()"></div>
                     <div class="side-click-area right-click-area" onclick="toggleControls()"></div>
                     
-                    <!-- Video Element -->
-                    <video id="videoPlayer" preload="auto" playsinline>
-                        Your browser does not support HTML5 video.
-                    </video>
+                    <!-- Video.js Player -->
+                    <video-js 
+                        id="my-video" 
+                        class="vjs-default-skin vjs-big-play-centered" 
+                        preload="auto" 
+                        playsinline 
+                        crossorigin="anonymous"
+                        data-setup='{}'>
+                        <p class="vjs-no-js">
+                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                        </p>
+                    </video-js>
                     
                     <!-- Loading Animation -->
                     <div class="player-loader" id="playerLoader">
                         <div class="loader-content">
                             <div class="spinner"></div>
                             <div class="loader-text" id="loadingText">Loading SK4FiLM Player</div>
-                            <div class="loader-subtext" id="loadingSubtext">Preparing HD stream...</div>
+                            <div class="loader-subtext" id="loadingSubtext">Preparing HD stream with ads...</div>
                             <div class="loading-bar">
                                 <div class="loading-progress" id="loadingProgress"></div>
                             </div>
@@ -1053,8 +1100,8 @@
                     <span class="badge bg-primary">
                         <i class="fas fa-wifi me-1"></i> Direct Stream
                     </span>
-                    <span class="badge bg-success">
-                        <i class="fas fa-tachometer-alt me-1"></i> Fast Server
+                    <span class="badge bg-warning">
+                        <i class="fas fa-ad me-1"></i> Ad-Supported
                     </span>
                 </div>
             </div>
@@ -1118,7 +1165,7 @@
                 <h4 class="text-warning mb-3">
                     <i class="fas fa-heart me-2"></i> Support SK4FiLM
                 </h4>
-                <p class="mb-3">Help us maintain this ad-free streaming service. Your support allows us to provide better quality and more content.</p>
+                <p class="mb-3">Ads help us maintain this streaming service. For an ad-free experience, consider supporting us directly.</p>
                 
                 <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
                      alt="Donation QR Code" 
@@ -1136,7 +1183,7 @@
                 </div>
                 
                 <a href="https://cfpe.me/skfilmbox" target="_blank" class="btn btn-warning px-4">
-                    <i class="fas fa-donate me-2"></i> DONATE NOW
+                    <i class="fas fa-donate me-2"></i> DONATE FOR AD-FREE
                 </a>
             </div>
         </div>
@@ -1146,11 +1193,17 @@
     <div class="toast" id="toast"></div>
 
     <!-- JavaScript -->
+    <!-- Video.js & IMA3 SDK -->
+    <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
+    <script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
     <script>
         // Initialize WOW.js
-        new WOW().init();
+        if (typeof WOW !== 'undefined') {
+            new WOW().init();
+        }
         
         // Configuration
+        const AD_TAG_URL = "https://youradexchange.com/video/select.php?r=10805122";
         const API_ENDPOINTS = [
             'https://sk4film.koyeb.app',
             'https://fast-download-skcreator7.koyeb.app'
@@ -1162,7 +1215,7 @@
         ];
         
         // Global Variables
-        let video = null;
+        let player = null;
         let isPlaying = false;
         let currentQuality = '1080p';
         let movieMetadata = {};
@@ -1199,7 +1252,7 @@
         
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player Initializing...");
+            console.log("🚀 SK4FiLM Player with Ads Initializing...");
             
             if (!messageId) {
                 showError("No video specified");
@@ -1210,14 +1263,14 @@
                 // Fix iOS scrolling
                 fixIOSScrolling();
                 
-                // Initialize video element
-                initializeVideoElement();
-                
                 // Start loading animation
                 startLoadingAnimation();
                 
                 // Set initial title
                 document.getElementById('videoTitle').textContent = decodeURIComponent(movieTitle);
+                
+                // Initialize Video.js Player with IMA3 Ads
+                initializeVideoJS();
                 
                 // Load metadata and video
                 await loadMetadata();
@@ -1232,13 +1285,160 @@
                 // Generate download options
                 generateDownloadOptions();
                 
-                console.log("✅ Player Ready!");
+                console.log("✅ Player with Ads Ready!");
                 
             } catch (error) {
                 console.error("Initialization error:", error);
                 loadFallbackVideo();
             }
         });
+        
+        // Initialize Video.js with IMA3 Ads
+        function initializeVideoJS() {
+            // Create Video.js player
+            player = videojs('my-video', {
+                controls: false,
+                autoplay: false,
+                preload: 'auto',
+                fluid: true,
+                html5: {
+                    nativeTextTracks: false,
+                    vhs: { overrideNative: true }
+                },
+                userActions: {
+                    doubleClick: false,
+                    hotkeys: false
+                }
+            });
+            
+            // Initialize IMA3 Ads
+            player.ima({
+                adTagUrl: AD_TAG_URL,
+                adsRenderingSettings: {
+                    autoPlayAdBreaks: 'none' // Don't auto-play pre-roll
+                }
+            });
+            
+            // Ad event listeners
+            player.on('adstart', function() {
+                console.log("Ad started");
+                // Hide custom controls during ads
+                document.getElementById('videoControls').style.display = 'none';
+                document.getElementById('playOverlay').style.display = 'none';
+                showToast("Ad playing - please wait");
+            });
+            
+            player.on('adend', function() {
+                console.log("Ad ended");
+                // Restore custom controls
+                document.getElementById('videoControls').style.display = 'flex';
+                document.getElementById('playOverlay').style.display = 'flex';
+                // Auto-play content after ad if was playing before
+                if (isPlaying) {
+                    player.play();
+                }
+            });
+            
+            player.on('aderror', function(e) {
+                console.warn("Ad error:", e);
+                // Skip ad on error
+                player.ima.skipAd();
+                showToast("Ad skipped due to error");
+            });
+            
+            // Player event listeners
+            player.on('loadedmetadata', onVideoMetadataLoaded);
+            player.on('timeupdate', updateProgress);
+            player.on('progress', updateBuffer);
+            player.on('play', onVideoPlaying);
+            player.on('pause', onVideoPaused);
+            player.on('ended', onVideoEnded);
+            player.on('error', onVideoError);
+            player.on('waiting', onVideoWaiting);
+            
+            // Set initial volume
+            player.volume(currentVolume);
+        }
+        
+        // UNIVERSAL FULLSCREEN FUNCTION
+        function toggleFullscreen() {
+            const videoContainer = document.getElementById('videoContainer');
+            
+            if (!isFullscreen) {
+                // Enter fullscreen
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) {
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.mozRequestFullScreen) {
+                    videoContainer.mozRequestFullScreen();
+                } else if (videoContainer.msRequestFullscreen) {
+                    videoContainer.msRequestFullscreen();
+                } else {
+                    // Fallback for browsers that don't support fullscreen API
+                    videoContainer.style.position = 'fixed';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100vw';
+                    videoContainer.style.height = '100vh';
+                    videoContainer.style.zIndex = '999999';
+                    document.body.style.overflow = 'hidden';
+                    isFullscreen = true;
+                    showToast("Fullscreen mode");
+                }
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                } else {
+                    // Fallback exit
+                    videoContainer.style.position = 'absolute';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100%';
+                    videoContainer.style.height = '100%';
+                    videoContainer.style.zIndex = '1';
+                    document.body.style.overflow = 'auto';
+                    isFullscreen = false;
+                    showToast("Exited fullscreen");
+                }
+            }
+            
+            showControls();
+        }
+        
+        // Fullscreen detection
+        function setupFullscreenDetection() {
+            document.addEventListener('fullscreenchange', updateFullscreenState);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenState);
+            document.addEventListener('mozfullscreenchange', updateFullscreenState);
+            document.addEventListener('MSFullscreenChange', updateFullscreenState);
+        }
+        
+        function updateFullscreenState() {
+            isFullscreen = !!(document.fullscreenElement || 
+                             document.webkitFullscreenElement || 
+                             document.mozFullScreenElement || 
+                             document.msFullscreenElement);
+            
+            // Update fullscreen button icon
+            const fullscreenIcon = document.querySelector('.fullscreen-btn i');
+            if (fullscreenIcon) {
+                if (isFullscreen) {
+                    fullscreenIcon.classList.remove('fa-expand');
+                    fullscreenIcon.classList.add('fa-compress');
+                } else {
+                    fullscreenIcon.classList.remove('fa-compress');
+                    fullscreenIcon.classList.add('fa-expand');
+                }
+            }
+        }
         
         // Fix iOS scrolling
         function fixIOSScrolling() {
@@ -1261,88 +1461,11 @@
             }
         }
         
-        // Initialize Video Element
-        function initializeVideoElement() {
-            video = document.getElementById('videoPlayer');
-            currentQuality = initialQuality;
-            
-            // Set initial attributes
-            video.controls = false;
-            video.preload = 'auto';
-            video.playsInline = true;
-            video.volume = currentVolume;
-            
-            // Apply initial brightness
-            updateVideoBrightness();
-            
-            // Event Listeners
-            video.addEventListener('loadedmetadata', onVideoMetadataLoaded);
-            video.addEventListener('timeupdate', updateProgress);
-            video.addEventListener('progress', updateBuffer);
-            video.addEventListener('canplay', onVideoCanPlay);
-            video.addEventListener('playing', onVideoPlaying);
-            video.addEventListener('pause', onVideoPaused);
-            video.addEventListener('ended', onVideoEnded);
-            video.addEventListener('error', onVideoError);
-            video.addEventListener('waiting', onVideoWaiting);
-            
-            // Mouse events for controls visibility
-            const videoContainer = document.getElementById('videoContainer');
-            videoContainer.addEventListener('mousemove', showControls);
-            videoContainer.addEventListener('mouseleave', hideControls);
-            videoContainer.addEventListener('touchstart', handleTouchStart);
-            videoContainer.addEventListener('touchmove', handleTouchMove);
-            videoContainer.addEventListener('touchend', handleTouchEnd);
-            
-            // Fullscreen change event
-            document.addEventListener('fullscreenchange', handleFullscreenChange);
-            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-            document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-            document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-        }
-        
-        // Setup Fullscreen Detection
-        function setupFullscreenDetection() {
-            isFullscreen = !!(document.fullscreenElement || 
-                             document.webkitFullscreenElement || 
-                             document.mozFullScreenElement || 
-                             document.msFullscreenElement);
-            
-            document.addEventListener('fullscreenchange', updateFullscreenState);
-            document.addEventListener('webkitfullscreenchange', updateFullscreenState);
-            document.addEventListener('mozfullscreenchange', updateFullscreenState);
-            document.addEventListener('MSFullscreenChange', updateFullscreenState);
-        }
-        
-        function updateFullscreenState() {
-            isFullscreen = !!(document.fullscreenElement || 
-                             document.webkitFullscreenElement || 
-                             document.mozFullScreenElement || 
-                             document.msFullscreenElement);
-            
-            console.log("Fullscreen state:", isFullscreen);
-            
-            if (isFullscreen) {
-                document.body.style.overflow = 'hidden';
-                document.documentElement.style.overflow = 'hidden';
-            } else {
-                document.body.style.overflow = 'auto';
-                document.documentElement.style.overflow = 'auto';
-                video.style.objectFit = 'contain';
-            }
-        }
-        
-        // Video Event Handlers
+        // Video Event Handlers (adapted for Video.js)
         function onVideoMetadataLoaded() {
             console.log("Video metadata loaded");
             updateDurationDisplay();
             updateLoadingProgress(80, "Video ready", "Preparing playback...");
-        }
-        
-        function onVideoCanPlay() {
-            console.log("Video can play");
-            updateLoadingProgress(100, "Ready to play", "Enjoy your movie!");
-            setTimeout(hideLoadingAnimation, 500);
         }
         
         function onVideoPlaying() {
@@ -1376,7 +1499,7 @@
         
         function onVideoError(e) {
             console.error("Video error:", e);
-            if (!isUsingFallback) {
+            if (currentVideoUrl && !currentVideoUrl.includes('commondatastorage')) {
                 showToast("Error loading. Trying fallback...");
                 loadFallbackVideo();
             }
@@ -1405,9 +1528,9 @@
                 document.getElementById('loadingProgress').style.width = `${progress}%`;
                 
                 if (progress < 30) {
-                    updateLoadingText("Initializing player...");
+                    updateLoadingText("Initializing player with ads...");
                 } else if (progress < 60) {
-                    updateLoadingText("Connecting to server...");
+                    updateLoadingText("Connecting to ad server...");
                 } else if (progress < 90) {
                     updateLoadingText("Loading video data...");
                 }
@@ -1438,8 +1561,8 @@
                 const videoUrl = await getVideoUrl(quality);
                 
                 if (videoUrl) {
-                    video.src = videoUrl;
-                    video.load();
+                    // Set source on Video.js player
+                    player.src({ type: 'video/mp4', src: videoUrl });
                     currentVideoUrl = videoUrl;
                     
                     currentQuality = quality;
@@ -1484,8 +1607,8 @@
             updateQualityIndicator('HD');
             currentVideoUrl = fallbackUrl;
             
-            video.src = fallbackUrl;
-            video.load();
+            // Set fallback source on Video.js player
+            player.src({ type: 'video/mp4', src: fallbackUrl });
             
             showToast("Playing sample video");
         }
@@ -1619,59 +1742,6 @@
             }
         }
         
-        // Universal Fullscreen Function
-        function toggleFullscreen() {
-            const videoContainer = document.getElementById('videoContainer');
-            
-            if (!isFullscreen) {
-                // Enter fullscreen
-                if (videoContainer.requestFullscreen) {
-                    videoContainer.requestFullscreen();
-                } else if (videoContainer.webkitRequestFullscreen) {
-                    videoContainer.webkitRequestFullscreen();
-                } else if (videoContainer.mozRequestFullScreen) {
-                    videoContainer.mozRequestFullScreen();
-                } else if (videoContainer.msRequestFullscreen) {
-                    videoContainer.msRequestFullscreen();
-                } else {
-                    // Fallback
-                    videoContainer.style.position = 'fixed';
-                    videoContainer.style.top = '0';
-                    videoContainer.style.left = '0';
-                    videoContainer.style.width = '100vw';
-                    videoContainer.style.height = '100vh';
-                    videoContainer.style.zIndex = '999999';
-                    document.body.style.overflow = 'hidden';
-                    isFullscreen = true;
-                    showToast("Fullscreen mode");
-                }
-            } else {
-                // Exit fullscreen
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.mozCancelFullScreen) {
-                    document.mozCancelFullScreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                } else {
-                    // Fallback exit
-                    videoContainer.style.position = 'absolute';
-                    videoContainer.style.top = '0';
-                    videoContainer.style.left = '0';
-                    videoContainer.style.width = '100%';
-                    videoContainer.style.height = '100%';
-                    videoContainer.style.zIndex = '1';
-                    document.body.style.overflow = 'auto';
-                    isFullscreen = false;
-                    showToast("Exited fullscreen");
-                }
-            }
-            
-            showControls();
-        }
-        
         // Fullscreen Gesture Controls
         function handleTouchStart(event) {
             if (!isFullscreen) return;
@@ -1683,7 +1753,7 @@
             
             if (touches.length === 1) {
                 const touch = touches[0];
-                const videoRect = video.getBoundingClientRect();
+                const videoRect = player.el().getBoundingClientRect();
                 const touchX = touch.clientX - videoRect.left;
                 const touchY = touch.clientY - videoRect.top;
                 
@@ -1725,7 +1795,7 @@
             
             if (touches.length === 1) {
                 const touch = touches[0];
-                const videoRect = video.getBoundingClientRect();
+                const videoRect = player.el().getBoundingClientRect();
                 const touchX = touch.clientX - videoRect.left;
                 
                 const isLeftSide = touchX < videoRect.width * 0.3;
@@ -1752,12 +1822,12 @@
                 const zoomFactor = currentDistance / initialDistance;
                 
                 if (zoomFactor > 1.2) {
-                    video.style.objectFit = 'cover';
+                    player.el().querySelector('video').style.objectFit = 'cover';
                     showToast("Zoom: Fill Screen");
                     initialDistance = currentDistance;
                 } 
                 else if (zoomFactor < 0.8) {
-                    video.style.objectFit = 'contain';
+                    player.el().querySelector('video').style.objectFit = 'contain';
                     showToast("Zoom: Fit Screen");
                     initialDistance = currentDistance;
                 }
@@ -1777,18 +1847,6 @@
                 hideControlsWithDelay();
                 
                 event.preventDefault();
-            }
-        }
-        
-        function handleFullscreenChange() {
-            isFullscreen = !!(document.fullscreenElement || 
-                             document.webkitFullscreenElement);
-            
-            if (isFullscreen) {
-                console.log("Entered fullscreen - gestures enabled");
-            } else {
-                video.style.objectFit = 'contain';
-                console.log("Exited fullscreen - gestures disabled");
             }
         }
         
@@ -1816,7 +1874,7 @@
             currentVolume += deltaY * sensitivity;
             currentVolume = Math.max(0.0, Math.min(1.0, currentVolume));
             
-            video.volume = currentVolume;
+            player.volume(currentVolume);
             
             document.getElementById('volumeValue').textContent = 
                 `${Math.round(currentVolume * 100)}%`;
@@ -1824,7 +1882,13 @@
         }
         
         function updateVideoBrightness() {
-            video.style.filter = `brightness(${currentBrightness})`;
+            // Video.js doesn't have direct brightness control
+            // This would need a canvas overlay or WebGL shader for proper brightness control
+            // For now, we'll adjust the video element's filter
+            const videoElement = player.el().querySelector('video');
+            if (videoElement) {
+                videoElement.style.filter = `brightness(${currentBrightness})`;
+            }
         }
         
         function showGestureIndicator(type) {
@@ -1840,7 +1904,7 @@
             document.getElementById('volumeIndicator').classList.remove('show');
         }
         
-        // Enhanced Seek Video Functions
+        // Enhanced Seek Video Functions (adapted for Video.js)
         function startSeeking(event) {
             isSeeking = true;
             showControls();
@@ -1850,7 +1914,7 @@
             
             const clientX = event.clientX || (event.touches && event.touches[0].clientX);
             seekStartX = clientX - rect.left;
-            seekStartPercent = video.currentTime / video.duration;
+            seekStartPercent = player.currentTime() / player.duration();
             
             handleSeeking(event);
             
@@ -1869,7 +1933,7 @@
             const containerWidth = progressContainer.offsetWidth;
             let seekPercentage = Math.max(0, Math.min(1, clickPosition / containerWidth));
             
-            const newTime = seekPercentage * video.duration;
+            const newTime = seekPercentage * player.duration();
             
             document.getElementById('progressBar').style.width = `${seekPercentage * 100}%`;
             
@@ -1894,7 +1958,7 @@
             const finalPosition = seekStartX;
             const seekPercentage = Math.max(0, Math.min(1, finalPosition / containerWidth));
             
-            video.currentTime = seekPercentage * video.duration;
+            player.currentTime(seekPercentage * player.duration());
             
             setTimeout(() => {
                 if (!isSeeking) {
@@ -1940,7 +2004,7 @@
             const controls = document.getElementById('videoControls');
             const container = document.getElementById('videoContainer');
             
-            if (isPlaying && !document.fullscreenElement) {
+            if (isPlaying && !isFullscreen) {
                 controls.classList.remove('visible');
                 container.classList.add('controls-hidden');
                 controlsVisible = false;
@@ -1961,13 +2025,12 @@
         
         // Control Functions
         function togglePlay() {
-            if (video.paused || video.ended) {
-                video.play().catch(e => {
-                    console.log("Play failed:", e);
-                    showToast("Click play button to start");
-                });
+            if (player.paused()) {
+                // Request ads before playing
+                player.ima.requestAds();
+                player.play();
             } else {
-                video.pause();
+                player.pause();
             }
             showControls();
         }
@@ -1981,18 +2044,17 @@
                 const videoUrl = await getVideoUrl(quality);
                 
                 if (videoUrl) {
-                    const currentTime = video.currentTime;
+                    const currentTime = player.currentTime();
                     
-                    video.src = videoUrl;
-                    video.load();
+                    player.src({ type: 'video/mp4', src: videoUrl });
                     currentVideoUrl = videoUrl;
                     
-                    video.addEventListener('loadedmetadata', () => {
-                        video.currentTime = Math.min(currentTime, video.duration);
+                    player.one('loadedmetadata', () => {
+                        player.currentTime(Math.min(currentTime, player.duration()));
                         if (isPlaying) {
-                            video.play().catch(e => console.log("Autoplay failed"));
+                            player.play();
                         }
-                    }, { once: true });
+                    });
                     
                     currentQuality = quality;
                     updateQualityIndicator(quality);
@@ -2010,8 +2072,8 @@
         function updateProgress() {
             if (isSeeking) return;
             
-            const currentTime = video.currentTime;
-            const duration = video.duration;
+            const currentTime = player.currentTime();
+            const duration = player.duration();
             
             if (duration > 0) {
                 const progressPercent = (currentTime / duration) * 100;
@@ -2025,10 +2087,10 @@
         }
         
         function updateBuffer() {
-            if (video.buffered.length > 0) {
-                const duration = video.duration;
+            if (player.buffered() && player.buffered().length > 0) {
+                const duration = player.duration();
                 if (duration > 0) {
-                    const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                    const bufferedEnd = player.buffered().end(player.buffered().length - 1);
                     const bufferPercent = (bufferedEnd / duration) * 100;
                     document.getElementById('bufferBar').style.width = `${bufferPercent}%`;
                 }
@@ -2036,7 +2098,7 @@
         }
         
         function updateDurationDisplay() {
-            const duration = video.duration;
+            const duration = player.duration();
             if (duration > 0) {
                 document.getElementById('duration').textContent = formatTime(duration);
             }
@@ -2085,7 +2147,6 @@
                     movieMetadata = data.metadata;
                     updateFileInfo();
                     
-                    // Update title if available from metadata
                     if (movieMetadata.file_name && movieMetadata.file_name !== 'SK4FiLM Movie') {
                         document.getElementById('videoTitle').textContent = movieMetadata.file_name;
                     }
@@ -2142,11 +2203,15 @@
         }
         
         function setupControls() {
-            // Fullscreen change
-            document.addEventListener('fullscreenchange', updateFullscreenButton);
-            document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
-            document.addEventListener('mozfullscreenchange', updateFullscreenButton);
-            document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+            // Add touch events for gesture controls
+            const videoContainer = document.getElementById('videoContainer');
+            videoContainer.addEventListener('touchstart', handleTouchStart);
+            videoContainer.addEventListener('touchmove', handleTouchMove);
+            videoContainer.addEventListener('touchend', handleTouchEnd);
+            
+            // Mouse events for controls visibility
+            videoContainer.addEventListener('mousemove', showControls);
+            videoContainer.addEventListener('mouseleave', hideControls);
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
@@ -2164,12 +2229,12 @@
                         break;
                     case 'arrowright':
                         e.preventDefault();
-                        video.currentTime += 10;
+                        player.currentTime(player.currentTime() + 10);
                         showControls();
                         break;
                     case 'arrowleft':
                         e.preventDefault();
-                        video.currentTime -= 10;
+                        player.currentTime(player.currentTime() - 10);
                         showControls();
                         break;
                     case 'escape':
@@ -2181,21 +2246,15 @@
             });
         }
         
-        function updateFullscreenButton() {
-            const fullscreenBtn = document.querySelector('.fullscreen-btn i');
-            if (isFullscreen) {
-                fullscreenBtn.classList.remove('fa-expand');
-                fullscreenBtn.classList.add('fa-compress');
-            } else {
-                fullscreenBtn.classList.remove('fa-compress');
-                fullscreenBtn.classList.add('fa-expand');
-            }
+        function showError(message) {
+            showToast(message, 5000);
+            document.getElementById('loadingText').textContent = "Error Loading Player";
+            document.getElementById('loadingSubtext').textContent = message;
         }
         
-        // Export functions
+        // Export functions for global access
         window.togglePlay = togglePlay;
         window.changeQuality = changeQuality;
-        window.seekVideo = seekVideo;
         window.toggleFullscreen = toggleFullscreen;
         window.startFastDownload = startFastDownload;
         window.startTelegramDownload = startTelegramDownload;
@@ -2206,13 +2265,11 @@
         window.openInBrowser = openInBrowser;
         window.toggleControls = toggleControls;
         window.playFromOverlay = playFromOverlay;
-        
-        // Export new seek functions
         window.startSeeking = startSeeking;
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
         
-        console.log("🎬 SK4FiLM Player Ready!");
+        console.log("🎬 SK4FiLM Player with Ads Ready!");
     </script>
 </body>
 </html>
