@@ -382,6 +382,142 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quality-indicator:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.05);
+        }
+        
+        /* New Quality Badge Styles */
+        .quality-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin: 2px;
+        }
+        
+        .quality-1080p { background: linear-gradient(135deg, #ff0000, #cc0000); color: white; }
+        .quality-720p { background: linear-gradient(135deg, #0066ff, #0044cc); color: white; }
+        .quality-480p { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+        .quality-360p { background: linear-gradient(135deg, #6c757d, #495057); color: white; }
+        
+        /* Quality Selection Panel */
+        .quality-panel {
+            position: absolute;
+            bottom: 60px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.95);
+            border-radius: 10px;
+            padding: 10px;
+            min-width: 180px;
+            z-index: 150;
+            display: none;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .quality-panel.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .quality-option-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            border-radius: 5px;
+            margin: 2px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+        
+        .quality-option-btn:hover {
+            background: rgba(255, 0, 0, 0.2);
+        }
+        
+        .quality-option-btn.active {
+            background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
+            font-weight: bold;
+        }
+        
+        .quality-size {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            margin-left: 10px;
+        }
+        
+        .quality-panel-title {
+            font-size: 0.8rem;
+            color: #aaa;
+            text-align: center;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Detected Qualities Display */
+        .detected-qualities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 5px;
+        }
+        
+        /* Auto Quality Button */
+        .auto-quality-btn {
+            background: linear-gradient(135deg, #ff9900, #ff6600);
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        .auto-quality-btn:hover {
+            background: linear-gradient(135deg, #ffaa33, #ff7733);
+            transform: translateY(-2px);
+        }
+        
+        /* Dynamic Quality Selector */
+        .dynamic-quality-selector {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 90px;
+            z-index: 101;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .dynamic-quality-selector:hover {
+            background: rgba(255, 0, 0, 0.1);
         }
         
         /* Play Overlay */
@@ -543,24 +679,6 @@
         
         .progress-container:hover .progress-thumb {
             opacity: 1;
-        }
-        
-        /* Quality Selector */
-        .quality-selector-controls {
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            min-width: 80px;
-            z-index: 101;
-        }
-        
-        .quality-selector-controls:hover {
-            background: rgba(255, 0, 0, 0.1);
         }
         
         /* Fullscreen Button */
@@ -752,6 +870,25 @@
             padding: 10px;
         }
         
+        /* Ad Warning Banner */
+        .ad-warning {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 193, 7, 0.9);
+            color: #000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+        }
+        
         /* Toast Notification */
         .toast {
             position: fixed;
@@ -773,25 +910,6 @@
         .toast.show {
             display: block;
             animation: slideUp 0.3s ease;
-        }
-        
-        /* Ad Warning Banner */
-        .ad-warning {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 193, 7, 0.9);
-            color: #000;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            z-index: 50;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 193, 7, 0.5);
         }
         
         /* Animations */
@@ -853,10 +971,16 @@
                 min-width: 85px;
             }
             
-            .quality-selector-controls {
+            .dynamic-quality-selector {
                 font-size: 0.75rem;
                 padding: 4px 8px;
                 min-width: 70px;
+            }
+            
+            .quality-panel {
+                min-width: 150px;
+                right: 5px;
+                bottom: 55px;
             }
             
             .play-overlay {
@@ -934,9 +1058,10 @@
                 min-width: 75px;
             }
             
-            .quality-selector-controls {
+            .dynamic-quality-selector {
                 min-width: 60px;
                 font-size: 0.7rem;
+                padding: 3px 6px;
             }
             
             .gesture-indicator {
@@ -947,6 +1072,16 @@
             .quality-option {
                 min-width: 80px;
                 padding: 8px 10px;
+                font-size: 0.8rem;
+            }
+            
+            .quality-panel {
+                min-width: 130px;
+                padding: 8px;
+            }
+            
+            .quality-option-btn {
+                padding: 6px 10px;
                 font-size: 0.8rem;
             }
         }
@@ -997,6 +1132,14 @@
                         <i class="fas fa-info-circle"></i> Ads support free streaming
                     </div>
                     
+                    <!-- Quality Selection Panel (Hidden by default) -->
+                    <div class="quality-panel" id="qualityPanel">
+                        <div class="quality-panel-title">Select Quality</div>
+                        <div id="qualityOptionsList">
+                            <!-- Dynamic quality options will be added here -->
+                        </div>
+                    </div>
+                    
                     <!-- Fullscreen Gesture Indicators -->
                     <div class="gesture-indicator brightness-indicator" id="brightnessIndicator">
                         <i class="fas fa-sun"></i>
@@ -1031,16 +1174,20 @@
                         <div class="loader-content">
                             <div class="spinner"></div>
                             <div class="loader-text" id="loadingText">Loading SK4FiLM Player</div>
-                            <div class="loader-subtext" id="loadingSubtext">Preparing HD stream with ads...</div>
+                            <div class="loader-subtext" id="loadingSubtext">
+                                <span id="qualityDetectionText">Detecting available qualities...</span>
+                            </div>
                             <div class="loading-bar">
                                 <div class="loading-progress" id="loadingProgress"></div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Quality Indicator -->
-                    <div class="quality-indicator" id="qualityIndicator">
-                        <i class="fas fa-hd me-1"></i><span id="qualityText">HD</span>
+                    <!-- Quality Indicator with Click Action -->
+                    <div class="quality-indicator" id="qualityIndicator" onclick="toggleQualityPanel()">
+                        <i class="fas fa-hd me-1"></i>
+                        <span id="qualityText">Auto</span>
+                        <i class="fas fa-chevron-down ms-1" style="font-size: 0.6rem;"></i>
                     </div>
                     
                     <!-- Play Overlay -->
@@ -1072,13 +1219,12 @@
                             <div class="progress-thumb" id="progressThumb"></div>
                         </div>
                         
-                        <!-- Quality Selector -->
-                        <select class="quality-selector-controls" id="qualitySelectorControls" onchange="changeQuality(this.value)">
-                            <option value="1080p">1080p FHD</option>
-                            <option value="720p">720p HD</option>
-                            <option value="480p">480p SD</option>
-                            <option value="360p">360p</option>
-                        </select>
+                        <!-- Dynamic Quality Selector -->
+                        <button class="dynamic-quality-selector" id="dynamicQualitySelector" onclick="toggleQualityPanel()">
+                            <i class="fas fa-video me-1"></i>
+                            <span id="selectedQualityText">Auto</span>
+                            <i class="fas fa-chevron-down ms-1"></i>
+                        </button>
                         
                         <button class="control-btn fullscreen-btn" onclick="toggleFullscreen()">
                             <i class="fas fa-expand"></i>
@@ -1090,10 +1236,10 @@
 
         <!-- Content Section -->
         <div class="content-section">
-            <!-- Video Info -->
+            <!-- Video Info with Detected Qualities -->
             <div class="text-center mb-4">
                 <h4 class="mb-2" id="videoTitle">Movie Title</h4>
-                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <div class="d-flex justify-content-center gap-3 flex-wrap mb-2">
                     <span class="badge bg-danger">
                         <i class="fas fa-file me-1"></i> <span id="fileSize">-- MB</span>
                     </span>
@@ -1103,6 +1249,30 @@
                     <span class="badge bg-warning">
                         <i class="fas fa-ad me-1"></i> Ad-Supported
                     </span>
+                </div>
+                
+                <!-- Detected Qualities Display -->
+                <div class="detected-qualities" id="detectedQualities">
+                    <!-- Qualities will be dynamically added -->
+                    <span class="quality-badge quality-1080p" id="badge-1080p" style="display: none;">
+                        <i class="fas fa-check-circle me-1"></i>1080p
+                    </span>
+                    <span class="quality-badge quality-720p" id="badge-720p" style="display: none;">
+                        <i class="fas fa-check-circle me-1"></i>720p
+                    </span>
+                    <span class="quality-badge quality-480p" id="badge-480p" style="display: none;">
+                        <i class="fas fa-check-circle me-1"></i>480p
+                    </span>
+                    <span class="quality-badge quality-360p" id="badge-360p" style="display: none;">
+                        <i class="fas fa-check-circle me-1"></i>360p
+                    </span>
+                </div>
+                
+                <!-- Auto Quality Button -->
+                <div class="mt-3">
+                    <button class="auto-quality-btn" onclick="autoSelectBestQuality()" id="autoQualityBtn">
+                        <i class="fas fa-bolt"></i> Auto Select Best Quality
+                    </button>
                 </div>
             </div>
 
@@ -1117,7 +1287,7 @@
                     <p>Direct server download at maximum speed</p>
                     
                     <div class="quality-buttons-row" id="fastDownloadOptions">
-                        <!-- Quality buttons will be added dynamically -->
+                        <!-- Quality buttons will be added dynamically based on detected qualities -->
                     </div>
                 </div>
                 
@@ -1130,7 +1300,7 @@
                     <p>Download via Telegram bot with resume support</p>
                     
                     <div class="quality-buttons-row" id="telegramDownloadOptions">
-                        <!-- Quality buttons will be added dynamically -->
+                        <!-- Quality buttons will be added dynamically based on detected qualities -->
                     </div>
                 </div>
             </div>
@@ -1217,12 +1387,17 @@
         // Global Variables
         let player = null;
         let isPlaying = false;
-        let currentQuality = '1080p';
+        let currentQuality = 'auto';
         let movieMetadata = {};
         let controlsTimeout = null;
         let controlsVisible = false;
         let currentVideoUrl = '';
         let hasVideoStarted = false;
+        
+        // Quality detection variables
+        let detectedQualities = [];
+        let qualitySizes = {};
+        let qualityTested = false;
         
         // Seek variables
         let isSeeking = false;
@@ -1244,15 +1419,23 @@
         const urlParams = new URLSearchParams(window.location.search);
         const channelId = urlParams.get('channel_id') || '-1001768249569';
         const messageId = urlParams.get('message_id');
-        const initialQuality = urlParams.get('quality') || '1080p';
+        const initialQuality = urlParams.get('quality') || 'auto';
         const movieTitle = urlParams.get('title') || 'SK4FiLM Movie';
         
-        // Quality options
-        const availableQualities = ['1080p', '720p', '480p', '360p'];
+        // Quality patterns for title detection (case insensitive)
+        const QUALITY_PATTERNS = [
+            { pattern: /1080p|fhd|full[\s-]*hd|1920x1080|1080/i, quality: '1080p', order: 4 },
+            { pattern: /720p|hd|1280x720|720/i, quality: '720p', order: 3 },
+            { pattern: /480p|sd|854x480|480/i, quality: '480p', order: 2 },
+            { pattern: /360p|low|640x360|360/i, quality: '360p', order: 1 }
+        ];
+        
+        // All possible qualities (for reference)
+        const ALL_QUALITIES = ['1080p', '720p', '480p', '360p'];
         
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player with Ads Initializing...");
+            console.log("🚀 SK4FiLM Player with Smart Quality Detection Initializing...");
             
             if (!messageId) {
                 showError("No video specified");
@@ -1266,15 +1449,21 @@
                 // Start loading animation
                 startLoadingAnimation();
                 
-                // Set initial title
-                document.getElementById('videoTitle').textContent = decodeURIComponent(movieTitle);
+                // Decode and set title
+                const decodedTitle = decodeURIComponent(movieTitle);
+                document.getElementById('videoTitle').textContent = decodedTitle;
+                
+                // Detect qualities from title
+                await detectQualitiesFromTitle(decodedTitle);
                 
                 // Initialize Video.js Player with IMA3 Ads
                 initializeVideoJS();
                 
-                // Load metadata and video
+                // Load metadata
                 await loadMetadata();
-                await loadVideo(initialQuality);
+                
+                // Load video with detected qualities
+                await loadVideoWithDetectedQualities();
                 
                 // Setup controls
                 setupControls();
@@ -1282,10 +1471,10 @@
                 // Setup fullscreen detection
                 setupFullscreenDetection();
                 
-                // Generate download options
+                // Generate download options based on detected qualities
                 generateDownloadOptions();
                 
-                console.log("✅ Player with Ads Ready!");
+                console.log("✅ Player with Smart Quality Detection Ready!");
                 
             } catch (error) {
                 console.error("Initialization error:", error);
@@ -1293,7 +1482,297 @@
             }
         });
         
-        // Initialize Video.js with IMA3 Ads
+        // ======================= QUALITY DETECTION FUNCTIONS =======================
+        
+        // Detect available qualities from title
+        async function detectQualitiesFromTitle(title) {
+            updateLoadingText("Analyzing title for available qualities...");
+            
+            // First, try to detect from title patterns
+            detectedQualities = [];
+            
+            // Check for quality patterns in title
+            QUALITY_PATTERNS.forEach(({ pattern, quality, order }) => {
+                if (pattern.test(title)) {
+                    if (!detectedQualities.find(q => q.quality === quality)) {
+                        detectedQualities.push({ quality, order });
+                    }
+                }
+            });
+            
+            // If no qualities detected from title, check via API
+            if (detectedQualities.length === 0) {
+                updateLoadingText("Checking server for available qualities...");
+                await detectQualitiesFromAPI();
+            } else {
+                // Sort by quality order (highest first)
+                detectedQualities.sort((a, b) => b.order - a.order);
+                detectedQualities = detectedQualities.map(item => item.quality);
+                
+                updateLoadingText(`Detected qualities: ${detectedQualities.join(', ')}`);
+                updateDetectedQualitiesUI();
+                
+                // Auto-select best (highest) quality
+                currentQuality = detectedQualities[0];
+                updateQualityUI();
+            }
+            
+            // If still no qualities detected, use all qualities as fallback
+            if (detectedQualities.length === 0) {
+                detectedQualities = [...ALL_QUALITIES];
+                currentQuality = '1080p';
+                updateLoadingText("Using default quality options");
+                updateDetectedQualitiesUI();
+                updateQualityUI();
+            }
+        }
+        
+        // Detect qualities from API
+        async function detectQualitiesFromAPI() {
+            try {
+                // Try each API endpoint
+                for (const endpoint of API_ENDPOINTS) {
+                    try {
+                        updateLoadingText(`Checking ${endpoint} for quality info...`);
+                        
+                        // Try to get file info which might include multiple qualities
+                        const infoUrl = `${endpoint}/api/file/info?channel_id=${channelId}&message_id=${messageId}`;
+                        const infoResponse = await fetchWithTimeout(infoUrl, 3000);
+                        const infoData = await infoResponse.json();
+                        
+                        if (infoData.status === 'success' && infoData.file_info) {
+                            // Check if we have multiple quality info
+                            const fileInfo = infoData.file_info;
+                            
+                            // Try to extract qualities from available data
+                            if (fileInfo.available_qualities) {
+                                // If API directly provides available qualities
+                                detectedQualities = fileInfo.available_qualities;
+                                updateLoadingText(`API provided qualities: ${detectedQualities.join(', ')}`);
+                                updateDetectedQualitiesUI();
+                                return;
+                            }
+                            
+                            // Check file name for quality indicators
+                            if (fileInfo.file_name) {
+                                QUALITY_PATTERNS.forEach(({ pattern, quality, order }) => {
+                                    if (pattern.test(fileInfo.file_name)) {
+                                        if (!detectedQualities.includes(quality)) {
+                                            detectedQualities.push(quality);
+                                        }
+                                    }
+                                });
+                                
+                                if (detectedQualities.length > 0) {
+                                    detectedQualities.sort((a, b) => {
+                                        const orderA = QUALITY_PATTERNS.find(p => p.quality === a)?.order || 0;
+                                        const orderB = QUALITY_PATTERNS.find(p => p.quality === b)?.order || 0;
+                                        return orderB - orderA;
+                                    });
+                                    
+                                    updateLoadingText(`API detected qualities: ${detectedQualities.join(', ')}`);
+                                    updateDetectedQualitiesUI();
+                                    return;
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(`Quality detection API ${endpoint} failed:`, error);
+                    }
+                }
+                
+                // If API detection failed, try to test each quality
+                updateLoadingText("Testing individual quality availability...");
+                await testQualityAvailability();
+                
+            } catch (error) {
+                console.error("Quality detection error:", error);
+                // Fallback to all qualities
+                detectedQualities = [...ALL_QUALITIES];
+                updateLoadingText("Using fallback quality options");
+                updateDetectedQualitiesUI();
+            }
+        }
+        
+        // Test each quality by trying to get its URL
+        async function testQualityAvailability() {
+            const testedQualities = [];
+            let progress = 0;
+            
+            // Test each quality
+            for (const quality of ALL_QUALITIES) {
+                try {
+                    updateLoadingText(`Testing ${quality} availability...`);
+                    progress += 25;
+                    document.getElementById('loadingProgress').style.width = `${progress}%`;
+                    
+                    // Try to get URL for this quality
+                    const videoUrl = await getVideoUrl(quality, true); // true = test mode
+                    if (videoUrl) {
+                        testedQualities.push(quality);
+                        console.log(`${quality} ✓ available`);
+                        
+                        // Store file size if available
+                        if (videoUrl.includes('file_size')) {
+                            // Extract file size from URL or response if available
+                        }
+                    }
+                } catch (error) {
+                    console.log(`${quality} ✗ not available`);
+                }
+            }
+            
+            if (testedQualities.length > 0) {
+                detectedQualities = testedQualities;
+                updateLoadingText(`Available qualities: ${detectedQualities.join(', ')}`);
+                updateDetectedQualitiesUI();
+                qualityTested = true;
+            } else {
+                // If none available, use all as fallback
+                detectedQualities = [...ALL_QUALITIES];
+                updateLoadingText("No specific qualities detected, using defaults");
+                updateDetectedQualitiesUI();
+            }
+        }
+        
+        // Update UI to show detected qualities
+        function updateDetectedQualitiesUI() {
+            const container = document.getElementById('detectedQualities');
+            
+            // Show/hide quality badges
+            ALL_QUALITIES.forEach(quality => {
+                const badge = document.getElementById(`badge-${quality}`);
+                if (badge) {
+                    if (detectedQualities.includes(quality)) {
+                        badge.style.display = 'inline-flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            });
+            
+            // Update loading text
+            if (detectedQualities.length > 0) {
+                document.getElementById('qualityDetectionText').textContent = 
+                    `Available: ${detectedQualities.join(', ')}`;
+            }
+            
+            // Generate quality options for the panel
+            generateQualityOptions();
+        }
+        
+        // Generate quality options for selection panel
+        function generateQualityOptions() {
+            const container = document.getElementById('qualityOptionsList');
+            if (!container) return;
+            
+            let html = '';
+            
+            // Auto option
+            const autoSize = qualitySizes['auto'] ? `(${formatSize(qualitySizes['auto'])})` : '';
+            html += `
+                <button class="quality-option-btn ${currentQuality === 'auto' ? 'active' : ''}" 
+                        onclick="changeQuality('auto')">
+                    <div>
+                        <i class="fas fa-bolt me-1"></i> Auto (Best)
+                        <span class="quality-size" id="autoQualitySize">${getAutoQualityText()}</span>
+                    </div>
+                    ${currentQuality === 'auto' ? '<i class="fas fa-check"></i>' : ''}
+                </button>`;
+            
+            // Add each detected quality
+            detectedQualities.forEach(quality => {
+                const size = qualitySizes[quality] ? `(${formatSize(qualitySizes[quality])})` : '';
+                html += `
+                    <button class="quality-option-btn ${currentQuality === quality ? 'active' : ''}" 
+                            onclick="changeQuality('${quality}')">
+                        <div>
+                            <i class="fas fa-video me-1"></i> ${quality}
+                            <span class="quality-size" id="size-${quality}">${size}</span>
+                        </div>
+                        ${currentQuality === quality ? '<i class="fas fa-check"></i>' : ''}
+                    </button>`;
+            });
+            
+            // If no qualities detected, show message
+            if (detectedQualities.length === 0) {
+                html += `<div class="text-center text-muted" style="font-size: 0.8rem; padding: 10px;">
+                    No quality information available
+                </div>`;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Update all quality-related UI elements
+        function updateQualityUI() {
+            // Update quality indicator
+            const qualityText = document.getElementById('qualityText');
+            const selectedQualityText = document.getElementById('selectedQualityText');
+            
+            if (currentQuality === 'auto') {
+                const autoText = getAutoQualityText();
+                qualityText.textContent = autoText;
+                selectedQualityText.textContent = autoText;
+            } else {
+                qualityText.textContent = currentQuality;
+                selectedQualityText.textContent = currentQuality;
+            }
+            
+            // Update quality selector
+            const qualitySelector = document.getElementById('dynamicQualitySelector');
+            if (qualitySelector) {
+                qualitySelector.innerHTML = `
+                    <i class="fas fa-video me-1"></i>
+                    <span id="selectedQualityText">${currentQuality === 'auto' ? getAutoQualityText() : currentQuality}</span>
+                    <i class="fas fa-chevron-down ms-1"></i>
+                `;
+            }
+            
+            // Update quality panel options
+            generateQualityOptions();
+        }
+        
+        // Get text for auto quality
+        function getAutoQualityText() {
+            if (detectedQualities.length > 0) {
+                return `Auto (${detectedQualities[0]})`;
+            }
+            return 'Auto';
+        }
+        
+        // Load video with detected qualities
+        async function loadVideoWithDetectedQualities() {
+            try {
+                let qualityToLoad = currentQuality;
+                
+                if (currentQuality === 'auto' && detectedQualities.length > 0) {
+                    qualityToLoad = detectedQualities[0];
+                }
+                
+                await loadVideo(qualityToLoad);
+                
+            } catch (error) {
+                console.error("Video load error:", error);
+                // Try fallback qualities
+                if (detectedQualities.length > 1) {
+                    for (let i = 1; i < detectedQualities.length; i++) {
+                        try {
+                            showToast(`Trying ${detectedQualities[i]}...`);
+                            await loadVideo(detectedQualities[i]);
+                            break;
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                } else {
+                    loadFallbackVideo();
+                }
+            }
+        }
+        
+        // ======================= VIDEO.JS INITIALIZATION =======================
+        
         function initializeVideoJS() {
             // Create Video.js player
             player = videojs('my-video', {
@@ -1360,108 +1839,226 @@
             player.volume(currentVolume);
         }
         
-        // UNIVERSAL FULLSCREEN FUNCTION
-        function toggleFullscreen() {
-            const videoContainer = document.getElementById('videoContainer');
-            
-            if (!isFullscreen) {
-                // Enter fullscreen
-                if (videoContainer.requestFullscreen) {
-                    videoContainer.requestFullscreen();
-                } else if (videoContainer.webkitRequestFullscreen) {
-                    videoContainer.webkitRequestFullscreen();
-                } else if (videoContainer.mozRequestFullScreen) {
-                    videoContainer.mozRequestFullScreen();
-                } else if (videoContainer.msRequestFullscreen) {
-                    videoContainer.msRequestFullscreen();
-                } else {
-                    // Fallback for browsers that don't support fullscreen API
-                    videoContainer.style.position = 'fixed';
-                    videoContainer.style.top = '0';
-                    videoContainer.style.left = '0';
-                    videoContainer.style.width = '100vw';
-                    videoContainer.style.height = '100vh';
-                    videoContainer.style.zIndex = '999999';
-                    document.body.style.overflow = 'hidden';
-                    isFullscreen = true;
-                    showToast("Fullscreen mode");
-                }
-            } else {
-                // Exit fullscreen
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.mozCancelFullScreen) {
-                    document.mozCancelFullScreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                } else {
-                    // Fallback exit
-                    videoContainer.style.position = 'absolute';
-                    videoContainer.style.top = '0';
-                    videoContainer.style.left = '0';
-                    videoContainer.style.width = '100%';
-                    videoContainer.style.height = '100%';
-                    videoContainer.style.zIndex = '1';
-                    document.body.style.overflow = 'auto';
-                    isFullscreen = false;
-                    showToast("Exited fullscreen");
-                }
-            }
-            
-            showControls();
-        }
+        // ======================= VIDEO LOADING FUNCTIONS =======================
         
-        // Fullscreen detection
-        function setupFullscreenDetection() {
-            document.addEventListener('fullscreenchange', updateFullscreenState);
-            document.addEventListener('webkitfullscreenchange', updateFullscreenState);
-            document.addEventListener('mozfullscreenchange', updateFullscreenState);
-            document.addEventListener('MSFullscreenChange', updateFullscreenState);
-        }
-        
-        function updateFullscreenState() {
-            isFullscreen = !!(document.fullscreenElement || 
-                             document.webkitFullscreenElement || 
-                             document.mozFullScreenElement || 
-                             document.msFullscreenElement);
-            
-            // Update fullscreen button icon
-            const fullscreenIcon = document.querySelector('.fullscreen-btn i');
-            if (fullscreenIcon) {
-                if (isFullscreen) {
-                    fullscreenIcon.classList.remove('fa-expand');
-                    fullscreenIcon.classList.add('fa-compress');
-                } else {
-                    fullscreenIcon.classList.remove('fa-compress');
-                    fullscreenIcon.classList.add('fa-expand');
-                }
-            }
-        }
-        
-        // Fix iOS scrolling
-        function fixIOSScrolling() {
-            if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-                document.body.style.height = '-webkit-fill-available';
-                document.body.style.overflowY = 'scroll';
-                document.body.style.webkitOverflowScrolling = 'touch';
+        async function loadVideo(quality) {
+            try {
+                const videoUrl = await getVideoUrl(quality);
                 
-                document.addEventListener('touchmove', function(e) {
-                    if (isFullscreen) {
-                        e.preventDefault();
+                if (videoUrl) {
+                    // Set source on Video.js player
+                    player.src({ type: 'video/mp4', src: videoUrl });
+                    currentVideoUrl = videoUrl;
+                    
+                    // Update current quality
+                    if (quality !== 'auto') {
+                        currentQuality = quality;
                     }
-                }, { passive: false });
-                
-                window.addEventListener('load', function() {
-                    setTimeout(function() {
-                        window.scrollTo(0, 1);
-                    }, 0);
-                });
+                    
+                    updateQualityUI();
+                    showToast(`Loading ${quality === 'auto' ? getAutoQualityText() : quality}...`);
+                    
+                    // Hide loading animation when video can play
+                    player.one('canplay', () => {
+                        hideLoadingAnimation();
+                    });
+                    
+                } else {
+                    throw new Error("No video URL");
+                }
+            } catch (error) {
+                console.error("Video load error:", error);
+                throw error;
             }
         }
         
-        // Video Event Handlers (adapted for Video.js)
+        async function getVideoUrl(quality, testMode = false) {
+            for (const endpoint of API_ENDPOINTS) {
+                try {
+                    const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
+                    const response = await fetchWithTimeout(apiUrl, testMode ? 2000 : 5000);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' && data.stream_info?.stream_url) {
+                        // Store file size if available
+                        if (data.stream_info.file_size && !qualitySizes[quality]) {
+                            qualitySizes[quality] = data.stream_info.file_size;
+                            
+                            // Update file size display
+                            if (quality === detectedQualities[0] || quality === 'auto') {
+                                document.getElementById('fileSize').textContent = 
+                                    formatSize(data.stream_info.file_size);
+                            }
+                        }
+                        return data.stream_info.stream_url;
+                    }
+                } catch (error) {
+                    if (!testMode) console.warn(`API ${endpoint} failed for ${quality}:`, error);
+                }
+            }
+            return null;
+        }
+        
+        async function loadFallbackVideo() {
+            const fallbackUrl = FALLBACK_VIDEOS[0];
+            
+            movieMetadata = {
+                file_name: 'Sample Movie',
+                file_size: 50000000
+            };
+            
+            updateFileInfo();
+            detectedQualities = ['720p', '480p'];
+            updateDetectedQualitiesUI();
+            currentQuality = '720p';
+            updateQualityUI();
+            currentVideoUrl = fallbackUrl;
+            
+            // Set fallback source on Video.js player
+            player.src({ type: 'video/mp4', src: fallbackUrl });
+            
+            showToast("Playing sample video");
+            hideLoadingAnimation();
+        }
+        
+        // ======================= QUALITY CHANGE FUNCTION =======================
+        
+        async function changeQuality(quality) {
+            // Close quality panel
+            const panel = document.getElementById('qualityPanel');
+            panel.classList.remove('show');
+            document.removeEventListener('click', closeQualityPanelOnClickOutside);
+            
+            if (quality === currentQuality && quality !== 'auto') return;
+            
+            showToast(`Switching to ${quality === 'auto' ? 'auto (best)' : quality}...`);
+            
+            // Store current playback state
+            const wasPlaying = !player.paused();
+            const currentTime = player.currentTime();
+            
+            try {
+                if (quality === 'auto' && detectedQualities.length > 0) {
+                    quality = detectedQualities[0];
+                }
+                
+                await loadVideo(quality);
+                
+                // Restore playback state
+                if (player.duration()) {
+                    player.currentTime(Math.min(currentTime, player.duration()));
+                }
+                if (wasPlaying) {
+                    player.play();
+                }
+                
+                // Update UI
+                updateQualityUI();
+                showToast(`Now playing in ${currentQuality}`);
+                
+            } catch (error) {
+                console.error("Quality change error:", error);
+                showToast("Failed to switch quality");
+            }
+        }
+        
+        // Auto-select best available quality
+        function autoSelectBestQuality() {
+            if (detectedQualities.length > 0) {
+                const bestQuality = detectedQualities[0];
+                changeQuality(bestQuality);
+                showToast(`Auto-selected ${bestQuality} (best available)`);
+            } else {
+                changeQuality('1080p');
+                showToast("Auto-selected 1080p");
+            }
+        }
+        
+        // Toggle quality panel visibility
+        function toggleQualityPanel() {
+            const panel = document.getElementById('qualityPanel');
+            panel.classList.toggle('show');
+            
+            // Close panel when clicking outside
+            if (panel.classList.contains('show')) {
+                setTimeout(() => {
+                    document.addEventListener('click', closeQualityPanelOnClickOutside);
+                }, 10);
+            } else {
+                document.removeEventListener('click', closeQualityPanelOnClickOutside);
+            }
+        }
+        
+        function closeQualityPanelOnClickOutside(event) {
+            const panel = document.getElementById('qualityPanel');
+            const selector = document.getElementById('dynamicQualitySelector');
+            const indicator = document.getElementById('qualityIndicator');
+            
+            if (!panel.contains(event.target) && 
+                !selector.contains(event.target) && 
+                !indicator.contains(event.target)) {
+                panel.classList.remove('show');
+                document.removeEventListener('click', closeQualityPanelOnClickOutside);
+            }
+        }
+        
+        // ======================= DOWNLOAD OPTIONS GENERATION =======================
+        
+        function generateDownloadOptions() {
+            const fastDownloadContainer = document.getElementById('fastDownloadOptions');
+            const telegramDownloadContainer = document.getElementById('telegramDownloadOptions');
+            
+            let fastHtml = '';
+            let telegramHtml = '';
+            
+            // Only generate buttons for detected qualities
+            detectedQualities.forEach(quality => {
+                // Fast Download Link
+                const fastDownloadUrl = `https://sk4film.koyeb.app/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
+                
+                const sizeText = qualitySizes[quality] ? formatSize(qualitySizes[quality]) : 'Direct Download';
+                
+                fastHtml += `
+                <a href="${fastDownloadUrl}" 
+                   target="_blank" 
+                   class="quality-option fast-download-option"
+                   onclick="startFastDownload('${quality}')">
+                    <i class="fas fa-download"></i>
+                    ${quality}<br>
+                    <small>${sizeText}</small>
+                </a>`;
+                
+                // Telegram Download Link
+                const botUsername = 'sk4filmbot';
+                const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
+                const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                
+                telegramHtml += `
+                <a href="${telegramUrl}" 
+                   target="_blank" 
+                   class="quality-option telegram-option"
+                   onclick="startTelegramDownload('${quality}')">
+                    <i class="fab fa-telegram"></i>
+                    ${quality}<br>
+                    <small>Telegram Bot</small>
+                </a>`;
+            });
+            
+            // If no download options, show message
+            if (fastHtml === '') {
+                fastHtml = '<p class="text-muted" style="font-size: 0.9rem;">No download options available for this video</p>';
+            }
+            
+            if (telegramHtml === '') {
+                telegramHtml = '<p class="text-muted" style="font-size: 0.9rem;">No Telegram options available</p>';
+            }
+            
+            fastDownloadContainer.innerHTML = fastHtml;
+            telegramDownloadContainer.innerHTML = telegramHtml;
+        }
+        
+        // ======================= VIDEO EVENT HANDLERS =======================
+        
         function onVideoMetadataLoaded() {
             console.log("Video metadata loaded");
             updateDurationDisplay();
@@ -1516,7 +2113,8 @@
             document.getElementById('playOverlay').classList.add('hidden');
         }
         
-        // Loading Animation
+        // ======================= LOADING ANIMATION =======================
+        
         function startLoadingAnimation() {
             let progress = 0;
             const interval = setInterval(() => {
@@ -1552,111 +2150,19 @@
         }
         
         function hideLoadingAnimation() {
-            document.getElementById('playerLoader').classList.add('hidden');
+            setTimeout(() => {
+                document.getElementById('playerLoader').classList.add('hidden');
+            }, 500);
         }
         
-        // Video Loading
-        async function loadVideo(quality) {
-            try {
-                const videoUrl = await getVideoUrl(quality);
-                
-                if (videoUrl) {
-                    // Set source on Video.js player
-                    player.src({ type: 'video/mp4', src: videoUrl });
-                    currentVideoUrl = videoUrl;
-                    
-                    currentQuality = quality;
-                    updateQualityIndicator(quality);
-                    updateQualitySelector(quality);
-                    
-                } else {
-                    throw new Error("No video URL");
-                }
-            } catch (error) {
-                console.error("Video load error:", error);
-                loadFallbackVideo();
-            }
-        }
-        
-        async function getVideoUrl(quality) {
-            for (const endpoint of API_ENDPOINTS) {
-                try {
-                    const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                    const response = await fetchWithTimeout(apiUrl, 3000);
-                    const data = await response.json();
-                    
-                    if (data.status === 'success' && data.stream_info?.stream_url) {
-                        return data.stream_info.stream_url;
-                    }
-                } catch (error) {
-                    console.warn(`API ${endpoint} failed:`, error);
-                }
-            }
-            return null;
-        }
-        
-        async function loadFallbackVideo() {
-            const fallbackUrl = FALLBACK_VIDEOS[0];
-            
-            movieMetadata = {
-                file_name: 'Sample Movie',
-                file_size: 50000000
-            };
-            
-            updateFileInfo();
-            updateQualityIndicator('HD');
-            currentVideoUrl = fallbackUrl;
-            
-            // Set fallback source on Video.js player
-            player.src({ type: 'video/mp4', src: fallbackUrl });
-            
-            showToast("Playing sample video");
-        }
-        
-        // Generate Download Options
-        function generateDownloadOptions() {
-            const fastDownloadContainer = document.getElementById('fastDownloadOptions');
-            const telegramDownloadContainer = document.getElementById('telegramDownloadOptions');
-            
-            let fastHtml = '';
-            let telegramHtml = '';
-            
-            availableQualities.forEach(quality => {
-                // Fast Download Link
-                const fastDownloadUrl = `https://sk4film.koyeb.app/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                
-                fastHtml += `
-                <a href="${fastDownloadUrl}" 
-                   target="_blank" 
-                   class="quality-option fast-download-option"
-                   onclick="startFastDownload('${quality}')">
-                    <i class="fas fa-download"></i>
-                    ${quality}<br>
-                    <small>Direct Download</small>
-                </a>`;
-                
-                // Telegram Download Link
-                const botUsername = 'sk4filmbot';
-                const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
-                const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
-                
-                telegramHtml += `
-                <a href="${telegramUrl}" 
-                   target="_blank" 
-                   class="quality-option telegram-option"
-                   onclick="startTelegramDownload('${quality}')">
-                    <i class="fab fa-telegram"></i>
-                    ${quality}<br>
-                    <small>Telegram Bot</small>
-                </a>`;
-            });
-            
-            fastDownloadContainer.innerHTML = fastHtml;
-            telegramDownloadContainer.innerHTML = telegramHtml;
-        }
+        // ======================= DOWNLOAD FUNCTIONS =======================
         
         // Start Fast Download
         async function startFastDownload(quality = currentQuality) {
+            if (quality === 'auto' && detectedQualities.length > 0) {
+                quality = detectedQualities[0];
+            }
+            
             showToast(`Preparing ${quality} download...`);
             
             try {
@@ -1691,6 +2197,10 @@
         
         // Start Telegram Download
         function startTelegramDownload(quality = currentQuality) {
+            if (quality === 'auto' && detectedQualities.length > 0) {
+                quality = detectedQualities[0];
+            }
+            
             const botUsername = 'sk4filmbot';
             const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
             const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
@@ -1698,7 +2208,8 @@
             showToast(`Opening Telegram for ${quality} download...`);
         }
         
-        // External Player Functions
+        // ======================= EXTERNAL PLAYER FUNCTIONS =======================
+        
         function openInVLC() {
             if (currentVideoUrl) {
                 const vlcUrl = `vlc://${currentVideoUrl}`;
@@ -1742,169 +2253,138 @@
             }
         }
         
-        // Fullscreen Gesture Controls
-        function handleTouchStart(event) {
-            if (!isFullscreen) return;
+        // ======================= UNIVERSAL FULLSCREEN FUNCTION =======================
+        
+        function toggleFullscreen() {
+            const videoContainer = document.getElementById('videoContainer');
             
-            const now = Date.now();
-            if (now - lastGestureTime < gestureCooldown) return;
-            
-            const touches = event.touches;
-            
-            if (touches.length === 1) {
-                const touch = touches[0];
-                const videoRect = player.el().getBoundingClientRect();
-                const touchX = touch.clientX - videoRect.left;
-                const touchY = touch.clientY - videoRect.top;
-                
-                const isLeftSide = touchX < videoRect.width * 0.3;
-                const isRightSide = touchX > videoRect.width * 0.7;
-                
-                if (isLeftSide || isRightSide) {
-                    isGestureActive = true;
-                    initialTouchY1 = touch.clientY;
-                    
-                    if (isLeftSide) {
-                        showGestureIndicator('brightness');
-                    } else if (isRightSide) {
-                        showGestureIndicator('volume');
-                    }
-                    
-                    event.preventDefault();
+            if (!isFullscreen) {
+                // Enter fullscreen
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) {
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.mozRequestFullScreen) {
+                    videoContainer.mozRequestFullScreen();
+                } else if (videoContainer.msRequestFullscreen) {
+                    videoContainer.msRequestFullscreen();
+                } else {
+                    // Fallback for browsers that don't support fullscreen API
+                    videoContainer.style.position = 'fixed';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100vw';
+                    videoContainer.style.height = '100vh';
+                    videoContainer.style.zIndex = '999999';
+                    document.body.style.overflow = 'hidden';
+                    isFullscreen = true;
+                    showToast("Fullscreen mode");
                 }
-            }
-            else if (touches.length === 2) {
-                isGestureActive = true;
-                const touch1 = touches[0];
-                const touch2 = touches[1];
-                
-                initialTouchY1 = touch1.clientY;
-                initialTouchY2 = touch2.clientY;
-                initialDistance = getDistance(touch1, touch2);
-                
-                event.preventDefault();
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                } else {
+                    // Fallback exit
+                    videoContainer.style.position = 'absolute';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100%';
+                    videoContainer.style.height = '100%';
+                    videoContainer.style.zIndex = '1';
+                    document.body.style.overflow = 'auto';
+                    isFullscreen = false;
+                    showToast("Exited fullscreen");
+                }
             }
             
             showControls();
         }
         
-        function handleTouchMove(event) {
-            if (!isFullscreen || !isGestureActive) return;
+        // ======================= CONTROLS MANAGEMENT =======================
+        
+        function togglePlay() {
+            if (player.paused()) {
+                // Request ads before playing
+                player.ima.requestAds();
+                player.play();
+            } else {
+                player.pause();
+            }
+            showControls();
+        }
+        
+        function updatePlayButton() {
+            const playIcon = document.getElementById('playIcon');
             
-            const touches = event.touches;
+            if (isPlaying) {
+                playIcon.classList.remove('fa-play');
+                playIcon.classList.add('fa-pause');
+            } else {
+                playIcon.classList.remove('fa-pause');
+                playIcon.classList.add('fa-play');
+            }
+        }
+        
+        function updateProgress() {
+            if (isSeeking) return;
             
-            if (touches.length === 1) {
-                const touch = touches[0];
-                const videoRect = player.el().getBoundingClientRect();
-                const touchX = touch.clientX - videoRect.left;
+            const currentTime = player.currentTime();
+            const duration = player.duration();
+            
+            if (duration > 0) {
+                const progressPercent = (currentTime / duration) * 100;
+                document.getElementById('progressBar').style.width = `${progressPercent}%`;
                 
-                const isLeftSide = touchX < videoRect.width * 0.3;
-                const isRightSide = touchX > videoRect.width * 0.7;
+                document.getElementById('progressThumb').style.left = `${progressPercent}%`;
                 
-                if (isLeftSide) {
-                    const deltaY = initialTouchY1 - touch.clientY;
-                    adjustBrightness(deltaY);
-                    initialTouchY1 = touch.clientY;
-                } 
-                else if (isRightSide) {
-                    const deltaY = initialTouchY1 - touch.clientY;
-                    adjustVolume(deltaY);
-                    initialTouchY1 = touch.clientY;
+                document.getElementById('currentTime').textContent = formatTime(currentTime);
+                document.getElementById('duration').textContent = formatTime(duration);
+            }
+        }
+        
+        function updateBuffer() {
+            if (player.buffered() && player.buffered().length > 0) {
+                const duration = player.duration();
+                if (duration > 0) {
+                    const bufferedEnd = player.buffered().end(player.buffered().length - 1);
+                    const bufferPercent = (bufferedEnd / duration) * 100;
+                    document.getElementById('bufferBar').style.width = `${bufferPercent}%`;
                 }
-                
-                event.preventDefault();
-            }
-            else if (touches.length === 2) {
-                const touch1 = touches[0];
-                const touch2 = touches[1];
-                const currentDistance = getDistance(touch1, touch2);
-                
-                const zoomFactor = currentDistance / initialDistance;
-                
-                if (zoomFactor > 1.2) {
-                    player.el().querySelector('video').style.objectFit = 'cover';
-                    showToast("Zoom: Fill Screen");
-                    initialDistance = currentDistance;
-                } 
-                else if (zoomFactor < 0.8) {
-                    player.el().querySelector('video').style.objectFit = 'contain';
-                    showToast("Zoom: Fit Screen");
-                    initialDistance = currentDistance;
-                }
-                
-                event.preventDefault();
             }
         }
         
-        function handleTouchEnd(event) {
-            if (!isFullscreen) return;
-            
-            if (isGestureActive) {
-                isGestureActive = false;
-                lastGestureTime = Date.now();
-                
-                hideGestureIndicators();
-                hideControlsWithDelay();
-                
-                event.preventDefault();
+        function updateDurationDisplay() {
+            const duration = player.duration();
+            if (duration > 0) {
+                document.getElementById('duration').textContent = formatTime(duration);
             }
         }
         
-        // Gesture Helper Functions
-        function getDistance(touch1, touch2) {
-            const dx = touch1.clientX - touch2.clientX;
-            const dy = touch1.clientY - touch2.clientY;
-            return Math.sqrt(dx * dx + dy * dy);
+        function updateQualityIndicator(quality) {
+            const qualityText = document.getElementById('qualityText');
+            const qualityNames = {
+                '1080p': 'FHD',
+                '720p': 'HD',
+                '480p': 'SD',
+                '360p': '360p',
+                'auto': 'Auto'
+            };
+            qualityText.textContent = qualityNames[quality] || quality;
         }
         
-        function adjustBrightness(deltaY) {
-            const sensitivity = 0.005;
-            currentBrightness += deltaY * sensitivity;
-            currentBrightness = Math.max(0.0, Math.min(1.0, currentBrightness));
-            
-            updateVideoBrightness();
-            
-            document.getElementById('brightnessValue').textContent = 
-                `${Math.round(currentBrightness * 100)}%`;
-            document.getElementById('brightnessIndicator').classList.add('show');
+        function updateFileInfo() {
+            document.getElementById('fileSize').textContent = 
+                formatSize(movieMetadata.file_size || 1500000000);
         }
         
-        function adjustVolume(deltaY) {
-            const sensitivity = 0.005;
-            currentVolume += deltaY * sensitivity;
-            currentVolume = Math.max(0.0, Math.min(1.0, currentVolume));
-            
-            player.volume(currentVolume);
-            
-            document.getElementById('volumeValue').textContent = 
-                `${Math.round(currentVolume * 100)}%`;
-            document.getElementById('volumeIndicator').classList.add('show');
-        }
-        
-        function updateVideoBrightness() {
-            // Video.js doesn't have direct brightness control
-            // This would need a canvas overlay or WebGL shader for proper brightness control
-            // For now, we'll adjust the video element's filter
-            const videoElement = player.el().querySelector('video');
-            if (videoElement) {
-                videoElement.style.filter = `brightness(${currentBrightness})`;
-            }
-        }
-        
-        function showGestureIndicator(type) {
-            if (type === 'brightness') {
-                document.getElementById('brightnessIndicator').classList.add('show');
-            } else if (type === 'volume') {
-                document.getElementById('volumeIndicator').classList.add('show');
-            }
-        }
-        
-        function hideGestureIndicators() {
-            document.getElementById('brightnessIndicator').classList.remove('show');
-            document.getElementById('volumeIndicator').classList.remove('show');
-        }
-        
-        // Enhanced Seek Video Functions (adapted for Video.js)
+        // Seek functions
         function startSeeking(event) {
             isSeeking = true;
             showControls();
@@ -2023,120 +2503,8 @@
             }, 3000);
         }
         
-        // Control Functions
-        function togglePlay() {
-            if (player.paused()) {
-                // Request ads before playing
-                player.ima.requestAds();
-                player.play();
-            } else {
-                player.pause();
-            }
-            showControls();
-        }
+        // ======================= METADATA LOADING =======================
         
-        async function changeQuality(quality) {
-            if (quality === currentQuality) return;
-            
-            showToast(`Switching to ${quality}...`);
-            
-            try {
-                const videoUrl = await getVideoUrl(quality);
-                
-                if (videoUrl) {
-                    const currentTime = player.currentTime();
-                    
-                    player.src({ type: 'video/mp4', src: videoUrl });
-                    currentVideoUrl = videoUrl;
-                    
-                    player.one('loadedmetadata', () => {
-                        player.currentTime(Math.min(currentTime, player.duration()));
-                        if (isPlaying) {
-                            player.play();
-                        }
-                    });
-                    
-                    currentQuality = quality;
-                    updateQualityIndicator(quality);
-                    
-                } else {
-                    showToast(`Quality ${quality} not available`);
-                }
-            } catch (error) {
-                console.error("Quality switch error:", error);
-                showToast("Failed to switch quality");
-            }
-        }
-        
-        // UI Update Functions
-        function updateProgress() {
-            if (isSeeking) return;
-            
-            const currentTime = player.currentTime();
-            const duration = player.duration();
-            
-            if (duration > 0) {
-                const progressPercent = (currentTime / duration) * 100;
-                document.getElementById('progressBar').style.width = `${progressPercent}%`;
-                
-                document.getElementById('progressThumb').style.left = `${progressPercent}%`;
-                
-                document.getElementById('currentTime').textContent = formatTime(currentTime);
-                document.getElementById('duration').textContent = formatTime(duration);
-            }
-        }
-        
-        function updateBuffer() {
-            if (player.buffered() && player.buffered().length > 0) {
-                const duration = player.duration();
-                if (duration > 0) {
-                    const bufferedEnd = player.buffered().end(player.buffered().length - 1);
-                    const bufferPercent = (bufferedEnd / duration) * 100;
-                    document.getElementById('bufferBar').style.width = `${bufferPercent}%`;
-                }
-            }
-        }
-        
-        function updateDurationDisplay() {
-            const duration = player.duration();
-            if (duration > 0) {
-                document.getElementById('duration').textContent = formatTime(duration);
-            }
-        }
-        
-        function updatePlayButton() {
-            const playIcon = document.getElementById('playIcon');
-            
-            if (isPlaying) {
-                playIcon.classList.remove('fa-play');
-                playIcon.classList.add('fa-pause');
-            } else {
-                playIcon.classList.remove('fa-pause');
-                playIcon.classList.add('fa-play');
-            }
-        }
-        
-        function updateQualityIndicator(quality) {
-            const qualityText = document.getElementById('qualityText');
-            const qualityNames = {
-                '1080p': 'FHD',
-                '720p': 'HD',
-                '480p': 'SD',
-                '360p': '360p'
-            };
-            qualityText.textContent = qualityNames[quality] || quality;
-        }
-        
-        function updateQualitySelector(quality) {
-            document.getElementById('qualitySelectorControls').value = quality;
-        }
-        
-        function updateFileInfo() {
-            document.getElementById('fileSize').textContent = 
-                formatSize(movieMetadata.file_size || 1500000000);
-        }
-        
-        // Metadata
         async function loadMetadata() {
             try {
                 const apiUrl = `${API_ENDPOINTS[0]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
@@ -2161,9 +2529,10 @@
             }
         }
         
-        // Helper Functions
+        // ======================= HELPER FUNCTIONS =======================
+        
         function formatTime(seconds) {
-            if (!isFinite(seconds)) return '0:00';
+            if (!isFinite(seconds) || isNaN(seconds)) return '0:00';
             
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
@@ -2213,6 +2582,9 @@
             videoContainer.addEventListener('mousemove', showControls);
             videoContainer.addEventListener('mouseleave', hideControls);
             
+            // Fullscreen change detection
+            setupFullscreenDetection();
+            
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -2246,13 +2618,217 @@
             });
         }
         
+        function setupFullscreenDetection() {
+            document.addEventListener('fullscreenchange', updateFullscreenState);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenState);
+            document.addEventListener('mozfullscreenchange', updateFullscreenState);
+            document.addEventListener('MSFullscreenChange', updateFullscreenState);
+        }
+        
+        function updateFullscreenState() {
+            isFullscreen = !!(document.fullscreenElement || 
+                             document.webkitFullscreenElement || 
+                             document.mozFullScreenElement || 
+                             document.msFullscreenElement);
+            
+            // Update fullscreen button icon
+            const fullscreenIcon = document.querySelector('.fullscreen-btn i');
+            if (fullscreenIcon) {
+                if (isFullscreen) {
+                    fullscreenIcon.classList.remove('fa-expand');
+                    fullscreenIcon.classList.add('fa-compress');
+                } else {
+                    fullscreenIcon.classList.remove('fa-compress');
+                    fullscreenIcon.classList.add('fa-expand');
+                }
+            }
+        }
+        
+        function fixIOSScrolling() {
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+                document.body.style.height = '-webkit-fill-available';
+                document.body.style.overflowY = 'scroll';
+                document.body.style.webkitOverflowScrolling = 'touch';
+                
+                document.addEventListener('touchmove', function(e) {
+                    if (isFullscreen) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                window.addEventListener('load', function() {
+                    setTimeout(function() {
+                        window.scrollTo(0, 1);
+                    }, 0);
+                });
+            }
+        }
+        
+        // Gesture controls functions (for fullscreen)
+        function handleTouchStart(event) {
+            if (!isFullscreen) return;
+            
+            const now = Date.now();
+            if (now - lastGestureTime < gestureCooldown) return;
+            
+            const touches = event.touches;
+            
+            if (touches.length === 1) {
+                const touch = touches[0];
+                const videoRect = player.el().getBoundingClientRect();
+                const touchX = touch.clientX - videoRect.left;
+                
+                const isLeftSide = touchX < videoRect.width * 0.3;
+                const isRightSide = touchX > videoRect.width * 0.7;
+                
+                if (isLeftSide || isRightSide) {
+                    isGestureActive = true;
+                    initialTouchY1 = touch.clientY;
+                    
+                    if (isLeftSide) {
+                        showGestureIndicator('brightness');
+                    } else if (isRightSide) {
+                        showGestureIndicator('volume');
+                    }
+                    
+                    event.preventDefault();
+                }
+            }
+            else if (touches.length === 2) {
+                isGestureActive = true;
+                const touch1 = touches[0];
+                const touch2 = touches[1];
+                
+                initialTouchY1 = touch1.clientY;
+                initialTouchY2 = touch2.clientY;
+                initialDistance = getDistance(touch1, touch2);
+                
+                event.preventDefault();
+            }
+            
+            showControls();
+        }
+        
+        function handleTouchMove(event) {
+            if (!isFullscreen || !isGestureActive) return;
+            
+            const touches = event.touches;
+            
+            if (touches.length === 1) {
+                const touch = touches[0];
+                const videoRect = player.el().getBoundingClientRect();
+                const touchX = touch.clientX - videoRect.left;
+                
+                const isLeftSide = touchX < videoRect.width * 0.3;
+                const isRightSide = touchX > videoRect.width * 0.7;
+                
+                if (isLeftSide) {
+                    const deltaY = initialTouchY1 - touch.clientY;
+                    adjustBrightness(deltaY);
+                    initialTouchY1 = touch.clientY;
+                } 
+                else if (isRightSide) {
+                    const deltaY = initialTouchY1 - touch.clientY;
+                    adjustVolume(deltaY);
+                    initialTouchY1 = touch.clientY;
+                }
+                
+                event.preventDefault();
+            }
+            else if (touches.length === 2) {
+                const touch1 = touches[0];
+                const touch2 = touches[1];
+                const currentDistance = getDistance(touch1, touch2);
+                
+                const zoomFactor = currentDistance / initialDistance;
+                
+                if (zoomFactor > 1.2) {
+                    player.el().querySelector('video').style.objectFit = 'cover';
+                    showToast("Zoom: Fill Screen");
+                    initialDistance = currentDistance;
+                } 
+                else if (zoomFactor < 0.8) {
+                    player.el().querySelector('video').style.objectFit = 'contain';
+                    showToast("Zoom: Fit Screen");
+                    initialDistance = currentDistance;
+                }
+                
+                event.preventDefault();
+            }
+        }
+        
+        function handleTouchEnd(event) {
+            if (!isFullscreen) return;
+            
+            if (isGestureActive) {
+                isGestureActive = false;
+                lastGestureTime = Date.now();
+                
+                hideGestureIndicators();
+                hideControlsWithDelay();
+                
+                event.preventDefault();
+            }
+        }
+        
+        function getDistance(touch1, touch2) {
+            const dx = touch1.clientX - touch2.clientX;
+            const dy = touch1.clientY - touch2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        function adjustBrightness(deltaY) {
+            const sensitivity = 0.005;
+            currentBrightness += deltaY * sensitivity;
+            currentBrightness = Math.max(0.0, Math.min(1.0, currentBrightness));
+            
+            updateVideoBrightness();
+            
+            document.getElementById('brightnessValue').textContent = 
+                `${Math.round(currentBrightness * 100)}%`;
+            document.getElementById('brightnessIndicator').classList.add('show');
+        }
+        
+        function adjustVolume(deltaY) {
+            const sensitivity = 0.005;
+            currentVolume += deltaY * sensitivity;
+            currentVolume = Math.max(0.0, Math.min(1.0, currentVolume));
+            
+            player.volume(currentVolume);
+            
+            document.getElementById('volumeValue').textContent = 
+                `${Math.round(currentVolume * 100)}%`;
+            document.getElementById('volumeIndicator').classList.add('show');
+        }
+        
+        function updateVideoBrightness() {
+            const videoElement = player.el().querySelector('video');
+            if (videoElement) {
+                videoElement.style.filter = `brightness(${currentBrightness})`;
+            }
+        }
+        
+        function showGestureIndicator(type) {
+            if (type === 'brightness') {
+                document.getElementById('brightnessIndicator').classList.add('show');
+            } else if (type === 'volume') {
+                document.getElementById('volumeIndicator').classList.add('show');
+            }
+        }
+        
+        function hideGestureIndicators() {
+            document.getElementById('brightnessIndicator').classList.remove('show');
+            document.getElementById('volumeIndicator').classList.remove('show');
+        }
+        
         function showError(message) {
             showToast(message, 5000);
             document.getElementById('loadingText').textContent = "Error Loading Player";
             document.getElementById('loadingSubtext').textContent = message;
         }
         
-        // Export functions for global access
+        // ======================= EXPORT FUNCTIONS =======================
+        
         window.togglePlay = togglePlay;
         window.changeQuality = changeQuality;
         window.toggleFullscreen = toggleFullscreen;
@@ -2268,8 +2844,10 @@
         window.startSeeking = startSeeking;
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
+        window.toggleQualityPanel = toggleQualityPanel;
+        window.autoSelectBestQuality = autoSelectBestQuality;
         
-        console.log("🎬 SK4FiLM Player with Ads Ready!");
+        console.log("🎬 SK4FiLM Player with Complete Quality Detection Ready!");
     </script>
 </body>
 </html>
