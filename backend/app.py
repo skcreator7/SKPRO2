@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.2 - FULLY FIXED WITH PERFORMANCE OPTIMIZATIONS
+# 🚀 SK4FiLM v9.1 - STREAMING & DOWNLOAD SUPPORT WITH EMERGENCY FIXES
 # ============================================================================
 
 import asyncio
@@ -19,7 +19,7 @@ from collections import defaultdict
 from functools import lru_cache, wraps
 import urllib.parse
 import aiohttp
-from quart import Quart, jsonify, request, Response, send_file, redirect
+from quart import Quart, jsonify, request, Response, send_file
 from hypercorn.asyncio import serve
 from hypercorn.config import Config as HyperConfig
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -207,14 +207,13 @@ except ImportError as e:
         return (datetime.now() - date).days < 7
 
 # ============================================================================
-# ✅ PERFORMANCE MONITOR WITH OPTIMIZATIONS
+# ✅ PERFORMANCE MONITOR
 # ============================================================================
 
 class PerformanceMonitor:
     def __init__(self):
         self.measurements = {}
         self.request_times = {}
-        self.slow_threshold = 1.0  # 1 second threshold
     
     def measure(self, name):
         def decorator(func):
@@ -225,11 +224,6 @@ class PerformanceMonitor:
                 elapsed = time.perf_counter() - start
                 
                 self._record(name, elapsed)
-                
-                # Log warning if too slow
-                if elapsed > self.slow_threshold:
-                    logger.warning(f"⏱️ {name} took {elapsed:.3f}s - OPTIMIZATION NEEDED")
-                
                 return result
             
             @wraps(func)
@@ -251,8 +245,7 @@ class PerformanceMonitor:
                 'total': 0,
                 'avg': 0,
                 'max': 0,
-                'min': float('inf'),
-                'slow_count': 0
+                'min': float('inf')
             }
         
         stats = self.measurements[name]
@@ -262,8 +255,8 @@ class PerformanceMonitor:
         stats['max'] = max(stats['max'], elapsed)
         stats['min'] = min(stats['min'], elapsed)
         
-        if elapsed > self.slow_threshold:
-            stats['slow_count'] += 1
+        if elapsed > 0.5:
+            logger.warning(f"⏱️ {name} took {elapsed:.3f}s")
     
     def get_stats(self):
         return self.measurements
@@ -271,7 +264,7 @@ class PerformanceMonitor:
 performance_monitor = PerformanceMonitor()
 
 # ============================================================================
-# ✅ CONFIGURATION - OPTIMIZED WITH PERFORMANCE SETTINGS
+# ✅ CONFIGURATION - UPDATED WITH SAFE DEFAULTS
 # ============================================================================
 
 class Config:
@@ -322,10 +315,10 @@ class Config:
     TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "e547e17d4e91f3e62a571655cd1ccaff")
     OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "8265bd1c")
     
-    # PERFORMANCE OPTIMIZATION SETTINGS
-    MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "30"))  # Reduced
-    CACHE_TTL = int(os.environ.get("CACHE_TTL", "600"))  # Increased
-    REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "15"))  # Increased
+    # Performance Settings
+    MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
+    CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
+    REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
     
     # Sync Management Settings
     MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", "300"))
@@ -338,20 +331,20 @@ class Config:
     FALLBACK_POSTER = "https://iili.io/fAeIwv9.th.png"
     
     # Thumbnail Settings
-    THUMBNAIL_EXTRACT_TIMEOUT = 15  # Increased
+    THUMBNAIL_EXTRACT_TIMEOUT = 10
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
     
-    # 🔥 FILE CHANNEL INDEXING SETTINGS - OPTIMIZED
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "1800"))  # 30 minutes
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "50"))  # Smaller batches
+    # 🔥 FILE CHANNEL INDEXING SETTINGS - UPDATED FOR SAFETY
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "600"))  # 10 minutes
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "100"))  # Smaller batches
     MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "false").lower() == "true"
-    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "false").lower() == "true"
+    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "false").lower() == "true"  # CHANGED TO FALSE
+    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "false").lower() == "true"  # CHANGED TO FALSE
     
-    # 🔥 SEARCH SETTINGS - OPTIMIZED
+    # 🔥 SEARCH SETTINGS
     SEARCH_MIN_QUERY_LENGTH = 2
     SEARCH_RESULTS_PER_PAGE = 12
-    SEARCH_CACHE_TTL = 1200  # Increased to 20 minutes
+    SEARCH_CACHE_TTL = 600
     
     # 🔥 STREAMING SETTINGS
     STREAMING_ENABLED = os.environ.get("STREAMING_ENABLED", "true").lower() == "true"
@@ -359,45 +352,29 @@ class Config:
     MAX_STREAM_SIZE = 2 * 1024 * 1024 * 1024
     STREAM_CHUNK_SIZE = 1024 * 1024
     
-    # 🔥 RATE LIMITING SETTINGS - OPTIMIZED
-    TELEGRAM_API_RATE_LIMIT = float(os.environ.get("TELEGRAM_API_RATE_LIMIT", "0.3"))  # Reduced
-    MIN_BATCH_DELAY = int(os.environ.get("MIN_BATCH_DELAY", "10"))  # Increased
-    
-    # 🔥 NEW: PERFORMANCE SETTINGS
-    ENABLE_AGGRESSIVE_CACHING = os.environ.get("ENABLE_AGGRESSIVE_CACHING", "true").lower() == "true"
-    CACHE_HOME_MOVIES_FOR = int(os.environ.get("CACHE_HOME_MOVIES_FOR", "300"))  # 5 minutes
-    CACHE_SEARCH_RESULTS_FOR = int(os.environ.get("CACHE_SEARCH_RESULTS_FOR", "600"))  # 10 minutes
-    MAX_PARALLEL_POSTER_REQUESTS = int(os.environ.get("MAX_PARALLEL_POSTER_REQUESTS", "5"))  # Reduced
+    # 🔥 NEW: RATE LIMITING SETTINGS
+    TELEGRAM_API_RATE_LIMIT = float(os.environ.get("TELEGRAM_API_RATE_LIMIT", "0.5"))  # 2 seconds between calls
+    MIN_BATCH_DELAY = int(os.environ.get("MIN_BATCH_DELAY", "5"))  # 5 seconds between batches
 
 # ============================================================================
-# ✅ RATE LIMITER - OPTIMIZED
+# ✅ RATE LIMITER - NEW
 # ============================================================================
 
 class RateLimiter:
-    def __init__(self, calls_per_second=0.3):
+    def __init__(self, calls_per_second=0.5):
         self.calls_per_second = calls_per_second
         self.last_call = 0
         self.lock = asyncio.Lock()
-        self.queue_size = 0
     
     async def wait_if_needed(self):
         async with self.lock:
-            self.queue_size += 1
-            if self.queue_size > 5:
-                logger.warning(f"⚠️ High rate limit queue: {self.queue_size}")
-            
             now = time.time()
             time_since_last = now - self.last_call
             if time_since_last < 1.0 / self.calls_per_second:
                 wait_time = (1.0 / self.calls_per_second) - time_since_last
-                if wait_time > 0.5:
-                    logger.debug(f"⏳ Rate limiting: waiting {wait_time:.2f}s")
+                logger.debug(f"⏳ Rate limiting: waiting {wait_time:.2f}s")
                 await asyncio.sleep(wait_time)
             self.last_call = time.time()
-            self.queue_size -= 1
-    
-    def get_queue_size(self):
-        return self.queue_size
 
 telegram_rate_limiter = RateLimiter(calls_per_second=Config.TELEGRAM_API_RATE_LIMIT)
 
@@ -412,15 +389,10 @@ app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 @app.after_request
 async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, HEAD'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.2-PERFORMANCE-OPTIMIZED'
+    response.headers['X-SK4FiLM-Version'] = '9.1-EMERGENCY-FIXED'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
-    
-    # Add cache headers for performance
-    if request.path in ['/api/movies', '/api/search', '/']:
-        response.headers['Cache-Control'] = f'public, max-age={Config.CACHE_TTL}'
-    
     return response
 
 # ============================================================================
@@ -457,7 +429,7 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ BOT HANDLER MODULE - OPTIMIZED WITH ERROR RECOVERY
+# ✅ BOT HANDLER MODULE - UPDATED WITH RATE LIMITING
 # ============================================================================
 
 class BotHandler:
@@ -469,8 +441,6 @@ class BotHandler:
         self.initialized = False
         self.last_update = None
         self.bot_username = None
-        self.error_count = 0
-        self.max_errors = 5
         
     async def initialize(self):
         if not self.bot_token or not self.api_id or not self.api_hash:
@@ -498,7 +468,7 @@ class BotHandler:
                 api_id=self.api_id,
                 api_hash=self.api_hash,
                 bot_token=self.bot_token,
-                sleep_threshold=60,  # Increased
+                sleep_threshold=30,
                 in_memory=True,
                 no_updates=True
             )
@@ -509,7 +479,6 @@ class BotHandler:
             logger.info(f"✅ Bot Handler Ready: @{self.bot_username}")
             self.initialized = True
             self.last_update = datetime.now()
-            self.error_count = 0
             
             asyncio.create_task(self._periodic_tasks())
             
@@ -517,7 +486,6 @@ class BotHandler:
             
         except Exception as e:
             logger.error(f"❌ Bot handler initialization error: {e}")
-            self.error_count += 1
             return False
     
     async def _periodic_tasks(self):
@@ -525,27 +493,15 @@ class BotHandler:
             try:
                 self.last_update = datetime.now()
                 
-                # Check connection
                 try:
-                    await telegram_rate_limiter.wait_if_needed()
                     await self.bot.get_me()
-                    self.error_count = 0  # Reset on success
-                except Exception as e:
-                    self.error_count += 1
-                    logger.warning(f"⚠️ Bot session check error #{self.error_count}: {e}")
-                    
-                    if self.error_count >= self.max_errors:
-                        logger.warning("⚠️ Too many errors, reconnecting bot...")
-                        try:
-                            await self.bot.stop()
-                            await asyncio.sleep(10)
-                            await self.bot.start()
-                            self.error_count = 0
-                            logger.info("✅ Bot reconnected successfully")
-                        except Exception as reconnect_error:
-                            logger.error(f"❌ Bot reconnection failed: {reconnect_error}")
+                except:
+                    logger.warning("⚠️ Bot session disconnected, reconnecting...")
+                    await self.bot.stop()
+                    await asyncio.sleep(5)
+                    await self.bot.start()
                 
-                await asyncio.sleep(300)  # Check every 5 minutes
+                await asyncio.sleep(300)
                 
             except asyncio.CancelledError:
                 break
@@ -598,7 +554,6 @@ class BotHandler:
             
         except Exception as e:
             logger.error(f"❌ Get file info error: {e}")
-            self.error_count += 1
             return None
     
     async def get_file_download_url(self, file_id):
@@ -614,20 +569,17 @@ class BotHandler:
             except Exception as get_file_error:
                 logger.debug(f"Get file error, trying alternative: {get_file_error}")
             
-            # Alternative method with timeout
             try:
                 async with aiohttp.ClientSession() as session:
                     api_url = f"https://api.telegram.org/bot{self.bot_token}/getFile"
                     params = {'file_id': file_id}
                     
-                    async with session.get(api_url, params=params, timeout=10) as response:
+                    async with session.get(api_url, params=params) as response:
                         if response.status == 200:
                             data = await response.json()
                             if data.get('ok') and data.get('result'):
                                 file_path = data['result']['file_path']
                                 return f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
-            except asyncio.TimeoutError:
-                logger.warning(f"⚠️ Timeout getting file URL for {file_id[:20]}...")
             except Exception as api_error:
                 logger.debug(f"API fallback error: {api_error}")
             
@@ -703,8 +655,7 @@ class BotHandler:
             return {
                 'initialized': False,
                 'last_update': None,
-                'bot_username': None,
-                'error_count': self.error_count
+                'bot_username': None
             }
         
         try:
@@ -715,17 +666,14 @@ class BotHandler:
                 'last_update': self.last_update.isoformat() if self.last_update else None,
                 'bot_username': bot_info.username if bot_info else self.bot_username,
                 'bot_id': bot_info.id if bot_info else None,
-                'session_active': True,
-                'error_count': self.error_count,
-                'rate_limit_queue': telegram_rate_limiter.get_queue_size()
+                'session_active': True
             }
         except:
             return {
                 'initialized': self.initialized,
                 'last_update': self.last_update.isoformat() if self.last_update else None,
                 'bot_username': self.bot_username,
-                'session_active': False,
-                'error_count': self.error_count
+                'session_active': False
             }
     
     async def shutdown(self):
@@ -788,20 +736,16 @@ async def start_telegram_bot():
         return None
 
 # ============================================================================
-# ✅ ASYNC CACHE DECORATOR - ENHANCED
+# ✅ ASYNC CACHE DECORATOR
 # ============================================================================
 
 def async_cache_with_ttl(maxsize=128, ttl=300):
     cache = {}
-    cache_timestamps = {}
     cache_lock = asyncio.Lock()
     
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            if not Config.ENABLE_AGGRESSIVE_CACHING:
-                return await func(*args, **kwargs)
-            
             key_parts = [func.__name__]
             key_parts.extend(str(arg) for arg in args)
             key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
@@ -813,27 +757,15 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
                 if key in cache:
                     value, timestamp = cache[key]
                     if now - timestamp < ttl:
-                        logger.debug(f"✅ Cache HIT for {func.__name__}")
                         return value
-                    else:
-                        # Expired, remove
-                        del cache[key]
-                        del cache_timestamps[key]
             
             result = await func(*args, **kwargs)
             
             async with cache_lock:
                 cache[key] = (result, now)
-                cache_timestamps[key] = now
-                
-                # Clean up if cache too big
                 if len(cache) > maxsize:
-                    # Remove oldest entries
-                    sorted_keys = sorted(cache_timestamps.keys(), key=lambda k: cache_timestamps[k])
-                    keys_to_remove = sorted_keys[:len(cache) - maxsize]
-                    for k in keys_to_remove:
-                        del cache[k]
-                        del cache_timestamps[k]
+                    oldest_key = min(cache.keys(), key=lambda k: cache[k][1])
+                    del cache[oldest_key]
             
             return result
         return wrapper
@@ -980,34 +912,19 @@ class QualityMerger:
         return " • ".join(summary_parts)
 
 # ============================================================================
-# ✅ VIDEO THUMBNAIL EXTRACTOR - OPTIMIZED
+# ✅ VIDEO THUMBNAIL EXTRACTOR - UPDATED WITH RATE LIMITING
 # ============================================================================
 
 class VideoThumbnailExtractor:
     def __init__(self):
         self.extraction_lock = asyncio.Lock()
-        self.thumbnail_cache = {}
     
     async def extract_thumbnail(self, channel_id: int, message_id: int) -> Optional[str]:
-        cache_key = f"thumb_{channel_id}_{message_id}"
-        
-        # Check cache first
-        if cache_key in self.thumbnail_cache:
-            cached_data = self.thumbnail_cache[cache_key]
-            if time.time() - cached_data['timestamp'] < Config.THUMBNAIL_CACHE_DURATION:
-                logger.debug(f"✅ Thumbnail from cache: {channel_id}/{message_id}")
-                return cached_data['thumbnail']
-        
         try:
             if bot_handler and bot_handler.initialized:
                 thumbnail_url = await bot_handler.extract_thumbnail(channel_id, message_id)
                 if thumbnail_url:
                     logger.debug(f"✅ Thumbnail extracted via bot handler: {channel_id}/{message_id}")
-                    # Cache it
-                    self.thumbnail_cache[cache_key] = {
-                        'thumbnail': thumbnail_url,
-                        'timestamp': time.time()
-                    }
                     return thumbnail_url
             
             if Bot is not None and bot_session_ready:
@@ -1047,15 +964,7 @@ class VideoThumbnailExtractor:
                     
                     if thumbnail_data:
                         base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
-                        thumbnail_url = f"data:image/jpeg;base64,{base64_data}"
-                        
-                        # Cache it
-                        self.thumbnail_cache[cache_key] = {
-                            'thumbnail': thumbnail_url,
-                            'timestamp': time.time()
-                        }
-                        
-                        return thumbnail_url
+                        return f"data:image/jpeg;base64,{base64_data}"
                     
                 except Exception as e:
                     logger.error(f"❌ Bot session thumbnail extraction error: {e}")
@@ -1087,11 +996,10 @@ class DuplicatePreventionSystem:
                 self.file_hashes.clear()
                 self.title_cache.clear()
                 
-                # Only get recent files to reduce memory usage
                 cursor = files_col.find(
                     {"file_hash": {"$ne": None}},
                     {"file_hash": 1, "normalized_title": 1, "_id": 0}
-                ).limit(10000)  # Limit to 10k files
+                )
                 
                 async for doc in cursor:
                     file_hash = doc.get('file_hash')
@@ -1165,7 +1073,7 @@ class DuplicatePreventionSystem:
 duplicate_prevention = DuplicatePreventionSystem()
 
 # ============================================================================
-# ✅ FILE CHANNEL INDEXING MANAGER - PERFORMANCE OPTIMIZED
+# ✅ FILE CHANNEL INDEXING MANAGER - COMPLETELY REWRITTEN
 # ============================================================================
 
 class FileChannelIndexingManager:
@@ -1606,7 +1514,7 @@ class ChannelSyncManager:
 channel_sync_manager = ChannelSyncManager()
 
 # ============================================================================
-# ✅ FILE INDEXING FUNCTIONS - OPTIMIZED
+# ✅ FILE INDEXING FUNCTIONS - UPDATED
 # ============================================================================
 
 async def generate_file_hash(message):
@@ -1933,7 +1841,7 @@ async def setup_database_indexes():
         logger.warning(f"⚠️ Index creation error: {e}")
 
 # ============================================================================
-# ✅ POSTER FETCHING FUNCTIONS - OPTIMIZED
+# ✅ POSTER FETCHING FUNCTIONS
 # ============================================================================
 
 async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
@@ -1950,12 +1858,10 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
     
     try:
-        # Create task with timeout
         poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title))
         
         try:
-            # Use wait_for with timeout
-            poster_data = await asyncio.wait_for(poster_task, timeout=5.0)  # Increased timeout
+            poster_data = await asyncio.wait_for(poster_task, timeout=3.0)
             
             if poster_data and poster_data.get('poster_url'):
                 logger.debug(f"✅ Poster fetched: {title} - {poster_data['source']}")
@@ -1966,13 +1872,8 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         except (asyncio.TimeoutError, ValueError, Exception) as e:
             logger.warning(f"⚠️ Poster fetch timeout/error for {title}: {e}")
             
-            # Cancel task if still running
             if not poster_task.done():
                 poster_task.cancel()
-                try:
-                    await poster_task
-                except asyncio.CancelledError:
-                    pass
             
             return {
                 'poster_url': Config.FALLBACK_POSTER,
@@ -1995,18 +1896,20 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
-    """Optimized batch poster fetching with concurrency limit"""
     results = []
     
-    semaphore = asyncio.Semaphore(Config.MAX_PARALLEL_POSTER_REQUESTS)
+    tasks = []
+    for movie in movies:
+        title = movie.get('title', '')
+        year = movie.get('year', '')
+        quality = movie.get('quality', '')
+        
+        task = asyncio.create_task(get_poster_for_movie(title, year, quality))
+        tasks.append((movie, task))
     
-    async def fetch_poster_with_semaphore(movie):
-        async with semaphore:
-            title = movie.get('title', '')
-            year = movie.get('year', '')
-            quality = movie.get('quality', '')
-            
-            poster_data = await get_poster_for_movie(title, year, quality)
+    for movie, task in tasks:
+        try:
+            poster_data = await task
             
             movie_with_poster = movie.copy()
             movie_with_poster.update({
@@ -2018,32 +1921,11 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
                 'has_poster': True
             })
             
-            return movie_with_poster
-    
-    # Create tasks
-    tasks = []
-    for movie in movies:
-        task = asyncio.create_task(fetch_poster_with_semaphore(movie))
-        tasks.append(task)
-    
-    # Wait for all tasks
-    try:
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Filter out exceptions
-        final_results = []
-        for result in results:
-            if isinstance(result, Exception):
-                logger.warning(f"⚠️ Poster batch error: {result}")
-            else:
-                final_results.append(result)
-        
-        return final_results
-    except Exception as e:
-        logger.error(f"❌ Batch poster gathering error: {e}")
-        
-        # Fallback - return movies with fallback posters
-        for movie in movies:
+            results.append(movie_with_poster)
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Batch poster error for {movie.get('title')}: {e}")
+            
             movie_with_fallback = movie.copy()
             movie_with_fallback.update({
                 'poster_url': Config.FALLBACK_POSTER,
@@ -2053,31 +1935,21 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
                 'thumbnail_source': 'fallback',
                 'has_poster': True
             })
+            
             results.append(movie_with_fallback)
-        
-        return results
+    
+    return results
 
 # ============================================================================
-# ✅ FILE STREAMING AND DOWNLOAD FUNCTIONS - OPTIMIZED
+# ✅ FILE STREAMING AND DOWNLOAD FUNCTIONS
 # ============================================================================
 
 class StreamingManager:
     def __init__(self):
         self.stream_cache = {}
         self.cache_lock = asyncio.Lock()
-        self.file_info_cache = {}
         
     async def get_file_stream_info(self, channel_id, message_id):
-        cache_key = f"file_info_{channel_id}_{message_id}"
-        
-        # Check cache first
-        now = time.time()
-        if cache_key in self.file_info_cache:
-            cached_info, timestamp = self.file_info_cache[cache_key]
-            if now - timestamp < 300:  # 5 minutes cache
-                logger.debug(f"✅ File info from cache: {channel_id}/{message_id}")
-                return cached_info
-        
         try:
             if bot_handler and bot_handler.initialized:
                 await telegram_rate_limiter.wait_if_needed()
@@ -2131,15 +2003,6 @@ class StreamingManager:
                         'is_video': True
                     })
                 
-                # Cache the result
-                async with self.cache_lock:
-                    self.file_info_cache[cache_key] = (file_info, now)
-                    # Clean old cache entries
-                    if len(self.file_info_cache) > 100:
-                        oldest_key = min(self.file_info_cache.keys(), 
-                                       key=lambda k: self.file_info_cache[k][1])
-                        del self.file_info_cache[oldest_key]
-                
                 return file_info
                 
         except Exception as e:
@@ -2183,15 +2046,6 @@ class StreamingManager:
         return None
     
     async def get_file_metadata(self, channel_id, message_id):
-        cache_key = f"metadata_{channel_id}_{message_id}"
-        
-        # Check cache first
-        if cache_manager is not None and cache_manager.redis_enabled:
-            cached_metadata = await cache_manager.get(cache_key)
-            if cached_metadata:
-                logger.debug(f"✅ Metadata from cache: {channel_id}/{message_id}")
-                return cached_metadata
-        
         try:
             if files_col is not None:
                 doc = await files_col.find_one({
@@ -2209,9 +2063,6 @@ class StreamingManager:
                 })
                 
                 if doc:
-                    # Cache the result
-                    if cache_manager is not None:
-                        await cache_manager.set(cache_key, doc, expire_seconds=600)
                     return doc
             
             if bot_handler and bot_handler.initialized:
@@ -2228,7 +2079,7 @@ class StreamingManager:
                         file_name = message.video.file_name
                         file_size = message.video.file_size or 0
                     
-                    metadata = {
+                    return {
                         'title': file_name,
                         'file_name': file_name,
                         'file_size': file_size,
@@ -2236,12 +2087,6 @@ class StreamingManager:
                         'caption': message.caption or '',
                         'year': ''
                     }
-                    
-                    # Cache the result
-                    if cache_manager is not None:
-                        await cache_manager.set(cache_key, metadata, expire_seconds=300)
-                    
-                    return metadata
         
         except Exception as e:
             logger.error(f"❌ Get file metadata error: {e}")
@@ -2251,7 +2096,7 @@ class StreamingManager:
 streaming_manager = StreamingManager()
 
 # ============================================================================
-# ✅ DUAL SESSION INITIALIZATION - OPTIMIZED
+# ✅ DUAL SESSION INITIALIZATION - UPDATED WITH RATE LIMITING
 # ============================================================================
 
 @performance_monitor.measure("telegram_init")
@@ -2267,7 +2112,6 @@ async def init_telegram_sessions():
         return False
     
     # Initialize User session
-    user_session_success = False
     if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
         logger.info("\n👤 Initializing USER Session...")
         try:
@@ -2276,7 +2120,7 @@ async def init_telegram_sessions():
                 api_id=Config.API_ID,
                 api_hash=Config.API_HASH,
                 session_string=Config.USER_SESSION_STRING,
-                sleep_threshold=120,  # Increased for stability
+                sleep_threshold=60,  # Increased
                 in_memory=True,
                 no_updates=True
             )
@@ -2285,35 +2129,25 @@ async def init_telegram_sessions():
             me = await User.get_me()
             logger.info(f"✅ USER Session Ready: {me.first_name}")
             
-            # Test channel access with timeout
             try:
-                await asyncio.wait_for(
-                    User.get_chat(Config.FILE_CHANNEL_ID),
-                    timeout=10
-                )
-                user_session_success = True
-                logger.info(f"✅ File Channel Access: {Config.FILE_CHANNEL_ID}")
-            except asyncio.TimeoutError:
-                logger.warning("⚠️ File channel access timeout, may have limited functionality")
-                user_session_success = True  # Still mark as success for basic operations
+                chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+                logger.info(f"✅ File Channel Access: {chat.title}")
+                user_session_ready = True
             except Exception as e:
                 logger.error(f"❌ File channel access failed: {e}")
-                user_session_success = False
+                user_session_ready = False
                 
         except Exception as e:
             logger.error(f"❌ USER Session failed: {e}")
-            user_session_success = False
+            user_session_ready = False
             if User is not None:
                 try:
                     await User.stop()
                 except:
                     pass
             User = None
-    else:
-        logger.warning("⚠️ User session credentials not configured")
     
-    # Initialize Bot session
-    bot_session_success = False
+    # Initialize Bot session (only if no flood wait)
     if Config.BOT_TOKEN:
         logger.info("\n🤖 Initializing BOT Session...")
         try:
@@ -2322,7 +2156,7 @@ async def init_telegram_sessions():
                 api_id=Config.API_ID,
                 api_hash=Config.API_HASH,
                 bot_token=Config.BOT_TOKEN,
-                sleep_threshold=120,  # Increased
+                sleep_threshold=60,  # Increased
                 in_memory=True,
                 no_updates=True
             )
@@ -2330,7 +2164,7 @@ async def init_telegram_sessions():
             await Bot.start()
             bot_info = await Bot.get_me()
             logger.info(f"✅ BOT Session Ready: @{bot_info.username}")
-            bot_session_success = True
+            bot_session_ready = True
                 
         except Exception as e:
             if "FLOOD_WAIT" in str(e):
@@ -2338,7 +2172,7 @@ async def init_telegram_sessions():
                 # Don't mark as failed, will retry later
             else:
                 logger.error(f"❌ BOT Session failed: {e}")
-                bot_session_success = False
+                bot_session_ready = False
                 if Bot is not None:
                     try:
                         await Bot.stop()
@@ -2346,14 +2180,11 @@ async def init_telegram_sessions():
                         pass
                 Bot = None
     
-    user_session_ready = user_session_success
-    bot_session_ready = bot_session_success
-    
     logger.info("\n" + "=" * 50)
     logger.info("📊 SESSION SUMMARY")
     logger.info("=" * 50)
     logger.info(f"USER Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
-    logger.info(f"BOT Session: {'✅ READY' if bot_session_ready else '⚠️ LIMITED'}")
+    logger.info(f"BOT Session: {'✅ READY' if bot_session_ready else '⚠️ DELAYED'}")
     logger.info(f"Bot Handler: {'✅ INITIALIZED' if bot_handler.initialized else '❌ NOT READY'}")
     
     return user_session_ready or bot_session_ready
@@ -2371,17 +2202,16 @@ async def init_mongodb():
         
         mongo_client = AsyncIOMotorClient(
             Config.MONGODB_URI,
-            serverSelectionTimeoutMS=20000,  # Increased
-            connectTimeoutMS=20000,
-            socketTimeoutMS=30000,
-            maxPoolSize=20,
-            minPoolSize=5,
+            serverSelectionTimeoutMS=15000,  # Increased
+            connectTimeoutMS=15000,
+            socketTimeoutMS=20000,
+            maxPoolSize=10,  # Reduced
+            minPoolSize=2,
             retryWrites=True,
-            retryReads=True,
-            maxIdleTimeMS=30000
+            retryReads=True
         )
         
-        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=15)
+        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=10)
         
         db = mongo_client.sk4film
         files_col = db.files
@@ -2448,7 +2278,7 @@ async def shutdown_system():
     logger.info("✅ System shutdown complete")
 
 # ============================================================================
-# ✅ MAIN INITIALIZATION - OPTIMIZED
+# ✅ MAIN INITIALIZATION - UPDATED
 # ============================================================================
 
 @performance_monitor.measure("system_init")
@@ -2457,7 +2287,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.2 - PERFORMANCE OPTIMIZED")
+        logger.info("🚀 SK4FiLM v9.1 - EMERGENCY FIXES APPLIED")
         logger.info("=" * 60)
         
         # Initialize MongoDB first
@@ -2507,15 +2337,14 @@ async def init_system():
         
         # Initialize Telegram sessions with retry
         if PYROGRAM_AVAILABLE:
-            max_retries = 2  # Reduced retries
+            max_retries = 3
             for retry in range(max_retries):
                 telegram_ok = await init_telegram_sessions()
                 if telegram_ok:
                     break
                 elif retry < max_retries - 1:
-                    wait_time = (retry + 1) * 5  # Exponential backoff
-                    logger.warning(f"⚠️ Telegram session failed, retrying in {wait_time}s ({retry + 1}/{max_retries})...")
-                    await asyncio.sleep(wait_time)
+                    logger.warning(f"⚠️ Telegram session failed, retrying ({retry + 1}/{max_retries})...")
+                    await asyncio.sleep(5)
             if not telegram_ok:
                 logger.warning("⚠️ Telegram sessions failed after retries")
         
@@ -2530,10 +2359,10 @@ async def init_system():
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
         
-        logger.info("🔧 OPTIMIZED FEATURES:")
+        logger.info("🔧 INTEGRATED FEATURES:")
         logger.info(f"   • Safe Indexing: ✅ ENABLED (New files only)")
         logger.info(f"   • Rate Limiting: ✅ ENABLED ({Config.TELEGRAM_API_RATE_LIMIT} calls/sec)")
-        logger.info(f"   • Aggressive Caching: ✅ {'ENABLED' if Config.ENABLE_AGGRESSIVE_CACHING else 'DISABLED'}")
+        logger.info(f"   • Duplicate Prevention: ✅ FIXED")
         logger.info(f"   • Real Message IDs: ✅ ENABLED")
         logger.info(f"   • Quality Merging: ✅ ENABLED")
         logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
@@ -2549,16 +2378,16 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ OPTIMIZED SEARCH FUNCTION
+# ✅ SEARCH FUNCTION - UPDATED FOR VIEW.HTML SUPPORT
 # ============================================================================
 
 def channel_name_cached(cid):
     return f"Channel {cid}"
 
 @performance_monitor.measure("multi_channel_search_merged")
-@async_cache_with_ttl(maxsize=1000, ttl=Config.SEARCH_CACHE_TTL)
+@async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_multi_channel_merged(query, limit=15, page=1):
-    """OPTIMIZED: Returns results with real_message_id for view.html"""
+    """UPDATED: Returns results with real_message_id for view.html"""
     offset = (page - 1) * limit
     
     cache_key = f"search_merged:{query}:{page}:{limit}"
@@ -2574,7 +2403,6 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
     posts_dict = {}
     files_dict = {}
     
-    # Limit concurrent operations
     if user_session_ready and User is not None:
         async def search_text_channel(channel_id):
             channel_posts = {}
@@ -2615,11 +2443,7 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
                 logger.error(f"Text search error in {channel_id}: {e}")
             return channel_posts
         
-        # Search text channels in parallel but limited
-        tasks = []
-        for channel_id in Config.TEXT_CHANNEL_IDS[:2]:  # Limit to 2 channels
-            tasks.append(search_text_channel(channel_id))
-        
+        tasks = [search_text_channel(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
         for result in results:
@@ -2664,7 +2488,7 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
                     'year': 1,
                     '_id': 0
                 }
-            ).limit(500)  # Reduced limit for performance
+            ).limit(1000)
             
             file_count = 0
             quality_counts = defaultdict(int)
@@ -2769,9 +2593,7 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
                     continue
             
             logger.info(f"✅ Found {file_count} files in database for query: {query}")
-            
-            if quality_counts:
-                logger.info(f"📊 Quality distribution: {dict(quality_counts)}")
+            logger.info(f"📊 Quality distribution: {dict(quality_counts)}")
             
             grouped_count = len(files_dict)
             logger.info(f"📦 After merging: {grouped_count} unique titles (from {file_count} files)")
@@ -2814,6 +2636,8 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
                 'size_formatted': format_size(total_size),
                 'best_quality': best_quality
             })
+            
+            logger.debug(f"📊 {norm_title}: {len(qualities)} qualities -> {quality_summary}")
     
     merged = {}
     
@@ -2836,56 +2660,58 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
     for norm_title, post_data in posts_dict.items():
         merged[norm_title] = post_data.copy()
     
-    # Fetch posters only if we have results
     if merged:
+        logger.info(f"🎬 Fetching posters for {len(merged)} movies...")
+        
         movies_for_posters = []
         for norm_title, movie_data in merged.items():
             movies_for_posters.append(movie_data)
         
-        # Only fetch posters for movies without thumbnails
         movies_without_thumbnails = [m for m in movies_for_posters if not m.get('has_thumbnail')]
+        movies_with_thumbnails = [m for m in movies_for_posters if m.get('has_thumbnail')]
         
         if movies_without_thumbnails:
-            logger.info(f"🎬 Fetching posters for {len(movies_without_thumbnails)} movies...")
             movies_with_posters = await get_posters_for_movies_batch(movies_without_thumbnails)
-            
-            poster_map = {}
-            for movie in movies_with_posters:
-                norm_title = movie.get('normalized_title', normalize_title(movie['title']))
-                poster_map[norm_title] = movie
-            
-            for norm_title, movie_data in merged.items():
-                if norm_title in poster_map:
-                    poster_data = poster_map[norm_title]
-                    merged[norm_title].update({
-                        'poster_url': poster_data['poster_url'],
-                        'poster_source': poster_data['poster_source'],
-                        'poster_rating': poster_data['poster_rating'],
-                        'thumbnail': poster_data['thumbnail'],
-                        'thumbnail_source': poster_data['thumbnail_source'],
-                        'has_poster': True,
-                        'has_thumbnail': True
-                    })
-                elif not movie_data.get('has_thumbnail'):
-                    merged[norm_title].update({
-                        'poster_url': Config.FALLBACK_POSTER,
-                        'poster_source': 'fallback',
-                        'poster_rating': '0.0',
-                        'thumbnail': Config.FALLBACK_POSTER,
-                        'thumbnail_source': 'fallback',
-                        'has_poster': True,
-                        'has_thumbnail': True
-                    })
+        else:
+            movies_with_posters = []
+        
+        poster_map = {}
+        for movie in movies_with_posters:
+            norm_title = movie.get('normalized_title', normalize_title(movie['title']))
+            poster_map[norm_title] = movie
+        
+        for norm_title, movie_data in merged.items():
+            if norm_title in poster_map:
+                poster_data = poster_map[norm_title]
+                merged[norm_title].update({
+                    'poster_url': poster_data['poster_url'],
+                    'poster_source': poster_data['poster_source'],
+                    'poster_rating': poster_data['poster_rating'],
+                    'thumbnail': poster_data['thumbnail'],
+                    'thumbnail_source': poster_data['thumbnail_source'],
+                    'has_poster': True,
+                    'has_thumbnail': True
+                })
+            elif not movie_data.get('has_thumbnail'):
+                merged[norm_title].update({
+                    'poster_url': Config.FALLBACK_POSTER,
+                    'poster_source': 'fallback',
+                    'poster_rating': '0.0',
+                    'thumbnail': Config.FALLBACK_POSTER,
+                    'thumbnail_source': 'fallback',
+                    'has_poster': True,
+                    'has_thumbnail': True
+                })
     
     results_list = list(merged.values())
     
-    # Optimized sorting
     results_list.sort(key=lambda x: (
         x.get('has_file', False),
         x.get('quality_count', 0),
         x.get('has_thumbnail', False),
         x.get('is_new', False),
-        x.get('search_score', 0)
+        x.get('search_score', 0),
+        x.get('date', '') if isinstance(x.get('date'), str) else ''
     ), reverse=True)
     
     total = len(results_list)
@@ -2906,6 +2732,12 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
     logger.info(f"📊 FINAL MERGING STATS:")
     logger.info(f"   • Total unique titles: {total}")
     logger.info(f"   • Titles with files: {stats['with_files']}")
+    logger.info(f"   • Titles with multiple qualities: {stats['multi_quality']}")
+    logger.info(f"   • Average qualities per title: {stats['avg_qualities_per_title']:.1f}")
+    
+    for i, result in enumerate(paginated[:3]):
+        if result.get('quality_count', 0) > 1:
+            logger.info(f"   📦 Example {i+1}: {result.get('title', '')[:40]}... - {result.get('quality_count')} qualities")
     
     result_data = {
         'results': paginated,
@@ -2942,124 +2774,62 @@ async def search_movies_multi_channel_merged(query, limit=15, page=1):
     return result_data
 
 # ============================================================================
-# ✅ OPTIMIZED HOME MOVIES
+# ✅ HOME MOVIES
 # ============================================================================
 
 @performance_monitor.measure("home_movies")
-@async_cache_with_ttl(maxsize=1, ttl=Config.CACHE_HOME_MOVIES_FOR)
+@async_cache_with_ttl(maxsize=1, ttl=60)
 async def get_home_movies(limit=25):
-    """Optimized home movies with database fallback"""
     try:
+        if User is None or not user_session_ready:
+            return []
+        
         movies = []
+        seen_titles = set()
         
-        # Try to get from database first (faster)
-        if files_col is not None:
-            cursor = files_col.find(
-                {'status': 'active', 'is_duplicate': False},
-                {
-                    'title': 1,
-                    'file_name': 1,
-                    'quality': 1,
-                    'file_size': 1,
-                    'thumbnail_url': 1,
-                    'caption': 1,
-                    'year': 1,
-                    'date': 1,
-                    'is_video_file': 1,
-                    'channel_id': 1,
-                    'message_id': 1,
-                    'real_message_id': 1
-                }
-            ).sort('date', -1).limit(limit)
-            
-            async for doc in cursor:
-                title = doc.get('title') or doc.get('file_name', 'Unknown')
-                year = doc.get('year', '')
-                quality = doc.get('quality', 'Unknown')
-                thumbnail_url = doc.get('thumbnail_url')
-                
-                movie_data = {
-                    'title': title,
-                    'original_title': title,
-                    'year': year,
-                    'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else str(doc['date']),
-                    'is_new': is_new(doc['date']) if doc.get('date') else False,
-                    'channel_id': doc.get('channel_id', Config.FILE_CHANNEL_ID),
-                    'channel_name': channel_name_cached(doc.get('channel_id', Config.FILE_CHANNEL_ID)),
-                    'message_id': doc.get('message_id'),
-                    'real_message_id': doc.get('real_message_id') or doc.get('message_id'),
-                    'has_file': True,
-                    'has_post': bool(doc.get('caption')),
-                    'content': format_post(doc.get('caption', ''), max_length=500),
-                    'post_content': doc.get('caption', ''),
-                    'quality_options': {quality: {
-                        'quality': quality,
-                        'file_size': doc.get('file_size', 0)
-                    }},
-                    'is_video_file': doc.get('is_video_file', False),
-                    'quality': quality,
-                    'thumbnail_url': thumbnail_url,
-                    'has_thumbnail': thumbnail_url is not None,
-                    'result_type': 'file'
-                }
-                
-                if thumbnail_url:
-                    movie_data['thumbnail'] = thumbnail_url
-                
-                movies.append(movie_data)
-            
-            if movies:
-                logger.info(f"✅ Got {len(movies)} movies from database")
-                # Add posters
-                movies_with_posters = await get_posters_for_movies_batch(movies)
-                return movies_with_posters[:limit]
+        logger.info(f"🎬 Fetching home movies ({limit})...")
         
-        # Fallback to Telegram if database doesn't have enough
-        if User is not None and user_session_ready and len(movies) < limit:
-            logger.info("📡 Falling back to Telegram for home movies...")
-            seen_titles = set(m['title'] for m in movies)
-            
-            try:
-                await telegram_rate_limiter.wait_if_needed()
-                async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=25):
-                    if msg is not None and msg.text and len(msg.text) > 25:
-                        title = extract_title_smart(msg.text)
+        try:
+            await telegram_rate_limiter.wait_if_needed()
+            async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=25):
+                if msg is not None and msg.text and len(msg.text) > 25:
+                    title = extract_title_smart(msg.text)
+                    
+                    if title and title not in seen_titles:
+                        seen_titles.add(title)
                         
-                        if title and title not in seen_titles:
-                            seen_titles.add(title)
-                            
-                            year_match = re.search(r'\b(19|20)\d{2}\b', title)
-                            year = year_match.group() if year_match else ""
-                            
-                            clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
-                            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
-                            
-                            post_content = msg.text
-                            formatted_content = format_post(msg.text, max_length=500)
-                            
-                            movie_data = {
-                                'title': clean_title,
-                                'original_title': title,
-                                'year': year,
-                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
-                                'is_new': is_new(msg.date) if msg.date else False,
-                                'channel': channel_name_cached(Config.MAIN_CHANNEL_ID),
-                                'channel_id': Config.MAIN_CHANNEL_ID,
-                                'message_id': msg.id,
-                                'has_file': False,
-                                'has_post': True,
-                                'content': formatted_content,
-                                'post_content': post_content,
-                                'quality_options': {},
-                                'is_video_file': False
-                            }
-                            
-                            movies.append(movie_data)
-                            
-                            if len(movies) >= limit:
-                                break
-            except Exception as e:
-                logger.error(f"❌ Error fetching home movies from Telegram: {e}")
+                        year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                        year = year_match.group() if year_match else ""
+                        
+                        clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
+                        clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
+                        
+                        post_content = msg.text
+                        formatted_content = format_post(msg.text, max_length=500)
+                        
+                        movie_data = {
+                            'title': clean_title,
+                            'original_title': title,
+                            'year': year,
+                            'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+                            'is_new': is_new(msg.date) if msg.date else False,
+                            'channel': channel_name_cached(Config.MAIN_CHANNEL_ID),
+                            'channel_id': Config.MAIN_CHANNEL_ID,
+                            'message_id': msg.id,
+                            'has_file': False,
+                            'has_post': True,
+                            'content': formatted_content,
+                            'post_content': post_content,
+                            'quality_options': {},
+                            'is_video_file': False
+                        }
+                        
+                        movies.append(movie_data)
+                        
+                        if len(movies) >= limit:
+                            break
+        except Exception as e:
+            logger.error(f"❌ Error fetching home movies: {e}")
         
         if movies:
             movies_with_posters = await get_posters_for_movies_batch(movies)
@@ -3074,7 +2844,7 @@ async def get_home_movies(limit=25):
         return []
 
 # ============================================================================
-# ✅ API ROUTES - FIXED AND OPTIMIZED
+# ✅ API ROUTES - UPDATED FOR VIEW.HTML SUPPORT
 # ============================================================================
 
 @app.route('/')
@@ -3103,7 +2873,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.2 - PERFORMANCE OPTIMIZED',
+        'service': 'SK4FiLM v9.1 - EMERGENCY FIXED',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -3140,8 +2910,7 @@ async def root():
             'telegram_bot': True,
             'video_streaming': Config.STREAMING_ENABLED,
             'direct_download': True,
-            'emergency_stop': True,
-            'aggressive_caching': Config.ENABLE_AGGRESSIVE_CACHING
+            'emergency_stop': True
         },
         'stats': {
             'total_files': tf,
@@ -3149,7 +2918,6 @@ async def root():
             'thumbnails_extracted': thumbnails_extracted
         },
         'indexing': indexing_status,
-        'performance': performance_monitor.get_stats(),
         'response_time': f"{time.perf_counter():.3f}s"
     })
 
@@ -3181,97 +2949,6 @@ async def health():
         },
         'timestamp': datetime.now().isoformat()
     })
-
-# ============================================================================
-# ✅ FIXED: MISSING ENDPOINTS
-# ============================================================================
-
-@app.route('/api/file/metadata', methods=['GET'])
-@performance_monitor.measure("file_metadata_endpoint")
-async def api_file_metadata():
-    """Alternative name for file details endpoint"""
-    return await api_file_details()
-
-@app.route('/download/<int:channel_id>/<int:message_id>/<quality>', methods=['GET'])
-@performance_monitor.measure("direct_download_endpoint")
-async def direct_download(channel_id, message_id, quality):
-    """Direct download endpoint (redirects to Telegram)"""
-    try:
-        # Get file info
-        if bot_handler and bot_handler.initialized:
-            await telegram_rate_limiter.wait_if_needed()
-            message = await bot_handler.bot.get_messages(channel_id, message_id)
-            
-            if message and (message.document or message.video):
-                # Get direct download URL
-                if message.document:
-                    file_id = message.document.file_id
-                elif message.video:
-                    file_id = message.video.file_id
-                else:
-                    return jsonify({'error': 'File not found'}), 404
-                
-                download_url = await streaming_manager.get_direct_download_url(file_id)
-                
-                if download_url:
-                    # Redirect to direct download URL
-                    return redirect(download_url, code=302)
-        
-        # Fallback: Return file info
-        file_info = await streaming_manager.get_file_stream_info(channel_id, message_id)
-        
-        if file_info and file_info['has_file']:
-            return jsonify({
-                'status': 'success',
-                'file_info': file_info,
-                'quality': quality,
-                'message': 'Use the download_url from /api/download/url endpoint'
-            })
-        
-        return jsonify({'error': 'File not found'}), 404
-        
-    except Exception as e:
-        logger.error(f"Direct download error: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/stream/<int:channel_id>/<int:message_id>/<quality>', methods=['GET'])
-@performance_monitor.measure("direct_stream_endpoint")
-async def direct_stream(channel_id, message_id, quality):
-    """Direct streaming endpoint"""
-    try:
-        stream_info = await streaming_manager.get_streaming_url(channel_id, message_id, quality)
-        
-        if stream_info:
-            # Redirect to streaming URL
-            return redirect(stream_info['stream_url'], code=302)
-        
-        # Fallback to download URL
-        if bot_handler and bot_handler.initialized:
-            await telegram_rate_limiter.wait_if_needed()
-            message = await bot_handler.bot.get_messages(channel_id, message_id)
-            
-            if message and (message.document or message.video):
-                if message.document:
-                    file_id = message.document.file_id
-                elif message.video:
-                    file_id = message.video.file_id
-                else:
-                    return jsonify({'error': 'File not found'}), 404
-                
-                download_url = await streaming_manager.get_direct_download_url(file_id)
-                
-                if download_url:
-                    # For streaming, we might want to add headers for video playback
-                    return redirect(download_url, code=302)
-        
-        return jsonify({
-            'error': 'Stream not available',
-            'suggestion': 'Use /api/download/url for direct download'
-        }), 404
-        
-    except Exception as e:
-        logger.error(f"Direct stream error: {e}")
-        return jsonify({'error': str(e)}), 500
 
 # ============================================================================
 # ✅ EMERGENCY ENDPOINTS
@@ -3346,7 +3023,7 @@ async def emergency_cleanup_database():
         }), 500
 
 # ============================================================================
-# ✅ STANDARD API ENDPOINTS - OPTIMIZED
+# ✅ STANDARD API ENDPOINTS
 # ============================================================================
 
 @app.route('/api/movies', methods=['GET'])
@@ -3360,7 +3037,7 @@ async def api_movies():
             'movies': movies,
             'total': len(movies),
             'limit': 25,
-            'source': 'database',
+            'source': 'telegram',
             'poster_fetcher': poster_fetcher is not None,
             'session_used': 'user',
             'channel_id': Config.MAIN_CHANNEL_ID,
@@ -3414,7 +3091,7 @@ async def api_search():
         }), 500
 
 # ============================================================================
-# ✅ STREAMING AND DOWNLOAD ENDPOINTS - OPTIMIZED
+# ✅ STREAMING AND DOWNLOAD ENDPOINTS
 # ============================================================================
 
 @app.route('/api/stream/info', methods=['GET'])
@@ -3725,7 +3402,7 @@ def main():
         config.workers = 1
         config.accesslog = "-"
         config.errorlog = "-"
-        config.loglevel = "warning"  # Reduced log level for performance
+        config.loglevel = "info"
         config.keep_alive_timeout = 65
         config.graceful_timeout = 30
         
@@ -3736,7 +3413,6 @@ def main():
         logger.info(f"⚡ Streaming: {'ENABLED' if Config.STREAMING_ENABLED else 'DISABLED'}")
         logger.info(f"🔄 Safe Indexing: {'ENABLED' if not Config.INDEX_ALL_HISTORY else 'DISABLED'}")
         logger.info(f"⏱️  Rate Limiting: {Config.TELEGRAM_API_RATE_LIMIT} calls/sec")
-        logger.info(f"💾 Aggressive Caching: {'ENABLED' if Config.ENABLE_AGGRESSIVE_CACHING else 'DISABLED'}")
         
         asyncio.run(serve(app, config))
         
