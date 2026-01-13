@@ -5,7 +5,7 @@
     <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
     <meta property="og:image" content="https://iili.io/KOlfc41.png" itemprop="thumbnailUrl">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>SK4FiLM - Ad-Supported HD Streaming</title>
+    <title>SK4FiLM - HD Streaming</title>
     
     <!-- Video.js & IMA3 CSS -->
     <link href="https://vjs.zencdn.net/8.0.4/video-js.css" rel="stylesheet" />
@@ -107,16 +107,7 @@
             -webkit-text-fill-color: transparent;
         }
         
-        .ad-free-badge {
-            background: linear-gradient(135deg, #ff9900, #ff6600);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        /* Removed ad badge from navbar */
         
         /* Main Container */
         .main-container {
@@ -218,7 +209,7 @@
         :fullscreen #my-video,
         :-webkit-full-screen #my-video,
         :-moz-full-screen #my-video,
-        :-ms-fullscreen #my-video {
+        :-msfullscreen #my-video {
             width: 100vw !important;
             height: 100vh !important;
             object-fit: contain !important;
@@ -365,48 +356,6 @@
             transition: width 0.3s;
         }
         
-        /* Quality Indicator */
-        .quality-indicator {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            z-index: 50;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .quality-indicator:hover {
-            background: rgba(0, 0, 0, 0.9);
-            transform: scale(1.05);
-        }
-        
-        /* New Quality Badge Styles */
-        .quality-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            margin: 2px;
-        }
-        
-        .quality-1080p { background: linear-gradient(135deg, #ff0000, #cc0000); color: white; }
-        .quality-720p { background: linear-gradient(135deg, #0066ff, #0044cc); color: white; }
-        .quality-480p { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
-        .quality-360p { background: linear-gradient(135deg, #6c757d, #495057); color: white; }
-        
         /* Quality Selection Panel */
         .quality-panel {
             position: absolute;
@@ -415,7 +364,7 @@
             background: rgba(0, 0, 0, 0.95);
             border-radius: 10px;
             padding: 10px;
-            min-width: 180px;
+            min-width: 150px;
             z-index: 150;
             display: none;
             border: 1px solid rgba(255, 0, 0, 0.3);
@@ -468,38 +417,8 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        /* Detected Qualities Display */
-        .detected-qualities {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            justify-content: center;
-            margin-top: 5px;
-        }
-        
-        /* Auto Quality Button */
-        .auto-quality-btn {
-            background: linear-gradient(135deg, #ff9900, #ff6600);
-            color: white;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-top: 10px;
-            transition: all 0.3s;
-        }
-        
-        .auto-quality-btn:hover {
-            background: linear-gradient(135deg, #ffaa33, #ff7733);
-            transform: translateY(-2px);
-        }
-        
-        /* Dynamic Quality Selector */
-        .dynamic-quality-selector {
+        /* SINGLE Quality Button in Controls */
+        .quality-btn {
             background: rgba(0, 0, 0, 0.7);
             border: 1px solid rgba(255, 0, 0, 0.3);
             color: white;
@@ -516,7 +435,7 @@
             gap: 5px;
         }
         
-        .dynamic-quality-selector:hover {
+        .quality-btn:hover {
             background: rgba(255, 0, 0, 0.1);
         }
         
@@ -850,7 +769,7 @@
             border-color: rgba(255, 0, 0, 0.3);
         }
         
-        /* Donation Section */
+        /* Donation Section - Removed ad-related text */
         .donation-card {
             background: rgba(255, 193, 7, 0.1);
             border: 1px solid rgba(255, 193, 7, 0.2);
@@ -870,24 +789,7 @@
             padding: 10px;
         }
         
-        /* Ad Warning Banner */
-        .ad-warning {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 193, 7, 0.9);
-            color: #000;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            z-index: 50;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 193, 7, 0.5);
-        }
+        /* REMOVED Ad Warning Banner */
         
         /* Toast Notification */
         .toast {
@@ -945,11 +847,6 @@
                 font-size: 1.1rem;
             }
             
-            .ad-free-badge {
-                font-size: 0.7rem;
-                padding: 4px 8px;
-            }
-            
             .video-controls {
                 padding: 10px;
                 gap: 8px;
@@ -971,14 +868,14 @@
                 min-width: 85px;
             }
             
-            .dynamic-quality-selector {
+            .quality-btn {
                 font-size: 0.75rem;
                 padding: 4px 8px;
                 min-width: 70px;
             }
             
             .quality-panel {
-                min-width: 150px;
+                min-width: 140px;
                 right: 5px;
                 bottom: 55px;
             }
@@ -1058,7 +955,7 @@
                 min-width: 75px;
             }
             
-            .dynamic-quality-selector {
+            .quality-btn {
                 min-width: 60px;
                 font-size: 0.7rem;
                 padding: 3px 6px;
@@ -1108,16 +1005,14 @@
 </head>
 
 <body class="ios-scroll-fix">
-    <!-- Navbar -->
+    <!-- Navbar (No ad badge) -->
     <nav class="navbar">
         <div class="navbar-content">
             <div class="logo-container">
                 <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
                 <span class="logo-text">SK4FiLM</span>
             </div>
-            <div class="ad-free-badge">
-                <i class="fas fa-ad"></i> AD-SUPPORTED
-            </div>
+            <!-- No ad badge here -->
         </div>
     </nav>
 
@@ -1127,10 +1022,7 @@
         <div class="video-wrapper">
             <div class="aspect-ratio-box">
                 <div class="video-container" id="videoContainer">
-                    <!-- Ad Warning Banner -->
-                    <div class="ad-warning">
-                        <i class="fas fa-info-circle"></i> Ads support free streaming
-                    </div>
+                    <!-- No Ad Warning Banner -->
                     
                     <!-- Quality Selection Panel (Hidden by default) -->
                     <div class="quality-panel" id="qualityPanel">
@@ -1175,7 +1067,7 @@
                             <div class="spinner"></div>
                             <div class="loader-text" id="loadingText">Loading SK4FiLM Player</div>
                             <div class="loader-subtext" id="loadingSubtext">
-                                <span id="qualityDetectionText">Detecting available qualities...</span>
+                                <span id="qualityDetectionText">Loading video...</span>
                             </div>
                             <div class="loading-bar">
                                 <div class="loading-progress" id="loadingProgress"></div>
@@ -1183,19 +1075,12 @@
                         </div>
                     </div>
                     
-                    <!-- Quality Indicator with Click Action -->
-                    <div class="quality-indicator" id="qualityIndicator" onclick="toggleQualityPanel()">
-                        <i class="fas fa-hd me-1"></i>
-                        <span id="qualityText">Auto</span>
-                        <i class="fas fa-chevron-down ms-1" style="font-size: 0.6rem;"></i>
-                    </div>
-                    
                     <!-- Play Overlay -->
                     <div class="play-overlay" id="playOverlay" onclick="playFromOverlay()">
                         <i class="fas fa-play"></i>
                     </div>
                     
-                    <!-- Custom Video Controls -->
+                    <!-- Custom Video Controls with SINGLE Quality Button -->
                     <div class="video-controls" id="videoControls">
                         <button class="control-btn play-pause-btn" onclick="togglePlay()" id="playBtn">
                             <i class="fas fa-play" id="playIcon"></i>
@@ -1219,10 +1104,10 @@
                             <div class="progress-thumb" id="progressThumb"></div>
                         </div>
                         
-                        <!-- Dynamic Quality Selector -->
-                        <button class="dynamic-quality-selector" id="dynamicQualitySelector" onclick="toggleQualityPanel()">
+                        <!-- SINGLE Quality Selection Button -->
+                        <button class="quality-btn" id="qualityBtn" onclick="toggleQualityPanel()">
                             <i class="fas fa-video me-1"></i>
-                            <span id="selectedQualityText">Auto</span>
+                            <span id="qualityBtnText">Quality</span>
                             <i class="fas fa-chevron-down ms-1"></i>
                         </button>
                         
@@ -1236,7 +1121,7 @@
 
         <!-- Content Section -->
         <div class="content-section">
-            <!-- Video Info with Detected Qualities -->
+            <!-- Video Info - No ad badges -->
             <div class="text-center mb-4">
                 <h4 class="mb-2" id="videoTitle">Movie Title</h4>
                 <div class="d-flex justify-content-center gap-3 flex-wrap mb-2">
@@ -1246,36 +1131,51 @@
                     <span class="badge bg-primary">
                         <i class="fas fa-wifi me-1"></i> Direct Stream
                     </span>
-                    <span class="badge bg-warning">
-                        <i class="fas fa-ad me-1"></i> Ad-Supported
+                    <span class="badge bg-success">
+                        <i class="fas fa-tachometer-alt me-1"></i> Fast Server
                     </span>
-                </div>
-                
-                <!-- Detected Qualities Display -->
-                <div class="detected-qualities" id="detectedQualities">
-                    <!-- Qualities will be dynamically added -->
-                    <span class="quality-badge quality-1080p" id="badge-1080p" style="display: none;">
-                        <i class="fas fa-check-circle me-1"></i>1080p
-                    </span>
-                    <span class="quality-badge quality-720p" id="badge-720p" style="display: none;">
-                        <i class="fas fa-check-circle me-1"></i>720p
-                    </span>
-                    <span class="quality-badge quality-480p" id="badge-480p" style="display: none;">
-                        <i class="fas fa-check-circle me-1"></i>480p
-                    </span>
-                    <span class="quality-badge quality-360p" id="badge-360p" style="display: none;">
-                        <i class="fas fa-check-circle me-1"></i>360p
-                    </span>
-                </div>
-                
-                <!-- Auto Quality Button -->
-                <div class="mt-3">
-                    <button class="auto-quality-btn" onclick="autoSelectBestQuality()" id="autoQualityBtn">
-                        <i class="fas fa-bolt"></i> Auto Select Best Quality
-                    </button>
                 </div>
             </div>
 
+            <!-- External video player section -->
+            <div class="justify-content-center align-items-center w-100 d-flex">
+                    <div class="row d-flex w-100 justify-content-center align-items-center">
+
+                        <div class="col-lg-7 col-12 d-flex justify-content-start align-items-center ">
+                            <p class="h4 px-2 mt-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 to-orange-600 font-bold mb-2">Play with...</p>
+                        </div>
+                        <div class="col-lg-6 col-10 d-flex justify-center items-center flex-wrap pb-3 gap-2 wow animate__animated animate__fadeIn">
+                            <div onclick="vlc_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center justify-content-center align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInLeft">
+                                <svg class="wow animate__animated animate__shakeX  animate__delay-1s" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="50" height="50" viewBox="0 0 64 64"><linearGradient id="d2lfkA6lemjIH1JdWslHIa_74320_gr1" x1="32" x2="32" y1="16.021" y2="39.25" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset=".437" stop-color="#6dc7ff"></stop><stop offset="1" stop-color="#e6abff"></stop></linearGradient><path fill="url(#d2lfkA6lemjIH1JdWslHIa_74320_gr1)" d="M32,31.25c2.891,0,5.255-0.323,6.939-0.712l2.409,7.664C37.765,39.116,33.881,39.25,32,39.25 c-1.88,0-5.765-0.134-9.347-1.049l2.408-7.663C26.745,30.927,29.11,31.25,32,31.25z M32.5,24.25c1.554,0,2.999-0.141,4.343-0.38 l-2.429-7.729c-0.587,0.063-1.211,0.109-1.914,0.109c-1.1,0-2.062-0.092-2.876-0.229l-2.404,7.651 C28.816,24.034,30.574,24.25,32.5,24.25z"></path><linearGradient id="d2lfkA6lemjIH1JdWslHIb_74320_gr2" x1="32.105" x2="32.105" y1="7.415" y2="56" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset="0" stop-color="#1a6dff"></stop><stop offset="1" stop-color="#c822ff"></stop></linearGradient><path fill="url(#d2lfkA6lemjIH1JdWslHIb_74320_gr2)" d="M56.903,50.041l-2.216-10.779c-0.513-2.265-2.52-3.847-4.881-3.847H45.09l-8.059-24.451 c-0.7-2.123-2.726-3.549-5.04-3.549c-2.314,0-4.339,1.426-5.039,3.549l-8.058,24.451h-4.491c-2.362,0-4.369,1.582-4.885,3.866 L7.31,50.021c-0.327,1.442,0.019,2.937,0.947,4.099C9.212,55.314,10.645,56,12.19,56h39.828c1.545,0,2.979-0.685,3.934-1.88 C56.88,52.958,57.226,51.464,56.903,50.041z M19.096,41.19l9.755-29.601c0.429-1.301,1.69-2.175,3.14-2.175s2.711,0.874,3.14,2.175 l9.774,29.655c0.201,0.72,0.088,1.331-0.357,1.923c-1.509,2.001-6.32,3.246-12.557,3.247c-0.004,0-0.007,0-0.011,0 c-6.223,0-11.017-1.229-12.511-3.208C19,42.586,18.886,41.933,19.096,41.19z M54.39,52.872C53.816,53.589,52.952,54,52.019,54H12.19 c-0.934,0-1.798-0.411-2.371-1.128C9.39,52.334,9.181,51.677,9.202,51H17v-2H9.561l0.411-2H14v-2h-3.616l1.089-5.297 c0.3-1.326,1.532-2.288,2.93-2.288h3.832l-1.05,3.188c-0.392,1.376-0.154,2.693,0.689,3.81c1.921,2.544,7.062,4.003,14.106,4.003 c0.003,0,0.008,0,0.011,0c7.06-0.002,12.219-1.476,14.153-4.044c0.823-1.093,1.058-2.37,0.678-3.694 c-0.003-0.013-0.007-0.025-0.011-0.038l-1.062-3.224h4.058c1.397,0,2.63,0.962,2.926,2.269L53.825,45H50v2h4.236l0.411,2H47v2h8.008 C55.029,51.671,54.821,52.332,54.39,52.872z"></path></svg>
+                                VLC Player
+                            </div>
+                            <div onclick="mx_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center justify-content-center align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInRight">
+                                <svg class="wow animate__animated animate__shakeX animate__delay-2s" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="50" height="50" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="#ffeb9b"></circle><circle cx="32" cy="32" r="21" fill="#f9dd8f"></circle><path fill="#8d6c9f" d="M32,6c14.336,0,26,11.664,26,26S46.336,58,32,58S6,46.336,6,32S17.664,6,32,6 M32,4	C16.536,4,4,16.536,4,32s12.536,28,28,28s28-12.536,28-28S47.464,4,32,4L32,4z"></path><path fill="#fff8ee" d="M42.5,31.134l-17-9.815c-0.667-0.385-1.5,0.096-1.5,0.866v19.63c0,0.77,0.833,1.251,1.5,0.866 l17-9.815C43.167,32.481,43.167,31.519,42.5,31.134z"></path><path fill="#8d6c9f" d="M25,43.818c-0.344,0-0.688-0.09-1-0.271c-0.626-0.361-1-1.009-1-1.732v-19.63 c0-0.723,0.374-1.371,1-1.732c0.623-0.362,1.371-0.363,2,0l17,9.815v0c0.626,0.361,1,1.009,1,1.732s-0.374,1.371-1,1.732l-17,9.815 C25.687,43.728,25.343,43.818,25,43.818z M25,22.185v19.63L42,32l0.5-0.866L42,32L25,22.185z"></path><g><path fill="#8d6c9f" d="M53.596,37.162c-0.063,0-0.126-0.006-0.189-0.018l-1.964-0.376 c-0.542-0.104-0.897-0.628-0.794-1.17c0.104-0.542,0.627-0.898,1.171-0.793l1.964,0.376c0.542,0.104,0.897,0.628,0.794,1.17 C54.485,36.829,54.066,37.162,53.596,37.162z"></path><path fill="#8d6c9f" d="M51.997,42.133c-0.139,0-0.28-0.029-0.415-0.091l-1.819-0.832 c-0.502-0.229-0.723-0.823-0.493-1.325c0.229-0.501,0.82-0.726,1.325-0.493l1.819,0.832c0.502,0.229,0.723,0.823,0.493,1.325 C52.739,41.916,52.377,42.133,51.997,42.133z"></path><path fill="#8d6c9f" d="M49.278,46.59c-0.216,0-0.435-0.07-0.618-0.214l-1.571-1.237c-0.434-0.342-0.508-0.97-0.167-1.404 c0.343-0.433,0.97-0.51,1.405-0.167l1.571,1.237c0.434,0.342,0.508,0.97,0.167,1.404C49.867,46.459,49.574,46.59,49.278,46.59z"></path><path fill="#8d6c9f" d="M45.591,50.28c-0.296,0-0.589-0.131-0.787-0.381l-1.237-1.571 c-0.341-0.434-0.267-1.063,0.167-1.404c0.436-0.343,1.063-0.266,1.405,0.167l1.237,1.571c0.341,0.434,0.267,1.063-0.167,1.404 C46.025,50.21,45.807,50.28,45.591,50.28z"></path><path fill="#8d6c9f" d="M41.134,52.998c-0.38,0-0.742-0.217-0.91-0.584l-0.832-1.819c-0.229-0.502-0.009-1.096,0.493-1.325 c0.504-0.233,1.096-0.008,1.325,0.493l0.832,1.819c0.229,0.502,0.009,1.096-0.493,1.325 C41.414,52.969,41.272,52.998,41.134,52.998z"></path><path fill="#8d6c9f" d="M36.161,54.595c-0.47,0-0.89-0.333-0.981-0.812l-0.377-1.964c-0.104-0.542,0.252-1.066,0.794-1.17 c0.54-0.105,1.066,0.251,1.171,0.793l0.377,1.964c0.104,0.542-0.252,1.066-0.794,1.17C36.287,54.589,36.224,54.595,36.161,54.595z"></path></g></svg>
+                                Mx Player
+                            </div>
+                            <div onclick="playit_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center justify-content-center align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInLeft">
+                                <svg class="wow animate__animated animate__shakeX  animate__delay-1s " xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 48 48" id="b"><defs><style>.c{fill:none;stroke:#22abbd;stroke-linecap:round;stroke-linejoin:round;}</style></defs><path class="c" d="m17,32.5v5c0,2.7614-2.2386,5-5,5h0c-2.7614,0-5-2.2386-5-5"/><path class="c" d="m7,37.5c0-2.7614,2.2386-5,5-5h25c2.2,0,4-1.8,4-4V9.5c0-2.2-1.8-4-4-4H11c-2.2,0-4,1.8-4,4v28"/><path class="c" d="m29.1876,18.467l-9.1448-5.2652c-.822-.4733-1.8482.12-1.8482,1.0685v10.5304c0,.9485,1.0262,1.5418,1.8482,1.0685l9.1448-5.2652c.8237-.4742.8237-1.6628,0-2.137Z"/></svg>
+                                Play-it
+                            </div>
+                            <div onclick="km_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center jcc align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInRight">
+                                <svg  class="wow animate__animated animate__shakeX  animate__delay-2s " xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="50px" height="50px"><defs><rect id="zOt10NeCJpLJlmsRZOsAFa" width="280.487" height="124" x="654" y="-72"/></defs><clipPath id="zOt10NeCJpLJlmsRZOsAFb"><use overflow="visible" xlink:href="#zOt10NeCJpLJlmsRZOsAFa"/></clipPath><g><linearGradient id="zOt10NeCJpLJlmsRZOsAFc" x1="76.124" x2="76.124" y1="12.7" y2="50.192" gradientTransform="matrix(-1 0 0 1 115.415 0)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a6dff"/><stop offset="1" stop-color="#c822ff"/></linearGradient><path fill="url(#zOt10NeCJpLJlmsRZOsAFc)" d="M50.999,50.192c-0.597,0-1.19-0.179-1.702-0.531L25.882,33.513 c-0.824-0.568-1.31-1.505-1.298-2.506c0.013-1,0.52-1.925,1.356-2.474l23.416-15.342c0.923-0.604,2.099-0.655,3.07-0.129 C53.397,13.587,54,14.598,54,15.701v31.49c0,1.118-0.615,2.136-1.605,2.656C51.955,50.078,51.476,50.192,50.999,50.192z M50.992,14.697c-0.162,0-0.348,0.042-0.54,0.168L27.036,30.207c-0.283,0.186-0.448,0.485-0.452,0.824 c-0.004,0.338,0.154,0.643,0.433,0.835l23.415,16.148c0.45,0.311,0.872,0.146,1.033,0.062C51.8,47.9,52,47.569,52,47.191v-31.49 c0-0.538-0.367-0.794-0.524-0.88C51.385,14.772,51.21,14.697,50.992,14.697z"/><linearGradient id="zOt10NeCJpLJlmsRZOsAFd" x1="23.708" x2="23.708" y1="13.698" y2="49.195" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6dc7ff"/><stop offset="1" stop-color="#e6abff"/></linearGradient><path fill="url(#zOt10NeCJpLJlmsRZOsAFd)" d="M10,15.701v31.49c0,1.612,1.809,2.561,3.135,1.646l23.416-16.149 c1.169-0.806,1.149-2.541-0.039-3.319L13.096,14.028C11.766,13.157,10,14.111,10,15.701z"/><g><linearGradient id="zOt10NeCJpLJlmsRZOsAFe" x1="24.708" x2="24.708" y1="12.7" y2="50.192" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a6dff"/><stop offset="1" stop-color="#c822ff"/></linearGradient><path fill="url(#zOt10NeCJpLJlmsRZOsAFe)" d="M13.001,50.192c-0.477,0-0.956-0.114-1.396-0.345C10.615,49.327,10,48.31,10,47.191v-31.49 c0-1.104,0.603-2.114,1.573-2.639c0.972-0.526,2.147-0.476,3.07,0.129L38.06,28.533c0.837,0.549,1.344,1.474,1.356,2.474 c0.012,1.001-0.474,1.938-1.298,2.506L14.703,49.661C14.191,50.014,13.598,50.192,13.001,50.192z M13.008,14.697 c-0.218,0-0.393,0.075-0.483,0.124C12.367,14.907,12,15.163,12,15.701v31.49c0,0.378,0.2,0.709,0.535,0.886 c0.161,0.084,0.583,0.25,1.033-0.062l23.415-16.148c0.278-0.192,0.437-0.497,0.433-0.835c-0.004-0.339-0.169-0.639-0.452-0.824 L13.548,14.865C13.355,14.739,13.17,14.697,13.008,14.697z"/></g></g></svg>
+                                km Player
+                            </div>
+                            <div onclick="s_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center jcc align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInRight">
+                                <svg class="wow animate__animated animate__shakeX  animate__delay-3s " xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="50" height="50" viewBox="0 0 64 64">
+                                    <linearGradient id="u3DU_xVfwAA7Ehald_UwAa_79075_gr1" x1="35.5" x2="35.5" y1="6.999" y2="57" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset="0" stop-color="#1a6dff"></stop><stop offset="1" stop-color="#c822ff"></stop></linearGradient><path fill="url(#u3DU_xVfwAA7Ehald_UwAa_79075_gr1)" d="M56.7,30c-0.95-0.5-9.83-5.54-9.92-5.6L16.69,7.42c-0.91-0.51-1.89-0.56-2.62-0.13 C13.39,7.69,13,8.44,13,9.34v45.57c0,0.81,0.35,1.47,0.96,1.83c0.3,0.17,0.63,0.26,0.98,0.26c0.42,0,0.86-0.12,1.29-0.37 l40.43-22.81c1.18-0.67,1.35-1.52,1.34-1.97C57.99,31.11,57.52,30.43,56.7,30z M44.59,25.46l-5.18,5.03L19.82,11.48L44.59,25.46z M15,54.2V9.6l22.98,22.29L15,54.2z M19.81,52.31l19.6-19.03l5.2,5.04L19.81,52.31z M55.67,32.08l-9.24,5.22l-5.58-5.41l5.56-5.4 c2.04,1.16,8.52,4.84,9.36,5.28c0.08,0.04,0.14,0.08,0.18,0.12C55.89,31.94,55.81,32,55.67,32.08z"></path><linearGradient id="u3DU_xVfwAA7Ehald_UwAb_79075_gr2" x1="26.055" x2="26.055" y1="14.33" y2="49.47" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset="0" stop-color="#6dc7ff"></stop><stop offset="1" stop-color="#e6abff"></stop></linearGradient><path fill="url(#u3DU_xVfwAA7Ehald_UwAb_79075_gr2)" d="M35.11 31.89L17 49.47 17 14.33z"></path>
+                                </svg>
+                                S Player
+                            </div>
+
+			                <div onclick="hd_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center jcc align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInRight">
+                                <svg class="wow animate__animated animate__shakeX  animate__delay-3s " xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="50px" width="50px" version="1.1" id="Layer_1" viewBox="0 0 512 512" xml:space="preserve">
+                                    <polygon style="fill:#FFFFFF;" points="187.368,146.928 187.368,355.8 382.992,251.368 "/>
+                                    <path style="fill:red;" d="M256,0.376C114.616,0.376,0,114.824,0,256s114.616,255.624,256,255.624S512,397.176,512,256  S397.384,0.376,256,0.376z M184.496,146.928l195.624,104.44L184.496,355.8V146.928z"/>
+                                </svg>
+                                HD Player(4K)
+                            </div>
+                            
             <!-- Action Grid - FAST DOWNLOAD & TELEGRAM DOWNLOAD -->
             <div class="action-grid">
                 <!-- Fast Download Card -->
@@ -1305,37 +1205,12 @@
                 </div>
             </div>
 
-            <!-- External Players Section -->
-            <div class="external-players">
-                <h5 class="text-center mb-3">
-                    <i class="fas fa-external-link-alt me-2"></i> Open in External Players
-                </h5>
-                <p class="text-center text-muted mb-3">
-                    If video is not playing, try opening in these players
-                </p>
-                
-                <div class="player-buttons">
-                    <button class="player-btn" onclick="openInVLC()">
-                        <i class="fas fa-play-circle"></i> Open in VLC
-                    </button>
-                    <button class="player-btn" onclick="openInMXPlayer()">
-                        <i class="fas fa-play-circle"></i> Open in MX Player
-                    </button>
-                    <button class="player-btn" onclick="openInDefaultPlayer()">
-                        <i class="fas fa-play-circle"></i> Open in Default Player
-                    </button>
-                    <button class="player-btn" onclick="openInBrowser()">
-                        <i class="fas fa-globe"></i> Open in Browser
-                    </button>
-                </div>
-            </div>
-
-            <!-- Donation Section -->
+            <!-- Donation Section - Updated text -->
             <div class="donation-card">
                 <h4 class="text-warning mb-3">
                     <i class="fas fa-heart me-2"></i> Support SK4FiLM
                 </h4>
-                <p class="mb-3">Ads help us maintain this streaming service. For an ad-free experience, consider supporting us directly.</p>
+                <p class="mb-3">Help us maintain this streaming service and add more features.</p>
                 
                 <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
                      alt="Donation QR Code" 
@@ -1353,7 +1228,7 @@
                 </div>
                 
                 <a href="https://cfpe.me/skfilmbox" target="_blank" class="btn btn-warning px-4">
-                    <i class="fas fa-donate me-2"></i> DONATE FOR AD-FREE
+                    <i class="fas fa-donate me-2"></i> SUPPORT US
                 </a>
             </div>
         </div>
@@ -1435,7 +1310,7 @@
         
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player with Smart Quality Detection Initializing...");
+            console.log("🚀 SK4FiLM Player Initializing...");
             
             if (!messageId) {
                 showError("No video specified");
@@ -1456,7 +1331,7 @@
                 // Detect qualities from title
                 await detectQualitiesFromTitle(decodedTitle);
                 
-                // Initialize Video.js Player with IMA3 Ads
+                // Initialize Video.js Player with IMA3 Ads (silent - no ad messages)
                 initializeVideoJS();
                 
                 // Load metadata
@@ -1474,7 +1349,7 @@
                 // Generate download options based on detected qualities
                 generateDownloadOptions();
                 
-                console.log("✅ Player with Smart Quality Detection Ready!");
+                console.log("✅ Player Ready!");
                 
             } catch (error) {
                 console.error("Initialization error:", error);
@@ -1486,7 +1361,7 @@
         
         // Detect available qualities from title
         async function detectQualitiesFromTitle(title) {
-            updateLoadingText("Analyzing title for available qualities...");
+            updateLoadingText("Loading video...");
             
             // First, try to detect from title patterns
             detectedQualities = [];
@@ -1502,28 +1377,23 @@
             
             // If no qualities detected from title, check via API
             if (detectedQualities.length === 0) {
-                updateLoadingText("Checking server for available qualities...");
+                updateLoadingText("Loading video...");
                 await detectQualitiesFromAPI();
             } else {
                 // Sort by quality order (highest first)
                 detectedQualities.sort((a, b) => b.order - a.order);
                 detectedQualities = detectedQualities.map(item => item.quality);
                 
-                updateLoadingText(`Detected qualities: ${detectedQualities.join(', ')}`);
-                updateDetectedQualitiesUI();
-                
                 // Auto-select best (highest) quality
                 currentQuality = detectedQualities[0];
-                updateQualityUI();
+                updateQualityButtonText();
             }
             
             // If still no qualities detected, use all qualities as fallback
             if (detectedQualities.length === 0) {
                 detectedQualities = [...ALL_QUALITIES];
                 currentQuality = '1080p';
-                updateLoadingText("Using default quality options");
-                updateDetectedQualitiesUI();
-                updateQualityUI();
+                updateQualityButtonText();
             }
         }
         
@@ -1533,8 +1403,6 @@
                 // Try each API endpoint
                 for (const endpoint of API_ENDPOINTS) {
                     try {
-                        updateLoadingText(`Checking ${endpoint} for quality info...`);
-                        
                         // Try to get file info which might include multiple qualities
                         const infoUrl = `${endpoint}/api/file/info?channel_id=${channelId}&message_id=${messageId}`;
                         const infoResponse = await fetchWithTimeout(infoUrl, 3000);
@@ -1548,8 +1416,6 @@
                             if (fileInfo.available_qualities) {
                                 // If API directly provides available qualities
                                 detectedQualities = fileInfo.available_qualities;
-                                updateLoadingText(`API provided qualities: ${detectedQualities.join(', ')}`);
-                                updateDetectedQualitiesUI();
                                 return;
                             }
                             
@@ -1569,9 +1435,6 @@
                                         const orderB = QUALITY_PATTERNS.find(p => p.quality === b)?.order || 0;
                                         return orderB - orderA;
                                     });
-                                    
-                                    updateLoadingText(`API detected qualities: ${detectedQualities.join(', ')}`);
-                                    updateDetectedQualitiesUI();
                                     return;
                                 }
                             }
@@ -1582,83 +1445,53 @@
                 }
                 
                 // If API detection failed, try to test each quality
-                updateLoadingText("Testing individual quality availability...");
                 await testQualityAvailability();
                 
             } catch (error) {
                 console.error("Quality detection error:", error);
                 // Fallback to all qualities
                 detectedQualities = [...ALL_QUALITIES];
-                updateLoadingText("Using fallback quality options");
-                updateDetectedQualitiesUI();
             }
         }
         
         // Test each quality by trying to get its URL
         async function testQualityAvailability() {
             const testedQualities = [];
-            let progress = 0;
             
             // Test each quality
             for (const quality of ALL_QUALITIES) {
                 try {
-                    updateLoadingText(`Testing ${quality} availability...`);
-                    progress += 25;
-                    document.getElementById('loadingProgress').style.width = `${progress}%`;
-                    
                     // Try to get URL for this quality
                     const videoUrl = await getVideoUrl(quality, true); // true = test mode
                     if (videoUrl) {
                         testedQualities.push(quality);
-                        console.log(`${quality} ✓ available`);
-                        
-                        // Store file size if available
-                        if (videoUrl.includes('file_size')) {
-                            // Extract file size from URL or response if available
-                        }
                     }
                 } catch (error) {
-                    console.log(`${quality} ✗ not available`);
+                    console.log(`${quality} not available`);
                 }
             }
             
             if (testedQualities.length > 0) {
                 detectedQualities = testedQualities;
-                updateLoadingText(`Available qualities: ${detectedQualities.join(', ')}`);
-                updateDetectedQualitiesUI();
                 qualityTested = true;
             } else {
                 // If none available, use all as fallback
                 detectedQualities = [...ALL_QUALITIES];
-                updateLoadingText("No specific qualities detected, using defaults");
-                updateDetectedQualitiesUI();
             }
         }
         
-        // Update UI to show detected qualities
-        function updateDetectedQualitiesUI() {
-            const container = document.getElementById('detectedQualities');
-            
-            // Show/hide quality badges
-            ALL_QUALITIES.forEach(quality => {
-                const badge = document.getElementById(`badge-${quality}`);
-                if (badge) {
-                    if (detectedQualities.includes(quality)) {
-                        badge.style.display = 'inline-flex';
-                    } else {
-                        badge.style.display = 'none';
-                    }
+        // Update quality button text
+        function updateQualityButtonText() {
+            const qualityBtn = document.getElementById('qualityBtnText');
+            if (qualityBtn) {
+                if (currentQuality === 'auto' && detectedQualities.length > 0) {
+                    qualityBtn.textContent = `${detectedQualities[0]}`;
+                } else if (currentQuality !== 'auto') {
+                    qualityBtn.textContent = currentQuality;
+                } else {
+                    qualityBtn.textContent = 'Quality';
                 }
-            });
-            
-            // Update loading text
-            if (detectedQualities.length > 0) {
-                document.getElementById('qualityDetectionText').textContent = 
-                    `Available: ${detectedQualities.join(', ')}`;
             }
-            
-            // Generate quality options for the panel
-            generateQualityOptions();
         }
         
         // Generate quality options for selection panel
@@ -1669,13 +1502,11 @@
             let html = '';
             
             // Auto option
-            const autoSize = qualitySizes['auto'] ? `(${formatSize(qualitySizes['auto'])})` : '';
             html += `
                 <button class="quality-option-btn ${currentQuality === 'auto' ? 'active' : ''}" 
                         onclick="changeQuality('auto')">
                     <div>
-                        <i class="fas fa-bolt me-1"></i> Auto (Best)
-                        <span class="quality-size" id="autoQualitySize">${getAutoQualityText()}</span>
+                        <i class="fas fa-bolt me-1"></i> Auto
                     </div>
                     ${currentQuality === 'auto' ? '<i class="fas fa-check"></i>' : ''}
                 </button>`;
@@ -1688,7 +1519,7 @@
                             onclick="changeQuality('${quality}')">
                         <div>
                             <i class="fas fa-video me-1"></i> ${quality}
-                            <span class="quality-size" id="size-${quality}">${size}</span>
+                            <span class="quality-size">${size}</span>
                         </div>
                         ${currentQuality === quality ? '<i class="fas fa-check"></i>' : ''}
                     </button>`;
@@ -1697,48 +1528,11 @@
             // If no qualities detected, show message
             if (detectedQualities.length === 0) {
                 html += `<div class="text-center text-muted" style="font-size: 0.8rem; padding: 10px;">
-                    No quality information available
+                    No quality options
                 </div>`;
             }
             
             container.innerHTML = html;
-        }
-        
-        // Update all quality-related UI elements
-        function updateQualityUI() {
-            // Update quality indicator
-            const qualityText = document.getElementById('qualityText');
-            const selectedQualityText = document.getElementById('selectedQualityText');
-            
-            if (currentQuality === 'auto') {
-                const autoText = getAutoQualityText();
-                qualityText.textContent = autoText;
-                selectedQualityText.textContent = autoText;
-            } else {
-                qualityText.textContent = currentQuality;
-                selectedQualityText.textContent = currentQuality;
-            }
-            
-            // Update quality selector
-            const qualitySelector = document.getElementById('dynamicQualitySelector');
-            if (qualitySelector) {
-                qualitySelector.innerHTML = `
-                    <i class="fas fa-video me-1"></i>
-                    <span id="selectedQualityText">${currentQuality === 'auto' ? getAutoQualityText() : currentQuality}</span>
-                    <i class="fas fa-chevron-down ms-1"></i>
-                `;
-            }
-            
-            // Update quality panel options
-            generateQualityOptions();
-        }
-        
-        // Get text for auto quality
-        function getAutoQualityText() {
-            if (detectedQualities.length > 0) {
-                return `Auto (${detectedQualities[0]})`;
-            }
-            return 'Auto';
         }
         
         // Load video with detected qualities
@@ -1758,7 +1552,6 @@
                 if (detectedQualities.length > 1) {
                     for (let i = 1; i < detectedQualities.length; i++) {
                         try {
-                            showToast(`Trying ${detectedQualities[i]}...`);
                             await loadVideo(detectedQualities[i]);
                             break;
                         } catch (e) {
@@ -1790,21 +1583,20 @@
                 }
             });
             
-            // Initialize IMA3 Ads
+            // Initialize IMA3 Ads SILENTLY (no user messages)
             player.ima({
                 adTagUrl: AD_TAG_URL,
                 adsRenderingSettings: {
-                    autoPlayAdBreaks: 'none' // Don't auto-play pre-roll
+                    autoPlayAdBreaks: 'none'
                 }
             });
             
-            // Ad event listeners
+            // SILENT ad event listeners (no toast messages)
             player.on('adstart', function() {
                 console.log("Ad started");
                 // Hide custom controls during ads
                 document.getElementById('videoControls').style.display = 'none';
                 document.getElementById('playOverlay').style.display = 'none';
-                showToast("Ad playing - please wait");
             });
             
             player.on('adend', function() {
@@ -1820,9 +1612,8 @@
             
             player.on('aderror', function(e) {
                 console.warn("Ad error:", e);
-                // Skip ad on error
+                // Skip ad on error silently
                 player.ima.skipAd();
-                showToast("Ad skipped due to error");
             });
             
             // Player event listeners
@@ -1855,8 +1646,7 @@
                         currentQuality = quality;
                     }
                     
-                    updateQualityUI();
-                    showToast(`Loading ${quality === 'auto' ? getAutoQualityText() : quality}...`);
+                    updateQualityButtonText();
                     
                     // Hide loading animation when video can play
                     player.one('canplay', () => {
@@ -1909,15 +1699,13 @@
             
             updateFileInfo();
             detectedQualities = ['720p', '480p'];
-            updateDetectedQualitiesUI();
             currentQuality = '720p';
-            updateQualityUI();
+            updateQualityButtonText();
             currentVideoUrl = fallbackUrl;
             
             // Set fallback source on Video.js player
             player.src({ type: 'video/mp4', src: fallbackUrl });
             
-            showToast("Playing sample video");
             hideLoadingAnimation();
         }
         
@@ -1930,8 +1718,6 @@
             document.removeEventListener('click', closeQualityPanelOnClickOutside);
             
             if (quality === currentQuality && quality !== 'auto') return;
-            
-            showToast(`Switching to ${quality === 'auto' ? 'auto (best)' : quality}...`);
             
             // Store current playback state
             const wasPlaying = !player.paused();
@@ -1953,8 +1739,8 @@
                 }
                 
                 // Update UI
-                updateQualityUI();
-                showToast(`Now playing in ${currentQuality}`);
+                updateQualityButtonText();
+                generateQualityOptions();
                 
             } catch (error) {
                 console.error("Quality change error:", error);
@@ -1962,20 +1748,11 @@
             }
         }
         
-        // Auto-select best available quality
-        function autoSelectBestQuality() {
-            if (detectedQualities.length > 0) {
-                const bestQuality = detectedQualities[0];
-                changeQuality(bestQuality);
-                showToast(`Auto-selected ${bestQuality} (best available)`);
-            } else {
-                changeQuality('1080p');
-                showToast("Auto-selected 1080p");
-            }
-        }
-        
         // Toggle quality panel visibility
         function toggleQualityPanel() {
+            // Generate options first
+            generateQualityOptions();
+            
             const panel = document.getElementById('qualityPanel');
             panel.classList.toggle('show');
             
@@ -1991,12 +1768,10 @@
         
         function closeQualityPanelOnClickOutside(event) {
             const panel = document.getElementById('qualityPanel');
-            const selector = document.getElementById('dynamicQualitySelector');
-            const indicator = document.getElementById('qualityIndicator');
+            const qualityBtn = document.getElementById('qualityBtn');
             
             if (!panel.contains(event.target) && 
-                !selector.contains(event.target) && 
-                !indicator.contains(event.target)) {
+                !qualityBtn.contains(event.target)) {
                 panel.classList.remove('show');
                 document.removeEventListener('click', closeQualityPanelOnClickOutside);
             }
@@ -2016,7 +1791,7 @@
                 // Fast Download Link
                 const fastDownloadUrl = `https://sk4film.koyeb.app/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
                 
-                const sizeText = qualitySizes[quality] ? formatSize(qualitySizes[quality]) : 'Direct Download';
+                const sizeText = qualitySizes[quality] ? formatSize(qualitySizes[quality]) : 'Download';
                 
                 fastHtml += `
                 <a href="${fastDownloadUrl}" 
@@ -2040,17 +1815,17 @@
                    onclick="startTelegramDownload('${quality}')">
                     <i class="fab fa-telegram"></i>
                     ${quality}<br>
-                    <small>Telegram Bot</small>
+                    <small>Telegram</small>
                 </a>`;
             });
             
             // If no download options, show message
             if (fastHtml === '') {
-                fastHtml = '<p class="text-muted" style="font-size: 0.9rem;">No download options available for this video</p>';
+                fastHtml = '<p class="text-muted" style="font-size: 0.9rem;">Download options loading...</p>';
             }
             
             if (telegramHtml === '') {
-                telegramHtml = '<p class="text-muted" style="font-size: 0.9rem;">No Telegram options available</p>';
+                telegramHtml = '<p class="text-muted" style="font-size: 0.9rem;">Telegram options loading...</p>';
             }
             
             fastDownloadContainer.innerHTML = fastHtml;
@@ -2062,14 +1837,13 @@
         function onVideoMetadataLoaded() {
             console.log("Video metadata loaded");
             updateDurationDisplay();
-            updateLoadingProgress(80, "Video ready", "Preparing playback...");
+            updateLoadingProgress(80, "Loading video...", "");
         }
         
         function onVideoPlaying() {
             console.log("Video playing");
             isPlaying = true;
             updatePlayButton();
-            updateQualityIndicator(currentQuality);
             hasVideoStarted = true;
             
             document.getElementById('playOverlay').classList.add('hidden');
@@ -2087,7 +1861,6 @@
             console.log("Video ended");
             isPlaying = false;
             updatePlayButton();
-            showToast("Video ended. Thanks for watching!");
             showControls();
             
             document.getElementById('playOverlay').classList.remove('hidden');
@@ -2097,7 +1870,6 @@
         function onVideoError(e) {
             console.error("Video error:", e);
             if (currentVideoUrl && !currentVideoUrl.includes('commondatastorage')) {
-                showToast("Error loading. Trying fallback...");
                 loadFallbackVideo();
             }
         }
@@ -2126,11 +1898,11 @@
                 document.getElementById('loadingProgress').style.width = `${progress}%`;
                 
                 if (progress < 30) {
-                    updateLoadingText("Initializing player with ads...");
+                    updateLoadingText("Initializing player...");
                 } else if (progress < 60) {
-                    updateLoadingText("Connecting to ad server...");
+                    updateLoadingText("Connecting to server...");
                 } else if (progress < 90) {
-                    updateLoadingText("Loading video data...");
+                    updateLoadingText("Loading video...");
                 }
             }, 100);
         }
@@ -2163,7 +1935,7 @@
                 quality = detectedQualities[0];
             }
             
-            showToast(`Preparing ${quality} download...`);
+            showToast(`Downloading ${quality}...`);
             
             try {
                 for (const endpoint of API_ENDPOINTS) {
@@ -2179,8 +1951,6 @@
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
-                            
-                            showToast(`Downloading ${quality}...`);
                             return;
                         }
                     } catch (error) {
@@ -2191,7 +1961,7 @@
                 showToast("Download failed. Try Telegram.");
             } catch (error) {
                 console.error("Download error:", error);
-                showToast("Error. Try Telegram download.");
+                showToast("Download error");
             }
         }
         
@@ -2205,7 +1975,6 @@
             const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
             const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
             window.open(telegramUrl, '_blank');
-            showToast(`Opening Telegram for ${quality} download...`);
         }
         
         // ======================= EXTERNAL PLAYER FUNCTIONS =======================
@@ -2238,7 +2007,6 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                showToast("Opening in default player...");
             } else {
                 showToast("Video URL not available");
             }
@@ -2247,7 +2015,6 @@
         function openInBrowser() {
             if (currentVideoUrl) {
                 window.open(currentVideoUrl, '_blank');
-                showToast("Opening in new tab...");
             } else {
                 showToast("Video URL not available");
             }
@@ -2278,7 +2045,6 @@
                     videoContainer.style.zIndex = '999999';
                     document.body.style.overflow = 'hidden';
                     isFullscreen = true;
-                    showToast("Fullscreen mode");
                 }
             } else {
                 // Exit fullscreen
@@ -2300,7 +2066,6 @@
                     videoContainer.style.zIndex = '1';
                     document.body.style.overflow = 'auto';
                     isFullscreen = false;
-                    showToast("Exited fullscreen");
                 }
             }
             
@@ -2311,7 +2076,7 @@
         
         function togglePlay() {
             if (player.paused()) {
-                // Request ads before playing
+                // Request ads before playing (silently)
                 player.ima.requestAds();
                 player.play();
             } else {
@@ -2365,18 +2130,6 @@
             if (duration > 0) {
                 document.getElementById('duration').textContent = formatTime(duration);
             }
-        }
-        
-        function updateQualityIndicator(quality) {
-            const qualityText = document.getElementById('qualityText');
-            const qualityNames = {
-                '1080p': 'FHD',
-                '720p': 'HD',
-                '480p': 'SD',
-                '360p': '360p',
-                'auto': 'Auto'
-            };
-            qualityText.textContent = qualityNames[quality] || quality;
         }
         
         function updateFileInfo() {
@@ -2568,7 +2321,7 @@
             const upiInput = document.getElementById('upiId');
             upiInput.select();
             document.execCommand('copy');
-            showToast("UPI ID copied to clipboard!");
+            showToast("UPI ID copied!");
         }
         
         function setupControls() {
@@ -2744,12 +2497,10 @@
                 
                 if (zoomFactor > 1.2) {
                     player.el().querySelector('video').style.objectFit = 'cover';
-                    showToast("Zoom: Fill Screen");
                     initialDistance = currentDistance;
                 } 
                 else if (zoomFactor < 0.8) {
                     player.el().querySelector('video').style.objectFit = 'contain';
-                    showToast("Zoom: Fit Screen");
                     initialDistance = currentDistance;
                 }
                 
@@ -2824,7 +2575,6 @@
         function showError(message) {
             showToast(message, 5000);
             document.getElementById('loadingText').textContent = "Error Loading Player";
-            document.getElementById('loadingSubtext').textContent = message;
         }
         
         // ======================= EXPORT FUNCTIONS =======================
@@ -2845,9 +2595,8 @@
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
         window.toggleQualityPanel = toggleQualityPanel;
-        window.autoSelectBestQuality = autoSelectBestQuality;
         
-        console.log("🎬 SK4FiLM Player with Complete Quality Detection Ready!");
+        console.log("🎬 SK4FiLM Player Ready!");
     </script>
 </body>
 </html>
