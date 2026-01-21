@@ -402,49 +402,69 @@
             opacity: 0.9;
         }
         
-        /* Action Buttons */
-        .action-buttons {
+        /* Action Buttons Container */
+        .action-buttons-container {
             display: flex;
-            gap: 10px;
-            margin-bottom: 1rem;
+            gap: 12px;
+            margin-top: 1rem;
         }
         
-        .btn-stream {
-            background: linear-gradient(45deg, #ff0000, #ff6b6b);
-            border: none;
+        /* Stream Now Button */
+        .btn-stream-now {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
             color: white;
-            padding: 10px 20px;
+            border: none;
+            padding: 12px 24px;
             border-radius: 10px;
             font-weight: 600;
+            font-size: 1rem;
             transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             flex: 1;
-            text-align: center;
+            min-width: 140px;
         }
         
-        .btn-stream:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(255, 0, 0, 0.35);
+        .btn-stream-now:hover:not(:disabled) {
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(255, 65, 108, 0.35);
+            color: white;
         }
         
-        .btn-download {
+        .btn-stream-now:disabled {
+            background: #495057 !important;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        /* Download Button */
+        .btn-download-main {
             background: linear-gradient(45deg, #28a745, #20c997);
-            border: none;
             color: white;
-            padding: 10px 20px;
+            border: none;
+            padding: 12px 24px;
             border-radius: 10px;
             font-weight: 600;
+            font-size: 1rem;
             transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             flex: 1;
-            text-align: center;
+            min-width: 140px;
         }
         
-        .btn-download:hover {
-            transform: scale(1.05);
+        .btn-download-main:hover:not(:disabled) {
+            transform: scale(1.03);
             box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35);
+            color: white;
         }
         
-        .btn-stream:disabled,
-        .btn-download:disabled {
+        .btn-download-main:disabled {
             background: #495057 !important;
             opacity: 0.6;
             cursor: not-allowed;
@@ -501,6 +521,18 @@
             position: relative;
             overflow: hidden;
             letter-spacing: 0.5px;
+        }
+        
+        /* Stream Quality Button */
+        .quality-option.stream-btn {
+            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+            border: 1px solid rgba(255, 107, 107, 0.5);
+        }
+        
+        /* Download Quality Button */
+        .quality-option.download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: 1px solid rgba(40, 167, 69, 0.5);
         }
         
         /* Premium Gradient Colors for Each Quality */
@@ -595,33 +627,6 @@
         .quality-option:active {
             transform: translateY(-2px) scale(1.01);
             transition: transform 0.1s ease;
-        }
-        
-        /* Stream Now Button */
-        .btn-stream-now {
-            background: linear-gradient(45deg, #ff0000, #ff6b6b);
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .btn-stream-now:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.4);
-        }
-        
-        .btn-stream-now i {
-            font-size: 1.2rem;
         }
         
         /* Video File Badge */
@@ -781,12 +786,20 @@
             .result-thumbnail-top {
                 height: 200px;
             }
-            .btn-stream-now,
-            .btn-stream,
-            .btn-download {
-                font-size: 0.9rem;
-                padding: 12px 10px;
+            
+            .action-buttons-container {
+                flex-direction: column;
+                gap: 10px;
             }
+            
+            .btn-stream-now,
+            .btn-download-main {
+                width: 100%;
+                min-width: auto;
+                padding: 12px 16px;
+                font-size: 0.9rem;
+            }
+            
             .play-button {
                 width: 60px;
                 height: 60px;
@@ -814,11 +827,11 @@
             .result-thumbnail-top {
                 height: 180px;
             }
+            
             .btn-stream-now,
-            .btn-stream,
-            .btn-download {
+            .btn-download-main {
                 font-size: 0.85rem;
-                padding: 10px 8px;
+                padding: 10px 12px;
             }
             
             .quality-buttons-row {
@@ -845,11 +858,11 @@
             .result-thumbnail-top {
                 height: 150px;
             }
+            
             .btn-stream-now,
-            .btn-stream,
-            .btn-download {
+            .btn-download-main {
                 font-size: 0.8rem;
-                padding: 10px 6px;
+                padding: 10px 8px;
             }
             
             .quality-buttons-row {
@@ -1138,8 +1151,9 @@ class EnhancedSearchCache {
     cleanup() {
         const now = Date.now();
         for (const [key, value] of this.storage.entries()) {
-            if (now - value.timestamp > CACHE_DURATION):
+            if (now - value.timestamp > CACHE_DURATION) {
                 this.storage.delete(key);
+            }
         }
     }
 }
@@ -1220,63 +1234,9 @@ function updateOnlineStatus() {
     isOnline = navigator.onLine;
 }
 
-// ✅ STREAMING SUPPORT FUNCTIONS
-async function openStreamView(fileId, title, quality) {
-    console.log("🎬 Opening stream for:", title, "File ID:", fileId, "Quality:", quality);
-    
-    // Build view.html URL with parameters
-    const params = new URLSearchParams({
-        file_id: fileId,
-        title: encodeURIComponent(title),
-        quality: quality || 'HD'
-    });
-    
-    // Open in new tab
-    window.open(`view.html?${params.toString()}`, '_blank');
-}
-
-async function getBestQualityForStreaming(qualityOptions) {
-    if (!qualityOptions || typeof qualityOptions !== 'object') {
-        return null;
-    }
-    
-    // Quality priority for streaming
-    const qualityPriority = ['2160p', '1080p', '720p', '480p', '360p'];
-    
-    // Try to find the best quality
-    for (const quality of qualityPriority) {
-        if (qualityOptions[quality]) {
-            return {
-                quality: quality,
-                file_id: qualityOptions[quality].file_id || null
-            };
-        }
-        
-        // Check for HEVC variants
-        const hevcQuality = `${quality} HEVC`;
-        if (qualityOptions[hevcQuality]) {
-            return {
-                quality: hevcQuality,
-                file_id: qualityOptions[hevcQuality].file_id || null
-            };
-        }
-    }
-    
-    // Return first available quality
-    const firstKey = Object.keys(qualityOptions)[0];
-    if (firstKey) {
-        return {
-            quality: firstKey,
-            file_id: qualityOptions[firstKey].file_id || null
-        };
-    }
-    
-    return null;
-}
-
-// ✅ FIXED: Quality Options Generator with Premium Design
-function generateQualityOptions(qualityOptions, resultData, resultIndex) {
-    console.log("🔧 Generating quality options...");
+// ✅ FIXED: Quality Options Generator for STREAMING and DOWNLOAD
+function generateQualityOptions(qualityOptions, resultData, type = 'both') {
+    console.log(`🔧 Generating ${type} quality options...`);
     console.log("Quality options received:", qualityOptions);
     console.log("Quality options type:", typeof qualityOptions);
     console.log("Result data keys:", Object.keys(resultData));
@@ -1372,20 +1332,36 @@ function generateQualityOptions(qualityOptions, resultData, resultIndex) {
             // Use the qualityData's message_id if available, otherwise use realMessageId
             const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
             
-            // Create the file ID for Telegram bot
-            const fileId = qualityData.file_id || `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+            if (type === 'stream' || type === 'both') {
+                // STREAM button - opens view.html
+                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                html += `
+                <a href="${streamUrl}" 
+                   target="_blank" 
+                   class="quality-option stream-btn"
+                   data-quality="${quality}"
+                   onclick="console.log('Streaming: ${streamUrl}')">
+                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                    <small>Stream Now</small>
+                </a>`;
+            }
             
-            // Get bot username (use result's bot_username or default)
-            const botUsername = resultData.bot_username || BOT_USERNAME;
-            
-            html += `
-            <a href="https://t.me/${botUsername}?start=${fileId}" 
-               target="_blank" 
-               class="quality-option"
-               data-quality="${quality}"
-               onclick="console.log('Downloading: ${fileId}')">
-                <i class="fas fa-download me-1"></i>${quality}
-            </a>`;
+            if (type === 'download' || type === 'both') {
+                // DOWNLOAD button - opens Telegram bot
+                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                const botUsername = resultData.bot_username || BOT_USERNAME;
+                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                
+                html += `
+                <a href="${downloadUrl}" 
+                   target="_blank" 
+                   class="quality-option download-btn"
+                   data-quality="${quality}"
+                   onclick="console.log('Downloading: ${fileId}')">
+                    <i class="fas fa-download me-1"></i>${quality}<br>
+                    <small>Download</small>
+                </a>`;
+            }
             
             linksGenerated++;
         });
@@ -1400,17 +1376,33 @@ function generateQualityOptions(qualityOptions, resultData, resultIndex) {
                     
                     // Use the qualityData's message_id if available, otherwise use realMessageId
                     const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
-                    const fileId = qualityData.file_id || `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
                     
-                    const botUsername = resultData.bot_username || BOT_USERNAME;
+                    if (type === 'stream' || type === 'both') {
+                        const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                        html += `
+                        <a href="${streamUrl}" 
+                           target="_blank" 
+                           class="quality-option stream-btn"
+                           data-quality="${quality}">
+                            <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                            <small>Stream Now</small>
+                        </a>`;
+                    }
                     
-                    html += `
-                    <a href="https://t.me/${botUsername}?start=${fileId}" 
-                       target="_blank" 
-                       class="quality-option"
-                       data-quality="${quality}">
-                        <i class="fas fa-download me-1"></i>${quality}
-                    </a>`;
+                    if (type === 'download' || type === 'both') {
+                        const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                        const botUsername = resultData.bot_username || BOT_USERNAME;
+                        const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                        
+                        html += `
+                        <a href="${downloadUrl}" 
+                           target="_blank" 
+                           class="quality-option download-btn"
+                           data-quality="${quality}">
+                            <i class="fas fa-download me-1"></i>${quality}<br>
+                            <small>Download</small>
+                        </a>`;
+                    }
                     linksGenerated++;
                 }
             }
@@ -1426,16 +1418,33 @@ function generateQualityOptions(qualityOptions, resultData, resultIndex) {
             
             // Use available message ID
             const msgId = resultData.real_message_id || resultData.message_id || realMessageId;
-            const fileId = resultData.file_id || `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-            const botUsername = resultData.bot_username || BOT_USERNAME;
             
-            html += `
-            <a href="https://t.me/${botUsername}?start=${fileId}" 
-               target="_blank" 
-               class="quality-option"
-               data-quality="${quality}">
-                <i class="fas fa-download me-1"></i>${quality}
-            </a>`;
+            if (type === 'stream' || type === 'both') {
+                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                html += `
+                <a href="${streamUrl}" 
+                   target="_blank" 
+                   class="quality-option stream-btn"
+                   data-quality="${quality}">
+                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                    <small>Stream Now</small>
+                </a>`;
+            }
+            
+            if (type === 'download' || type === 'both') {
+                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                const botUsername = resultData.bot_username || BOT_USERNAME;
+                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                
+                html += `
+                <a href="${downloadUrl}" 
+                   target="_blank" 
+                   class="quality-option download-btn"
+                   data-quality="${quality}">
+                    <i class="fas fa-download me-1"></i>${quality}<br>
+                    <small>Download</small>
+                </a>`;
+            }
             linksGenerated++;
         }
     }
@@ -1443,8 +1452,8 @@ function generateQualityOptions(qualityOptions, resultData, resultIndex) {
     html += '</div>';
     
     if (linksGenerated === 0) {
-        // Last resort: Create simple download buttons
-        console.log("Creating simple download buttons as last resort");
+        // Last resort: Create simple buttons
+        console.log("Creating simple buttons as last resort");
         html = '<div class="quality-buttons-row">';
         
         // Get bot username
@@ -1454,15 +1463,32 @@ function generateQualityOptions(qualityOptions, resultData, resultIndex) {
         if (typeof qualityOptions === 'object' && Object.keys(qualityOptions).length > 0) {
             Object.keys(qualityOptions).forEach((quality, index) => {
                 const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                const simpleFileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
                 
-                html += `
-                <a href="https://t.me/${botUsername}?start=${simpleFileId}" 
-                   target="_blank" 
-                   class="quality-option"
-                   data-quality="${quality}">
-                    <i class="fas fa-download me-1"></i>${quality}
-                </a>`;
+                if (type === 'stream' || type === 'both') {
+                    const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${realMessageId}&quality=${qualityCode}`;
+                    html += `
+                    <a href="${streamUrl}" 
+                       target="_blank" 
+                       class="quality-option stream-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                        <small>Stream Now</small>
+                    </a>`;
+                }
+                
+                if (type === 'download' || type === 'both') {
+                    const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
+                    const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                    
+                    html += `
+                    <a href="${downloadUrl}" 
+                       target="_blank" 
+                       class="quality-option download-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-download me-1"></i>${quality}<br>
+                        <small>Download</small>
+                    </a>`;
+                }
                 linksGenerated++;
             });
         } else {
@@ -1470,7 +1496,7 @@ function generateQualityOptions(qualityOptions, resultData, resultIndex) {
             html += `
             <a href="https://t.me/${BOT_USERNAME}" 
                target="_blank" 
-               class="quality-option"
+               class="quality-option download-btn"
                data-quality="HD">
                 <i class="fas fa-download me-1"></i>Get from Telegram
             </a>`;
@@ -1480,7 +1506,7 @@ function generateQualityOptions(qualityOptions, resultData, resultIndex) {
         html += '</div>';
     }
     
-    console.log(`✅ Generated ${linksGenerated} download links`);
+    console.log(`✅ Generated ${linksGenerated} ${type} links`);
     return html;
 }
 
@@ -1708,17 +1734,18 @@ async function displayResults(results, pagination) {
         const postContent = result.post_content || '';
         const hasPostContent = postContent.trim().length > 0;
         const thumbnail = result.thumbnail || result.poster_url || '';
-        const streamingEnabled = result.streaming_enabled === true;
-        const title = result.title || '';
         
-        console.log(`Result ${i}: ${title}`);
+        console.log(`Result ${i}: ${result.title}`);
         console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
         console.log(`Quality options:`, qualityOptions);
-        console.log(`Streaming enabled: ${streamingEnabled}`);
+        console.log(`Quality options type:`, typeof qualityOptions);
+        console.log(`Quality options keys:`, Object.keys(qualityOptions));
         
-        // Get best quality for streaming
-        const bestQuality = await getBestQualityForStreaming(qualityOptions);
-        const hasStreaming = streamingEnabled && bestQuality && bestQuality.file_id;
+        // Debug: Show first quality option details
+        if (hasQualities) {
+            const firstKey = Object.keys(qualityOptions)[0];
+            console.log(`First quality option (${firstKey}):`, qualityOptions[firstKey]);
+        }
         
         html += `
         <div class="result-card">
@@ -1729,8 +1756,8 @@ async function displayResults(results, pagination) {
                 </div>
             </div>
             
-            <!-- 2. TITLE -->
-            <h3 class="result-title">${escapeHtml(title)}</h3>
+            <!-- 2. TITLE - बीच में -->
+            <h3 class="result-title">${escapeHtml(result.title)}</h3>
             
             <!-- 3. POST CONTENT - बीच में -->
             ${hasPostContent ? `
@@ -1741,51 +1768,70 @@ async function displayResults(results, pagination) {
                 </div>
             ` : ''}
             
-            <!-- 4. ACTION BUTTONS - STREAM & DOWNLOAD -->
-            ${hasFile ? `
-                <div class="action-buttons">
-                    ${hasStreaming ? `
-                        <button class="btn-stream" onclick="openStreamView('${bestQuality.file_id}', '${escapeHtml(title)}', '${bestQuality.quality}')">
+            <!-- 4. ACTION BUTTONS - सबसे नीचे -->
+            <div class="result-download-section">
+                ${hasFile && hasQualities ? `
+                    <div class="action-buttons-container">
+                        <!-- STREAM NOW BUTTON -->
+                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
                             <i class="fas fa-play-circle me-2"></i>Stream Now
+                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
                         </button>
-                    ` : `
-                        <button class="btn-stream" disabled>
-                            <i class="fas fa-times me-2"></i>Stream Unavailable
+                        
+                        <!-- DOWNLOAD BUTTON -->
+                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
+                            <i class="fas fa-download me-2"></i>Download Now
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
                         </button>
-                    `}
+                    </div>
                     
-                    <button class="btn-download" onclick="toggleQuality(${i})">
-                        <i class="fas fa-download me-2"></i>Download
+                    <!-- STREAM QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="stream-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'stream')}
+                    </div>
+                    
+                    <!-- DOWNLOAD QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="download-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'download')}
+                    </div>
+                ` : hasFile ? `
+                    <div class="action-buttons-container">
+                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
+                            <i class="fas fa-play-circle me-2"></i>Stream Now
+                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
+                        </button>
+                        
+                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
+                            <i class="fas fa-download me-2"></i>Download Now
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- STREAM QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="stream-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'stream')}
+                    </div>
+                    
+                    <!-- DOWNLOAD QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="download-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'download')}
+                    </div>
+                ` : `
+                    <button class="btn btn-stream-now" disabled>
+                        <i class="fas fa-times me-2"></i>File Not Available
                     </button>
-                </div>
-            ` : hasPostContent ? `
-                <div class="action-buttons">
-                    <button class="btn-stream" disabled>
-                        <i class="fas fa-times me-2"></i>No File Available
-                    </button>
-                    <button class="btn-download" disabled>
-                        <i class="fas fa-times me-2"></i>No Download
-                    </button>
-                </div>
-            ` : ''}
-            
-            <!-- 5. QUALITY OPTIONS DROPDOWN -->
-            ${hasFile && hasQualities ? `
-                <div class="quality-dropdown" id="quality-${i}">
-                    ${generateQualityOptions(qualityOptions, result, i)}
-                </div>
-            ` : ''}
+                `}
+            </div>
             
             <!-- DEBUG INFO (visible only in console) -->
             <div style="display:none;" id="debug-${i}">
                 ${JSON.stringify({
-                    title: title,
+                    title: result.title,
                     hasFile: hasFile,
                     hasQualities: hasQualities,
                     qualityKeys: Object.keys(qualityOptions),
                     qualityOptions: qualityOptions,
-                    streamingEnabled: streamingEnabled,
-                    bestQuality: bestQuality
+                    resultKeys: Object.keys(result)
                 })}
             </div>
         </div>
@@ -1941,27 +1987,44 @@ function triggerAdLink() {
     window.open(AD_LINK, '_blank');
 }
 
-function toggleQuality(index) {
-    const dropdown = document.getElementById(`quality-${index}`);
-    const downloadBtn = document.querySelector(`#result-${index} .btn-download`);
+// Toggle Stream Quality Dropdown
+function toggleStreamQuality(index) {
+    const dropdown = document.getElementById(`stream-quality-${index}`);
+    const arrow = document.getElementById(`stream-arrow-${index}`);
     
+    // Close all other dropdowns
     document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
-        if (el.id !== `quality-${index}`) {
+        if (el.id !== `stream-quality-${index}`) {
             el.classList.remove('show');
-            const otherDownloadBtn = document.querySelector(`#result-${i} .btn-download`);
-            if (otherDownloadBtn) otherDownloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Download';
+            const otherStreamArrow = document.getElementById(`stream-arrow-${i}`);
+            const otherDownloadArrow = document.getElementById(`download-arrow-${i}`);
+            if (otherStreamArrow) otherStreamArrow.style.transform = 'rotate(0deg)';
+            if (otherDownloadArrow) otherDownloadArrow.style.transform = 'rotate(0deg)';
         }
     });
     
     dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+// Toggle Download Quality Dropdown
+function toggleDownloadQuality(index) {
+    const dropdown = document.getElementById(`download-quality-${index}`);
+    const arrow = document.getElementById(`download-arrow-${index}`);
     
-    if (downloadBtn) {
-        if (dropdown.classList.contains('show')) {
-            downloadBtn.innerHTML = '<i class="fas fa-chevron-up me-2"></i>Hide Qualities';
-        } else {
-            downloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Download';
+    // Close all other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
+        if (el.id !== `download-quality-${index}`) {
+            el.classList.remove('show');
+            const otherStreamArrow = document.getElementById(`stream-arrow-${i}`);
+            const otherDownloadArrow = document.getElementById(`download-arrow-${i}`);
+            if (otherStreamArrow) otherStreamArrow.style.transform = 'rotate(0deg)';
+            if (otherDownloadArrow) otherDownloadArrow.style.transform = 'rotate(0deg)';
         }
-    }
+    });
+    
+    dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
 }
 
 function displayPagination(pagination) {
@@ -2021,11 +2084,13 @@ function formatSize(bytes) {
 
 // Close dropdowns when clicking outside
 document.addEventListener('click', function(event) {
-    if (!event.target.closest('.action-buttons')) {
+    if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
         document.querySelectorAll('.quality-dropdown').forEach((dropdown, index) => {
             dropdown.classList.remove('show');
-            const downloadBtn = document.querySelector(`#result-${index} .btn-download`);
-            if (downloadBtn) downloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Download';
+            const streamArrow = document.getElementById(`stream-arrow-${index}`);
+            const downloadArrow = document.getElementById(`download-arrow-${index}`);
+            if (streamArrow) streamArrow.style.transform = 'rotate(0deg)';
+            if (downloadArrow) downloadArrow.style.transform = 'rotate(0deg)';
         });
     }
 });
@@ -2053,9 +2118,8 @@ if (!AbortSignal.timeout) {
 }
 
 // Debug info
-console.log("✅ SK4FiLM Search Page Loaded with Streaming Support");
+console.log("✅ SK4FiLM Search Page Loaded with STREAM NOW & DOWNLOAD NOW buttons");
 console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
-console.log("🎯 Features: Stream Now + Download Buttons");
 console.log("📱 Open browser console (F12) to see debug messages");
 
 // Test function to check API response
@@ -2067,7 +2131,6 @@ async function testApiResponse() {
         console.log("API Test Response:", data);
         if (data.results && data.results.length > 0) {
             console.log("First result quality options:", data.results[0].quality_options);
-            console.log("Streaming enabled:", data.results[0].streaming_enabled);
         }
     } catch (error) {
         console.error("API Test Error:", error);
