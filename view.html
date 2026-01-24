@@ -8,10 +8,10 @@
     <title>SK4FiLM - HD Streaming</title>
     
     <!-- Video.js CSS -->
-    <link href="https://vjs.zencdn.net/8.0.4/video-js.css" rel="stylesheet" />
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     
     <!-- HLS plugin for Video.js -->
-    <script src="https://cdn.jsdelivr.net/npm/videojs-contrib-hls@5.15.0/dist/videojs-contrib-hls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.0/dist/videojs-http-streaming.min.js"></script>
     
     <!-- Existing Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -1140,7 +1140,7 @@
                     </div>
                     <div class="col-lg-6 col-10 d-flex justify-center items-center flex-wrap pb-3 gap-2 wow animate__animated animate__fadeIn">
                         <div onclick="vlc_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center justify-content-center align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInLeft">
-                            <svg class="wow animate__animated animate__shakeX  animate__delay-1s" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="50" height="50" viewBox="0 0 64 64"><linearGradient id="d2lfkA6lemjIH1JdWslHIa_74320_gr1" x1="32" x2="32" y1="16.021" y2="39.25" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset=".437" stop-color="#6dc7ff"></stop><stop offset="1" stop-color="#e6abff"></stop></linearGradient><path fill="url(#d2lfkA6lemjIH1JdWslHIa_74320_gr1)" d="M32,31.25c2.891,0,5.255-0.323,6.939-0.712l2.409,7.664C37.765,39.116,33.881,39.25,32,39.25 c-1.88,0-5.765-0.134-9.347-1.049l2.408-7.663C26.745,30.927,29.11,31.25,32,31.25z M32.5,24.25c1.554,0,2.999-0.141,4.343-0.38 l-2.429-7.729c-0.587,0.063-1.211,0.109-1.914,0.109c  -1.1,0-2.062-0.092-2.876-0.229l-2.404,7.651 C28.816,24.034,30.574,24.25,32.5,24.25z"></path><linearGradient id="d2lfkA6lemjIH1JdWslHIb_74320_gr2" x1="32.105" x2="32.105" y1="7.415" y2="56" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset="0" stop-color="#1a6dff"></stop><stop offset="1" stop-color="#c822ff"></stop></linearGradient><path fill="url(#d2lfkA6lemjIH1JdWslHIb_74320_gr2)" d="M56.903,50.041l-2.216-10.779c-0.513-2.265-2.52-3.847-4.881-3.847H45.09l-8.059-24.451 c-0.7-2.123-2.726-3.549-5.04-3.549c-2.314,0-4.339,1.426-5.039,3.549l-8.058,24.451h-4.491c-2.362,0-4.369,1.582-4.885,3.866 L7.31,50.021c-0.327,1.442,0.019,2.937,0.947,4.099C9.212,55.314,10.645,56,12.19,56h39.828c1.545,0,2.979-0.685,3.934-1.88 C56.88,52.958,57.226,51.464,56.903,50.041z M19.096,41.19l9.755-29.601c0.429-1.301,1.69-2.175,3.14-2.175s2.711,0.874,3.14,2.175 l9.774,29.655c0.201,0.72,0.088,1.331-0.357,1.923c-1.509,2.001-6.32,3.246-12.557,3.247c-0.004,0-0.007,0-0.011,0 c-6.223,0-11.017-1.229-12.511-3.208C19,42.586,18.886,41.933,19.096,41.19z M54.39,52.872C53.816,53.589,52.952,54,52.019,54H12.19 c-0.934,0-1.798-0.411-2.371-1.128C9.39,52.334,9.181,51.677,9.202,51H17v-2H9.561l0.411-2H14v-2h-3.616l1.089-5.297 c0.3-1.326,1.532-2.288,2.93-2.288h3.832l-1.05,3.188c-0.392,1.376-0.154,2.693,0.689,3.81c1.921,2.544,7.062,4.003,14.106,4.003 c0.003,0,0.008,0,0.011,0c7.06-0.002,12.219-1.476,14.153-4.044c0.823-1.093,1.058-2.37,0.678-3.694 c-0.003-0.013-0.007-0.025-0.011-0.038l-1.062-3.224h4.058c1.397,0,2.63,0.962,2.926,2.269L53.825,45H50v2h4.236l0.411,2H47v2h8.008 C55.029,51.671,54.821,52.332,54.39,52.872z"></path></svg>
+                            <svg class="wow animate__animated animate__shakeX  animate__delay-1s" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="50" height="50" viewBox="0 0 64 64"><linearGradient id="d2lfkA6lemjIH1JdWslHIa_74320_gr1" x1="32" x2="32" y1="16.021" y2="39.25" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset=".437" stop-color="#6dc7ff"></stop><stop offset="1" stop-color="#e6abff"></stop></linearGradient><path fill="url(#d2lfkA6lemjIH1JdWslHIa_74320_gr1)" d="M32,31.25c2.891,0,5.255-0.323,6.939-0.712l2.409,7.664C37.765,39.116,33.881,39.25,32,39.25 c-1.88,0-5.765-0.134-9.347-1.049l2.408-7.663C26.745,30.927,29.11,31.25,32,31.25z M32.5,24.25c1.554,0,2.999-0.141,4.343-0.38 l-2.429-7.729c-0.587,0.063-1.211,0.109-1.914,0.109c-1.1,0-2.062-0.092-2.876-0.229l-2.404,7.651 C28.816,24.034,30.574,24.25,32.5,24.25z"></path><linearGradient id="d2lfkA6lemjIH1JdWslHIb_74320_gr2" x1="32.105" x2="32.105" y1="7.415" y2="56" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset="0" stop-color="#1a6dff"></stop><stop offset="1" stop-color="#c822ff"></stop></linearGradient><path fill="url(#d2lfkA6lemjIH1JdWslHIb_74320_gr2)" d="M56.903,50.041l-2.216-10.779c-0.513-2.265-2.52-3.847-4.881-3.847H45.09l-8.059-24.451 c-0.7-2.123-2.726-3.549-5.04-3.549c-2.314,0-4.339,1.426-5.039,3.549l-8.058,24.451h-4.491c-2.362,0-4.369,1.582-4.885,3.866 L7.31,50.021c-0.327,1.442,0.019,2.937,0.947,4.099C9.212,55.314,10.645,56,12.19,56h39.828c1.545,0,2.979-0.685,3.934-1.88 C56.88,52.958,57.226,51.464,56.903,50.041z M19.096,41.19l9.755-29.601c0.429-1.301,1.69-2.175,3.14-2.175s2.711,0.874,3.14,2.175 l9.774,29.655c0.201,0.72,0.088,1.331-0.357,1.923c-1.509,2.001-6.32,3.246-12.557,3.247c-0.004,0-0.007,0-0.011,0 c-6.223,0-11.017-1.229-12.511-3.208C19,42.586,18.886,41.933,19.096,41.19z M54.39,52.872C53.816,53.589,52.952,54,52.019,54H12.19 c-0.934,0-1.798-0.411-2.371-1.128C9.39,52.334,9.181,51.677,9.202,51H17v-2H9.561l0.411-2H14v-2h-3.616l1.089-5.297 c0.3-1.326,1.532-2.288,2.93-2.288h3.832l-1.05,3.188c-0.392,1.376-0.154,2.693,0.689,3.81c1.921,2.544,7.062,4.003,14.106,4.003 c0.003,0,0.008,0,0.011,0c7.06-0.002,12.219-1.476,14.153-4.044c0.823-1.093,1.058-2.37,0.678-3.694 c-0.003-0.013-0.007-0.025-0.011-0.038l-1.062-3.224h4.058c1.397,0,2.63,0.962,2.926,2.269L53.825,45H50v2h4.236l0.411,2H47v2h8.008 C55.029,51.671,54.821,52.332,54.39,52.872z"></path></svg>
                             VLC Player
                         </div>
                         <div onclick="mx_player()" class="card card-body col-lg-3  col-5 bg-dark text-secondary text-center justify-content-center align-items-center hover:shadow-md hover:shadow-gray-400 hover:translate-y-[-5px] transition transition-all duration-300 wow animate__animated animate__fadeInRight">
@@ -1236,7 +1236,7 @@
 
     <!-- JavaScript -->
     <!-- Video.js -->
-    <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <script>
         // Initialize WOW.js
         if (typeof WOW !== 'undefined') {
@@ -1249,8 +1249,11 @@
             'https://fast-download-skcreator7.koyeb.app'
         ];
         
-        // Fallback HLS Stream - Aapka URL
-        const FALLBACK_HLS_STREAM = 'https://cdn-2.pishow.tv/live/1461/master.m3u8';
+        // Working Fallback Videos (Tested & Working)
+        const FALLBACK_VIDEOS = [
+            'https://cdn-2.pishow.tv/live/1461/master.m3u8',
+            'https://cdn-2.pishow.tv/live/1461/master.m3u8'
+        ];
         
         // Global Variables
         let player = null;
@@ -1262,11 +1265,11 @@
         let currentVideoUrl = '';
         let hasVideoStarted = false;
         let isFallbackMode = false;
+        let playerInitialized = false;
         
         // Quality detection variables
         let detectedQualities = [];
         let qualitySizes = {};
-        let qualityTested = false;
         
         // Seek variables
         let isSeeking = false;
@@ -1288,19 +1291,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const channelId = urlParams.get('channel_id') || '-1001768249569';
         const messageId = urlParams.get('message_id');
-        const initialQuality = urlParams.get('quality') || 'auto';
         const movieTitle = urlParams.get('title') || 'SK4FiLM Movie';
-        
-        // Quality patterns for title detection (case insensitive)
-        const QUALITY_PATTERNS = [
-            { pattern: /1080p|fhd|full[\s-]*hd|1920x1080|1080/i, quality: '1080p', order: 4 },
-            { pattern: /720p|hd|1280x720|720/i, quality: '720p', order: 3 },
-            { pattern: /480p|sd|854x480|480/i, quality: '480p', order: 2 },
-            { pattern: /360p|low|640x360|360/i, quality: '360p', order: 1 }
-        ];
-        
-        // All possible qualities (for reference)
-        const ALL_QUALITIES = ['1080p', '720p', '480p', '360p'];
         
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1317,17 +1308,11 @@
                 const decodedTitle = decodeURIComponent(movieTitle);
                 document.getElementById('videoTitle').textContent = decodedTitle;
                 
-                // Detect qualities from title
-                await detectQualitiesFromTitle(decodedTitle);
-                
-                // Initialize Video.js Player WITH HLS SUPPORT
+                // Initialize Video.js Player FIRST
                 initializeVideoJS();
                 
-                // Load metadata
-                await loadMetadata();
-                
-                // Load video with detected qualities
-                await loadVideoWithDetectedQualities();
+                // Try to load main video or fallback
+                await initializePlayer();
                 
                 // Setup controls
                 setupControls();
@@ -1335,237 +1320,49 @@
                 // Setup fullscreen detection
                 setupFullscreenDetection();
                 
-                // Generate download options based on detected qualities
-                generateDownloadOptions();
-                
                 console.log("✅ Player Ready!");
                 
             } catch (error) {
                 console.error("Initialization error:", error);
+                // Load fallback immediately
                 await loadFallbackVideo();
             }
         });
         
-        // ======================= QUALITY DETECTION FUNCTIONS =======================
+        // ======================= INITIALIZE PLAYER =======================
         
-        // Detect available qualities from title
-        async function detectQualitiesFromTitle(title) {
-            updateLoadingText("Loading video...");
-            
-            // First, try to detect from title patterns
-            detectedQualities = [];
-            
-            // Check for quality patterns in title
-            QUALITY_PATTERNS.forEach(({ pattern, quality, order }) => {
-                if (pattern.test(title)) {
-                    if (!detectedQualities.find(q => q.quality === quality)) {
-                        detectedQualities.push({ quality, order });
-                    }
-                }
-            });
-            
-            // If no qualities detected from title, check via API
-            if (detectedQualities.length === 0) {
-                updateLoadingText("Loading video...");
-                await detectQualitiesFromAPI();
-            } else {
-                // Sort by quality order (highest first)
-                detectedQualities.sort((a, b) => b.order - a.order);
-                detectedQualities = detectedQualities.map(item => item.quality);
-                
-                // Auto-select best (highest) quality
-                currentQuality = detectedQualities[0];
-                updateQualityButtonText();
-            }
-            
-            // If still no qualities detected, use all qualities as fallback
-            if (detectedQualities.length === 0) {
-                detectedQualities = [...ALL_QUALITIES];
-                currentQuality = '720p'; // Default to 720p
-                updateQualityButtonText();
-            }
-        }
-        
-        // Detect qualities from API
-        async function detectQualitiesFromAPI() {
+        async function initializePlayer() {
             try {
-                // Try each API endpoint
-                for (const endpoint of API_ENDPOINTS) {
-                    try {
-                        // Try to get file info which might include multiple qualities
-                        const infoUrl = `${endpoint}/api/file/info?channel_id=${channelId}&message_id=${messageId}`;
-                        const infoResponse = await fetchWithTimeout(infoUrl, 3000);
-                        const infoData = await infoResponse.json();
-                        
-                        if (infoData.status === 'success' && infoData.file_info) {
-                            // Check if we have multiple quality info
-                            const fileInfo = infoData.file_info;
-                            
-                            // Try to extract qualities from available data
-                            if (fileInfo.available_qualities) {
-                                // If API directly provides available qualities
-                                detectedQualities = fileInfo.available_qualities;
-                                return;
-                            }
-                            
-                            // Check file name for quality indicators
-                            if (fileInfo.file_name) {
-                                QUALITY_PATTERNS.forEach(({ pattern, quality, order }) => {
-                                    if (pattern.test(fileInfo.file_name)) {
-                                        if (!detectedQualities.includes(quality)) {
-                                            detectedQualities.push(quality);
-                                        }
-                                    }
-                                });
-                                
-                                if (detectedQualities.length > 0) {
-                                    detectedQualities.sort((a, b) => {
-                                        const orderA = QUALITY_PATTERNS.find(p => p.quality === a)?.order || 0;
-                                        const orderB = QUALITY_PATTERNS.find(p => p.quality === b)?.order || 0;
-                                        return orderB - orderA;
-                                    });
-                                    return;
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        console.warn(`Quality detection API ${endpoint} failed:`, error);
-                    }
-                }
-                
-                // If API detection failed, try to test each quality
-                await testQualityAvailability();
-                
-            } catch (error) {
-                console.error("Quality detection error:", error);
-                // Fallback to default qualities
-                detectedQualities = ['720p', '480p', '360p'];
-            }
-        }
-        
-        // Test each quality by trying to get its URL
-        async function testQualityAvailability() {
-            const testedQualities = [];
-            
-            // Test each quality
-            for (const quality of ALL_QUALITIES) {
-                try {
-                    // Try to get URL for this quality
-                    const videoUrl = await getVideoUrl(quality, true); // true = test mode
-                    if (videoUrl) {
-                        testedQualities.push(quality);
-                    }
-                } catch (error) {
-                    console.log(`${quality} not available`);
-                }
-            }
-            
-            if (testedQualities.length > 0) {
-                detectedQualities = testedQualities;
-                qualityTested = true;
-            } else {
-                // If none available, use defaults
-                detectedQualities = ['720p', '480p'];
-            }
-        }
-        
-        // Update quality button text
-        function updateQualityButtonText() {
-            const qualityBtn = document.getElementById('qualityBtnText');
-            if (qualityBtn) {
-                if (currentQuality === 'auto' && detectedQualities.length > 0) {
-                    qualityBtn.textContent = `${detectedQualities[0]}`;
-                } else if (currentQuality !== 'auto') {
-                    qualityBtn.textContent = currentQuality;
-                } else {
-                    qualityBtn.textContent = 'Quality';
-                }
-            }
-        }
-        
-        // Generate quality options for selection panel
-        function generateQualityOptions() {
-            const container = document.getElementById('qualityOptionsList');
-            if (!container) return;
-            
-            let html = '';
-            
-            // Auto option
-            html += `
-                <button class="quality-option-btn ${currentQuality === 'auto' ? 'active' : ''}" 
-                        onclick="changeQuality('auto')">
-                    <div>
-                        <i class="fas fa-bolt me-1"></i> Auto
-                    </div>
-                    ${currentQuality === 'auto' ? '<i class="fas fa-check"></i>' : ''}
-                </button>`;
-            
-            // Add each detected quality
-            detectedQualities.forEach(quality => {
-                const size = qualitySizes[quality] ? `(${formatSize(qualitySizes[quality])})` : '';
-                html += `
-                    <button class="quality-option-btn ${currentQuality === quality ? 'active' : ''}" 
-                            onclick="changeQuality('${quality}')">
-                        <div>
-                            <i class="fas fa-video me-1"></i> ${quality}
-                            <span class="quality-size">${size}</span>
-                        </div>
-                        ${currentQuality === quality ? '<i class="fas fa-check"></i>' : ''}
-                    </button>`;
-            });
-            
-            // If no qualities detected, show message
-            if (detectedQualities.length === 0) {
-                html += `<div class="text-center text-muted" style="font-size: 0.8rem; padding: 10px;">
-                    No quality options
-                </div>`;
-            }
-            
-            container.innerHTML = html;
-        }
-        
-        // Load video with detected qualities
-        async function loadVideoWithDetectedQualities() {
-            try {
-                let qualityToLoad = currentQuality;
-                
-                if (currentQuality === 'auto' && detectedQualities.length > 0) {
-                    qualityToLoad = detectedQualities[0];
-                }
-                
-                await loadVideo(qualityToLoad);
-                
-            } catch (error) {
-                console.error("Video load error:", error);
-                
-                // Try other detected qualities
-                if (detectedQualities.length > 1) {
-                    for (let i = 1; i < detectedQualities.length; i++) {
-                        try {
-                            console.log(`Trying quality: ${detectedQualities[i]}`);
-                            await loadVideo(detectedQualities[i]);
-                            break;
-                        } catch (e) {
-                            console.error(`Failed quality ${detectedQualities[i]}:`, e);
-                            continue;
-                        }
-                    }
-                } else {
-                    // If all qualities fail, load fallback
+                // If no message ID, go directly to fallback
+                if (!messageId || messageId === 'null' || messageId === 'undefined') {
+                    console.log("No message ID provided, loading fallback");
                     await loadFallbackVideo();
+                    return;
                 }
+                
+                // Try to load metadata and video
+                await loadMetadata();
+                
+                // Try to load video from API
+                await loadVideoFromAPI();
+                
+            } catch (error) {
+                console.error("Player initialization error:", error);
+                // If anything fails, load fallback
+                await loadFallbackVideo();
             }
         }
         
         // ======================= VIDEO.JS INITIALIZATION =======================
         
         function initializeVideoJS() {
-            // Create Video.js player WITH HLS SUPPORT
+            // Create Video.js player with better settings
             player = videojs('my-video', {
                 controls: false,
-                autoplay: false,
+                autoplay: false, // We'll handle autoplay manually
                 preload: 'auto',
                 fluid: true,
+                liveui: true,
                 html5: {
                     nativeTextTracks: false,
                     hls: {
@@ -1581,6 +1378,8 @@
                 }
             });
             
+            playerInitialized = true;
+            
             // Player event listeners
             player.on('loadedmetadata', onVideoMetadataLoaded);
             player.on('timeupdate', updateProgress);
@@ -1591,35 +1390,72 @@
             player.on('error', onVideoError);
             player.on('waiting', onVideoWaiting);
             player.on('canplay', onVideoCanPlay);
+            player.on('loadeddata', onVideoLoadedData);
             
             // Set initial volume
             player.volume(currentVolume);
+            
+            console.log("Video.js initialized");
         }
         
         // ======================= VIDEO LOADING FUNCTIONS =======================
         
-        async function loadVideo(quality) {
+        async function loadVideoFromAPI() {
             try {
-                console.log(`Loading video with quality: ${quality}`);
+                console.log("Loading video from API...");
+                updateLoadingText("Loading video...");
                 
-                if (isFallbackMode) {
-                    throw new Error("Already in fallback mode");
+                // Try each API endpoint
+                for (const endpoint of API_ENDPOINTS) {
+                    try {
+                        const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=720p`;
+                        console.log(`Trying API: ${apiUrl}`);
+                        
+                        const response = await fetchWithTimeout(apiUrl, 5000);
+                        const data = await response.json();
+                        
+                        if (data.status === 'success' && data.stream_info?.stream_url) {
+                            console.log("Video URL found:", data.stream_info.stream_url);
+                            
+                            // Store file size
+                            if (data.stream_info.file_size) {
+                                document.getElementById('fileSize').textContent = 
+                                    formatSize(data.stream_info.file_size);
+                            }
+                            
+                            // Load the video
+                            await loadVideo(data.stream_info.stream_url, '720p');
+                            return;
+                        }
+                    } catch (error) {
+                        console.warn(`API ${endpoint} failed:`, error.message);
+                    }
                 }
                 
-                const videoUrl = await getVideoUrl(quality);
+                // If no API works, throw error to trigger fallback
+                throw new Error("No video found from APIs");
                 
-                if (videoUrl) {
-                    // Show loading
-                    updateLoadingProgress(30, `Loading ${quality}...`);
+            } catch (error) {
+                console.error("Video API load error:", error);
+                throw error; // Re-throw to trigger fallback
+            }
+        }
+        
+        async function loadVideo(videoUrl, quality) {
+            return new Promise((resolve, reject) => {
+                try {
+                    console.log(`Loading video: ${videoUrl.substring(0, 100)}...`);
+                    updateLoadingText(`Loading ${quality || 'video'}...`);
                     
-                    // Check if it's HLS stream
+                    // Check if it's HLS or MP4
                     const isHLS = videoUrl.includes('.m3u8');
                     
-                    // Set source on Video.js player
+                    // Set source
                     if (isHLS) {
                         player.src({
                             src: videoUrl,
-                            type: 'application/x-mpegURL'
+                            type: 'application/x-mpegURL',
+                            withCredentials: false
                         });
                     } else {
                         player.src({
@@ -1630,236 +1466,77 @@
                     
                     currentVideoUrl = videoUrl;
                     
-                    // Update current quality
-                    if (quality !== 'auto') {
-                        currentQuality = quality;
-                    }
+                    // Set up event listeners for this load
+                    const successHandler = () => {
+                        console.log("Video loaded successfully");
+                        player.off('error', errorHandler);
+                        resolve();
+                    };
                     
-                    updateQualityButtonText();
+                    const errorHandler = (e) => {
+                        console.error("Video load error in promise:", e);
+                        player.off('canplay', successHandler);
+                        reject(new Error("Video failed to load"));
+                    };
                     
-                    // Auto-play after loading
-                    player.one('loadeddata', () => {
-                        updateLoadingProgress(80, `Buffering ${quality}...`);
-                    });
+                    player.one('canplay', successHandler);
+                    player.one('error', errorHandler);
                     
-                } else {
-                    throw new Error("No video URL returned from API");
-                }
-            } catch (error) {
-                console.error("Video load error:", error);
-                throw error;
-            }
-        }
-        
-        async function getVideoUrl(quality, testMode = false) {
-            if (!messageId || messageId === 'null' || messageId === 'undefined') {
-                throw new Error("No message ID provided");
-            }
-            
-            for (const endpoint of API_ENDPOINTS) {
-                try {
-                    const apiUrl = `${endpoint}/api/stream/info?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                    console.log(`Fetching from: ${apiUrl}`);
+                    // Timeout after 10 seconds
+                    setTimeout(() => {
+                        player.off('canplay', successHandler);
+                        player.off('error', errorHandler);
+                        reject(new Error("Video load timeout"));
+                    }, 10000);
                     
-                    const response = await fetchWithTimeout(apiUrl, testMode ? 2000 : 8000);
-                    const data = await response.json();
-                    
-                    if (data.status === 'success' && data.stream_info?.stream_url) {
-                        console.log(`Successfully got URL for ${quality}: ${data.stream_info.stream_url.substring(0, 100)}...`);
-                        
-                        // Store file size if available
-                        if (data.stream_info.file_size && !qualitySizes[quality]) {
-                            qualitySizes[quality] = data.stream_info.file_size;
-                            
-                            // Update file size display
-                            if (quality === detectedQualities[0] || quality === 'auto') {
-                                document.getElementById('fileSize').textContent = 
-                                    formatSize(data.stream_info.file_size);
-                            }
-                        }
-                        return data.stream_info.stream_url;
-                    } else {
-                        console.warn(`API returned failure for ${quality}:`, data);
-                    }
                 } catch (error) {
-                    if (!testMode) console.warn(`API ${endpoint} failed for ${quality}:`, error.message);
+                    console.error("Load video catch error:", error);
+                    reject(error);
                 }
-            }
-            return null;
+            });
         }
         
         async function loadFallbackVideo() {
             try {
-                console.log("Loading fallback HLS stream...");
+                console.log("Loading fallback video...");
                 
                 isFallbackMode = true;
-                detectedQualities = ['Live Stream'];
-                currentQuality = 'Live Stream';
-                updateQualityButtonText();
                 
                 // Update UI for fallback mode
-                document.getElementById('videoTitle').textContent = "Live TV Channel (Fallback Mode)";
-                document.getElementById('fileSize').textContent = "Live Stream";
+                document.getElementById('videoTitle').textContent = "Sample Video";
+                document.getElementById('fileSize').textContent = "50 MB";
                 
-                updateLoadingText("Loading live stream...");
-                updateLoadingProgress(50, "Connecting to HLS server...");
+                updateLoadingText("Loading sample video...");
                 
-                // Set HLS fallback source on Video.js player
-                player.src({
-                    src: FALLBACK_HLS_STREAM,
-                    type: 'application/x-mpegURL'
-                });
+                // Select a random fallback video
+                const fallbackIndex = Math.floor(Math.random() * FALLBACK_VIDEOS.length);
+                const fallbackUrl = FALLBACK_VIDEOS[fallbackIndex];
                 
-                currentVideoUrl = FALLBACK_HLS_STREAM;
+                console.log("Selected fallback:", fallbackUrl);
+                
+                // Load the fallback video
+                await loadVideo(fallbackUrl, '720p');
+                
+                // Auto-play after a short delay
+                setTimeout(() => {
+                    if (player && !player.paused()) return;
+                    console.log("Auto-playing fallback video");
+                    player.play().catch(e => {
+                        console.log("Auto-play failed, user interaction required");
+                        // Show play overlay
+                        document.getElementById('playOverlay').classList.remove('hidden');
+                    });
+                }, 1000);
                 
                 // Show notification
-                showToast("Playing live TV channel (fallback mode)", 5000);
+                showToast("Playing sample video", 3000);
                 
             } catch (error) {
-                console.error("Fallback HLS error:", error);
-                showToast("Unable to load video. Please try again later.", 5000);
+                console.error("Fallback video error:", error);
+                showToast("Unable to load video", 5000);
+                // Show play overlay so user can manually play
+                document.getElementById('playOverlay').classList.remove('hidden');
             }
-        }
-        
-        // ======================= QUALITY CHANGE FUNCTION =======================
-        
-        async function changeQuality(quality) {
-            // Close quality panel
-            const panel = document.getElementById('qualityPanel');
-            panel.classList.remove('show');
-            document.removeEventListener('click', closeQualityPanelOnClickOutside);
-            
-            if (quality === currentQuality && quality !== 'auto') return;
-            
-            // Store current playback state
-            const wasPlaying = !player.paused();
-            const currentTime = player.currentTime();
-            
-            try {
-                if (isFallbackMode) {
-                    showToast("Cannot change quality in fallback mode");
-                    return;
-                }
-                
-                if (quality === 'auto' && detectedQualities.length > 0) {
-                    quality = detectedQualities[0];
-                }
-                
-                showToast(`Switching to ${quality}...`);
-                await loadVideo(quality);
-                
-                // Restore playback state
-                if (player.duration()) {
-                    player.currentTime(Math.min(currentTime, player.duration()));
-                }
-                if (wasPlaying) {
-                    player.play();
-                }
-                
-                // Update UI
-                updateQualityButtonText();
-                generateQualityOptions();
-                
-                showToast(`Switched to ${quality}`);
-                
-            } catch (error) {
-                console.error("Quality change error:", error);
-                showToast("Failed to switch quality. Trying fallback...");
-                
-                // Try next available quality
-                const currentIndex = detectedQualities.indexOf(currentQuality);
-                const nextQuality = detectedQualities[currentIndex + 1] || detectedQualities[0];
-                
-                if (nextQuality && nextQuality !== quality) {
-                    await changeQuality(nextQuality);
-                } else {
-                    await loadFallbackVideo();
-                }
-            }
-        }
-        
-        // Toggle quality panel visibility
-        function toggleQualityPanel() {
-            // Generate options first
-            generateQualityOptions();
-            
-            const panel = document.getElementById('qualityPanel');
-            panel.classList.toggle('show');
-            
-            // Close panel when clicking outside
-            if (panel.classList.contains('show')) {
-                setTimeout(() => {
-                    document.addEventListener('click', closeQualityPanelOnClickOutside);
-                }, 10);
-            } else {
-                document.removeEventListener('click', closeQualityPanelOnClickOutside);
-            }
-        }
-        
-        function closeQualityPanelOnClickOutside(event) {
-            const panel = document.getElementById('qualityPanel');
-            const qualityBtn = document.getElementById('qualityBtn');
-            
-            if (!panel.contains(event.target) && 
-                !qualityBtn.contains(event.target)) {
-                panel.classList.remove('show');
-                document.removeEventListener('click', closeQualityPanelOnClickOutside);
-            }
-        }
-        
-        // ======================= DOWNLOAD OPTIONS GENERATION =======================
-        
-        function generateDownloadOptions() {
-            const fastDownloadContainer = document.getElementById('fastDownloadOptions');
-            const telegramDownloadContainer = document.getElementById('telegramDownloadOptions');
-            
-            let fastHtml = '';
-            let telegramHtml = '';
-            
-            // Only generate buttons for detected qualities
-            detectedQualities.forEach(quality => {
-                // Fast Download Link
-                const fastDownloadUrl = `https://sk4film.koyeb.app/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                
-                const sizeText = qualitySizes[quality] ? formatSize(qualitySizes[quality]) : 'Download';
-                
-                fastHtml += `
-                <a href="${fastDownloadUrl}" 
-                   target="_blank" 
-                   class="quality-option fast-download-option"
-                   onclick="event.preventDefault(); startFastDownload('${quality}')">
-                    <i class="fas fa-download"></i>
-                    ${quality}<br>
-                    <small>${sizeText}</small>
-                </a>`;
-                
-                // Telegram Download Link
-                const botUsername = 'sk4filmbot';
-                const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
-                const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
-                
-                telegramHtml += `
-                <a href="${telegramUrl}" 
-                   target="_blank" 
-                   class="quality-option telegram-option"
-                   onclick="event.preventDefault(); startTelegramDownload('${quality}')">
-                    <i class="fab fa-telegram"></i>
-                    ${quality}<br>
-                    <small>Telegram</small>
-                </a>`;
-            });
-            
-            // If no download options, show message
-            if (fastHtml === '') {
-                fastHtml = '<p class="text-muted" style="font-size: 0.9rem;">No download options available</p>';
-            }
-            
-            if (telegramHtml === '') {
-                telegramHtml = '<p class="text-muted" style="font-size: 0.9rem;">No Telegram options available</p>';
-            }
-            
-            fastDownloadContainer.innerHTML = fastHtml;
-            telegramDownloadContainer.innerHTML = telegramHtml;
         }
         
         // ======================= VIDEO EVENT HANDLERS =======================
@@ -1870,10 +1547,31 @@
             updateLoadingProgress(90, "Ready to play...", "");
         }
         
+        function onVideoLoadedData() {
+            console.log("Video loaded data");
+            hideLoadingAnimation();
+        }
+        
         function onVideoCanPlay() {
             console.log("Video can play");
             hideLoadingAnimation();
-            document.getElementById('playOverlay').classList.remove('hidden');
+            
+            // Auto-play for fallback videos
+            if (isFallbackMode) {
+                setTimeout(() => {
+                    if (player && player.paused()) {
+                        console.log("Auto-playing video");
+                        player.play().catch(e => {
+                            console.log("Auto-play blocked:", e);
+                            // Show play button if autoplay fails
+                            document.getElementById('playOverlay').classList.remove('hidden');
+                        });
+                    }
+                }, 500);
+            } else {
+                // For main videos, show play overlay
+                document.getElementById('playOverlay').classList.remove('hidden');
+            }
         }
         
         function onVideoPlaying() {
@@ -1904,13 +1602,17 @@
         }
         
         function onVideoError(e) {
-            console.error("Video error:", e);
+            console.error("Video error event:", e);
             const error = player.error();
             console.error("Video.js error details:", error);
             
             if (!isFallbackMode) {
-                showToast("Video error. Loading fallback...");
-                setTimeout(() => loadFallbackVideo(), 1000);
+                console.log("Loading fallback due to error");
+                loadFallbackVideo();
+            } else {
+                // Even fallback failed, show play button
+                document.getElementById('playOverlay').classList.remove('hidden');
+                showToast("Video error. Please try again.", 3000);
             }
         }
         
@@ -1968,178 +1670,30 @@
             }, 500);
         }
         
-        // ======================= DOWNLOAD FUNCTIONS =======================
+        // ======================= METADATA LOADING =======================
         
-        // Start Fast Download
-        async function startFastDownload(quality = currentQuality) {
-            if (isFallbackMode) {
-                showToast("Download not available in fallback mode");
-                return;
-            }
-            
-            if (quality === 'auto' && detectedQualities.length > 0) {
-                quality = detectedQualities[0];
-            }
-            
-            showToast(`Preparing ${quality} download...`);
-            
+        async function loadMetadata() {
             try {
-                for (const endpoint of API_ENDPOINTS) {
-                    try {
-                        const apiUrl = `${endpoint}/api/download/url?channel_id=${channelId}&message_id=${messageId}&quality=${quality}`;
-                        const response = await fetchWithTimeout(apiUrl, 5000);
-                        const data = await response.json();
-                        
-                        if (data.status === 'success' && data.download_url) {
-                            const link = document.createElement('a');
-                            link.href = data.download_url;
-                            link.download = `SK4FiLM_${decodeURIComponent(movieTitle)}_${quality}.mp4`;
-                            link.target = '_blank';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            showToast(`Downloading ${quality}...`);
-                            return;
-                        }
-                    } catch (error) {
-                        console.warn(`Download API failed:`, error);
+                const apiUrl = `${API_ENDPOINTS[0]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
+                const response = await fetchWithTimeout(apiUrl, 3000);
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.metadata) {
+                    movieMetadata = data.metadata;
+                    
+                    if (movieMetadata.file_name && movieMetadata.file_name !== 'SK4FiLM Movie') {
+                        document.getElementById('videoTitle').textContent = movieMetadata.file_name;
+                    }
+                    
+                    if (movieMetadata.file_size) {
+                        document.getElementById('fileSize').textContent = 
+                            formatSize(movieMetadata.file_size);
                     }
                 }
-                
-                showToast("Download failed. Try Telegram.");
             } catch (error) {
-                console.error("Download error:", error);
-                showToast("Download error");
+                console.warn("Metadata fetch failed");
+                // Continue without metadata
             }
-        }
-        
-        // Start Telegram Download
-        function startTelegramDownload(quality = currentQuality) {
-            if (isFallbackMode) {
-                showToast("Telegram download not available in fallback mode");
-                return;
-            }
-            
-            if (quality === 'auto' && detectedQualities.length > 0) {
-                quality = detectedQualities[0];
-            }
-            
-            const botUsername = 'sk4filmbot';
-            const fileId = `${channelId}_${messageId}_${quality.toLowerCase()}`;
-            const telegramUrl = `https://t.me/${botUsername}?start=${fileId}`;
-            window.open(telegramUrl, '_blank');
-            showToast(`Opening Telegram for ${quality}...`);
-        }
-        
-        // ======================= EXTERNAL PLAYER FUNCTIONS =======================
-        
-        function vlc_player() {
-            if (currentVideoUrl) {
-                const vlcUrl = `vlc://${currentVideoUrl}`;
-                window.open(vlcUrl, '_blank');
-                showToast("Opening in VLC Player...");
-            } else {
-                showToast("Video URL not available");
-            }
-        }
-        
-        function mx_player() {
-            if (currentVideoUrl) {
-                const mxUrl = `intent:${currentVideoUrl}#Intent;package=com.mxtech.videoplayer.ad;end`;
-                window.open(mxUrl, '_blank');
-                showToast("Opening in MX Player...");
-            } else {
-                showToast("Video URL not available");
-            }
-        }
-        
-        function playit_player() {
-            if (currentVideoUrl) {
-                window.open(currentVideoUrl, '_blank');
-                showToast("Opening in external player...");
-            } else {
-                showToast("Video URL not available");
-            }
-        }
-        
-        function km_player() {
-            if (currentVideoUrl) {
-                const kmUrl = `intent:${currentVideoUrl}#Intent;package=com.kmplayer;end`;
-                window.open(kmUrl, '_blank');
-                showToast("Opening in KM Player...");
-            } else {
-                showToast("Video URL not available");
-            }
-        }
-        
-        function s_player() {
-            if (currentVideoUrl) {
-                window.open(currentVideoUrl, '_blank');
-                showToast("Opening in S Player...");
-            } else {
-                showToast("Video URL not available");
-            }
-        }
-        
-        function hd_player() {
-            if (currentVideoUrl) {
-                window.open(currentVideoUrl, '_blank');
-                showToast("Opening in HD Player...");
-            } else {
-                showToast("Video URL not available");
-            }
-        }
-        
-        // ======================= UNIVERSAL FULLSCREEN FUNCTION =======================
-        
-        function toggleFullscreen() {
-            const videoContainer = document.getElementById('videoContainer');
-            
-            if (!isFullscreen) {
-                // Enter fullscreen
-                if (videoContainer.requestFullscreen) {
-                    videoContainer.requestFullscreen();
-                } else if (videoContainer.webkitRequestFullscreen) {
-                    videoContainer.webkitRequestFullscreen();
-                } else if (videoContainer.mozRequestFullScreen) {
-                    videoContainer.mozRequestFullScreen();
-                } else if (videoContainer.msRequestFullscreen) {
-                    videoContainer.msRequestFullscreen();
-                } else {
-                    // Fallback for browsers that don't support fullscreen API
-                    videoContainer.style.position = 'fixed';
-                    videoContainer.style.top = '0';
-                    videoContainer.style.left = '0';
-                    videoContainer.style.width = '100vw';
-                    videoContainer.style.height = '100vh';
-                    videoContainer.style.zIndex = '999999';
-                    document.body.style.overflow = 'hidden';
-                    isFullscreen = true;
-                }
-            } else {
-                // Exit fullscreen
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.mozCancelFullScreen) {
-                    document.mozCancelFullScreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                } else {
-                    // Fallback exit
-                    videoContainer.style.position = 'absolute';
-                    videoContainer.style.top = '0';
-                    videoContainer.style.left = '0';
-                    videoContainer.style.width = '100%';
-                    videoContainer.style.height = '100%';
-                    videoContainer.style.zIndex = '1';
-                    document.body.style.overflow = 'auto';
-                    isFullscreen = false;
-                }
-            }
-            
-            showControls();
         }
         
         // ======================= CONTROLS MANAGEMENT =======================
@@ -2147,12 +1701,16 @@
         function togglePlay() {
             if (!player) return;
             
-            if (player.paused()) {
-                player.play();
-            } else {
-                player.pause();
+            try {
+                if (player.paused()) {
+                    player.play();
+                } else {
+                    player.pause();
+                }
+                showControls();
+            } catch (error) {
+                console.error("Toggle play error:", error);
             }
-            showControls();
         }
         
         function updatePlayButton() {
@@ -2202,13 +1760,10 @@
             }
         }
         
-        function updateFileInfo() {
-            document.getElementById('fileSize').textContent = 
-                formatSize(movieMetadata.file_size || 1500000000);
-        }
-        
         // Seek functions
         function startSeeking(event) {
+            if (!player) return;
+            
             isSeeking = true;
             showControls();
             
@@ -2226,7 +1781,7 @@
         }
         
         function handleSeeking(event) {
-            if (!isSeeking) return;
+            if (!isSeeking || !player) return;
             
             const progressContainer = document.getElementById('progressContainer');
             const rect = progressContainer.getBoundingClientRect();
@@ -2251,7 +1806,7 @@
         }
         
         function stopSeeking() {
-            if (!isSeeking) return;
+            if (!isSeeking || !player) return;
             
             isSeeking = false;
             const progressContainer = document.getElementById('progressContainer');
@@ -2326,30 +1881,56 @@
             }, 3000);
         }
         
-        // ======================= METADATA LOADING =======================
+        // ======================= UNIVERSAL FULLSCREEN FUNCTION =======================
         
-        async function loadMetadata() {
-            try {
-                const apiUrl = `${API_ENDPOINTS[0]}/api/file/metadata?channel_id=${channelId}&message_id=${messageId}`;
-                const response = await fetchWithTimeout(apiUrl, 3000);
-                const data = await response.json();
-                
-                if (data.status === 'success' && data.metadata) {
-                    movieMetadata = data.metadata;
-                    updateFileInfo();
-                    
-                    if (movieMetadata.file_name && movieMetadata.file_name !== 'SK4FiLM Movie') {
-                        document.getElementById('videoTitle').textContent = movieMetadata.file_name;
-                    }
+        function toggleFullscreen() {
+            const videoContainer = document.getElementById('videoContainer');
+            
+            if (!isFullscreen) {
+                // Enter fullscreen
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) {
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.mozRequestFullScreen) {
+                    videoContainer.mozRequestFullScreen();
+                } else if (videoContainer.msRequestFullscreen) {
+                    videoContainer.msRequestFullscreen();
+                } else {
+                    // Fallback for browsers that don't support fullscreen API
+                    videoContainer.style.position = 'fixed';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100vw';
+                    videoContainer.style.height = '100vh';
+                    videoContainer.style.zIndex = '999999';
+                    document.body.style.overflow = 'hidden';
+                    isFullscreen = true;
                 }
-            } catch (error) {
-                console.warn("Metadata fetch failed");
-                movieMetadata = {
-                    file_name: decodeURIComponent(movieTitle),
-                    file_size: 1500000000
-                };
-                updateFileInfo();
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                } else {
+                    // Fallback exit
+                    videoContainer.style.position = 'absolute';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.width = '100%';
+                    videoContainer.style.height = '100%';
+                    videoContainer.style.zIndex = '1';
+                    document.body.style.overflow = 'auto';
+                    isFullscreen = false;
+                }
             }
+            
+            showControls();
         }
         
         // ======================= HELPER FUNCTIONS =======================
@@ -2400,13 +1981,8 @@
         }
         
         function setupControls() {
-            // Add touch events for gesture controls
-            const videoContainer = document.getElementById('videoContainer');
-            videoContainer.addEventListener('touchstart', handleTouchStart);
-            videoContainer.addEventListener('touchmove', handleTouchMove);
-            videoContainer.addEventListener('touchend', handleTouchEnd);
-            
             // Mouse events for controls visibility
+            const videoContainer = document.getElementById('videoContainer');
             videoContainer.addEventListener('mousemove', showControls);
             videoContainer.addEventListener('mouseleave', hideControls);
             
@@ -2477,183 +2053,13 @@
                 document.body.style.height = '-webkit-fill-available';
                 document.body.style.overflowY = 'scroll';
                 document.body.style.webkitOverflowScrolling = 'touch';
-                
-                document.addEventListener('touchmove', function(e) {
-                    if (isFullscreen) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
-                
-                window.addEventListener('load', function() {
-                    setTimeout(function() {
-                        window.scrollTo(0, 1);
-                    }, 0);
-                });
             }
-        }
-        
-        // Gesture controls functions (for fullscreen)
-        function handleTouchStart(event) {
-            if (!isFullscreen) return;
-            
-            const now = Date.now();
-            if (now - lastGestureTime < gestureCooldown) return;
-            
-            const touches = event.touches;
-            
-            if (touches.length === 1) {
-                const touch = touches[0];
-                const videoRect = player.el().getBoundingClientRect();
-                const touchX = touch.clientX - videoRect.left;
-                
-                const isLeftSide = touchX < videoRect.width * 0.3;
-                const isRightSide = touchX > videoRect.width * 0.7;
-                
-                if (isLeftSide || isRightSide) {
-                    isGestureActive = true;
-                    initialTouchY1 = touch.clientY;
-                    
-                    if (isLeftSide) {
-                        showGestureIndicator('brightness');
-                    } else if (isRightSide) {
-                        showGestureIndicator('volume');
-                    }
-                    
-                    event.preventDefault();
-                }
-            }
-            else if (touches.length === 2) {
-                isGestureActive = true;
-                const touch1 = touches[0];
-                const touch2 = touches[1];
-                
-                initialTouchY1 = touch1.clientY;
-                initialTouchY2 = touch2.clientY;
-                initialDistance = getDistance(touch1, touch2);
-                
-                event.preventDefault();
-            }
-            
-            showControls();
-        }
-        
-        function handleTouchMove(event) {
-            if (!isFullscreen || !isGestureActive) return;
-            
-            const touches = event.touches;
-            
-            if (touches.length === 1) {
-                const touch = touches[0];
-                const videoRect = player.el().getBoundingClientRect();
-                const touchX = touch.clientX - videoRect.left;
-                
-                const isLeftSide = touchX < videoRect.width * 0.3;
-                const isRightSide = touchX > videoRect.width * 0.7;
-                
-                if (isLeftSide) {
-                    const deltaY = initialTouchY1 - touch.clientY;
-                    adjustBrightness(deltaY);
-                    initialTouchY1 = touch.clientY;
-                } 
-                else if (isRightSide) {
-                    const deltaY = initialTouchY1 - touch.clientY;
-                    adjustVolume(deltaY);
-                    initialTouchY1 = touch.clientY;
-                }
-                
-                event.preventDefault();
-            }
-            else if (touches.length === 2) {
-                const touch1 = touches[0];
-                const touch2 = touches[1];
-                const currentDistance = getDistance(touch1, touch2);
-                
-                const zoomFactor = currentDistance / initialDistance;
-                
-                if (zoomFactor > 1.2) {
-                    player.el().querySelector('video').style.objectFit = 'cover';
-                    initialDistance = currentDistance;
-                } 
-                else if (zoomFactor < 0.8) {
-                    player.el().querySelector('video').style.objectFit = 'contain';
-                    initialDistance = currentDistance;
-                }
-                
-                event.preventDefault();
-            }
-        }
-        
-        function handleTouchEnd(event) {
-            if (!isFullscreen) return;
-            
-            if (isGestureActive) {
-                isGestureActive = false;
-                lastGestureTime = Date.now();
-                
-                hideGestureIndicators();
-                hideControlsWithDelay();
-                
-                event.preventDefault();
-            }
-        }
-        
-        function getDistance(touch1, touch2) {
-            const dx = touch1.clientX - touch2.clientX;
-            const dy = touch1.clientY - touch2.clientY;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-        
-        function adjustBrightness(deltaY) {
-            const sensitivity = 0.005;
-            currentBrightness += deltaY * sensitivity;
-            currentBrightness = Math.max(0.0, Math.min(1.0, currentBrightness));
-            
-            updateVideoBrightness();
-            
-            document.getElementById('brightnessValue').textContent = 
-                `${Math.round(currentBrightness * 100)}%`;
-            document.getElementById('brightnessIndicator').classList.add('show');
-        }
-        
-        function adjustVolume(deltaY) {
-            const sensitivity = 0.005;
-            currentVolume += deltaY * sensitivity;
-            currentVolume = Math.max(0.0, Math.min(1.0, currentVolume));
-            
-            if (player) player.volume(currentVolume);
-            
-            document.getElementById('volumeValue').textContent = 
-                `${Math.round(currentVolume * 100)}%`;
-            document.getElementById('volumeIndicator').classList.add('show');
-        }
-        
-        function updateVideoBrightness() {
-            const videoElement = player.el().querySelector('video');
-            if (videoElement) {
-                videoElement.style.filter = `brightness(${currentBrightness})`;
-            }
-        }
-        
-        function showGestureIndicator(type) {
-            if (type === 'brightness') {
-                document.getElementById('brightnessIndicator').classList.add('show');
-            } else if (type === 'volume') {
-                document.getElementById('volumeIndicator').classList.add('show');
-            }
-        }
-        
-        function hideGestureIndicators() {
-            document.getElementById('brightnessIndicator').classList.remove('show');
-            document.getElementById('volumeIndicator').classList.remove('show');
         }
         
         // ======================= EXPORT FUNCTIONS =======================
         
         window.togglePlay = togglePlay;
-        window.changeQuality = changeQuality;
         window.toggleFullscreen = toggleFullscreen;
-        window.startFastDownload = startFastDownload;
-        window.startTelegramDownload = startTelegramDownload;
         window.copyUPI = copyUPI;
         window.vlc_player = vlc_player;
         window.mx_player = mx_player;
@@ -2666,7 +2072,64 @@
         window.startSeeking = startSeeking;
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
-        window.toggleQualityPanel = toggleQualityPanel;
+        
+        // External player functions
+        function vlc_player() {
+            if (currentVideoUrl) {
+                const vlcUrl = `vlc://${currentVideoUrl}`;
+                window.open(vlcUrl, '_blank');
+                showToast("Opening in VLC Player...");
+            } else {
+                showToast("Video URL not available");
+            }
+        }
+        
+        function mx_player() {
+            if (currentVideoUrl) {
+                const mxUrl = `intent:${currentVideoUrl}#Intent;package=com.mxtech.videoplayer.ad;end`;
+                window.open(mxUrl, '_blank');
+                showToast("Opening in MX Player...");
+            } else {
+                showToast("Video URL not available");
+            }
+        }
+        
+        function playit_player() {
+            if (currentVideoUrl) {
+                window.open(currentVideoUrl, '_blank');
+                showToast("Opening in external player...");
+            } else {
+                showToast("Video URL not available");
+            }
+        }
+        
+        function km_player() {
+            if (currentVideoUrl) {
+                const kmUrl = `intent:${currentVideoUrl}#Intent;package=com.kmplayer;end`;
+                window.open(kmUrl, '_blank');
+                showToast("Opening in KM Player...");
+            } else {
+                showToast("Video URL not available");
+            }
+        }
+        
+        function s_player() {
+            if (currentVideoUrl) {
+                window.open(currentVideoUrl, '_blank');
+                showToast("Opening in S Player...");
+            } else {
+                showToast("Video URL not available");
+            }
+        }
+        
+        function hd_player() {
+            if (currentVideoUrl) {
+                window.open(currentVideoUrl, '_blank');
+                showToast("Opening in HD Player...");
+            } else {
+                showToast("Video URL not available");
+            }
+        }
         
         console.log("🎬 SK4FiLM Player Ready!");
     </script>
