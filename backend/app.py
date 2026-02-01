@@ -1101,7 +1101,7 @@ class DuplicatePreventionSystem:
         """Remove file hash from tracking"""
         if not file_hash:
             return
-    
+        
         async with self.lock:
             if file_hash in self.file_hashes:
                 self.file_hashes.remove(file_hash)
@@ -2196,7 +2196,7 @@ async def init_system():
         logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
         logger.info(f"   • Bot Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
         logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
-        logger.info(f"   • Multi-Quality Merging: ✅ FIXED")
+        logger.info(f"   • Smart Download Button: ✅ ENABLED")
         
         return True
         
@@ -2205,117 +2205,42 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ ENHANCED SEARCH FUNCTION - FIXED LOGIC
+# ✅ SMART SEARCH FUNCTION - FIXED LOGIC
 # ============================================================================
 
 def channel_name_cached(cid):
     return f"Channel {cid}"
 
-@performance_monitor.measure("enhanced_search_fixed")
+@performance_monitor.measure("smart_search_fixed")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
-async def search_movies_enhanced_fixed(query, limit=15, page=1):
-    """FIXED: Post results first, file results only when no post results, show thumbnails"""
+async def search_movies_smart_fixed(query, limit=15, page=1):
+    """SMART: Show posts first, with download button if file exists"""
     offset = (page - 1) * limit
     
     # Try cache first
-    cache_key = f"search_fixed:{query}:{page}:{limit}"
+    cache_key = f"search_smart:{query}:{page}:{limit}"
     if cache_manager is not None and cache_manager.redis_enabled:
         cached_data = await cache_manager.get(cache_key)
         if cached_data:
             logger.info(f"✅ Cache HIT for: {query}")
             return cached_data
     
-    logger.info(f"🔍 ENHANCED SEARCH for: {query}")
+    logger.info(f"🔍 SMART SEARCH for: {query}")
     
     query_lower = query.lower()
-    posts_results = []  # Separate list for post results
-    files_results = []  # Separate list for file results
+    all_results = []
     
-    # Track normalized titles to avoid duplicates
-    posts_titles = set()
-    files_titles = set()
-    
-    # ============================================================================
-    # ✅ 1. FIRST: SEARCH TEXT CHANNELS FOR POST RESULTS
-    # ============================================================================
-    if user_session_ready and User is not None:
-        logger.info(f"📝 Searching TEXT CHANNELS for posts...")
-        
-        async def search_text_channel_posts(channel_id):
-            channel_posts = []
-            try:
-                cname = channel_name_cached(channel_id)
-                async for msg in User.search_messages(channel_id, query=query, limit=10):
-                    if msg is not None and msg.text and len(msg.text) > 15:
-                        title = extract_title_smart(msg.text)
-                        if title and (query_lower in title.lower() or query_lower in msg.text.lower()):
-                            norm_title = normalize_title(title)
-                            
-                            # Skip if already in posts
-                            if norm_title in posts_titles:
-                                continue
-                            
-                            # Get year
-                            year_match = re.search(r'\b(19|20)\d{2}\b', title)
-                            year = year_match.group() if year_match else ""
-                            
-                            # Clean title
-                            clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
-                            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
-                            
-                            # Create post data
-                            post_data = {
-                                'title': clean_title,
-                                'original_title': title,
-                                'normalized_title': norm_title,
-                                'content': format_post(msg.text, max_length=500),
-                                'post_content': msg.text,
-                                'channel': cname,
-                                'channel_id': channel_id,
-                                'message_id': msg.id,
-                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
-                                'is_new': is_new(msg.date) if msg.date else False,
-                                'has_file': False,
-                                'has_post': True,
-                                'quality_options': {},
-                                'is_video_file': False,
-                                'year': year,
-                                'search_score': 3,  # Post results get highest score
-                                'result_type': 'post_only',
-                                'thumbnail_url': None,
-                                'has_thumbnail': False,
-                                'poster_url': None,
-                                'poster_source': None
-                            }
-                            
-                            channel_posts.append(post_data)
-                            posts_titles.add(norm_title)
-                            
-                            if len(channel_posts) >= 10:  # Limit per channel
-                                break
-            except Exception as e:
-                logger.error(f"Text search error in {channel_id}: {e}")
-            return channel_posts
-        
-        # Search all text channels
-        tasks = [search_text_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        for result in results:
-            if isinstance(result, list):
-                posts_results.extend(result)
-        
-        logger.info(f"📝 Found {len(posts_results)} POST results")
+    # Track titles for matching files
+    normalized_titles_with_files = set()
+    files_by_title = {}
     
     # ============================================================================
-    # ✅ 2. SECOND: SEARCH FILE CHANNEL DATABASE (ONLY IF NO POST RESULTS)
+    # ✅ 1. FIRST: SEARCH FILE CHANNEL FOR FILES
     # ============================================================================
-    file_results_by_title = {}
-    
-    if files_col is not None and len(posts_results) < 5:  # Only search files if few post results
+    if files_col is not None:
+        logger.info(f"📁 Searching FILE CHANNEL for files...")
+        
         try:
-            logger.info(f"📁 Searching FILE CHANNEL database...")
-            
             # Build search query
             search_query = {
                 "$or": [
@@ -2350,133 +2275,286 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     'year': 1,
                     '_id': 0
                 }
-            ).limit(100)  # Limit file results
+            ).limit(100)
             
             async for doc in cursor:
                 try:
                     title = doc.get('title', 'Unknown')
                     norm_title = normalize_title(title)
                     
-                    # Skip if already in posts
-                    if norm_title in posts_titles:
-                        continue
+                    # Store file info for this title
+                    normalized_titles_with_files.add(norm_title)
                     
-                    # Skip if already in files
-                    if norm_title in files_titles:
-                        # Merge quality options
-                        existing = file_results_by_title[norm_title]
-                        quality = doc.get('quality', 'Unknown')
-                        
-                        if quality not in existing['quality_options']:
-                            existing['quality_options'][quality] = {
-                                'quality': quality,
-                                'file_size': doc.get('file_size', 0),
-                                'message_id': doc.get('real_message_id')
-                            }
-                            existing['all_qualities'].append(quality)
-                            existing['quality_count'] = len(existing['quality_options'])
-                        continue
-                    
-                    # Extract quality info
-                    quality_info = extract_quality_info(doc.get('file_name', ''))
-                    quality = quality_info['full']
-                    
-                    # Get thumbnail URL
-                    thumbnail_url = doc.get('thumbnail_url')
-                    
-                    # Get REAL message ID
+                    # Get file info
+                    quality = doc.get('quality', 'Unknown')
                     real_msg_id = doc.get('real_message_id') or doc.get('message_id')
+                    thumbnail_url = doc.get('thumbnail_url')
+                    file_name = doc.get('file_name', '')
                     
-                    # Extract year
-                    year = doc.get('year', '')
-                    
-                    # Create file result
-                    file_result = {
+                    # Create file data
+                    file_data = {
                         'title': title,
-                        'original_title': title,
                         'normalized_title': norm_title,
-                        'content': format_post(doc.get('caption', ''), max_length=300),
-                        'post_content': doc.get('caption', ''),
-                        'quality_options': {quality: {
-                            'quality': quality,
-                            'file_size': doc.get('file_size', 0),
-                            'message_id': real_msg_id
-                        }},
-                        'all_qualities': [quality],
-                        'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
-                        'is_new': is_new(doc['date']) if doc.get('date') else False,
-                        'is_video_file': doc.get('is_video_file', False),
-                        'channel_id': doc.get('channel_id'),
-                        'channel_name': channel_name_cached(doc.get('channel_id')),
-                        'has_file': True,
-                        'has_post': bool(doc.get('caption')),
-                        'file_caption': doc.get('caption', ''),
-                        'year': year,
                         'quality': quality,
-                        'has_thumbnail': thumbnail_url is not None,
-                        'thumbnail_url': thumbnail_url,
+                        'file_size': doc.get('file_size', 0),
+                        'file_name': file_name,
+                        'message_id': real_msg_id,
                         'real_message_id': real_msg_id,
-                        'search_score': 2,  # File results get medium score
-                        'result_type': 'file_only',
-                        'quality_count': 1,
-                        'poster_url': None,
-                        'poster_source': None
+                        'thumbnail_url': thumbnail_url,
+                        'has_thumbnail': thumbnail_url is not None,
+                        'channel_id': doc.get('channel_id'),
+                        'date': doc.get('date'),
+                        'year': doc.get('year', '')
                     }
                     
-                    file_results_by_title[norm_title] = file_result
-                    files_titles.add(norm_title)
+                    # Store file data by title
+                    if norm_title not in files_by_title:
+                        files_by_title[norm_title] = []
+                    files_by_title[norm_title].append(file_data)
                     
                 except Exception as e:
                     logger.error(f"File processing error: {e}")
                     continue
             
-            # Convert to list
-            files_results = list(file_results_by_title.values())
-            logger.info(f"📁 Found {len(files_results)} FILE results")
+            logger.info(f"📁 Found files for {len(normalized_titles_with_files)} titles")
             
         except Exception as e:
             logger.error(f"❌ File search error: {e}")
     
     # ============================================================================
-    # ✅ 3. FETCH POSTERS AND THUMBNAILS FOR ALL RESULTS
+    # ✅ 2. SECOND: SEARCH TEXT CHANNELS FOR POSTS
     # ============================================================================
-    all_results = []
-    
-    # First add post results
-    if posts_results:
-        logger.info(f"🎬 Fetching posters for {len(posts_results)} post results...")
-        posts_with_posters = await get_posters_for_movies_batch(posts_results)
-        all_results.extend(posts_with_posters)
-    
-    # Then add file results
-    if files_results:
-        logger.info(f"🎬 Fetching posters for {len(files_results)} file results...")
+    if user_session_ready and User is not None:
+        logger.info(f"📝 Searching TEXT CHANNELS for posts...")
         
-        # Prepare file results for poster fetching
-        files_for_posters = []
-        for file_result in files_results:
-            # If file has thumbnail, use it
-            if file_result.get('has_thumbnail') and file_result.get('thumbnail_url'):
-                # Already has thumbnail, keep it
-                files_for_posters.append(file_result)
+        async def search_text_channel(channel_id):
+            channel_posts = []
+            try:
+                cname = channel_name_cached(channel_id)
+                async for msg in User.search_messages(channel_id, query=query, limit=15):
+                    if msg is not None and msg.text and len(msg.text) > 15:
+                        title = extract_title_smart(msg.text)
+                        if title and (query_lower in title.lower() or query_lower in msg.text.lower()):
+                            norm_title = normalize_title(title)
+                            
+                            # Check if we have files for this title
+                            has_files = norm_title in normalized_titles_with_files
+                            
+                            # Get year
+                            year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                            year = year_match.group() if year_match else ""
+                            
+                            # Clean title
+                            clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
+                            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
+                            
+                            # Get post content
+                            post_content = msg.text
+                            formatted_content = format_post(msg.text, max_length=500)
+                            
+                            # Get file info if available
+                            file_info = None
+                            if has_files and norm_title in files_by_title:
+                                files = files_by_title[norm_title]
+                                # Get best quality file
+                                best_file = max(files, key=lambda x: (
+                                    Config.QUALITY_PRIORITY.index(x['quality'].replace(' HEVC', '')) 
+                                    if x['quality'].replace(' HEVC', '') in Config.QUALITY_PRIORITY 
+                                    else 999
+                                ))
+                                
+                                file_info = {
+                                    'has_file': True,
+                                    'quality': best_file['quality'],
+                                    'file_name': best_file['file_name'],
+                                    'file_size': best_file['file_size'],
+                                    'size_formatted': format_size(best_file['file_size']),
+                                    'message_id': best_file['real_message_id'],
+                                    'real_message_id': best_file['real_message_id'],
+                                    'thumbnail_url': best_file['thumbnail_url'],
+                                    'has_thumbnail': best_file['has_thumbnail'],
+                                    'download_available': True
+                                }
+                            
+                            # Create post data
+                            post_data = {
+                                'title': clean_title,
+                                'original_title': title,
+                                'normalized_title': norm_title,
+                                'content': formatted_content,
+                                'post_content': post_content,
+                                'channel': cname,
+                                'channel_id': channel_id,
+                                'message_id': msg.id,
+                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+                                'is_new': is_new(msg.date) if msg.date else False,
+                                'has_post': True,
+                                'has_file': has_files,
+                                'is_video_file': False,
+                                'year': year,
+                                'search_score': 3,  # Post results get highest score
+                                'result_type': 'post_with_file' if has_files else 'post_only',
+                                'thumbnail_url': None,
+                                'has_thumbnail': False,
+                                'poster_url': None,
+                                'poster_source': None,
+                                'file_info': file_info,
+                                'download_button': has_files  # Show download button if file exists
+                            }
+                            
+                            channel_posts.append(post_data)
+                            
+                            if len(channel_posts) >= 10:  # Limit per channel
+                                break
+            except Exception as e:
+                logger.error(f"Text search error in {channel_id}: {e}")
+            return channel_posts
+        
+        # Search all text channels
+        tasks = [search_text_channel(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for result in results:
+            if isinstance(result, list):
+                all_results.extend(result)
+        
+        logger.info(f"📝 Found {len(all_results)} POST results")
+    
+    # ============================================================================
+    # ✅ 3. THIRD: ADD FILES WITHOUT POSTS AS SEPARATE RESULTS
+    # ============================================================================
+    files_without_posts = 0
+    files_titles_with_posts = set(r['normalized_title'] for r in all_results)
+    
+    for norm_title, files in files_by_title.items():
+        # Skip if already has a post
+        if norm_title in files_titles_with_posts:
+            continue
+        
+        # Create file-only result
+        if files:
+            # Get best quality file
+            best_file = max(files, key=lambda x: (
+                Config.QUALITY_PRIORITY.index(x['quality'].replace(' HEVC', '')) 
+                if x['quality'].replace(' HEVC', '') in Config.QUALITY_PRIORITY 
+                else 999
+            ))
+            
+            title = best_file['title']
+            year = best_file.get('year', '')
+            
+            # Create file-only result
+            file_result = {
+                'title': title,
+                'original_title': title,
+                'normalized_title': norm_title,
+                'content': f"File: {best_file['file_name']}",
+                'post_content': f"File: {best_file['file_name']}",
+                'channel': channel_name_cached(best_file.get('channel_id')),
+                'channel_id': best_file.get('channel_id'),
+                'message_id': best_file['real_message_id'],
+                'real_message_id': best_file['real_message_id'],
+                'date': best_file['date'].isoformat() if isinstance(best_file['date'], datetime) else str(best_file['date']),
+                'is_new': is_new(best_file['date']) if best_file.get('date') else False,
+                'has_post': False,
+                'has_file': True,
+                'is_video_file': best_file.get('is_video_file', False),
+                'year': year,
+                'search_score': 2,  # File-only results get medium score
+                'result_type': 'file_only',
+                'thumbnail_url': best_file['thumbnail_url'],
+                'has_thumbnail': best_file['has_thumbnail'],
+                'poster_url': None,
+                'poster_source': None,
+                'file_info': {
+                    'has_file': True,
+                    'quality': best_file['quality'],
+                    'file_name': best_file['file_name'],
+                    'file_size': best_file['file_size'],
+                    'size_formatted': format_size(best_file['file_size']),
+                    'message_id': best_file['real_message_id'],
+                    'real_message_id': best_file['real_message_id'],
+                    'thumbnail_url': best_file['thumbnail_url'],
+                    'has_thumbnail': best_file['has_thumbnail'],
+                    'download_available': True
+                },
+                'download_button': True  # Always show download for file-only results
+            }
+            
+            all_results.append(file_result)
+            files_without_posts += 1
+    
+    logger.info(f"📁 Added {files_without_posts} FILE-ONLY results")
+    
+    # ============================================================================
+    # ✅ 4. FETCH POSTERS AND THUMBNAILS FOR ALL RESULTS
+    # ============================================================================
+    if all_results:
+        logger.info(f"🎬 Fetching posters for {len(all_results)} results...")
+        
+        # Prepare for poster fetching
+        results_for_posters = []
+        for result in all_results:
+            # If has thumbnail from file, use it
+            if result.get('has_thumbnail') and result.get('thumbnail_url'):
+                result['poster_url'] = result['thumbnail_url']
+                result['poster_source'] = 'telegram_thumbnail'
+                result['has_poster'] = True
             else:
-                # Need poster
-                files_for_posters.append(file_result)
+                # Need to fetch poster
+                results_for_posters.append(result)
         
-        if files_for_posters:
-            files_with_posters = await get_posters_for_movies_batch(files_for_posters)
-            all_results.extend(files_with_posters)
+        # Fetch posters for those that need it
+        if results_for_posters:
+            results_with_posters = await get_posters_for_movies_batch(results_for_posters)
+            
+            # Update results with posters
+            poster_map = {}
+            for result in results_with_posters:
+                norm_title = result.get('normalized_title')
+                if norm_title:
+                    poster_map[norm_title] = result
+            
+            # Update original results
+            for i, result in enumerate(all_results):
+                norm_title = result.get('normalized_title')
+                if norm_title in poster_map:
+                    poster_data = poster_map[norm_title]
+                    all_results[i].update({
+                        'poster_url': poster_data['poster_url'],
+                        'poster_source': poster_data['poster_source'],
+                        'poster_rating': poster_data['poster_rating'],
+                        'thumbnail': poster_data['thumbnail'],
+                        'thumbnail_source': poster_data['thumbnail_source'],
+                        'has_poster': True,
+                        'has_thumbnail': True
+                    })
+                elif not result.get('has_poster'):
+                    # Use fallback
+                    all_results[i].update({
+                        'poster_url': Config.FALLBACK_POSTER,
+                        'poster_source': 'fallback',
+                        'poster_rating': '0.0',
+                        'thumbnail': Config.FALLBACK_POSTER,
+                        'thumbnail_source': 'fallback',
+                        'has_poster': True,
+                        'has_thumbnail': True
+                    })
     
     # ============================================================================
-    # ✅ 4. SORT RESULTS - POSTS FIRST, THEN FILES
+    # ✅ 5. SORT RESULTS
     # ============================================================================
-    # Sort by: posts first, then by search score, then by date
-    all_results.sort(key=lambda x: (
-        x.get('result_type') == 'post_only',  # Posts first
-        x.get('search_score', 0),  # Higher score first
-        x.get('is_new', False),  # New first
-        x.get('date', '') if isinstance(x.get('date'), str) else ''  # Recent first
-    ), reverse=True)
+    # Sort by: posts with files first, then posts only, then file only
+    def get_sort_key(result):
+        result_type = result.get('result_type', '')
+        if result_type == 'post_with_file':
+            return (0, result.get('search_score', 0), result.get('is_new', False))
+        elif result_type == 'post_only':
+            return (1, result.get('search_score', 0), result.get('is_new', False))
+        else:  # file_only
+            return (2, result.get('search_score', 0), result.get('is_new', False))
+    
+    all_results.sort(key=get_sort_key)
     
     total = len(all_results)
     paginated = all_results[offset:offset + limit]
@@ -2484,28 +2562,28 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     # Statistics
     stats = {
         'total': total,
-        'post_results': len(posts_results),
-        'file_results': len(files_results),
-        'post_titles': list(posts_titles),
-        'file_titles': list(files_titles),
-        'duplicate_titles': len(posts_titles.intersection(files_titles))
+        'post_with_file': sum(1 for r in all_results if r.get('result_type') == 'post_with_file'),
+        'post_only': sum(1 for r in all_results if r.get('result_type') == 'post_only'),
+        'file_only': sum(1 for r in all_results if r.get('result_type') == 'file_only'),
+        'download_button': sum(1 for r in all_results if r.get('download_button', False))
     }
     
     # Log results
     logger.info(f"📊 FINAL RESULTS:")
     logger.info(f"   • Total results: {total}")
-    logger.info(f"   • Post results: {len(posts_results)}")
-    logger.info(f"   • File results: {len(files_results)}")
-    logger.info(f"   • Duplicate titles skipped: {stats['duplicate_titles']}")
+    logger.info(f"   • Posts with files: {stats['post_with_file']}")
+    logger.info(f"   • Posts only: {stats['post_only']}")
+    logger.info(f"   • Files only: {stats['file_only']}")
+    logger.info(f"   • Results with download button: {stats['download_button']}")
     
     # Show sample of results
     for i, result in enumerate(paginated[:5]):
         result_type = result.get('result_type', 'unknown')
         title = result.get('title', '')[:40]
-        has_poster = result.get('has_poster', False)
-        has_thumbnail = result.get('has_thumbnail', False)
+        has_download = result.get('download_button', False)
+        file_name = result.get('file_info', {}).get('file_name', 'N/A')[:30] if result.get('file_info') else 'N/A'
         
-        logger.info(f"   📋 {i+1}. {result_type}: {title}... | Poster: {has_poster} | Thumbnail: {has_thumbnail}")
+        logger.info(f"   📋 {i+1}. {result_type}: {title}... | Download: {has_download} | File: {file_name}")
     
     # Final data structure
     result_data = {
@@ -2522,11 +2600,11 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
             'query': query,
             'stats': stats,
             'post_first': True,
-            'files_only_when_no_posts': len(posts_results) < 5,
+            'download_button_logic': True,
             'poster_fetcher': poster_fetcher is not None,
             'thumbnails_enabled': True,
             'real_message_ids': True,
-            'search_logic': 'enhanced_fixed'
+            'search_logic': 'smart_download_button'
         },
         'bot_username': Config.BOT_USERNAME
     }
@@ -2535,7 +2613,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     if cache_manager is not None:
         await cache_manager.set(cache_key, result_data, expire_seconds=Config.SEARCH_CACHE_TTL)
     
-    logger.info(f"✅ Enhanced search complete: {len(paginated)} results (page {page})")
+    logger.info(f"✅ Smart search complete: {len(paginated)} results (page {page})")
     
     return result_data
 
@@ -2545,8 +2623,8 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
 
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_multi_channel_merged(query, limit=15, page=1):
-    """Backward compatible search - uses enhanced fixed search"""
-    return await search_movies_enhanced_fixed(query, limit, page)
+    """Backward compatible search - uses smart search"""
+    return await search_movies_smart_fixed(query, limit, page)
 
 # ============================================================================
 # ✅ HOME MOVIES
@@ -2602,7 +2680,8 @@ async def get_home_movies(limit=25):
                         'result_type': 'post_only',
                         'search_score': 1,
                         'has_poster': False,
-                        'has_thumbnail': False
+                        'has_thumbnail': False,
+                        'download_button': False
                     }
                     
                     movies.append(movie_data)
@@ -2702,7 +2781,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - POST FIRST SEARCH',
+        'service': 'SK4FiLM v9.0 - SMART DOWNLOAD BUTTON',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2733,7 +2812,7 @@ async def root():
             'complete_history': Config.INDEX_ALL_HISTORY,
             'instant_indexing': Config.INSTANT_AUTO_INDEX,
             'duplicate_prevention': True,
-            'post_first_search': True,  # ✅ NEW FEATURE
+            'smart_download_button': True,  # ✅ NEW FEATURE
             'thumbnail_extraction': True,
             'telegram_bot': True,
         },
@@ -2816,7 +2895,7 @@ async def api_search():
                 'message': f'Query must be at least {Config.SEARCH_MIN_QUERY_LENGTH} characters'
             }), 400
         
-        result_data = await search_movies_enhanced_fixed(query, limit, page)
+        result_data = await search_movies_smart_fixed(query, limit, page)
         
         return jsonify({
             'status': 'success',
@@ -2825,7 +2904,7 @@ async def api_search():
             'pagination': result_data['pagination'],
             'search_metadata': {
                 **result_data.get('search_metadata', {}),
-                'feature': 'post_first_search',
+                'feature': 'smart_download_button',
                 'poster_priority': True,
                 'real_message_ids': True,
             },
@@ -2896,7 +2975,7 @@ async def api_stats():
                 'running': bot_running,
                 'initialized': telegram_bot is not None
             },
-            'search_logic': 'post_first_fixed',
+            'search_logic': 'smart_download_button',
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -3180,10 +3259,10 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v9.0 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: POST FIRST SEARCH - FIXED")
-    logger.info(f"   • Search Logic: POST RESULTS FIRST")
-    logger.info(f"   • File Results: ONLY WHEN FEW POSTS")
-    logger.info(f"   • Thumbnails/Posters: ✅ ALWAYS SHOWN")
+    logger.info("🎯 FEATURES: SMART DOWNLOAD BUTTON")
+    logger.info(f"   • When Post + File: Poster + Post + Download Button")
+    logger.info(f"   • When Only File: Poster + File Name + Download Button")
+    logger.info(f"   • Posts First: ✅ YES")
     logger.info(f"   • Real Message IDs: ✅ ENABLED")
     logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
     logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
