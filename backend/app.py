@@ -2196,7 +2196,7 @@ async def init_system():
         logger.info(f"   • User Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
         logger.info(f"   • Bot Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
         logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
-        logger.info(f"   • Smart Download Button: ✅ ENABLED")
+        logger.info(f"   • Multiple Quality Options: ✅ ENABLED")
         
         return True
         
@@ -2205,40 +2205,40 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ SMART SEARCH FUNCTION - FIXED LOGIC
+# ✅ SMART SEARCH WITH MULTIPLE QUALITY OPTIONS
 # ============================================================================
 
 def channel_name_cached(cid):
     return f"Channel {cid}"
 
-@performance_monitor.measure("smart_search_fixed")
+@performance_monitor.measure("quality_search_fixed")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
-async def search_movies_smart_fixed(query, limit=15, page=1):
-    """SMART: Show posts first, with download button if file exists"""
+async def search_movies_with_quality_options(query, limit=15, page=1):
+    """SMART: Show posts first, with ALL quality options for download"""
     offset = (page - 1) * limit
     
     # Try cache first
-    cache_key = f"search_smart:{query}:{page}:{limit}"
+    cache_key = f"search_quality:{query}:{page}:{limit}"
     if cache_manager is not None and cache_manager.redis_enabled:
         cached_data = await cache_manager.get(cache_key)
         if cached_data:
             logger.info(f"✅ Cache HIT for: {query}")
             return cached_data
     
-    logger.info(f"🔍 SMART SEARCH for: {query}")
+    logger.info(f"🔍 QUALITY SEARCH for: {query}")
     
     query_lower = query.lower()
     all_results = []
     
-    # Track titles for matching files
-    normalized_titles_with_files = set()
-    files_by_title = {}
+    # Track files by normalized title
+    files_by_title = defaultdict(list)
+    files_data_by_message = {}
     
     # ============================================================================
-    # ✅ 1. FIRST: SEARCH FILE CHANNEL FOR FILES
+    # ✅ 1. FIRST: SEARCH FILE CHANNEL FOR ALL FILES
     # ============================================================================
     if files_col is not None:
-        logger.info(f"📁 Searching FILE CHANNEL for files...")
+        logger.info(f"📁 Searching FILE CHANNEL for all files...")
         
         try:
             # Build search query
@@ -2253,7 +2253,7 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
                 "is_duplicate": False
             }
             
-            # Get matching files
+            # Get ALL matching files
             cursor = files_col.find(
                 search_query,
                 {
@@ -2275,28 +2275,37 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
                     'year': 1,
                     '_id': 0
                 }
-            ).limit(100)
+            ).limit(200)  # Get more files for quality options
+            
+            total_files = 0
+            quality_distribution = defaultdict(int)
             
             async for doc in cursor:
                 try:
+                    total_files += 1
                     title = doc.get('title', 'Unknown')
                     norm_title = normalize_title(title)
                     
-                    # Store file info for this title
-                    normalized_titles_with_files.add(norm_title)
+                    # Extract quality info
+                    quality_info = extract_quality_info(doc.get('file_name', ''))
+                    quality = quality_info['full']
+                    quality_distribution[quality] += 1
                     
                     # Get file info
-                    quality = doc.get('quality', 'Unknown')
                     real_msg_id = doc.get('real_message_id') or doc.get('message_id')
                     thumbnail_url = doc.get('thumbnail_url')
                     file_name = doc.get('file_name', '')
                     
-                    # Create file data
+                    # Create detailed file data
                     file_data = {
                         'title': title,
                         'normalized_title': norm_title,
                         'quality': quality,
+                        'base_quality': quality_info['base'],
+                        'is_hevc': quality_info['is_hevc'],
+                        'priority': quality_info['priority'],
                         'file_size': doc.get('file_size', 0),
+                        'size_formatted': format_size(doc.get('file_size', 0)),
                         'file_name': file_name,
                         'message_id': real_msg_id,
                         'real_message_id': real_msg_id,
@@ -2304,19 +2313,24 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
                         'has_thumbnail': thumbnail_url is not None,
                         'channel_id': doc.get('channel_id'),
                         'date': doc.get('date'),
-                        'year': doc.get('year', '')
+                        'year': doc.get('year', ''),
+                        'is_video_file': doc.get('is_video_file', False),
+                        'telegram_file_id': doc.get('telegram_file_id'),
+                        'file_id': doc.get('file_id')
                     }
                     
-                    # Store file data by title
-                    if norm_title not in files_by_title:
-                        files_by_title[norm_title] = []
+                    # Store by title for grouping
                     files_by_title[norm_title].append(file_data)
+                    
+                    # Store by message ID for quick access
+                    files_data_by_message[real_msg_id] = file_data
                     
                 except Exception as e:
                     logger.error(f"File processing error: {e}")
                     continue
             
-            logger.info(f"📁 Found files for {len(normalized_titles_with_files)} titles")
+            logger.info(f"📁 Found {total_files} files for {len(files_by_title)} titles")
+            logger.info(f"📊 Quality distribution: {dict(quality_distribution)}")
             
         except Exception as e:
             logger.error(f"❌ File search error: {e}")
@@ -2338,7 +2352,8 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
                             norm_title = normalize_title(title)
                             
                             # Check if we have files for this title
-                            has_files = norm_title in normalized_titles_with_files
+                            has_files = norm_title in files_by_title
+                            files_for_title = files_by_title.get(norm_title, [])
                             
                             # Get year
                             year_match = re.search(r'\b(19|20)\d{2}\b', title)
@@ -2352,29 +2367,62 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
                             post_content = msg.text
                             formatted_content = format_post(msg.text, max_length=500)
                             
-                            # Get file info if available
-                            file_info = None
-                            if has_files and norm_title in files_by_title:
-                                files = files_by_title[norm_title]
-                                # Get best quality file
-                                best_file = max(files, key=lambda x: (
-                                    Config.QUALITY_PRIORITY.index(x['quality'].replace(' HEVC', '')) 
-                                    if x['quality'].replace(' HEVC', '') in Config.QUALITY_PRIORITY 
-                                    else 999
-                                ))
+                            # Prepare quality options
+                            quality_options = []
+                            quality_summary = ""
+                            best_quality = None
+                            total_size = 0
+                            
+                            if files_for_title:
+                                # Group files by quality
+                                files_by_quality = defaultdict(list)
+                                for file in files_for_title:
+                                    files_by_quality[file['quality']].append(file)
+                                    total_size += file['file_size']
                                 
-                                file_info = {
-                                    'has_file': True,
-                                    'quality': best_file['quality'],
-                                    'file_name': best_file['file_name'],
-                                    'file_size': best_file['file_size'],
-                                    'size_formatted': format_size(best_file['file_size']),
-                                    'message_id': best_file['real_message_id'],
-                                    'real_message_id': best_file['real_message_id'],
-                                    'thumbnail_url': best_file['thumbnail_url'],
-                                    'has_thumbnail': best_file['has_thumbnail'],
-                                    'download_available': True
-                                }
+                                # Create quality options
+                                for quality, quality_files in files_by_quality.items():
+                                    # Get best file for this quality (largest size)
+                                    best_file = max(quality_files, key=lambda x: x['file_size'])
+                                    
+                                    quality_options.append({
+                                        'quality': quality,
+                                        'base_quality': best_file['base_quality'],
+                                        'is_hevc': best_file['is_hevc'],
+                                        'priority': best_file['priority'],
+                                        'file_size': best_file['file_size'],
+                                        'size_formatted': best_file['size_formatted'],
+                                        'file_name': best_file['file_name'],
+                                        'message_id': best_file['real_message_id'],
+                                        'real_message_id': best_file['real_message_id'],
+                                        'thumbnail_url': best_file['thumbnail_url'],
+                                        'has_thumbnail': best_file['has_thumbnail'],
+                                        'telegram_file_id': best_file['telegram_file_id'],
+                                        'file_count': len(quality_files),
+                                        'alternative_files': [
+                                            {
+                                                'file_name': f['file_name'],
+                                                'file_size': f['file_size'],
+                                                'size_formatted': f['size_formatted'],
+                                                'message_id': f['real_message_id']
+                                            }
+                                            for f in quality_files
+                                            if f['real_message_id'] != best_file['real_message_id']
+                                        ]
+                                    })
+                                
+                                # Sort quality options by priority
+                                quality_options.sort(key=lambda x: x['priority'])
+                                
+                                # Create quality summary
+                                qualities = [q['quality'] for q in quality_options]
+                                if len(qualities) <= 3:
+                                    quality_summary = " • ".join(qualities)
+                                else:
+                                    quality_summary = f"{qualities[0]} • {qualities[1]} • +{len(qualities)-2} more"
+                                
+                                # Set best quality (highest priority)
+                                best_quality = quality_options[0]['quality'] if quality_options else None
                             
                             # Create post data
                             post_data = {
@@ -2393,13 +2441,25 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
                                 'is_video_file': False,
                                 'year': year,
                                 'search_score': 3,  # Post results get highest score
-                                'result_type': 'post_with_file' if has_files else 'post_only',
+                                'result_type': 'post_with_quality_options' if has_files else 'post_only',
                                 'thumbnail_url': None,
                                 'has_thumbnail': False,
                                 'poster_url': None,
                                 'poster_source': None,
-                                'file_info': file_info,
-                                'download_button': has_files  # Show download button if file exists
+                                'file_info': {
+                                    'has_file': has_files,
+                                    'total_files': len(files_for_title),
+                                    'total_size': total_size,
+                                    'total_size_formatted': format_size(total_size),
+                                    'quality_options': quality_options,
+                                    'quality_summary': quality_summary,
+                                    'best_quality': best_quality,
+                                    'available_qualities': [q['quality'] for q in quality_options],
+                                    'quality_count': len(quality_options),
+                                    'download_available': has_files
+                                } if has_files else None,
+                                'download_button': has_files,
+                                'quality_choose': len(quality_options) > 1  # Show quality choose if multiple qualities
                             }
                             
                             channel_posts.append(post_data)
@@ -2424,24 +2484,73 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
     # ✅ 3. THIRD: ADD FILES WITHOUT POSTS AS SEPARATE RESULTS
     # ============================================================================
     files_without_posts = 0
-    files_titles_with_posts = set(r['normalized_title'] for r in all_results)
+    titles_with_posts = set(r['normalized_title'] for r in all_results)
     
     for norm_title, files in files_by_title.items():
         # Skip if already has a post
-        if norm_title in files_titles_with_posts:
+        if norm_title in titles_with_posts:
             continue
         
         # Create file-only result
         if files:
-            # Get best quality file
+            # Group files by quality
+            files_by_quality = defaultdict(list)
+            total_size = 0
+            
+            for file in files:
+                files_by_quality[file['quality']].append(file)
+                total_size += file['file_size']
+            
+            # Create quality options
+            quality_options = []
+            for quality, quality_files in files_by_quality.items():
+                # Get best file for this quality
+                best_file = max(quality_files, key=lambda x: x['file_size'])
+                
+                quality_options.append({
+                    'quality': quality,
+                    'base_quality': best_file['base_quality'],
+                    'is_hevc': best_file['is_hevc'],
+                    'priority': best_file['priority'],
+                    'file_size': best_file['file_size'],
+                    'size_formatted': best_file['size_formatted'],
+                    'file_name': best_file['file_name'],
+                    'message_id': best_file['real_message_id'],
+                    'real_message_id': best_file['real_message_id'],
+                    'thumbnail_url': best_file['thumbnail_url'],
+                    'has_thumbnail': best_file['has_thumbnail'],
+                    'telegram_file_id': best_file['telegram_file_id'],
+                    'file_count': len(quality_files),
+                    'alternative_files': [
+                        {
+                            'file_name': f['file_name'],
+                            'file_size': f['file_size'],
+                            'size_formatted': f['size_formatted'],
+                            'message_id': f['real_message_id']
+                        }
+                        for f in quality_files
+                        if f['real_message_id'] != best_file['real_message_id']
+                    ]
+                })
+            
+            # Sort quality options
+            quality_options.sort(key=lambda x: x['priority'])
+            
+            # Get best file for main display
             best_file = max(files, key=lambda x: (
-                Config.QUALITY_PRIORITY.index(x['quality'].replace(' HEVC', '')) 
-                if x['quality'].replace(' HEVC', '') in Config.QUALITY_PRIORITY 
-                else 999
+                -x['priority'],  # Lower priority number = higher quality
+                x['file_size']   # Larger size for same quality
             ))
             
             title = best_file['title']
             year = best_file.get('year', '')
+            
+            # Create quality summary
+            qualities = [q['quality'] for q in quality_options]
+            if len(qualities) <= 3:
+                quality_summary = " • ".join(qualities)
+            else:
+                quality_summary = f"{qualities[0]} • {qualities[1]} • +{len(qualities)-2} more"
             
             # Create file-only result
             file_result = {
@@ -2461,24 +2570,25 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
                 'is_video_file': best_file.get('is_video_file', False),
                 'year': year,
                 'search_score': 2,  # File-only results get medium score
-                'result_type': 'file_only',
+                'result_type': 'file_with_quality_options',
                 'thumbnail_url': best_file['thumbnail_url'],
                 'has_thumbnail': best_file['has_thumbnail'],
                 'poster_url': None,
                 'poster_source': None,
                 'file_info': {
                     'has_file': True,
-                    'quality': best_file['quality'],
-                    'file_name': best_file['file_name'],
-                    'file_size': best_file['file_size'],
-                    'size_formatted': format_size(best_file['file_size']),
-                    'message_id': best_file['real_message_id'],
-                    'real_message_id': best_file['real_message_id'],
-                    'thumbnail_url': best_file['thumbnail_url'],
-                    'has_thumbnail': best_file['has_thumbnail'],
+                    'total_files': len(files),
+                    'total_size': total_size,
+                    'total_size_formatted': format_size(total_size),
+                    'quality_options': quality_options,
+                    'quality_summary': quality_summary,
+                    'best_quality': quality_options[0]['quality'] if quality_options else None,
+                    'available_qualities': [q['quality'] for q in quality_options],
+                    'quality_count': len(quality_options),
                     'download_available': True
                 },
-                'download_button': True  # Always show download for file-only results
+                'download_button': True,
+                'quality_choose': len(quality_options) > 1
             }
             
             all_results.append(file_result)
@@ -2544,17 +2654,21 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
     # ============================================================================
     # ✅ 5. SORT RESULTS
     # ============================================================================
-    # Sort by: posts with files first, then posts only, then file only
+    # Sort by: posts with multiple qualities first, then posts with single quality, then file-only
     def get_sort_key(result):
         result_type = result.get('result_type', '')
-        if result_type == 'post_with_file':
-            return (0, result.get('search_score', 0), result.get('is_new', False))
+        quality_count = result.get('file_info', {}).get('quality_count', 0) if result.get('file_info') else 0
+        
+        if result_type == 'post_with_quality_options':
+            return (0, quality_count, result.get('search_score', 0), result.get('is_new', False))
         elif result_type == 'post_only':
-            return (1, result.get('search_score', 0), result.get('is_new', False))
-        else:  # file_only
-            return (2, result.get('search_score', 0), result.get('is_new', False))
+            return (1, 0, result.get('search_score', 0), result.get('is_new', False))
+        elif result_type == 'file_with_quality_options':
+            return (2, quality_count, result.get('search_score', 0), result.get('is_new', False))
+        else:
+            return (3, 0, result.get('search_score', 0), result.get('is_new', False))
     
-    all_results.sort(key=get_sort_key)
+    all_results.sort(key=get_sort_key, reverse=True)
     
     total = len(all_results)
     paginated = all_results[offset:offset + limit]
@@ -2562,28 +2676,35 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
     # Statistics
     stats = {
         'total': total,
-        'post_with_file': sum(1 for r in all_results if r.get('result_type') == 'post_with_file'),
+        'post_with_quality': sum(1 for r in all_results if r.get('result_type') == 'post_with_quality_options'),
         'post_only': sum(1 for r in all_results if r.get('result_type') == 'post_only'),
-        'file_only': sum(1 for r in all_results if r.get('result_type') == 'file_only'),
-        'download_button': sum(1 for r in all_results if r.get('download_button', False))
+        'file_with_quality': sum(1 for r in all_results if r.get('result_type') == 'file_with_quality_options'),
+        'download_button': sum(1 for r in all_results if r.get('download_button', False)),
+        'quality_choose': sum(1 for r in all_results if r.get('quality_choose', False)),
+        'total_quality_options': sum(r.get('file_info', {}).get('quality_count', 0) for r in all_results if r.get('file_info'))
     }
     
     # Log results
     logger.info(f"📊 FINAL RESULTS:")
     logger.info(f"   • Total results: {total}")
-    logger.info(f"   • Posts with files: {stats['post_with_file']}")
+    logger.info(f"   • Posts with quality options: {stats['post_with_quality']}")
     logger.info(f"   • Posts only: {stats['post_only']}")
-    logger.info(f"   • Files only: {stats['file_only']}")
+    logger.info(f"   • Files with quality options: {stats['file_with_quality']}")
     logger.info(f"   • Results with download button: {stats['download_button']}")
+    logger.info(f"   • Results with quality choose: {stats['quality_choose']}")
+    logger.info(f"   • Total quality options across all results: {stats['total_quality_options']}")
     
-    # Show sample of results
+    # Show sample of results with quality options
     for i, result in enumerate(paginated[:5]):
         result_type = result.get('result_type', 'unknown')
         title = result.get('title', '')[:40]
-        has_download = result.get('download_button', False)
-        file_name = result.get('file_info', {}).get('file_name', 'N/A')[:30] if result.get('file_info') else 'N/A'
+        quality_count = result.get('file_info', {}).get('quality_count', 0) if result.get('file_info') else 0
+        qualities = result.get('file_info', {}).get('available_qualities', []) if result.get('file_info') else []
         
-        logger.info(f"   📋 {i+1}. {result_type}: {title}... | Download: {has_download} | File: {file_name}")
+        if quality_count > 0:
+            logger.info(f"   📋 {i+1}. {result_type}: {title}... | Qualities: {quality_count} → {', '.join(qualities[:3])}")
+        else:
+            logger.info(f"   📋 {i+1}. {result_type}: {title}... | No files")
     
     # Final data structure
     result_data = {
@@ -2600,11 +2721,12 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
             'query': query,
             'stats': stats,
             'post_first': True,
-            'download_button_logic': True,
+            'multiple_qualities': True,
+            'quality_choose_enabled': True,
             'poster_fetcher': poster_fetcher is not None,
             'thumbnails_enabled': True,
             'real_message_ids': True,
-            'search_logic': 'smart_download_button'
+            'search_logic': 'quality_options_fixed'
         },
         'bot_username': Config.BOT_USERNAME
     }
@@ -2613,7 +2735,7 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
     if cache_manager is not None:
         await cache_manager.set(cache_key, result_data, expire_seconds=Config.SEARCH_CACHE_TTL)
     
-    logger.info(f"✅ Smart search complete: {len(paginated)} results (page {page})")
+    logger.info(f"✅ Quality search complete: {len(paginated)} results (page {page})")
     
     return result_data
 
@@ -2623,8 +2745,130 @@ async def search_movies_smart_fixed(query, limit=15, page=1):
 
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_multi_channel_merged(query, limit=15, page=1):
-    """Backward compatible search - uses smart search"""
-    return await search_movies_smart_fixed(query, limit, page)
+    """Backward compatible search - uses quality search"""
+    return await search_movies_with_quality_options(query, limit, page)
+
+# ============================================================================
+# ✅ GET QUALITY DETAILS ENDPOINT
+# ============================================================================
+
+@app.route('/api/quality-details/<int:message_id>', methods=['GET'])
+@performance_monitor.measure("quality_details_endpoint")
+async def api_quality_details(message_id):
+    """Get detailed quality options for a specific message"""
+    try:
+        if files_col is None:
+            return jsonify({'status': 'error', 'message': 'Database not connected'}), 500
+        
+        # Find the file
+        file_doc = await files_col.find_one(
+            {"real_message_id": message_id},
+            {
+                'title': 1,
+                'normalized_title': 1,
+                '_id': 0
+            }
+        )
+        
+        if not file_doc:
+            return jsonify({'status': 'error', 'message': 'File not found'}), 404
+        
+        norm_title = file_doc.get('normalized_title')
+        
+        # Get all files with same normalized title
+        cursor = files_col.find(
+            {"normalized_title": norm_title},
+            {
+                'title': 1,
+                'quality': 1,
+                'file_size': 1,
+                'file_name': 1,
+                'is_video_file': 1,
+                'channel_id': 1,
+                'message_id': 1,
+                'real_message_id': 1,
+                'date': 1,
+                'file_id': 1,
+                'telegram_file_id': 1,
+                'thumbnail_url': 1,
+                'thumbnail_extracted': 1,
+                '_id': 0
+            }
+        )
+        
+        files = []
+        async for doc in cursor:
+            files.append({
+                'title': doc.get('title'),
+                'quality': doc.get('quality'),
+                'file_size': doc.get('file_size', 0),
+                'size_formatted': format_size(doc.get('file_size', 0)),
+                'file_name': doc.get('file_name', ''),
+                'message_id': doc.get('real_message_id'),
+                'real_message_id': doc.get('real_message_id'),
+                'thumbnail_url': doc.get('thumbnail_url'),
+                'has_thumbnail': doc.get('thumbnail_url') is not None,
+                'telegram_file_id': doc.get('telegram_file_id'),
+                'date': doc.get('date')
+            })
+        
+        # Group by quality
+        files_by_quality = defaultdict(list)
+        for file in files:
+            files_by_quality[file['quality']].append(file)
+        
+        # Create quality options
+        quality_options = []
+        for quality, quality_files in files_by_quality.items():
+            # Get best file for this quality (largest size)
+            best_file = max(quality_files, key=lambda x: x['file_size'])
+            
+            quality_options.append({
+                'quality': quality,
+                'file_size': best_file['file_size'],
+                'size_formatted': best_file['size_formatted'],
+                'file_name': best_file['file_name'],
+                'message_id': best_file['real_message_id'],
+                'real_message_id': best_file['real_message_id'],
+                'thumbnail_url': best_file['thumbnail_url'],
+                'has_thumbnail': best_file['has_thumbnail'],
+                'telegram_file_id': best_file['telegram_file_id'],
+                'file_count': len(quality_files),
+                'alternative_files': [
+                    {
+                        'file_name': f['file_name'],
+                        'file_size': f['file_size'],
+                        'size_formatted': f['size_formatted'],
+                        'message_id': f['real_message_id']
+                    }
+                    for f in quality_files
+                    if f['real_message_id'] != best_file['real_message_id']
+                ]
+            })
+        
+        # Sort by quality priority
+        def get_quality_priority(q):
+            base_q = q.replace(' HEVC', '')
+            if base_q in Config.QUALITY_PRIORITY:
+                return Config.QUALITY_PRIORITY.index(base_q)
+            return 999
+        
+        quality_options.sort(key=lambda x: get_quality_priority(x['quality']))
+        
+        return jsonify({
+            'status': 'success',
+            'title': file_doc.get('title'),
+            'normalized_title': norm_title,
+            'quality_options': quality_options,
+            'total_qualities': len(quality_options),
+            'total_files': len(files),
+            'available_qualities': [q['quality'] for q in quality_options],
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Quality details error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
 # ✅ HOME MOVIES
@@ -2681,7 +2925,8 @@ async def get_home_movies(limit=25):
                         'search_score': 1,
                         'has_poster': False,
                         'has_thumbnail': False,
-                        'download_button': False
+                        'download_button': False,
+                        'quality_choose': False
                     }
                     
                     movies.append(movie_data)
@@ -2701,52 +2946,6 @@ async def get_home_movies(limit=25):
     except Exception as e:
         logger.error(f"❌ Home movies error: {e}")
         return []
-
-# ============================================================================
-# ✅ DEBUG FUNCTION FOR FILE GROUPING
-# ============================================================================
-
-async def debug_file_grouping(query):
-    """Debug function to see how files are being grouped"""
-    if files_col is None:
-        return {}
-    
-    # Get all files matching query
-    cursor = files_col.find(
-        {"normalized_title": {"$regex": query, "$options": "i"}},
-        {
-            'title': 1,
-            'normalized_title': 1,
-            'quality': 1,
-            'file_name': 1,
-            'message_id': 1,
-            '_id': 0
-        }
-    ).limit(50)
-    
-    files_by_title = defaultdict(list)
-    
-    async for doc in cursor:
-        title = doc.get('title', 'Unknown')
-        norm_title = normalize_title(title)
-        quality = doc.get('quality', 'Unknown')
-        
-        files_by_title[norm_title].append({
-            'title': title,
-            'quality': quality,
-            'file_name': doc.get('file_name', ''),
-            'message_id': doc.get('message_id')
-        })
-    
-    # Log grouping
-    logger.info(f"🔍 DEBUG Grouping for query: {query}")
-    for norm_title, files in files_by_title.items():
-        qualities = [f['quality'] for f in files]
-        logger.info(f"   📁 '{norm_title}': {len(files)} files")
-        for file in files:
-            logger.info(f"      • {file['quality']} - {file['file_name'][:30]}... (Msg ID: {file['message_id']})")
-    
-    return files_by_title
 
 # ============================================================================
 # ✅ API ROUTES
@@ -2781,7 +2980,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - SMART DOWNLOAD BUTTON',
+        'service': 'SK4FiLM v9.0 - MULTIPLE QUALITY OPTIONS',
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2812,7 +3011,8 @@ async def root():
             'complete_history': Config.INDEX_ALL_HISTORY,
             'instant_indexing': Config.INSTANT_AUTO_INDEX,
             'duplicate_prevention': True,
-            'smart_download_button': True,  # ✅ NEW FEATURE
+            'multiple_quality_options': True,  # ✅ NEW FEATURE
+            'quality_choose_menu': True,
             'thumbnail_extraction': True,
             'telegram_bot': True,
         },
@@ -2895,7 +3095,7 @@ async def api_search():
                 'message': f'Query must be at least {Config.SEARCH_MIN_QUERY_LENGTH} characters'
             }), 400
         
-        result_data = await search_movies_smart_fixed(query, limit, page)
+        result_data = await search_movies_with_quality_options(query, limit, page)
         
         return jsonify({
             'status': 'success',
@@ -2904,7 +3104,7 @@ async def api_search():
             'pagination': result_data['pagination'],
             'search_metadata': {
                 **result_data.get('search_metadata', {}),
-                'feature': 'smart_download_button',
+                'feature': 'multiple_quality_options',
                 'poster_priority': True,
                 'real_message_ids': True,
             },
@@ -2935,6 +3135,13 @@ async def api_stats():
             video_files = await files_col.count_documents({'is_video_file': True})
             thumbnails_extracted = await files_col.count_documents({'thumbnail_extracted': True})
             
+            # Get quality distribution
+            pipeline = [
+                {"$group": {"_id": "$quality", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}}
+            ]
+            quality_dist = await files_col.aggregate(pipeline).to_list(length=10)
+            
             # Get indexing stats
             indexing_status = await file_indexing_manager.get_indexing_status()
             
@@ -2944,6 +3151,7 @@ async def api_stats():
             total_files = 0
             video_files = 0
             thumbnails_extracted = 0
+            quality_dist = []
             indexing_status = {}
             duplicate_stats = {}
         
@@ -2966,7 +3174,8 @@ async def api_stats():
                 'total_files': total_files,
                 'video_files': video_files,
                 'thumbnails_extracted': thumbnails_extracted,
-                'extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%"
+                'extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%",
+                'quality_distribution': quality_dist
             },
             'indexing_stats': indexing_status,
             'duplicate_stats': duplicate_stats,
@@ -2975,7 +3184,8 @@ async def api_stats():
                 'running': bot_running,
                 'initialized': telegram_bot is not None
             },
-            'search_logic': 'smart_download_button',
+            'search_logic': 'multiple_quality_options',
+            'quality_priority': Config.QUALITY_PRIORITY,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2984,184 +3194,6 @@ async def api_stats():
             'status': 'error',
             'message': str(e)
         }), 500
-
-# ============================================================================
-# ✅ DEBUG ENDPOINT
-# ============================================================================
-
-@app.route('/api/debug/grouping', methods=['GET'])
-async def api_debug_grouping():
-    """Debug endpoint to see file grouping"""
-    try:
-        query = request.args.get('query', '').strip()
-        if not query:
-            return jsonify({'status': 'error', 'message': 'Query parameter required'}), 400
-        
-        grouped = await debug_file_grouping(query)
-        
-        return jsonify({
-            'status': 'success',
-            'query': query,
-            'grouped_files': grouped,
-            'total_groups': len(grouped),
-            'total_files': sum(len(files) for files in grouped.values())
-        })
-    except Exception as e:
-        logger.error(f"Debug grouping error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# ============================================================================
-# ✅ ADMIN API ROUTES
-# ============================================================================
-
-@app.route('/api/admin/reindex', methods=['POST'])
-async def api_admin_reindex():
-    """Admin endpoint to trigger reindexing"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        # Trigger reindexing
-        asyncio.create_task(initial_indexing())
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'File channel reindexing started',
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Admin reindex error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/indexing-status', methods=['GET'])
-async def api_admin_indexing_status():
-    """Check indexing status"""
-    try:
-        indexing_status = await file_indexing_manager.get_indexing_status()
-        
-        # Get database stats
-        if files_col is not None:
-            total_files = await files_col.count_documents({})
-        else:
-            total_files = 0
-        
-        return jsonify({
-            'status': 'success',
-            'indexing': indexing_status,
-            'database_files': total_files,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Indexing status error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/clear-cache', methods=['POST'])
-async def api_admin_clear_cache():
-    """Clear all cache"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if cache_manager and cache_manager.redis_enabled:
-            try:
-                # Clear all cache keys starting with "search_"
-                keys = await cache_manager.redis_client.keys("search_*")
-                if keys:
-                    await cache_manager.redis_client.delete(*keys)
-                    logger.info(f"✅ Cleared {len(keys)} search cache keys")
-            except Exception as e:
-                logger.error(f"❌ Cache clear error: {e}")
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Cache cleared successfully'
-        })
-    except Exception as e:
-        logger.error(f"❌ Clear cache error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/db-stats', methods=['GET'])
-async def api_admin_db_stats():
-    """Get detailed database stats"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if files_col is None:
-            return jsonify({'status': 'error', 'message': 'Database not connected'})
-        
-        # Get total count
-        total = await files_col.count_documents({})
-        
-        # Get sample documents with REAL MESSAGE IDS
-        sample = await files_col.find({}, {
-            'title': 1, 
-            'message_id': 1, 
-            'real_message_id': 1,
-            'quality': 1, 
-            '_id': 0
-        }).limit(5).to_list(length=5)
-        
-        # Get quality distribution
-        pipeline = [
-            {"$group": {"_id": "$quality", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}}
-        ]
-        quality_dist = await files_col.aggregate(pipeline).to_list(length=10)
-        
-        # Get recent files
-        recent = await files_col.find({}, {
-            'title': 1, 
-            'date': 1, 
-            'real_message_id': 1,
-            '_id': 0
-        }).sort('date', -1).limit(5).to_list(length=5)
-        
-        return jsonify({
-            'status': 'success',
-            'total_files': total,
-            'sample_files': sample,
-            'quality_distribution': quality_dist,
-            'recent_files': recent
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ DB stats error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/bot-status', methods=['GET'])
-async def api_admin_bot_status():
-    """Get Telegram bot status"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
-        return jsonify({
-            'status': 'success',
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None,
-                'started': telegram_bot.bot_started if telegram_bot and hasattr(telegram_bot, 'bot_started') else False
-            },
-            'config': {
-                'bot_token_configured': bool(Config.BOT_TOKEN),
-                'api_id_configured': bool(Config.API_ID),
-                'api_hash_configured': bool(Config.API_HASH),
-                'admin_ids': Config.ADMIN_IDS
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Bot status error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
 # ✅ STARTUP AND SHUTDOWN - FIXED
@@ -3259,9 +3291,10 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v9.0 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: SMART DOWNLOAD BUTTON")
-    logger.info(f"   • When Post + File: Poster + Post + Download Button")
-    logger.info(f"   • When Only File: Poster + File Name + Download Button")
+    logger.info("🎯 FEATURES: MULTIPLE QUALITY OPTIONS")
+    logger.info(f"   • Post + File: Quality Choose Menu Available")
+    logger.info(f"   • Multiple Qualities: Show ALL available qualities")
+    logger.info(f"   • Quality Summary: Shows available qualities")
     logger.info(f"   • Posts First: ✅ YES")
     logger.info(f"   • Real Message IDs: ✅ ENABLED")
     logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
