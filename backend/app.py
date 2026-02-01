@@ -1100,7 +1100,7 @@ class DuplicatePreventionSystem:
     async def remove_file_hash(self, file_hash, normalized_title=None):
         """Remove file hash from tracking"""
         if not file_hash:
-        return
+            return
         
         async with self.lock:
             if file_hash in self.file_hashes:
