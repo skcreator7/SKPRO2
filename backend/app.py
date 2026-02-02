@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v10.0 - ULTRA OPTIMIZED BACKEND
+# 🚀 SK4FiLM v9.0 - OPTIMIZED BACKEND WITH FLOOD WAIT PROTECTION
 # ============================================================================
 
 import asyncio
@@ -77,8 +77,115 @@ except ImportError as e:
     PremiumSystem = None
     PremiumTier = None
 
+try:
+    from poster_fetching import PosterFetcher, PosterSource
+    logger.debug("✅ Poster fetching module imported")
+except ImportError as e:
+    logger.error(f"❌ Poster fetching module import error: {e}")
+    PosterFetcher = None
+    PosterSource = None
+
+try:
+    from utils import (
+        normalize_title,
+        extract_title_smart,
+        extract_title_from_file,
+        format_size,
+        detect_quality,
+        is_video_file,
+        format_post,
+        is_new
+    )
+    logger.debug("✅ Utils module imported")
+except ImportError as e:
+    logger.error(f"❌ Utils module import error: {e}")
+    # Define fallback functions
+    def normalize_title(title): 
+        if not title:
+            return ""
+        title = title.lower().strip()
+        title = re.sub(r'\s*\([^)]*\)$', '', title)
+        title = re.sub(r'\s*\[[^\]]*\]$', '', title)
+        title = re.sub(r'\s*\d{4}$', '', title)
+        return title
+    
+    def extract_title_smart(text):
+        if not text:
+            return ""
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) > 10 and not line.startswith('http'):
+                return line[:100]
+        return text[:50] if text else ""
+    
+    def extract_title_from_file(filename, caption=None):
+        if filename:
+            name = os.path.splitext(filename)[0]
+            name = re.sub(r'[._]', ' ', name)
+            name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264)\b', '', name, flags=re.IGNORECASE)
+            name = re.sub(r'\s+', ' ', name)
+            name = name.strip()
+            if name:
+                return name
+        if caption:
+            return extract_title_smart(caption)
+        return "Unknown"
+    
+    def format_size(size):
+        if not size:
+            return "Unknown"
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024*1024:
+            return f"{size/1024:.1f} KB"
+        elif size < 1024*1024*1024:
+            return f"{size/1024/1024:.1f} MB"
+        else:
+            return f"{size/1024/1024/1024:.2f} GB"
+    
+    def detect_quality(filename):
+        if not filename:
+            return "480p"
+        filename_lower = filename.lower()
+        patterns = [
+            (r'\b2160p\b|\b4k\b|\buhd\b', '2160p'),
+            (r'\b1080p\b|\bfullhd\b|\bfhd\b', '1080p'),
+            (r'\b720p\b|\bhd\b', '720p'),
+            (r'\b480p\b', '480p'),
+            (r'\b360p\b', '360p'),
+        ]
+        for pattern, quality in patterns:
+            if re.search(pattern, filename_lower):
+                return quality
+        return "480p"
+    
+    def is_video_file(filename):
+        if not filename:
+            return False
+        video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
+        return any(filename.lower().endswith(ext) for ext in video_extensions)
+    
+    def format_post(text, max_length=None):
+        if not text:
+            return ""
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        if max_length and len(text) > max_length:
+            text = text[:max_length] + "..."
+        return text.strip()
+    
+    def is_new(date):
+        if not date:
+            return False
+        if isinstance(date, str):
+            try:
+                date = datetime.fromisoformat(date.replace('Z', '+00:00'))
+            except:
+                return False
+        return (datetime.now() - date).days < 7
+
 # ============================================================================
-# ✅ CONFIGURATION - SIMPLIFIED
+# ✅ CONFIGURATION
 # ============================================================================
 
 class Config:
@@ -120,8 +227,19 @@ class Config:
     CACHE_TTL = int(os.environ.get("CACHE_TTL", "300"))
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "10"))
     
+    # Sync Management Settings
+    MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", "600"))
+    
+    # Quality Settings
+    QUALITY_PRIORITY = ['2160p', '1080p', '720p', '480p', '360p']
+    HEVC_VARIANTS = ['720p HEVC', '1080p HEVC', '2160p HEVC']
+    
     # Fallback Poster
     FALLBACK_POSTER = "https://iili.io/fAeIwv9.th.png"
+    
+    # FILE CHANNEL INDEXING SETTINGS - OPTIMIZED
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "20"))
     
     # SEARCH SETTINGS
     SEARCH_MIN_QUERY_LENGTH = 2
@@ -142,7 +260,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '10.0-ULTRA'
+    response.headers['X-SK4FiLM-Version'] = '9.0-OPTIMIZED'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -154,6 +272,7 @@ async def add_headers(response):
 mongo_client = None
 db = None
 files_col = None
+verification_col = None
 
 # Telegram Sessions
 try:
@@ -171,6 +290,11 @@ except ImportError:
 
 # System Components
 cache_manager = None
+verification_system = None
+premium_system = None
+poster_fetcher = None
+bot_handler = None
+telegram_bot = None
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -263,194 +387,75 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ UTILITY FUNCTIONS
+# ✅ QUALITY DETECTION
 # ============================================================================
 
-def normalize_title(title): 
-    if not title:
-        return ""
-    # Basic normalization
-    title = title.lower().strip()
-    # Remove common suffixes
-    title = re.sub(r'\s*\([^)]*\)$', '', title)
-    title = re.sub(r'\s*\[[^\]]*\]$', '', title)
-    title = re.sub(r'\s*\d{4}$', '', title)
-    return title
+QUALITY_PATTERNS = [
+    (r'\b2160p\b|\b4k\b|\buhd\b', '2160p'),
+    (r'\b1080p\b|\bfullhd\b|\bfhd\b', '1080p'),
+    (r'\b720p\b|\bhd\b', '720p'),
+    (r'\b480p\b', '480p'),
+    (r'\b360p\b', '360p'),
+]
 
-def extract_title_smart(text):
-    if not text:
-        return ""
-    # Extract first line or first 100 chars
-    lines = text.split('\n')
-    for line in lines:
-        line = line.strip()
-        if len(line) > 10 and not line.startswith('http'):
-            return line[:100]
-    return text[:50] if text else ""
+HEVC_PATTERNS = [
+    r'\bhevc\b',
+    r'\bx265\b',
+    r'\bh\.?265\b',
+]
 
-def format_post(text, max_length=None):
-    if not text:
-        return ""
-    # Clean up text
-    text = re.sub(r'\n\s*\n', '\n\n', text)
-    if max_length and len(text) > max_length:
-        text = text[:max_length] + "..."
-    return text.strip()
-
-def is_new(date):
-    if not date:
-        return False
-    if isinstance(date, str):
-        try:
-            date = datetime.fromisoformat(date.replace('Z', '+00:00'))
-        except:
-            return False
-    # Consider new if within last 7 days
-    return (datetime.now() - date).days < 7
-
-def detect_quality(filename):
+def detect_quality_enhanced(filename):
+    """Enhanced quality detection with HEVC support"""
     if not filename:
         return "480p"
+    
     filename_lower = filename.lower()
-    patterns = [
-        (r'\b2160p\b|\b4k\b|\buhd\b', '2160p'),
-        (r'\b1080p\b|\bfullhd\b|\bfhd\b', '1080p'),
-        (r'\b720p\b|\bhd\b', '720p'),
-        (r'\b480p\b', '480p'),
-        (r'\b360p\b', '360p'),
-    ]
-    for pattern, quality in patterns:
+    
+    # First check for HEVC variants
+    is_hevc = any(re.search(pattern, filename_lower) for pattern in HEVC_PATTERNS)
+    
+    # Then check quality
+    for pattern, quality in QUALITY_PATTERNS:
         if re.search(pattern, filename_lower):
+            if is_hevc and quality in ['720p', '1080p', '2160p']:
+                return f"{quality} HEVC"
             return quality
+    
     return "480p"
 
 # ============================================================================
-# ✅ THUMBNAIL FETCHER
+# ✅ OPTIMIZED FILE INDEXING MANAGER - FIXED
 # ============================================================================
 
-class SimplePosterFetcher:
-    """Simple poster fetcher - works directly"""
-    
-    def __init__(self, config, cache_manager=None):
-        self.config = config
-        self.cache_manager = cache_manager
-        self.stats = {
-            'total_requests': 0,
-            'successful': 0,
-            'failed': 0,
-            'cache_hits': 0
-        }
-        
-    async def fetch_poster(self, title, year=None, quality=None):
-        """Fetch poster for movie"""
-        self.stats['total_requests'] += 1
-        
-        # Check cache first
-        if self.cache_manager and self.cache_manager.redis_enabled:
-            cache_key = f"poster:{title}"
-            cached = await self.cache_manager.get(cache_key)
-            if cached:
-                self.stats['cache_hits'] += 1
-                return cached
-        
-        # Try TMDB first (public API key)
-        poster_data = await self._fetch_from_tmdb(title, year)
-        
-        # If TMDB fails, use fallback
-        if not poster_data:
-            poster_data = {
-                'poster_url': self.config.FALLBACK_POSTER,
-                'source': 'fallback',
-                'rating': '0.0',
-                'year': year or '',
-                'title': title,
-                'quality': quality or 'unknown'
-            }
-            self.stats['failed'] += 1
-        else:
-            self.stats['successful'] += 1
-        
-        # Cache the result
-        if poster_data and self.cache_manager and self.cache_manager.redis_enabled:
-            await self.cache_manager.set(
-                f"poster:{title}", 
-                poster_data, 
-                expire_seconds=86400
-            )
-        
-        return poster_data
-    
-    async def _fetch_from_tmdb(self, title, year=None):
-        """Fetch from TMDB API"""
-        try:
-            # Clean title
-            clean_title = re.sub(r'\s*\(\d{4}\)$', '', title)
-            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
-            
-            url = "https://api.themoviedb.org/3/search/movie"
-            params = {
-                'api_key': self.config.TMDB_API_KEY,
-                'query': clean_title,
-                'language': 'en-US',
-                'page': 1,
-                'include_adult': False
-            }
-            
-            if year:
-                params['year'] = year
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, timeout=5) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        if data.get('results') and len(data['results']) > 0:
-                            movie = data['results'][0]
-                            
-                            poster_path = movie.get('poster_path')
-                            if poster_path:
-                                poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
-                                
-                                return {
-                                    'poster_url': poster_url,
-                                    'source': 'tmdb',
-                                    'rating': str(movie.get('vote_average', '0.0')),
-                                    'year': str(movie.get('release_date', '')[:4]),
-                                    'title': movie.get('title', title),
-                                    'quality': 'unknown'
-                                }
-        
-        except Exception as e:
-            logger.debug(f"TMDB fetch error: {e}")
-        
-        return None
-    
-    def get_stats(self):
-        return self.stats
-
-# Initialize poster fetcher
-poster_fetcher = None
-
-# ============================================================================
-# ✅ OPTIMIZED FILE INDEXING
-# ============================================================================
-
-class FileIndexingManager:
-    """Simple file indexing manager"""
+class OptimizedFileIndexingManager:
+    """Optimized file channel indexing manager - ULTRA FAST"""
     
     def __init__(self):
         self.is_running = False
         self.indexing_task = None
-        self.total_indexed = 0
         self.last_run = None
+        self.next_run = None
+        self.total_indexed = 0
+        self.indexing_lock = asyncio.Lock()
+        
+        self.indexing_stats = {
+            'total_runs': 0,
+            'total_indexed': 0,
+            'total_errors': 0,
+            'last_success': None
+        }
     
     async def start_indexing(self):
-        """Start file indexing"""
+        """Start file channel indexing"""
         if self.is_running:
+            logger.warning("⚠️ File indexing already running")
             return
         
-        logger.info("🚀 Starting file indexing...")
+        logger.info("🚀 Starting OPTIMIZED FILE CHANNEL INDEXING...")
         self.is_running = True
+        
+        # Start periodic loop with delay
+        await asyncio.sleep(30)  # Initial delay
         self.indexing_task = asyncio.create_task(self._indexing_loop())
     
     async def stop_indexing(self):
@@ -460,27 +465,44 @@ class FileIndexingManager:
             self.indexing_task.cancel()
             try:
                 await self.indexing_task
-            except:
+            except asyncio.CancelledError:
                 pass
+        
+        logger.info("🛑 File indexing stopped")
     
     async def _indexing_loop(self):
-        """Main indexing loop"""
+        """Main indexing loop - OPTIMIZED"""
         while self.is_running:
             try:
+                # Wait for next run
+                if self.next_run and self.next_run > datetime.now():
+                    wait_seconds = (self.next_run - datetime.now()).total_seconds()
+                    await asyncio.sleep(min(wait_seconds, 60))
+                    continue
+                
+                # Run indexing cycle
                 await self._run_indexing_cycle()
-                await asyncio.sleep(300)  # Wait 5 minutes between cycles
+                
+                # Schedule next run (2 minutes)
+                self.next_run = datetime.now() + timedelta(seconds=120)
+                self.last_run = datetime.now()
+                
+                # Sleep before checking again
+                await asyncio.sleep(60)
+                
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Indexing error: {e}")
+                logger.error(f"❌ Indexing loop error: {e}")
                 await asyncio.sleep(300)
     
     async def _run_indexing_cycle(self):
-        """Run one indexing cycle"""
-        if not user_session_ready or User is None or files_col is None:
-            return
-        
+        """Run one indexing cycle - OPTIMIZED"""
         try:
+            if not user_session_ready or User is None:
+                logger.warning("⚠️ User session not ready")
+                return
+            
             # Get last indexed message
             last_indexed = await files_col.find_one(
                 {"channel_id": Config.FILE_CHANNEL_ID}, 
@@ -490,99 +512,288 @@ class FileIndexingManager:
             
             last_message_id = last_indexed['message_id'] if last_indexed else 0
             
-            logger.info(f"📥 Fetching new messages from {last_message_id}...")
-            
-            # Fetch new messages
-            indexed_count = 0
+            # Fetch new messages (small batch)
+            messages_to_index = []
             try:
+                # Fetch only 20 messages to avoid flood wait
                 async for msg in User.get_chat_history(
                     Config.FILE_CHANNEL_ID, 
-                    limit=50
+                    limit=20
                 ):
                     if msg.id <= last_message_id:
                         break
                     
                     if msg and (msg.document or msg.video):
-                        success = await index_single_file(msg)
+                        messages_to_index.append(msg)
+                    
+                    # Stop after 10 new files
+                    if len(messages_to_index) >= 10:
+                        break
+            except Exception as e:
+                logger.error(f"❌ Error fetching messages: {e}")
+                return
+            
+            if not messages_to_index:
+                logger.info("✅ No new files to index")
+                return
+            
+            logger.info(f"📥 Found {len(messages_to_index)} new files")
+            
+            # Index files
+            indexed_count = 0
+            for msg in messages_to_index:
+                try:
+                    # Quick check if exists
+                    existing = await files_col.find_one({
+                        'channel_id': Config.FILE_CHANNEL_ID,
+                        'message_id': msg.id
+                    })
+                    
+                    if not existing:
+                        success = await index_single_file_fast(msg)
                         if success:
                             indexed_count += 1
-            except Exception as e:
-                logger.error(f"Error fetching messages: {e}")
+                            self.total_indexed += 1
+                except Exception as e:
+                    logger.debug(f"Index error: {e}")
+            
+            # Update stats
+            self.indexing_stats['total_runs'] += 1
+            self.indexing_stats['total_indexed'] += indexed_count
+            self.indexing_stats['last_success'] = datetime.now()
             
             if indexed_count > 0:
-                self.total_indexed += indexed_count
                 logger.info(f"✅ Indexed {indexed_count} new files")
             
-            self.last_run = datetime.now()
-            
         except Exception as e:
-            logger.error(f"Indexing cycle error: {e}")
+            logger.error(f"❌ Indexing cycle failed: {e}")
+            self.indexing_stats['total_errors'] += 1
+    
+    async def get_indexing_status(self):
+        """Get current indexing status"""
+        return {
+            'is_running': self.is_running,
+            'last_run': self.last_run.isoformat() if self.last_run else None,
+            'next_run': self.next_run.isoformat() if self.next_run else None,
+            'total_indexed': self.total_indexed,
+            'stats': self.indexing_stats
+        }
 
-# Initialize indexing manager
-file_indexing_manager = FileIndexingManager()
+# Initialize file indexing manager
+file_indexing_manager = OptimizedFileIndexingManager()
 
-async def index_single_file(message):
-    """Index a single file"""
+# ============================================================================
+# ✅ OPTIMIZED SYNC MANAGEMENT
+# ============================================================================
+
+class OptimizedSyncManager:
+    """Optimized sync manager with auto-delete"""
+    
+    def __init__(self):
+        self.is_monitoring = False
+        self.monitoring_task = None
+        self.deleted_count = 0
+        self.last_sync = time.time()
+    
+    async def start_sync_monitoring(self):
+        """Start sync monitoring"""
+        if self.is_monitoring:
+            return
+        
+        logger.info("👁️ Starting sync monitoring...")
+        self.is_monitoring = True
+        self.monitoring_task = asyncio.create_task(self._monitor_loop())
+    
+    async def stop_sync_monitoring(self):
+        """Stop sync monitoring"""
+        self.is_monitoring = False
+        if self.monitoring_task is not None:
+            self.monitoring_task.cancel()
+            try:
+                await self.monitoring_task
+            except:
+                pass
+        logger.info("🛑 Sync monitoring stopped")
+    
+    async def _monitor_loop(self):
+        """Monitor loop"""
+        while self.is_monitoring:
+            try:
+                # Run sync check
+                await self._check_deleted_files()
+                
+                # Wait for next check (10 minutes)
+                await asyncio.sleep(600)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"❌ Sync error: {e}")
+                await asyncio.sleep(300)
+    
+    async def _check_deleted_files(self):
+        """Check and delete removed files"""
+        try:
+            if files_col is None or User is None or not user_session_ready:
+                return
+            
+            current_time = time.time()
+            if current_time - self.last_sync < 1800:  # 30 minutes minimum
+                return
+            
+            self.last_sync = current_time
+            
+            logger.info("🔄 Checking for deleted files...")
+            
+            # Get a small batch of newest messages
+            cursor = files_col.find(
+                {"channel_id": Config.FILE_CHANNEL_ID},
+                {"message_id": 1, "_id": 1}
+            ).sort("message_id", -1).limit(50)
+            
+            message_ids = []
+            db_ids = []
+            
+            async for doc in cursor:
+                message_ids.append(doc['message_id'])
+                db_ids.append(doc['_id'])
+            
+            if not message_ids:
+                return
+            
+            try:
+                # Check messages in batch
+                messages = await User.get_messages(Config.FILE_CHANNEL_ID, message_ids)
+                
+                # Find existing message IDs
+                existing_ids = set()
+                if isinstance(messages, list):
+                    for msg in messages:
+                        if msg and hasattr(msg, 'id'):
+                            existing_ids.add(msg.id)
+                
+                # Delete non-existing messages
+                deleted = 0
+                for msg_id, db_id in zip(message_ids, db_ids):
+                    if msg_id not in existing_ids:
+                        await files_col.delete_one({"_id": db_id})
+                        deleted += 1
+                
+                if deleted > 0:
+                    self.deleted_count += deleted
+                    logger.info(f"✅ Auto-deleted {deleted} files")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error checking messages: {e}")
+                
+        except Exception as e:
+            logger.error(f"❌ Check deleted files error: {e}")
+
+# Initialize sync manager
+sync_manager = OptimizedSyncManager()
+
+# ============================================================================
+# ✅ OPTIMIZED FILE INDEXING FUNCTIONS - FIXED
+# ============================================================================
+
+async def extract_title_fast(filename, caption):
+    """Fast title extraction - FIXED"""
+    # Try filename first
+    if filename:
+        name = os.path.splitext(filename)[0]
+        name = re.sub(r'[._]', ' ', name)
+        name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc)\b', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'\s+', ' ', name)
+        name = name.strip()
+        
+        if name and len(name) > 3:
+            return name[:100]
+    
+    # Try caption
+    if caption:
+        lines = caption.split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) > 10 and not line.startswith('http'):
+                return line[:100]
+    
+    # Fallback
+    if filename:
+        return os.path.splitext(filename)[0][:50]
+    
+    return "Unknown File"
+
+async def index_single_file_fast(message):
+    """Fast file indexing - FIXED TO WORK"""
     try:
+        if files_col is None:
+            logger.error("❌ Files collection not initialized")
+            return False
+        
         if not message or (not message.document and not message.video):
+            logger.debug("❌ Not a document or video message")
             return False
         
         # Check if already indexed
         existing = await files_col.find_one({
             'channel_id': Config.FILE_CHANNEL_ID,
             'message_id': message.id
-        })
+        }, {'_id': 1})
         
         if existing:
+            logger.debug(f"✅ Already indexed: {message.id}")
             return False
         
-        # Extract file info
+        # Extract basic info
         caption = message.caption if hasattr(message, 'caption') else None
         file_name = None
-        file_size = 0
-        file_id = None
         
         if message.document:
             file_name = message.document.file_name
             file_size = message.document.file_size or 0
             file_id = message.document.file_id
+            logger.debug(f"📄 Document: {file_name}, Size: {file_size}")
         elif message.video:
             file_name = message.video.file_name or 'video.mp4'
             file_size = message.video.file_size or 0
             file_id = message.video.file_id
+            logger.debug(f"🎬 Video: {file_name}, Size: {file_size}")
+        else:
+            logger.debug("❌ Not a file message")
+            return False
         
         # Extract title
-        if file_name:
-            # Remove extension
-            name = os.path.splitext(file_name)[0]
-            # Clean up
-            name = re.sub(r'[._]', ' ', name)
-            name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc)\b', '', name, flags=re.IGNORECASE)
-            name = re.sub(r'\s+', ' ', name)
-            title = name.strip()
-        elif caption:
-            title = extract_title_smart(caption)
-        else:
-            title = "Unknown File"
+        title = await extract_title_fast(file_name, caption)
+        if not title or title == "Unknown File":
+            title = file_name or "Unknown"
         
         # Extract quality
-        quality = detect_quality(file_name or "")
+        quality = detect_quality_enhanced(file_name or "")
         
-        # Extract year
+        # Extract year from title
         year_match = re.search(r'\b(19|20)\d{2}\b', title)
         year = year_match.group() if year_match else ""
         
-        # Get poster
+        # Get poster for this movie (async but don't wait too long)
         poster_url = Config.FALLBACK_POSTER
         poster_source = 'fallback'
-        if poster_fetcher is not None:
-            try:
-                poster_data = await poster_fetcher.fetch_poster(title, year, quality)
-                if poster_data:
-                    poster_url = poster_data['poster_url']
-                    poster_source = poster_data['source']
-            except:
-                pass
+        poster_rating = '0.0'
+        
+        # Try to get poster but don't block
+        try:
+            if poster_fetcher is not None:
+                # Create task but don't wait more than 2 seconds
+                poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title, year, quality))
+                try:
+                    poster_data = await asyncio.wait_for(poster_task, timeout=2.0)
+                    if poster_data:
+                        poster_url = poster_data.get('poster_url', Config.FALLBACK_POSTER)
+                        poster_source = poster_data.get('source', 'fallback')
+                        poster_rating = poster_data.get('rating', '0.0')
+                except (asyncio.TimeoutError, Exception):
+                    pass
+        except Exception as e:
+            logger.debug(f"Poster fetch error: {e}")
         
         # Create document
         doc = {
@@ -591,117 +802,211 @@ async def index_single_file(message):
             'real_message_id': message.id,
             'title': title,
             'normalized_title': normalize_title(title),
-            'date': message.date,
+            'date': message.date if hasattr(message, 'date') else datetime.now(),
             'indexed_at': datetime.now(),
+            'last_checked': datetime.now(),
             'is_video_file': True,
             'file_id': file_id,
             'file_size': file_size,
             'file_name': file_name,
             'caption': caption or '',
             'quality': quality,
+            'status': 'active',
+            'thumbnail_extracted': False,
             'year': year,
             'thumbnail_url': poster_url,
             'poster_url': poster_url,
             'poster_source': poster_source,
-            'status': 'active',
-            'searchable': True
+            'poster_rating': poster_rating,
+            'searchable': True  # ✅ IMPORTANT: Make it searchable
         }
         
         # Insert into database
-        await files_col.insert_one(doc)
+        result = await files_col.insert_one(doc)
         
-        logger.debug(f"Indexed: {title[:50]}... (ID: {message.id})")
+        logger.info(f"✅ Indexed: {title[:50]}... (ID: {message.id}, DB: {result.inserted_id})")
+        
         return True
         
     except Exception as e:
-        if "duplicate key" in str(e).lower():
+        if "duplicate key error" in str(e).lower():
             return False
-        logger.error(f"Indexing error: {e}")
+        logger.error(f"❌ Indexing error: {e}")
         return False
 
-# ============================================================================
-# ✅ INITIAL BULK INDEXING
-# ============================================================================
-
-async def bulk_index_files():
-    """Bulk index files from file channel"""
-    if not user_session_ready or User is None or files_col is None:
-        logger.warning("⚠️ Cannot bulk index: Telegram session not ready")
+async def setup_database_indexes():
+    """Setup minimal required database indexes - FIXED"""
+    if files_col is None:
+        logger.error("❌ Files collection not initialized")
         return
     
-    logger.info("🚀 Starting bulk file indexing...")
-    
     try:
-        total_indexed = 0
-        batch_size = 100
-        last_message_id = 0
-        
-        # Get existing max message ID
-        last_indexed = await files_col.find_one(
-            {"channel_id": Config.FILE_CHANNEL_ID}, 
-            sort=[('message_id', -1)],
-            projection={'message_id': 1}
+        # Only create essential indexes
+        await files_col.create_index(
+            [("channel_id", 1), ("message_id", 1)],
+            unique=True,
+            name="channel_message_unique",
+            background=True
         )
         
-        if last_indexed:
-            last_message_id = last_indexed['message_id']
-            logger.info(f"Resuming from message ID: {last_message_id}")
+        await files_col.create_index(
+            [("normalized_title", "text")],
+            name="title_text_search",
+            background=True
+        )
         
-        # Fetch messages in batches
-        messages_to_index = []
-        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=500):
-            if msg.id <= last_message_id:
-                break
-            
-            if msg and (msg.document or msg.video):
-                messages_to_index.append(msg)
-                
-                if len(messages_to_index) >= batch_size:
-                    # Index batch
-                    indexed = 0
-                    for msg in messages_to_index:
-                        success = await index_single_file(msg)
-                        if success:
-                            indexed += 1
-                    
-                    total_indexed += indexed
-                    logger.info(f"Indexed {indexed} files in batch, total: {total_indexed}")
-                    messages_to_index = []
-                    
-                    # Small delay to avoid flood
-                    await asyncio.sleep(2)
+        # Add index for searchable flag
+        await files_col.create_index(
+            [("searchable", 1)],
+            name="searchable_index",
+            background=True
+        )
         
-        # Index remaining messages
-        if messages_to_index:
-            indexed = 0
-            for msg in messages_to_index:
-                success = await index_single_file(msg)
-                if success:
-                    indexed += 1
-            
-            total_indexed += indexed
-            logger.info(f"Indexed {indexed} remaining files, total: {total_indexed}")
-        
-        logger.info(f"✅ Bulk indexing complete: {total_indexed} files indexed")
+        logger.info("✅ Created database indexes")
         
     except Exception as e:
-        logger.error(f"❌ Bulk indexing error: {e}")
+        logger.warning(f"⚠️ Index creation error: {e}")
 
 # ============================================================================
-# ✅ TELEGRAM SESSION INITIALIZATION
+# ✅ POSTER FETCHING FUNCTIONS - FIXED
 # ============================================================================
 
+async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
+    """Get poster for movie - FIXED"""
+    global poster_fetcher
+    
+    # If poster_fetcher is not available, use fallback
+    if poster_fetcher is None:
+        logger.debug(f"❌ Poster fetcher not available for: {title}")
+        return {
+            'poster_url': Config.FALLBACK_POSTER,
+            'source': 'fallback',
+            'rating': '0.0',
+            'year': year,
+            'title': title,
+            'quality': quality or 'unknown'
+        }
+    
+    try:
+        # Fetch poster with timeout
+        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title, year, quality))
+        
+        try:
+            poster_data = await asyncio.wait_for(poster_task, timeout=3.0)
+            
+            if poster_data and poster_data.get('poster_url'):
+                logger.debug(f"✅ Poster fetched: {title} - {poster_data['source']}")
+                return poster_data
+            else:
+                raise ValueError("Invalid poster data")
+                
+        except (asyncio.TimeoutError, ValueError, Exception) as e:
+            logger.warning(f"⚠️ Poster fetch timeout/error for {title}: {e}")
+            
+            if not poster_task.done():
+                poster_task.cancel()
+            
+            # Return fallback
+            return {
+                'poster_url': Config.FALLBACK_POSTER,
+                'source': 'fallback',
+                'rating': '0.0',
+                'year': year,
+                'title': title,
+                'quality': quality or 'unknown'
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in get_poster_for_movie: {e}")
+        return {
+            'poster_url': Config.FALLBACK_POSTER,
+            'source': 'fallback',
+            'rating': '0.0',
+            'year': year,
+            'title': title,
+            'quality': quality or 'unknown'
+        }
+
+async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
+    """Get posters for multiple movies in batch - FIXED"""
+    results = []
+    
+    # Create tasks for all movies
+    tasks = []
+    for movie in movies:
+        title = movie.get('title', '')
+        year = movie.get('year', '')
+        quality = movie.get('quality', '')
+        
+        task = asyncio.create_task(get_poster_for_movie(title, year, quality))
+        tasks.append((movie, task))
+    
+    # Process results
+    for movie, task in tasks:
+        try:
+            poster_data = await task
+            
+            # Update movie with poster data
+            movie_with_poster = movie.copy()
+            movie_with_poster.update({
+                'poster_url': poster_data['poster_url'],
+                'poster_source': poster_data['source'],
+                'poster_rating': poster_data['rating'],
+                'thumbnail': poster_data['poster_url'],  # ✅ FIXED
+                'thumbnail_url': poster_data['poster_url'],  # ✅ FIXED
+                'thumbnail_source': poster_data['source'],
+                'has_poster': True,
+                'has_thumbnail': True
+            })
+            
+            results.append(movie_with_poster)
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Batch poster error for {movie.get('title')}: {e}")
+            
+            # Add movie with fallback
+            movie_with_fallback = movie.copy()
+            movie_with_fallback.update({
+                'poster_url': Config.FALLBACK_POSTER,
+                'poster_source': 'fallback',
+                'poster_rating': '0.0',
+                'thumbnail': Config.FALLBACK_POSTER,  # ✅ FIXED
+                'thumbnail_url': Config.FALLBACK_POSTER,  # ✅ FIXED
+                'thumbnail_source': 'fallback',
+                'has_poster': True,
+                'has_thumbnail': True
+            })
+            
+            results.append(movie_with_fallback)
+    
+    return results
+
+# ============================================================================
+# ✅ OPTIMIZED TELEGRAM SESSION INITIALIZATION - FIXED
+# ============================================================================
+
+@performance_monitor.measure("telegram_init")
 async def init_telegram_sessions():
-    """Initialize Telegram sessions"""
+    """Initialize Telegram sessions with flood wait protection - FIXED"""
     global User, Bot, user_session_ready, bot_session_ready
+    
+    logger.info("=" * 50)
+    logger.info("🚀 TELEGRAM SESSION INITIALIZATION")
+    logger.info("=" * 50)
     
     if not PYROGRAM_AVAILABLE:
         logger.error("❌ Pyrogram not installed!")
         return False
     
-    logger.info("=" * 50)
-    logger.info("🚀 TELEGRAM SESSION INITIALIZATION")
-    logger.info("=" * 50)
+    # Configure Pyrogram for flood wait protection
+    pyrogram_config = {
+        'api_id': Config.API_ID,
+        'api_hash': Config.API_HASH,
+        'sleep_threshold': 120,
+        'in_memory': True,
+        'no_updates': True,
+        'max_concurrent_transmissions': 1,
+    }
     
     # Initialize USER Session
     if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
@@ -709,22 +1014,23 @@ async def init_telegram_sessions():
         try:
             User = Client(
                 "sk4film_user",
-                api_id=Config.API_ID,
-                api_hash=Config.API_HASH,
                 session_string=Config.USER_SESSION_STRING,
-                sleep_threshold=120,
-                in_memory=True,
-                no_updates=True
+                **pyrogram_config
             )
             
             await User.start()
             me = await User.get_me()
-            logger.info(f"✅ USER Session Ready: {me.first_name}")
+            logger.info(f"✅ USER Session Ready: {me.first_name} (ID: {me.id})")
             user_session_ready = True
                 
         except Exception as e:
             logger.error(f"❌ USER Session failed: {e}")
             user_session_ready = False
+            if User is not None:
+                try:
+                    await User.stop()
+                except:
+                    pass
             User = None
     
     # Initialize BOT Session
@@ -733,12 +1039,8 @@ async def init_telegram_sessions():
         try:
             Bot = Client(
                 "sk4film_bot",
-                api_id=Config.API_ID,
-                api_hash=Config.API_HASH,
                 bot_token=Config.BOT_TOKEN,
-                sleep_threshold=120,
-                in_memory=True,
-                no_updates=True
+                **pyrogram_config
             )
             
             await Bot.start()
@@ -749,6 +1051,11 @@ async def init_telegram_sessions():
         except Exception as e:
             logger.error(f"❌ BOT Session failed: {e}")
             bot_session_ready = False
+            if Bot is not None:
+                try:
+                    await Bot.stop()
+                except:
+                    pass
             Bot = None
     
     # Summary
@@ -761,11 +1068,12 @@ async def init_telegram_sessions():
     return user_session_ready or bot_session_ready
 
 # ============================================================================
-# ✅ MONGODB INITIALIZATION
+# ✅ MONGODB INITIALIZATION - FIXED
 # ============================================================================
 
+@performance_monitor.measure("mongodb_init")
 async def init_mongodb():
-    global mongo_client, db, files_col
+    global mongo_client, db, files_col, verification_col
     
     try:
         logger.info("🔌 MongoDB initialization...")
@@ -776,25 +1084,19 @@ async def init_mongodb():
             connectTimeoutMS=10000,
             socketTimeoutMS=15000,
             maxPoolSize=20,
-            minPoolSize=5
+            minPoolSize=5,
+            retryWrites=True,
+            retryReads=True
         )
         
         await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=5)
         
         db = mongo_client.sk4film
         files_col = db.files
+        verification_col = db.verifications
         
-        # Create indexes
-        await files_col.create_index(
-            [("channel_id", 1), ("message_id", 1)],
-            unique=True,
-            name="channel_message_unique"
-        )
-        
-        await files_col.create_index(
-            [("normalized_title", "text")],
-            name="title_text_search"
-        )
+        # Setup indexes
+        await setup_database_indexes()
         
         logger.info("✅ MongoDB OK")
         return True
@@ -807,32 +1109,88 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ SEARCH FUNCTION - FIXED FOR FILE RESULTS
+# ✅ OPTIMIZED INITIAL INDEXING - FIXED
+# ============================================================================
+
+async def initial_indexing_simple():
+    """Simple initial indexing - FIXED"""
+    if User is None or files_col is None or not user_session_ready:
+        logger.warning("⚠️ User session not ready for indexing")
+        return
+    
+    logger.info("🚀 Starting simple indexing...")
+    
+    try:
+        # Check current file count
+        file_count = await files_col.count_documents({})
+        logger.info(f"📊 Current files in database: {file_count}")
+        
+        # If database is empty or very few files, do a bulk fetch
+        if file_count < 50:
+            logger.info("🔄 Database has few files, fetching recent messages...")
+            await bulk_fetch_recent_files()
+        else:
+            # Start background indexing
+            await file_indexing_manager.start_indexing()
+        
+        # Start sync monitoring
+        await sync_manager.start_sync_monitoring()
+        
+    except Exception as e:
+        logger.error(f"❌ Initial indexing error: {e}")
+
+async def bulk_fetch_recent_files():
+    """Bulk fetch recent files from channel"""
+    try:
+        logger.info("📥 Bulk fetching recent files...")
+        
+        indexed_count = 0
+        batch_size = 30
+        
+        async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=100):
+            if msg and (msg.document or msg.video):
+                success = await index_single_file_fast(msg)
+                if success:
+                    indexed_count += 1
+                
+                # Small delay to avoid flood
+                if indexed_count % batch_size == 0:
+                    await asyncio.sleep(1)
+        
+        logger.info(f"✅ Bulk indexed {indexed_count} files")
+        
+        # Now start background indexing
+        await file_indexing_manager.start_indexing()
+        
+    except Exception as e:
+        logger.error(f"❌ Bulk fetch error: {e}")
+
+# ============================================================================
+# ✅ OPTIMIZED SEARCH FUNCTION - FIXED TO RETURN FILE RESULTS
 # ============================================================================
 
 @performance_monitor.measure("enhanced_search")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_enhanced_fixed(query, limit=15, page=1):
-    """Search endpoint that actually returns file results"""
+    """Optimized search endpoint - FIXED TO RETURN FILE RESULTS"""
     offset = (page - 1) * limit
     
-    # Cache check
+    # Simple cache check
     cache_key = f"search:{query}:{page}:{limit}"
     if cache_manager is not None and cache_manager.redis_enabled:
         cached = await cache_manager.get(cache_key)
         if cached:
+            logger.debug(f"✅ Cache hit for: {query}")
             return cached
     
     logger.info(f"🔍 Searching: {query}")
     
     results = []
     
-    # 1. FIRST: Search in FILES collection (file channel)
+    # Search database - FIXED QUERY
     if files_col is not None:
         try:
-            logger.info(f"🔍 Searching in files collection for: {query}")
-            
-            # Create search query
+            # Create a better search query
             search_query = {
                 "$or": [
                     {"title": {"$regex": query, "$options": "i"}},
@@ -843,7 +1201,8 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                 "searchable": True
             }
             
-            # Execute query
+            logger.debug(f"Search query: {search_query}")
+            
             cursor = files_col.find(
                 search_query,
                 {
@@ -863,10 +1222,12 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     'thumbnail_url': 1,
                     'poster_url': 1,
                     'poster_source': 1,
+                    'poster_rating': 1,
+                    'thumbnail_extracted': 1,
                     'year': 1,
                     'searchable': 1
                 }
-            ).sort("date", -1).limit(limit * 2).skip(offset)
+            ).sort("date", -1).limit(100).skip(offset)
             
             file_count = 0
             async for doc in cursor:
@@ -874,12 +1235,21 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     file_count += 1
                     
                     title = doc.get('title', 'Unknown')
+                    norm_title = normalize_title(title)
+                    
+                    # Extract quality
                     quality = doc.get('quality', '480p')
-                    year = doc.get('year', '')
+                    
+                    # Get thumbnail - FIXED: Use poster_url if available
+                    thumbnail_url = doc.get('thumbnail_url') or doc.get('poster_url')
+                    if not thumbnail_url:
+                        thumbnail_url = Config.FALLBACK_POSTER
+                    
+                    # Get message ID
                     message_id = doc.get('real_message_id') or doc.get('message_id')
                     
-                    # Get thumbnail URL
-                    thumbnail_url = doc.get('thumbnail_url') or doc.get('poster_url') or Config.FALLBACK_POSTER
+                    # Extract year
+                    year = doc.get('year', '')
                     
                     # Create quality options
                     quality_options = {
@@ -893,10 +1263,10 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                         }
                     }
                     
-                    # Create result
+                    # Create result - FIXED: Include all necessary fields
                     result = {
                         'title': title,
-                        'normalized_title': doc.get('normalized_title', normalize_title(title)),
+                        'normalized_title': norm_title,
                         'content': format_post(doc.get('caption', ''), max_length=300),
                         'post_content': doc.get('caption', ''),
                         'quality_options': quality_options,
@@ -909,10 +1279,11 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                         'year': year,
                         'quality': quality,
                         'has_thumbnail': True,
-                        'thumbnail': thumbnail_url,
-                        'thumbnail_url': thumbnail_url,
-                        'poster_url': thumbnail_url,
+                        'thumbnail': thumbnail_url,  # ✅ FIXED
+                        'thumbnail_url': thumbnail_url,  # ✅ FIXED
+                        'poster_url': thumbnail_url,  # ✅ FIXED
                         'poster_source': doc.get('poster_source', 'fallback'),
+                        'poster_rating': doc.get('poster_rating', '0.0'),
                         'real_message_id': message_id,
                         'message_id': message_id,
                         'result_type': 'file_only',
@@ -925,7 +1296,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     results.append(result)
                     
                 except Exception as e:
-                    logger.error(f"Error processing file result: {e}")
+                    logger.error(f"Result processing error: {e}")
                     continue
             
             logger.info(f"✅ Found {file_count} files for query: {query}")
@@ -933,7 +1304,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         except Exception as e:
             logger.error(f"Database search error: {e}")
     
-    # 2. SECOND: If no file results, try text channels
+    # If no file results, try text channels as fallback
     if not results and user_session_ready and User is not None:
         try:
             logger.info(f"🔍 No files found, searching in text channels for: {query}")
@@ -1012,15 +1383,16 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     return result_data
 
 # ============================================================================
-# ✅ HOME MOVIES FUNCTION
+# ✅ HOME MOVIES FUNCTION - FIXED
 # ============================================================================
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
 async def get_home_movies(limit=25):
-    """Get home movies"""
+    """Get home movies - FIXED"""
     try:
         if files_col is None:
+            logger.error("❌ Files collection not initialized")
             return []
         
         # Get latest files from database
@@ -1097,8 +1469,8 @@ async def get_home_movies(limit=25):
         
         if not movies:
             # Fallback to text channel if no files
-            if user_session_ready and User is not None:
-                movies = await _get_text_channel_movies(limit)
+            logger.info("⚠️ No files found, falling back to text channel")
+            movies = await _get_text_channel_movies(limit)
         
         logger.info(f"✅ Fetched {len(movies)} home movies")
         return movies[:limit]
@@ -1111,6 +1483,9 @@ async def _get_text_channel_movies(limit):
     """Get movies from text channel as fallback"""
     movies = []
     try:
+        if User is None or not user_session_ready:
+            return movies
+            
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=limit):
             if msg and msg.text and len(msg.text) > 50:
                 title = extract_title_smart(msg.text)
@@ -1149,15 +1524,16 @@ async def _get_text_channel_movies(limit):
     return movies
 
 # ============================================================================
-# ✅ SYSTEM INITIALIZATION
+# ✅ MAIN INITIALIZATION - FIXED
 # ============================================================================
 
+@performance_monitor.measure("system_init")
 async def init_system():
     start_time = time.time()
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v10.0 - ULTRA FAST")
+        logger.info("🚀 SK4FiLM v9.0 - FIXED VERSION")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -1166,7 +1542,15 @@ async def init_system():
             logger.error("❌ MongoDB connection failed")
             return False
         
-        # Initialize Cache
+        # Get file count
+        if files_col is not None:
+            try:
+                file_count = await files_col.count_documents({})
+                logger.info(f"📊 Files in database: {file_count}")
+            except:
+                pass
+        
+        # Initialize components
         global cache_manager, poster_fetcher
         try:
             cache_manager = CacheManager(Config)
@@ -1177,33 +1561,48 @@ async def init_system():
             logger.warning("⚠️ Cache init failed")
             cache_manager = None
         
-        # Initialize Poster Fetcher
-        poster_fetcher = SimplePosterFetcher(Config, cache_manager)
-        logger.info("✅ Poster Fetcher initialized")
+        # Initialize PosterFetcher
+        if PosterFetcher is not None:
+            poster_fetcher = PosterFetcher(Config, cache_manager)
+            logger.info("✅ Poster Fetcher initialized")
+        else:
+            # Create simple poster fetcher if module not available
+            logger.info("⚠️ Using fallback poster fetcher")
+            poster_fetcher = None
         
-        # Initialize Telegram
+        # Initialize Verification System
+        if VerificationSystem is not None:
+            verification_system = VerificationSystem(Config, mongo_client)
+            logger.info("✅ Verification System initialized")
+        
+        # Initialize Premium System
+        if PremiumSystem is not None:
+            premium_system = PremiumSystem(Config, mongo_client)
+            logger.info("✅ Premium System initialized")
+        
+        # Initialize Telegram sessions
         if PYROGRAM_AVAILABLE:
-            await init_telegram_sessions()
+            await asyncio.sleep(2)
+            telegram_ok = await init_telegram_sessions()
+            if not telegram_ok:
+                logger.warning("⚠️ Telegram sessions failed")
         
-        # Get file count
-        if files_col is not None:
-            try:
-                file_count = await files_col.count_documents({})
-                logger.info(f"📊 Files in database: {file_count}")
-                
-                # If database is empty, do initial bulk indexing
-                if file_count == 0 and user_session_ready:
-                    logger.info("📥 Database empty, starting initial bulk indexing...")
-                    await bulk_index_files()
-                else:
-                    # Start background indexing
-                    await file_indexing_manager.start_indexing()
-            except Exception as e:
-                logger.error(f"File count error: {e}")
+        # Start indexing (delayed)
+        if user_session_ready and files_col is not None:
+            logger.info("🔄 Starting indexing in 10 seconds...")
+            asyncio.create_task(delayed_indexing_start())
+        else:
+            logger.warning("⚠️ Cannot start indexing: Telegram or DB not ready")
         
         init_time = time.time() - start_time
         logger.info(f"⚡ System started in {init_time:.2f}s")
         logger.info("=" * 60)
+        
+        logger.info("🔧 FIXED FEATURES:")
+        logger.info(f"   • File Indexing: ✅ ENABLED")
+        logger.info(f"   • Database Search: ✅ ENABLED")
+        logger.info(f"   • Thumbnail Support: ✅ ENABLED")
+        logger.info(f"   • Real Message IDs: ✅ ENABLED")
         
         return True
         
@@ -1211,24 +1610,41 @@ async def init_system():
         logger.error(f"❌ System initialization failed: {e}")
         return False
 
+async def delayed_indexing_start():
+    """Start indexing with delay"""
+    await asyncio.sleep(10)
+    await initial_indexing_simple()
+
 # ============================================================================
-# ✅ API ROUTES
+# ✅ API ROUTES - FIXED
 # ============================================================================
 
 @app.route('/')
+@performance_monitor.measure("root_endpoint")
 async def root():
-    """Root endpoint"""
+    """Ultra fast root endpoint"""
     try:
         total_files = 0
         if files_col is not None:
             try:
-                total_files = await files_col.count_documents({})
+                total_files = await asyncio.wait_for(
+                    files_col.count_documents({}),
+                    timeout=2
+                )
             except:
                 pass
         
+        # Quick status
+        indexing_status = {
+            'running': file_indexing_manager.is_running,
+            'total_indexed': file_indexing_manager.total_indexed,
+            'last_run': file_indexing_manager.last_run.isoformat() 
+                if file_indexing_manager.last_run else None
+        }
+        
         return jsonify({
             'status': 'healthy',
-            'service': 'SK4FiLM v10.0',
+            'service': 'SK4FiLM v9.0 FIXED',
             'stats': {
                 'total_files': total_files
             },
@@ -1236,6 +1652,7 @@ async def root():
                 'user': user_session_ready,
                 'bot': bot_session_ready
             },
+            'indexing': indexing_status,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -1244,20 +1661,27 @@ async def root():
         return jsonify({'status': 'error'}), 500
 
 @app.route('/health')
+@performance_monitor.measure("health_endpoint")
 async def health():
-    """Health check"""
+    """Lightweight health check"""
     try:
         return jsonify({
             'status': 'ok',
+            'sessions': {
+                'user': user_session_ready,
+                'bot': bot_session_ready
+            },
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
+        logger.error(f"❌ Health endpoint error: {e}")
         return jsonify({'status': 'error'}), 500
 
 @app.route('/api/movies', methods=['GET'])
+@performance_monitor.measure("movies_endpoint")
 async def api_movies():
-    """Get home movies"""
+    """Get movies for home page"""
     try:
         movies = await get_home_movies(limit=25)
         
@@ -1266,6 +1690,7 @@ async def api_movies():
             'movies': movies,
             'total': len(movies),
             'limit': 25,
+            'source': 'database',
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -1278,8 +1703,9 @@ async def api_movies():
         }), 500
 
 @app.route('/api/search', methods=['GET'])
+@performance_monitor.measure("search_endpoint")
 async def api_search():
-    """Search API endpoint"""
+    """Search API endpoint - FIXED"""
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
@@ -1310,28 +1736,42 @@ async def api_search():
 
 @app.route('/api/stats', methods=['GET'])
 async def api_stats():
-    """Get statistics"""
+    """Get performance statistics"""
     try:
+        perf_stats = performance_monitor.get_stats()
+        
+        if poster_fetcher and hasattr(poster_fetcher, 'get_stats'):
+            poster_stats = poster_fetcher.get_stats()
+        else:
+            poster_stats = {}
+        
         # Get database stats
         if files_col is not None:
             total_files = await files_col.count_documents({})
             video_files = await files_col.count_documents({'is_video_file': True})
+            searchable_files = await files_col.count_documents({'searchable': True})
         else:
             total_files = 0
             video_files = 0
+            searchable_files = 0
+        
+        # Get indexing stats
+        indexing_status = await file_indexing_manager.get_indexing_status()
         
         return jsonify({
             'status': 'success',
+            'performance': perf_stats,
+            'poster_fetcher': poster_stats,
             'database_stats': {
                 'total_files': total_files,
                 'video_files': video_files,
+                'searchable_files': searchable_files
             },
-            'indexing_stats': {
-                'running': file_indexing_manager.is_running,
-                'total_indexed': file_indexing_manager.total_indexed,
-                'last_run': file_indexing_manager.last_run.isoformat() if file_indexing_manager.last_run else None
+            'indexing_stats': indexing_status,
+            'sync_stats': {
+                'running': sync_manager.is_monitoring,
+                'deleted_count': sync_manager.deleted_count
             },
-            'poster_stats': poster_fetcher.get_stats() if poster_fetcher else {},
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -1341,20 +1781,24 @@ async def api_stats():
             'message': str(e)
         }), 500
 
+# ============================================================================
+# ✅ ADMIN API ROUTES - FIXED
+# ============================================================================
+
 @app.route('/api/admin/reindex', methods=['POST'])
 async def api_admin_reindex():
-    """Trigger reindexing"""
+    """Admin endpoint to trigger reindexing - FIXED"""
     try:
         auth_token = request.headers.get('X-Admin-Token')
         if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
             return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
         
         # Trigger bulk indexing
-        asyncio.create_task(bulk_index_files())
+        asyncio.create_task(bulk_fetch_recent_files())
         
         return jsonify({
             'status': 'success',
-            'message': 'Bulk indexing started',
+            'message': 'File channel reindexing started',
             'timestamp': datetime.now().isoformat()
         })
         
@@ -1362,9 +1806,35 @@ async def api_admin_reindex():
         logger.error(f"❌ Admin reindex error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/admin/check-files', methods=['GET'])
-async def api_admin_check_files():
-    """Check if files are being indexed"""
+@app.route('/api/admin/indexing-status', methods=['GET'])
+async def api_admin_indexing_status():
+    """Check indexing status"""
+    try:
+        indexing_status = await file_indexing_manager.get_indexing_status()
+        
+        # Get database stats
+        if files_col is not None:
+            total_files = await files_col.count_documents({})
+            recent_files = await files_col.find().sort("date", -1).limit(5).to_list(length=5)
+        else:
+            total_files = 0
+            recent_files = []
+        
+        return jsonify({
+            'status': 'success',
+            'indexing': indexing_status,
+            'database_files': total_files,
+            'recent_files': recent_files,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Indexing status error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/check-db', methods=['GET'])
+async def api_admin_check_db():
+    """Check database for files"""
     try:
         if files_col is None:
             return jsonify({
@@ -1372,13 +1842,14 @@ async def api_admin_check_files():
                 'message': 'Database not connected'
             }), 500
         
-        # Get sample files
+        # Get sample of files
         sample_files = []
         cursor = files_col.find({}, {
             'title': 1,
             'message_id': 1,
             'quality': 1,
             'date': 1,
+            'searchable': 1,
             '_id': 0
         }).limit(10)
         
@@ -1386,17 +1857,18 @@ async def api_admin_check_files():
             sample_files.append(doc)
         
         total_files = await files_col.count_documents({})
+        searchable_files = await files_col.count_documents({'searchable': True})
         
         return jsonify({
             'status': 'success',
             'total_files': total_files,
+            'searchable_files': searchable_files,
             'sample_files': sample_files,
-            'user_session_ready': user_session_ready,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Check files error: {e}")
+        logger.error(f"❌ Check DB error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
@@ -1413,32 +1885,34 @@ async def startup():
 async def shutdown():
     logger.info("🛑 Shutting down SK4FiLM...")
     
+    shutdown_tasks = []
+    
     # Stop indexing
     await file_indexing_manager.stop_indexing()
+    await sync_manager.stop_sync_monitoring()
     
     # Close Telegram sessions
     if User is not None:
-        try:
-            await User.stop()
-        except:
-            pass
+        shutdown_tasks.append(User.stop())
     
     if Bot is not None:
-        try:
-            await Bot.stop()
-        except:
-            pass
+        shutdown_tasks.append(Bot.stop())
     
     # Close cache manager
     if cache_manager is not None:
-        try:
-            await cache_manager.stop()
-        except:
-            pass
+        shutdown_tasks.append(cache_manager.stop())
+    
+    # Execute all shutdown tasks
+    if shutdown_tasks:
+        results = await asyncio.gather(*shutdown_tasks, return_exceptions=True)
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"❌ Shutdown task {i} failed: {result}")
     
     # Close MongoDB
     if mongo_client is not None:
         mongo_client.close()
+        logger.info("✅ MongoDB connection closed")
     
     logger.info(f"👋 Shutdown complete. Uptime: {time.time() - app_start_time:.1f}s")
 
@@ -1457,8 +1931,8 @@ if __name__ == "__main__":
     config.http2 = True
     config.keep_alive_timeout = 30
     
-    logger.info(f"🌐 Starting SK4FiLM on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🔧 Features: File Indexing • Quick Search • Real Message IDs")
+    logger.info(f"🌐 Starting SK4FiLM FIXED on port {Config.WEB_SERVER_PORT}...")
+    logger.info("🔧 FIXED: File Indexing • Database Search • Thumbnail Support")
     
     try:
         asyncio.run(serve(app, config))
