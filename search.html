@@ -1160,6 +1160,159 @@ class EnhancedSearchCache {
 
 const searchCache = new EnhancedSearchCache();
 
+// ✅ FIXED: IMPROVED MERGER FUNCTION - Better title matching
+function processAndMergeResults(apiResults) {
+    console.log("🔄 Processing and merging results...");
+    console.log("Total results before merging:", apiResults.length);
+    
+    const mergedResults = {};
+    
+    // First pass: Normalize titles and group by normalized title
+    apiResults.forEach(result => {
+        if (!result.title) return;
+        
+        const normalizedTitle = normalizeTitle(result.title);
+        console.log(`Processing: "${result.title}" → Normalized: "${normalizedTitle}"`);
+        console.log("Has post content:", !!result.post_content);
+        console.log("Has file:", result.has_file === true);
+        console.log("Quality options:", result.quality_options);
+        
+        if (!mergedResults[normalizedTitle]) {
+            // First time seeing this title
+            mergedResults[normalizedTitle] = {
+                ...result,
+                original_title: result.title,
+                normalized_title: normalizedTitle,
+                has_post: !!result.post_content,
+                has_file: result.has_file === true,
+                quality_options: result.quality_options || {},
+                post_content: result.post_content || '',
+                thumbnail: result.thumbnail || result.poster_url || '',
+                bot_username: result.bot_username || BOT_USERNAME,
+                message_id: result.message_id || result.real_message_id,
+                real_message_id: result.real_message_id || result.message_id,
+                // Track sources for debugging
+                sources: [{
+                    type: result.has_file ? 'file' : 'post',
+                    has_post: !!result.post_content,
+                    has_file: result.has_file === true,
+                    title: result.title
+                }]
+            };
+            console.log(`✅ Created new entry for: "${normalizedTitle}"`);
+        } else {
+            console.log(`🔁 Merging with existing entry for: "${normalizedTitle}"`);
+            
+            // Merge post content if available
+            if (result.post_content && !mergedResults[normalizedTitle].post_content) {
+                mergedResults[normalizedTitle].post_content = result.post_content;
+                mergedResults[normalizedTitle].has_post = true;
+                console.log(`📝 Added post content from: "${result.title}"`);
+            }
+            
+            // Merge file information if available
+            if (result.has_file === true) {
+                mergedResults[normalizedTitle].has_file = true;
+                
+                // Merge quality options
+                if (result.quality_options && Object.keys(result.quality_options).length > 0) {
+                    mergedResults[normalizedTitle].quality_options = { 
+                        ...mergedResults[normalizedTitle].quality_options, 
+                        ...(result.quality_options || {}) 
+                    };
+                    console.log(`📁 Merged quality options from: "${result.title}"`);
+                }
+                
+                // If we have file but no quality options, check for direct file data
+                if (!result.quality_options || Object.keys(result.quality_options).length === 0) {
+                    if (result.file_id || result.real_message_id || result.message_id) {
+                        console.log(`📁 Adding direct file data from: "${result.title}"`);
+                        // Create a basic quality option from file data
+                        const quality = result.quality || 'HD';
+                        if (!mergedResults[normalizedTitle].quality_options[quality]) {
+                            mergedResults[normalizedTitle].quality_options[quality] = {
+                                file_id: result.file_id,
+                                message_id: result.message_id,
+                                real_message_id: result.real_message_id,
+                                file_size: result.file_size,
+                                file_name: result.file_name
+                            };
+                        }
+                    }
+                }
+            }
+            
+            // Merge message IDs if not present
+            if ((result.message_id || result.real_message_id) && !mergedResults[normalizedTitle].message_id) {
+                mergedResults[normalizedTitle].message_id = result.message_id || result.real_message_id;
+                mergedResults[normalizedTitle].real_message_id = result.real_message_id || result.message_id;
+                console.log(`🆔 Added message ID from: "${result.title}"`);
+            }
+            
+            // Merge thumbnail if not present
+            if (!mergedResults[normalizedTitle].thumbnail && (result.thumbnail || result.poster_url)) {
+                mergedResults[normalizedTitle].thumbnail = result.thumbnail || result.poster_url;
+                console.log(`🖼️ Added thumbnail from: "${result.title}"`);
+            }
+            
+            // Merge bot username if not present
+            if (result.bot_username && !mergedResults[normalizedTitle].bot_username) {
+                mergedResults[normalizedTitle].bot_username = result.bot_username;
+            }
+            
+            // Add source info
+            mergedResults[normalizedTitle].sources.push({
+                type: result.has_file ? 'file' : 'post',
+                has_post: !!result.post_content,
+                has_file: result.has_file === true,
+                title: result.title
+            });
+        }
+    });
+    
+    const finalResults = Object.values(mergedResults);
+    console.log("Total results after merging:", finalResults.length);
+    
+    // Log detailed info about each merged result
+    finalResults.forEach((result, index) => {
+        console.log(`Result ${index}: "${result.original_title}"`);
+        console.log(`  Type: ${result.has_post && result.has_file ? 'Post+File' : result.has_post ? 'Post Only' : 'File Only'}`);
+        console.log(`  Sources:`, result.sources);
+        console.log(`  Quality options count:`, Object.keys(result.quality_options).length);
+        console.log(`  Has post content:`, !!result.post_content);
+    });
+    
+    return finalResults;
+}
+
+// ✅ IMPROVED: Better title normalization
+function normalizeTitle(title) {
+    if (!title) return '';
+    
+    // Convert to lowercase
+    let normalized = title.toLowerCase().trim();
+    
+    // Remove common prefixes/suffixes
+    normalized = normalized
+        .replace(/^(movie|film|hd|full|latest|new|download|watch|stream|free)\s+/i, '')
+        .replace(/\s+(movie|film|hd|full|latest|new|download|watch|stream|free)$/i, '')
+        .replace(/[\(\)\[\]\{\}\.]/g, ' ')
+        .replace(/[,_\-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    
+    // Remove year (4 digits)
+    normalized = normalized.replace(/\b(19|20)\d{2}\b/g, '');
+    
+    // Remove quality indicators
+    normalized = normalized.replace(/\b(1080p|720p|480p|360p|240p|hd|sd|hq|lq|hevc|x264|x265|bluray|webrip|webdl|dvdrip|brrip)\b/gi, '');
+    
+    // Remove extra spaces
+    normalized = normalized.replace(/\s+/g, ' ').trim();
+    
+    return normalized;
+}
+
 // ✅ IMPROVED: Better Message ID Extraction
 function extractRealMessageId(messageIdData) {
     if (!messageIdData) {
@@ -1239,15 +1392,14 @@ function generateQualityOptions(qualityOptions, resultData, type = 'both') {
     console.log(`🔧 Generating ${type} quality options...`);
     console.log("Quality options received:", qualityOptions);
     console.log("Quality options type:", typeof qualityOptions);
-    console.log("Result data keys:", Object.keys(resultData));
     
     // Check if qualityOptions is properly structured
-    if (!qualityOptions || typeof qualityOptions !== 'object') {
+    if (!qualityOptions || typeof qualityOptions !== 'object' || Object.keys(qualityOptions).length === 0) {
         console.log("❌ No quality options available or invalid format");
         return '<p class="text-center text-muted mb-0">No files available</p>';
     }
     
-    // Check if we have any data in quality options
+    // Check if we have any valid data in quality options
     let hasValidData = false;
     Object.values(qualityOptions).forEach(q => {
         if (q && (q.file_id || q.message_id || q.file_size || q.file_name || q.real_message_id)) {
@@ -1255,12 +1407,22 @@ function generateQualityOptions(qualityOptions, resultData, type = 'both') {
         }
     });
     
-    // If no quality options, check resultData directly
+    // If no valid data in quality options, check resultData directly
     if (!hasValidData) {
         console.log("❌ No valid data in quality options, checking resultData");
         // Try to extract from resultData directly
         if (resultData.file_id || resultData.real_message_id || resultData.message_id) {
             hasValidData = true;
+            // Create a basic quality option from resultData
+            qualityOptions = {
+                'HD': {
+                    file_id: resultData.file_id,
+                    message_id: resultData.message_id,
+                    real_message_id: resultData.real_message_id,
+                    file_size: resultData.file_size,
+                    file_name: resultData.file_name
+                }
+            };
         }
     }
     
@@ -1315,137 +1477,92 @@ function generateQualityOptions(qualityOptions, resultData, type = 'both') {
         '360p', '240p', 'HD', 'SD', 'HQ', 'LQ'
     ];
     
-    // First, check if qualityOptions is an object with quality keys
-    if (typeof qualityOptions === 'object' && !Array.isArray(qualityOptions)) {
-        console.log("✅ Quality options is an object with keys:", Object.keys(qualityOptions));
+    // First, try to show qualities in preferred order
+    qualityOrder.forEach(quality => {
+        const qualityData = qualityOptions[quality];
+        if (!qualityData) return;
         
-        // First, try to show qualities in preferred order
-        qualityOrder.forEach(quality => {
-            const qualityData = qualityOptions[quality];
-            if (!qualityData) return;
-            
-            console.log(`Processing quality: ${quality}`, qualityData);
-            
-            const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
-            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-            
-            // Use the qualityData's message_id if available, otherwise use realMessageId
-            const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
-            
-            if (type === 'stream' || type === 'both') {
-                // STREAM button - opens view.html
-                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
-                html += `
-                <a href="${streamUrl}" 
-                   target="_blank" 
-                   class="quality-option stream-btn"
-                   data-quality="${quality}"
-                   onclick="console.log('Streaming: ${streamUrl}')">
-                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
-                    <small>Stream Now</small>
-                </a>`;
-            }
-            
-            if (type === 'download' || type === 'both') {
-                // DOWNLOAD button - opens Telegram bot
-                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-                const botUsername = resultData.bot_username || BOT_USERNAME;
-                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
-                
-                html += `
-                <a href="${downloadUrl}" 
-                   target="_blank" 
-                   class="quality-option download-btn"
-                   data-quality="${quality}"
-                   onclick="console.log('Downloading: ${fileId}')">
-                    <i class="fas fa-download me-1"></i>${quality}<br>
-                    <small>Download</small>
-                </a>`;
-            }
-            
-            linksGenerated++;
-        });
+        console.log(`Processing quality: ${quality}`, qualityData);
         
-        // If no standard qualities found, show all available qualities
-        if (linksGenerated === 0) {
-            console.log("No standard qualities found, showing all available");
-            for (const [quality, qualityData] of Object.entries(qualityOptions)) {
-                if (qualityData && typeof qualityData === 'object') {
-                    const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
-                    const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                    
-                    // Use the qualityData's message_id if available, otherwise use realMessageId
-                    const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
-                    
-                    if (type === 'stream' || type === 'both') {
-                        const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
-                        html += `
-                        <a href="${streamUrl}" 
-                           target="_blank" 
-                           class="quality-option stream-btn"
-                           data-quality="${quality}">
-                            <i class="fas fa-play-circle me-1"></i>${quality}<br>
-                            <small>Stream Now</small>
-                        </a>`;
-                    }
-                    
-                    if (type === 'download' || type === 'both') {
-                        const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-                        const botUsername = resultData.bot_username || BOT_USERNAME;
-                        const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
-                        
-                        html += `
-                        <a href="${downloadUrl}" 
-                           target="_blank" 
-                           class="quality-option download-btn"
-                           data-quality="${quality}">
-                            <i class="fas fa-download me-1"></i>${quality}<br>
-                            <small>Download</small>
-                        </a>`;
-                    }
-                    linksGenerated++;
-                }
-            }
+        const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+        const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+        
+        // Use the qualityData's message_id if available, otherwise use realMessageId
+        const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+        
+        if (type === 'stream' || type === 'both') {
+            // STREAM button - opens view.html
+            const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+            html += `
+            <a href="${streamUrl}" 
+               target="_blank" 
+               class="quality-option stream-btn"
+               data-quality="${quality}"
+               onclick="console.log('Streaming: ${streamUrl}')">
+                <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                <small>Stream Now</small>
+            </a>`;
         }
-    } else {
-        console.log("❌ Quality options is not in expected format:", typeof qualityOptions);
         
-        // Try last resort: Check if resultData has direct file info
-        if (resultData.has_file && (resultData.file_id || resultData.real_message_id || resultData.message_id)) {
-            console.log("✅ Using direct file info from resultData");
-            const quality = resultData.quality || 'HD';
-            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+        if (type === 'download' || type === 'both') {
+            // DOWNLOAD button - opens Telegram bot
+            const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+            const botUsername = resultData.bot_username || BOT_USERNAME;
+            const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
             
-            // Use available message ID
-            const msgId = resultData.real_message_id || resultData.message_id || realMessageId;
-            
-            if (type === 'stream' || type === 'both') {
-                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
-                html += `
-                <a href="${streamUrl}" 
-                   target="_blank" 
-                   class="quality-option stream-btn"
-                   data-quality="${quality}">
-                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
-                    <small>Stream Now</small>
-                </a>`;
-            }
-            
-            if (type === 'download' || type === 'both') {
-                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-                const botUsername = resultData.bot_username || BOT_USERNAME;
-                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+            html += `
+            <a href="${downloadUrl}" 
+               target="_blank" 
+               class="quality-option download-btn"
+               data-quality="${quality}"
+               onclick="console.log('Downloading: ${fileId}')">
+                <i class="fas fa-download me-1"></i>${quality}<br>
+                <small>Download</small>
+            </a>`;
+        }
+        
+        linksGenerated++;
+    });
+    
+    // If no standard qualities found, show all available qualities
+    if (linksGenerated === 0) {
+        console.log("No standard qualities found, showing all available");
+        for (const [quality, qualityData] of Object.entries(qualityOptions)) {
+            if (qualityData && typeof qualityData === 'object') {
+                const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
                 
-                html += `
-                <a href="${downloadUrl}" 
-                   target="_blank" 
-                   class="quality-option download-btn"
-                   data-quality="${quality}">
-                    <i class="fas fa-download me-1"></i>${quality}<br>
-                    <small>Download</small>
-                </a>`;
+                // Use the qualityData's message_id if available, otherwise use realMessageId
+                const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+                
+                if (type === 'stream' || type === 'both') {
+                    const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                    html += `
+                    <a href="${streamUrl}" 
+                       target="_blank" 
+                       class="quality-option stream-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                        <small>Stream Now</small>
+                    </a>`;
+                }
+                
+                if (type === 'download' || type === 'both') {
+                    const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                    const botUsername = resultData.bot_username || BOT_USERNAME;
+                    const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                    
+                    html += `
+                    <a href="${downloadUrl}" 
+                       target="_blank" 
+                       class="quality-option download-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-download me-1"></i>${quality}<br>
+                        <small>Download</small>
+                    </a>`;
+                }
+                linksGenerated++;
             }
-            linksGenerated++;
         }
     }
     
@@ -1570,7 +1687,8 @@ async function performSearch(page = 1) {
     const cachedData = await searchCache.get(cacheKey);
     
     if (cachedData) {
-        displayResults(cachedData.results, cachedData.pagination);
+        const mergedResults = processAndMergeResults(cachedData.results);
+        displayResults(mergedResults, cachedData.pagination);
         return;
     }
     
@@ -1583,16 +1701,19 @@ async function performSearch(page = 1) {
     // Try multiple API endpoints
     try {
         const data = await tryAllEndpoints(currentQuery, page);
-        if (data) {
-            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
+        if (data && data.results) {
+            // Process and merge results with same title
+            const mergedResults = processAndMergeResults(data.results);
             
             // Cache the successful results
             searchCache.set(cacheKey, {
-                results: sortedResults,
+                results: mergedResults,
                 pagination: data.pagination,
                 bot_username: data.bot_username || BOT_USERNAME
             });
             
+            // Sort results with exact match first
+            const sortedResults = sortResultsWithExactMatchFirst(mergedResults, currentQuery);
             displayResults(sortedResults, data.pagination);
         } else {
             showConnectionError();
@@ -1657,7 +1778,8 @@ function showConnectionError() {
     const cachedData = searchCache.get(cacheKey);
     
     if (cachedData) {
-        displayResults(cachedData.results, cachedData.pagination);
+        const mergedResults = processAndMergeResults(cachedData.results);
+        displayResults(mergedResults, cachedData.pagination);
     } else {
         resultsContainer.innerHTML = `
             <div class="error-state">
@@ -1729,104 +1851,136 @@ async function displayResults(results, pagination) {
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
         const hasFile = result.has_file === true;
+        const hasPost = result.has_post === true || !!result.post_content;
         const qualityOptions = result.quality_options || {};
         const hasQualities = Object.keys(qualityOptions).length > 0;
         const postContent = result.post_content || '';
         const hasPostContent = postContent.trim().length > 0;
         const thumbnail = result.thumbnail || result.poster_url || '';
         
-        console.log(`Result ${i}: ${result.title}`);
-        console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
-        console.log(`Quality options:`, qualityOptions);
-        console.log(`Quality options type:`, typeof qualityOptions);
-        console.log(`Quality options keys:`, Object.keys(qualityOptions));
+        console.log(`Displaying Result ${i}: "${result.title}"`);
+        console.log(`Has post: ${hasPost}, Has file: ${hasFile}, Has qualities: ${hasQualities}`);
+        console.log(`Quality options count:`, Object.keys(qualityOptions).length);
+        console.log(`Sources:`, result.sources || 'No sources info');
         
-        // Debug: Show first quality option details
-        if (hasQualities) {
-            const firstKey = Object.keys(qualityOptions)[0];
-            console.log(`First quality option (${firstKey}):`, qualityOptions[firstKey]);
+        // Determine result type for debugging
+        let resultType = '';
+        if (hasPost && hasFile) {
+            resultType = 'Type 1: Post + File';
+        } else if (hasPost && !hasFile) {
+            resultType = 'Type 2: Post Only';
+        } else if (!hasPost && hasFile) {
+            resultType = 'Type 3: File Only';
+        } else {
+            resultType = 'Type Unknown';
         }
+        console.log(`Result Type: ${resultType}`);
         
-        html += `
-        <div class="result-card">
-            <!-- 1. THUMBNAIL - सबसे ऊपर -->
+        // 1. THUMBNAIL - Always show
+        let thumbnailSection = `
             <div class="result-thumbnail-top">
                 <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
                     <!-- Thumbnail will be loaded here -->
                 </div>
             </div>
-            
-            <!-- 3. POST CONTENT - बीच में -->
-            ${hasPostContent ? `
+        `;
+        
+        // 2. TITLE - Always show (use original title if available)
+        const displayTitle = result.original_title || result.title;
+        
+        // 3. POST CONTENT - Only if has post
+        let postContentSection = '';
+        if (hasPost && hasPostContent) {
+            postContentSection = `
                 <div class="result-post-content">
+                    <div class="post-content-text">
                         ${formatPostContent(postContent)}
                     </div>
                 </div>
-            ` : ''}
-            
-            <!-- 4. ACTION BUTTONS - सबसे नीचे -->
-            <div class="result-download-section">
-                ${hasFile && hasQualities ? `
-                    <div class="action-buttons-container">
-                        <!-- STREAM NOW BUTTON -->
-                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
-                        </button>
-                        
-                        <!-- DOWNLOAD BUTTON -->
-                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
-                            <i class="fas fa-download me-2"></i>Download Now
-                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
-                        </button>
-                    </div>
-                    
-                    <!-- STREAM QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="stream-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'stream')}
-                    </div>
-                    
-                    <!-- DOWNLOAD QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="download-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'download')}
-                    </div>
-                ` : hasFile ? `
-                    <div class="action-buttons-container">
-                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
-                        </button>
-                        
-                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
-                            <i class="fas fa-download me-2"></i>Download Now
-                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
-                        </button>
-                    </div>
-                    
-                    <!-- STREAM QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="stream-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'stream')}
-                    </div>
-                    
-                    <!-- DOWNLOAD QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="download-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'download')}
-                    </div>
-                ` : `
-                    <button class="btn btn-stream-now" disabled>
-                        <i class="fas fa-times me-2"></i>File Not Available
+            `;
+        }
+        
+        // 4. ACTION BUTTONS - Based on result type
+        let actionButtons = '';
+        let qualityDropdowns = '';
+        
+        if (hasFile) {
+            // ✅ Has File (Type 1 or Type 3)
+            actionButtons = `
+                <div class="action-buttons-container">
+                    <!-- STREAM NOW BUTTON -->
+                    <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
+                        <i class="fas fa-play-circle me-2"></i>Stream Now
+                        <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
                     </button>
-                `}
+                    
+                    <!-- DOWNLOAD BUTTON -->
+                    <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
+                        <i class="fas fa-download me-2"></i>Download Now
+                        <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
+                    </button>
+                </div>
+            `;
+            
+            qualityDropdowns = `
+                <!-- STREAM QUALITY DROPDOWN -->
+                <div class="quality-dropdown" id="stream-quality-${i}">
+                    ${generateQualityOptions(qualityOptions, result, 'stream')}
+                </div>
+                
+                <!-- DOWNLOAD QUALITY DROPDOWN -->
+                <div class="quality-dropdown" id="download-quality-${i}">
+                    ${generateQualityOptions(qualityOptions, result, 'download')}
+                </div>
+            `;
+        } 
+        else if (hasPost && !hasFile) {
+            // ✅ Type 2: Post Only (No File)
+            actionButtons = `
+                <div class="action-buttons-container">
+                    <button class="btn btn-stream-now" disabled>
+                        <i class="fas fa-times me-2"></i>No File Available
+                    </button>
+                </div>
+            `;
+            
+            // No quality dropdowns for Type 2
+            qualityDropdowns = '';
+        }
+        else {
+            // No post and no file
+            actionButtons = `
+                <div class="action-buttons-container">
+                    <button class="btn btn-stream-now" disabled>
+                        <i class="fas fa-times me-2"></i>No Content Available
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Build the complete result card
+        html += `
+        <div class="result-card">
+            ${thumbnailSection}
+            ${titleSection}
+            ${postContentSection}
+            
+            <div class="result-download-section">
+                ${actionButtons}
+                ${qualityDropdowns}
             </div>
             
             <!-- DEBUG INFO (visible only in console) -->
             <div style="display:none;" id="debug-${i}">
                 ${JSON.stringify({
-                    title: result.title,
+                    title: displayTitle,
+                    type: resultType,
+                    hasPost: hasPost,
                     hasFile: hasFile,
                     hasQualities: hasQualities,
                     qualityKeys: Object.keys(qualityOptions),
                     qualityOptions: qualityOptions,
+                    sources: result.sources || [],
                     resultKeys: Object.keys(result)
                 })}
             </div>
