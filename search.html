@@ -1887,6 +1887,7 @@ async function displayResults(results, pagination) {
         
         // 2. TITLE - Always show (use original title if available)
         const displayTitle = result.original_title || result.title;
+        let titleSection = `<h3 class="result-title">${escapeHtml(displayTitle)}</h3>`;
         
         // 3. POST CONTENT - Only if has post
         let postContentSection = '';
