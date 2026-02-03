@@ -738,37 +738,38 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ ENHANCED SEARCH FUNCTION - FIXED WITH POST+FILE MERGING INTO SINGLE RESULT
+# ✅ ENHANCED SEARCH FUNCTION - COMPLETELY FIXED WITH SINGLE RESULT MERGING
 # ============================================================================
 
-# Helper function for channel names
 def channel_name_cached(cid):
     return f"Channel {cid}"
 
-@performance_monitor.measure("enhanced_search_fixed")
+@performance_monitor.measure("enhanced_search_fixed_single_result")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_enhanced_fixed(query, limit=15, page=1):
-    """FIXED: Combine post and file results for same title into SINGLE result"""
+    """COMPLETELY FIXED: Merge post and file results into SINGLE result"""
     offset = (page - 1) * limit
     
     # Try cache first
-    cache_key = f"search_fixed:{query}:{page}:{limit}"
+    cache_key = f"search_fixed_single:{query}:{page}:{limit}"
     if cache_manager is not None and cache_manager.redis_enabled:
         cached_data = await cache_manager.get(cache_key)
         if cached_data:
             logger.info(f"✅ Cache HIT for: {query}")
             return cached_data
     
-    logger.info(f"🔍 ENHANCED SEARCH for: {query}")
+    logger.info(f"🔍 ENHANCED SEARCH (SINGLE RESULT) for: {query}")
     
     query_lower = query.lower()
     
-    # Main dictionary to hold merged results
-    merged_results = {}  # normalized_title -> result_data
+    # Main dictionary to hold merged results - KEY: normalized_title
+    merged_results = {}
     
     # ============================================================================
-    # ✅ 1. FIRST: SEARCH TEXT CHANNELS FOR POST RESULTS
+    # ✅ PHASE 1: COLLECT POSTS FROM TEXT CHANNELS
     # ============================================================================
+    post_entries = {}  # normalized_title -> post_data
+    
     if user_session_ready and User is not None:
         logger.info(f"📝 Searching TEXT CHANNELS for posts...")
         
@@ -803,20 +804,19 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                                 'is_new': is_new(msg.date) if msg.date else False,
                                 'has_file': False,
                                 'has_post': True,
-                                'quality_options': {},  # Empty for now
+                                'quality_options': {},
                                 'is_video_file': False,
                                 'year': year,
-                                'search_score': 3,  # Post results get highest score
+                                'search_score': 3,
                                 'result_type': 'post_only',
                                 'thumbnail_url': None,
                                 'has_thumbnail': False,
                                 'poster_url': None,
                                 'poster_source': None,
-                                'combined': False  # Not combined yet
+                                'combined': False
                             }
                             
-                            # Store in merged results
-                            merged_results[norm_title] = post_data
+                            post_entries[norm_title] = post_data
                             
             except Exception as e:
                 logger.error(f"Text search error in {channel_id}: {e}")
@@ -826,13 +826,12 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         tasks = [search_text_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
         await asyncio.gather(*tasks, return_exceptions=True)
         
-        logger.info(f"📝 Found {len(merged_results)} POST results")
+        logger.info(f"📝 Found {len(post_entries)} POST results")
     
     # ============================================================================
-    # ✅ 2. SECOND: SEARCH FILE CHANNEL DATABASE AND MERGE WITH POSTS
+    # ✅ PHASE 2: COLLECT FILES FROM FILE CHANNEL
     # ============================================================================
-    file_results_added = 0
-    file_results_merged = 0
+    file_entries = {}  # normalized_title -> list of file_data
     
     if files_col is not None:
         try:
@@ -871,7 +870,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     'year': 1,
                     '_id': 0
                 }
-            ).limit(100)  # Limit file results
+            ).limit(100)
             
             async for doc in cursor:
                 try:
@@ -891,92 +890,138 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     # Extract year
                     year = doc.get('year', '')
                     
-                    # Check if we already have this title from post results
-                    if norm_title in merged_results:
-                        # ✅ MERGE: Post exists, add file info to it
-                        existing_result = merged_results[norm_title]
-                        
-                        # Update the existing post result with file information
-                        existing_result.update({
-                            'has_file': True,
-                            'is_video_file': doc.get('is_video_file', False),
-                            'file_caption': doc.get('caption', ''),
-                            'real_message_id': real_msg_id,
-                            'channel_id': doc.get('channel_id'),
-                            'channel_name': channel_name_cached(doc.get('channel_id')),
-                            'thumbnail_url': thumbnail_url or existing_result.get('thumbnail_url'),
-                            'has_thumbnail': (thumbnail_url is not None) or existing_result.get('has_thumbnail', False),
-                            'result_type': 'post_and_file',  # Changed to indicate both
-                            'combined': True,  # Mark as combined
-                            'search_score': 5  # Combined results get highest score
-                        })
-                        
-                        # Add quality option
-                        existing_result['quality_options'][quality] = {
-                            'quality': quality,
-                            'file_size': doc.get('file_size', 0),
-                            'message_id': real_msg_id,
-                            'file_id': doc.get('file_id'),
-                            'telegram_file_id': doc.get('telegram_file_id'),
-                            'file_name': doc.get('file_name', '')
-                        }
-                        
-                        file_results_merged += 1
-                        logger.debug(f"✅ Merged file with post: {title}")
-                        
-                    else:
-                        # This is a file-only result (no post found)
-                        file_result = {
-                            'title': title,
-                            'original_title': title,
-                            'normalized_title': norm_title,
-                            'content': format_post(doc.get('caption', ''), max_length=300),
-                            'post_content': doc.get('caption', ''),
-                            'quality_options': {quality: {
-                                'quality': quality,
-                                'file_size': doc.get('file_size', 0),
-                                'message_id': real_msg_id,
-                                'file_id': doc.get('file_id'),
-                                'telegram_file_id': doc.get('telegram_file_id'),
-                                'file_name': doc.get('file_name', '')
-                            }},
-                            'all_qualities': [quality],
-                            'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
-                            'is_new': is_new(doc['date']) if doc.get('date') else False,
-                            'is_video_file': doc.get('is_video_file', False),
-                            'channel_id': doc.get('channel_id'),
-                            'channel_name': channel_name_cached(doc.get('channel_id')),
-                            'has_file': True,
-                            'has_post': bool(doc.get('caption')),
-                            'file_caption': doc.get('caption', ''),
-                            'year': year,
-                            'quality': quality,
-                            'has_thumbnail': thumbnail_url is not None,
-                            'thumbnail_url': thumbnail_url,
-                            'real_message_id': real_msg_id,
-                            'search_score': 2,  # File-only results get medium score
-                            'result_type': 'file_only',
-                            'quality_count': 1,
-                            'poster_url': None,
-                            'poster_source': None,
-                            'combined': False
-                        }
-                        
-                        merged_results[norm_title] = file_result
-                        file_results_added += 1
-                        
+                    # Create file data
+                    file_data = {
+                        'quality': quality,
+                        'file_size': doc.get('file_size', 0),
+                        'message_id': real_msg_id,
+                        'file_id': doc.get('file_id'),
+                        'telegram_file_id': doc.get('telegram_file_id'),
+                        'file_name': doc.get('file_name', ''),
+                        'is_video_file': doc.get('is_video_file', False),
+                        'caption': doc.get('caption', ''),
+                        'thumbnail_url': thumbnail_url,
+                        'channel_id': doc.get('channel_id'),
+                        'year': year,
+                        'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date']
+                    }
+                    
+                    # Group files by normalized title
+                    if norm_title not in file_entries:
+                        file_entries[norm_title] = []
+                    file_entries[norm_title].append(file_data)
+                    
                 except Exception as e:
                     logger.error(f"File processing error: {e}")
                     continue
             
-            logger.info(f"📁 Found {file_results_added} FILE-ONLY results, merged {file_results_merged} with existing posts")
+            logger.info(f"📁 Found {sum(len(files) for files in file_entries.values())} files for {len(file_entries)} titles")
             
         except Exception as e:
             logger.error(f"❌ File search error: {e}")
     
     # ============================================================================
-    # ✅ 3. CONVERT DICTIONARY TO LIST AND SORT
+    # ✅ PHASE 3: MERGE POSTS AND FILES INTO SINGLE RESULTS
     # ============================================================================
+    logger.info(f"🔄 Merging posts and files...")
+    
+    # First, merge posts with their files
+    merged_results = {}
+    
+    # Process post entries first
+    for norm_title, post_data in post_entries.items():
+        if norm_title in file_entries:
+            # ✅ TYPE 1: POST + FILE (COMBINED)
+            files = file_entries[norm_title]
+            
+            # Create merged result
+            merged_result = post_data.copy()
+            merged_result.update({
+                'has_file': True,
+                'result_type': 'post_and_file',
+                'combined': True,
+                'search_score': 5,  # Highest score for combined results
+                'quality_options': {},
+                'real_message_id': files[0].get('message_id') if files else None,
+                'has_thumbnail': any(f.get('thumbnail_url') for f in files),
+                'thumbnail_url': next((f.get('thumbnail_url') for f in files if f.get('thumbnail_url')), None)
+            })
+            
+            # Add all quality options
+            for file_data in files:
+                quality = file_data['quality']
+                merged_result['quality_options'][quality] = {
+                    'quality': quality,
+                    'file_size': file_data['file_size'],
+                    'message_id': file_data['message_id'],
+                    'file_id': file_data['file_id'],
+                    'telegram_file_id': file_data['telegram_file_id'],
+                    'file_name': file_data['file_name'],
+                    'is_video_file': file_data['is_video_file']
+                }
+            
+            merged_results[norm_title] = merged_result
+            
+            # Remove from file entries (already merged)
+            del file_entries[norm_title]
+            
+            logger.debug(f"✅ Merged post+file: {norm_title}")
+        else:
+            # ✅ TYPE 2: POST ONLY (NO FILE)
+            merged_results[norm_title] = post_data
+    
+    # Now process remaining file-only entries
+    for norm_title, files in file_entries.items():
+        if norm_title in merged_results:
+            continue  # Already merged
+        
+        # ✅ TYPE 3: FILE ONLY (NO POST)
+        # Use the first file as base
+        first_file = files[0]
+        
+        file_result = {
+            'title': first_file.get('caption', '').split('\n')[0][:100] if first_file.get('caption') else 'Unknown',
+            'original_title': first_file.get('caption', '').split('\n')[0][:100] if first_file.get('caption') else 'Unknown',
+            'normalized_title': norm_title,
+            'content': format_post(first_file.get('caption', ''), max_length=300),
+            'post_content': first_file.get('caption', ''),
+            'quality_options': {},
+            'date': first_file.get('date'),
+            'is_new': is_new(first_file.get('date')) if first_file.get('date') else False,
+            'is_video_file': first_file.get('is_video_file', False),
+            'channel_id': first_file.get('channel_id'),
+            'channel_name': channel_name_cached(first_file.get('channel_id')),
+            'has_file': True,
+            'has_post': bool(first_file.get('caption')),
+            'file_caption': first_file.get('caption', ''),
+            'year': first_file.get('year', ''),
+            'has_thumbnail': any(f.get('thumbnail_url') for f in files),
+            'thumbnail_url': next((f.get('thumbnail_url') for f in files if f.get('thumbnail_url')), None),
+            'real_message_id': first_file.get('message_id'),
+            'search_score': 2,
+            'result_type': 'file_only',
+            'poster_url': None,
+            'poster_source': None,
+            'combined': False
+        }
+        
+        # Add all quality options
+        for file_data in files:
+            quality = file_data['quality']
+            file_result['quality_options'][quality] = {
+                'quality': quality,
+                'file_size': file_data['file_size'],
+                'message_id': file_data['message_id'],
+                'file_id': file_data['file_id'],
+                'telegram_file_id': file_data['telegram_file_id'],
+                'file_name': file_data['file_name'],
+                'is_video_file': file_data['is_video_file']
+            }
+        
+        merged_results[norm_title] = file_result
+        logger.debug(f"✅ File-only: {norm_title}")
+    
+    # Convert dict to list
     all_results = list(merged_results.values())
     
     if not all_results:
@@ -1004,7 +1049,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                 'poster_fetcher': poster_fetcher is not None,
                 'thumbnails_enabled': True,
                 'real_message_ids': True,
-                'search_logic': 'enhanced_fixed_with_merging'
+                'search_logic': 'enhanced_fixed_single_result'
             },
             'bot_username': Config.BOT_USERNAME
         }
@@ -1016,7 +1061,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         return result_data
     
     # ============================================================================
-    # ✅ 4. FETCH POSTERS AND THUMBNAILS FOR ALL RESULTS
+    # ✅ PHASE 4: FETCH POSTERS FOR ALL RESULTS
     # ============================================================================
     logger.info(f"🎬 Fetching posters for {len(all_results)} results...")
     
@@ -1075,7 +1120,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                 })
     
     # ============================================================================
-    # ✅ 5. SORT RESULTS
+    # ✅ PHASE 5: SORT RESULTS
     # ============================================================================
     # Sort by: combined first, posts second, files third, then by search score, then by date
     all_results.sort(key=lambda x: (
@@ -1087,7 +1132,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     ), reverse=True)
     
     # ============================================================================
-    # ✅ 6. PAGINATION
+    # ✅ PHASE 6: PAGINATION
     # ============================================================================
     total = len(all_results)
     start_idx = offset
@@ -1104,8 +1149,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         'post_only': post_count,
         'file_only': file_count,
         'post_and_file': combined_count,
-        'file_results_added': file_results_added,
-        'file_results_merged': file_results_merged
+        'merged_count': combined_count
     }
     
     # Log results
@@ -1114,21 +1158,19 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     logger.info(f"   • Post-only: {post_count}")
     logger.info(f"   • File-only: {file_count}")
     logger.info(f"   • Post+File combined: {combined_count}")
-    logger.info(f"   • Files merged with posts: {file_results_merged}")
     
     # Show sample of results
-    for i, result in enumerate(paginated[:5]):
+    for i, result in enumerate(paginated[:3]):
         result_type = result.get('result_type', 'unknown')
         title = result.get('title', '')[:40]
-        has_poster = result.get('has_poster', False)
-        has_thumbnail = result.get('has_thumbnail', False)
         has_file = result.get('has_file', False)
         has_post = result.get('has_post', False)
+        quality_count = len(result.get('quality_options', {}))
         
-        logger.info(f"   📋 {i+1}. {result_type}: {title}... | File: {has_file} | Post: {has_post} | Poster: {has_poster}")
+        logger.info(f"   📋 {i+1}. {result_type}: {title}... | File: {has_file} | Post: {has_post} | Qualities: {quality_count}")
     
     # ============================================================================
-    # ✅ 7. FINAL DATA STRUCTURE
+    # ✅ PHASE 7: FINAL DATA STRUCTURE
     # ============================================================================
     result_data = {
         'results': paginated,
@@ -1143,12 +1185,12 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         'search_metadata': {
             'query': query,
             'stats': stats,
-            'post_file_merged': True,  # ✅ New feature
-            'file_only_with_poster': True,  # ✅ New feature
+            'post_file_merged': True,
+            'file_only_with_poster': True,
             'poster_fetcher': poster_fetcher is not None,
             'thumbnails_enabled': True,
             'real_message_ids': True,
-            'search_logic': 'enhanced_fixed_with_merging'
+            'search_logic': 'enhanced_fixed_single_result'
         },
         'bot_username': Config.BOT_USERNAME
     }
@@ -1160,15 +1202,6 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     logger.info(f"✅ Enhanced search complete: {len(paginated)} results (page {page})")
     
     return result_data
-
-# ============================================================================
-# ✅ BACKWARD COMPATIBLE SEARCH FUNCTION
-# ============================================================================
-
-@async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
-async def search_movies_multi_channel_merged(query, limit=15, page=1):
-    """Backward compatible search - uses enhanced fixed search"""
-    return await search_movies_enhanced_fixed(query, limit, page)
 
 # ============================================================================
 # ✅ QUALITY DETECTION ENHANCED
@@ -1224,108 +1257,6 @@ def extract_quality_info(filename):
         'is_hevc': is_hevc,
         'priority': Config.QUALITY_PRIORITY.index(base_quality) if base_quality in Config.QUALITY_PRIORITY else 999
     }
-
-# ============================================================================
-# ✅ QUALITY MERGER
-# ============================================================================
-
-class QualityMerger:
-    """Merge multiple qualities for same title"""
-    
-    @staticmethod
-    def merge_quality_options(quality_options_dict):
-        """Merge quality options from multiple sources"""
-        if not quality_options_dict:
-            return {}
-        
-        merged = {}
-        
-        # Sort by priority
-        for quality, option in quality_options_dict.items():
-            base_quality = quality.replace(' HEVC', '')
-            
-            if base_quality not in merged:
-                merged[base_quality] = {
-                    'qualities': [],
-                    'best_option': None,
-                    'total_size': 0,
-                    'file_count': 0
-                }
-            
-            # Add quality variant
-            merged[base_quality]['qualities'].append({
-                'full_quality': quality,
-                'is_hevc': 'HEVC' in quality,
-                'file_id': option.get('file_id'),
-                'file_size': option.get('file_size', 0),
-                'file_name': option.get('file_name', ''),
-                'is_video': option.get('is_video', False),
-                'channel_id': option.get('channel_id'),
-                'message_id': option.get('message_id'),
-                'real_message_id': option.get('real_message_id'),
-                'telegram_file_id': option.get('telegram_file_id'),
-                'thumbnail_url': option.get('thumbnail_url')
-            })
-            
-            merged[base_quality]['total_size'] += option.get('file_size', 0)
-            merged[base_quality]['file_count'] += 1
-            
-            # Set best option (highest quality, smallest size)
-            if merged[base_quality]['best_option'] is None:
-                merged[base_quality]['best_option'] = quality
-            else:
-                current_priority = Config.QUALITY_PRIORITY.index(base_quality) if base_quality in Config.QUALITY_PRIORITY else 999
-                best_base = merged[base_quality]['best_option'].replace(' HEVC', '')
-                best_priority = Config.QUALITY_PRIORITY.index(best_base) if best_base in Config.QUALITY_PRIORITY else 999
-                
-                if current_priority < best_priority:
-                    merged[base_quality]['best_option'] = quality
-        
-        # Sort by quality priority
-        sorted_merged = {}
-        for quality in Config.QUALITY_PRIORITY:
-            if quality in merged:
-                sorted_merged[quality] = merged[quality]
-        
-        # Add any remaining qualities
-        for quality in merged:
-            if quality not in sorted_merged:
-                sorted_merged[quality] = merged[quality]
-        
-        return sorted_merged
-    
-    @staticmethod
-    def get_quality_summary(merged_options):
-        """Get summary of available qualities"""
-        if not merged_options:
-            return "No files"
-        
-        qualities = list(merged_options.keys())
-        
-        # Sort by priority
-        sorted_qualities = []
-        for quality in Config.QUALITY_PRIORITY:
-            if quality in qualities:
-                sorted_qualities.append(quality)
-                qualities.remove(quality)
-        
-        # Add remaining qualities
-        sorted_qualities.extend(sorted(qualities))
-        
-        # Create summary
-        summary_parts = []
-        for quality in sorted_qualities[:3]:
-            data = merged_options[quality]
-            count = data['file_count']
-            if count > 1:
-                summary_parts.append(f"{quality} ({count} files)")
-            else:
-                summary_parts.append(quality)
-        
-        if len(sorted_qualities) > 3:
-            summary_parts.append(f"+{len(sorted_qualities) - 3} more")
-        
-        return " • ".join(summary_parts)
 
 # ============================================================================
 # ✅ VIDEO THUMBNAIL EXTRACTOR
