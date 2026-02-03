@@ -741,6 +741,10 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
 # ✅ ENHANCED SEARCH FUNCTION - FIXED WITH POST+FILE MERGING INTO SINGLE RESULT
 # ============================================================================
 
+# Helper function for channel names
+def channel_name_cached(cid):
+    return f"Channel {cid}"
+
 @performance_monitor.measure("enhanced_search_fixed")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_enhanced_fixed(query, limit=15, page=1):
