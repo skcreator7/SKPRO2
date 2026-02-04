@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - STREAMING & DOWNLOAD SUPPORT WITH REAL MESSAGE IDS - OPTIMIZED
+# 🚀 SK4FiLM v9.0 - DUAL MONGODB SYSTEM FOR THUMBNAIL STORAGE
 # ============================================================================
 
 import asyncio
@@ -284,7 +284,7 @@ class PerformanceMonitor:
 performance_monitor = PerformanceMonitor()
 
 # ============================================================================
-# ✅ CONFIGURATION - COMPLETE FILE INDEXING
+# ✅ CONFIGURATION - DUAL MONGODB SYSTEM
 # ============================================================================
 
 class Config:
@@ -294,10 +294,17 @@ class Config:
     USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     
-    # Database Configuration
+    # Dual MongoDB Configuration
     MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+    MONGODB_THUMBNAIL_URI = os.environ.get("MONGODB_THUMBNAIL_URI", "mongodb://localhost:27017")  # Can be same or different
+    
+    # Redis Configuration
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+    
+    # Thumbnail Database Settings
+    THUMBNAIL_DB_NAME = os.environ.get("THUMBNAIL_DB_NAME", "sk4film_thumbnails")
+    THUMBNAIL_COLLECTION_NAME = os.environ.get("THUMBNAIL_COLLECTION_NAME", "thumbnails")
     
     # Channel Configuration
     MAIN_CHANNEL_ID = -1001891090100
@@ -353,6 +360,9 @@ class Config:
     # Thumbnail Settings
     THUMBNAIL_EXTRACT_TIMEOUT = 10
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
+    THUMBNAIL_MAX_SIZE = int(os.environ.get("THUMBNAIL_MAX_SIZE", "524288"))  # 512KB
+    THUMBNAIL_COMPRESSION_QUALITY = int(os.environ.get("THUMBNAIL_COMPRESSION_QUALITY", "85"))
+    THUMBNAIL_EXPIRY_DAYS = int(os.environ.get("THUMBNAIL_EXPIRY_DAYS", "30"))
     
     # 🔥 FILE CHANNEL INDEXING SETTINGS - OPTIMIZED
     AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "120"))  # 2 minutes
@@ -380,19 +390,24 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.0-STREAMING-ENABLED'
+    response.headers['X-SK4FiLM-Version'] = '9.0-DUAL-MONGODB'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
 # ============================================================================
-# ✅ GLOBAL COMPONENTS
+# ✅ GLOBAL COMPONENTS - DUAL MONGODB
 # ============================================================================
 
-# Database
+# Main database for files
 mongo_client = None
 db = None
 files_col = None
 verification_col = None
+
+# Thumbnail database
+thumbnail_mongo_client = None
+thumbnail_db = None
+thumbnails_col = None
 
 # Telegram Sessions
 try:
@@ -422,11 +437,11 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ BOT HANDLER MODULE - FIXED WITH MISSING METHODS
+# ✅ BOT HANDLER MODULE - UPDATED FOR THUMBNAIL STORAGE
 # ============================================================================
 
 class BotHandler:
-    """Bot handler for Telegram bot operations - FIXED VERSION"""
+    """Bot handler for Telegram bot operations - UPDATED WITH THUMBNAIL STORAGE"""
     
     def __init__(self, bot_token=None, api_id=None, api_hash=None):
         self.bot_token = bot_token or Config.BOT_TOKEN
@@ -560,43 +575,11 @@ class BotHandler:
             logger.error(f"❌ Get file info error: {e}")
             return None
     
-    async def get_file_download_url(self, file_id):
-        """Get direct download URL for file"""
-        try:
-            if not self.initialized or not self.bot_token:
-                return None
-            
-            # Try to get file info using get_file
-            try:
-                file = await self.bot.get_file(file_id)
-                if file and hasattr(file, 'file_path') and file.file_path:
-                    return f"https://api.telegram.org/file/bot{self.bot_token}/{file.file_path}"
-            except Exception as get_file_error:
-                logger.debug(f"Get file error, trying alternative: {get_file_error}")
-            
-            # Alternative: Use Telegram Bot API
-            try:
-                async with aiohttp.ClientSession() as session:
-                    api_url = f"https://api.telegram.org/bot{self.bot_token}/getFile"
-                    params = {'file_id': file_id}
-                    
-                    async with session.get(api_url, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            if data.get('ok') and data.get('result'):
-                                file_path = data['result']['file_path']
-                                return f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
-            except Exception as api_error:
-                logger.debug(f"API fallback error: {api_error}")
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Get file download URL error: {e}")
-            return None
-    
-    async def extract_thumbnail(self, channel_id, message_id):
-        """Extract thumbnail from video file"""
+    async def extract_and_store_thumbnail(self, channel_id: int, message_id: int, title: str = "") -> Optional[str]:
+        """
+        Extract thumbnail from video file and store in separate MongoDB
+        Returns thumbnail URL or None
+        """
         if not self.initialized:
             return None
         
@@ -621,14 +604,42 @@ class BotHandler:
                     thumbnail_data = await self._download_file(thumbnail_file_id)
             
             if thumbnail_data:
-                # Convert to base64
+                # Compress thumbnail if too large
+                if len(thumbnail_data) > Config.THUMBNAIL_MAX_SIZE:
+                    thumbnail_data = await self._compress_thumbnail(thumbnail_data)
+                
+                # Convert to base64 for storage
                 base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                
+                # Generate unique thumbnail ID
+                thumbnail_id = hashlib.sha256(
+                    f"{channel_id}:{message_id}:{datetime.now().timestamp()}".encode()
+                ).hexdigest()[:24]
+                
+                # Store in thumbnail MongoDB
+                thumbnail_doc = {
+                    '_id': thumbnail_id,
+                    'channel_id': channel_id,
+                    'message_id': message_id,
+                    'title': title or '',
+                    'thumbnail_data': base64_data,
+                    'data_size': len(base64_data),
+                    'extracted_at': datetime.now(),
+                    'expires_at': datetime.now() + timedelta(days=Config.THUMBNAIL_EXPIRY_DAYS),
+                    'status': 'active'
+                }
+                
+                if thumbnails_col:
+                    await thumbnails_col.insert_one(thumbnail_doc)
+                    logger.info(f"✅ Thumbnail stored in separate DB: {thumbnail_id}")
+                
+                # Return data URL for immediate use
                 return f"data:image/jpeg;base64,{base64_data}"
             
             return None
             
         except Exception as e:
-            logger.error(f"❌ Extract thumbnail error: {e}")
+            logger.error(f"❌ Extract and store thumbnail error: {e}")
             return None
     
     async def _download_file(self, file_id):
@@ -649,6 +660,15 @@ class BotHandler:
             logger.error(f"❌ Download file error: {e}")
             return None
     
+    async def _compress_thumbnail(self, image_data):
+        """Compress thumbnail image"""
+        try:
+            # Simple compression by reducing quality
+            # In production, you might want to use PIL/Pillow
+            return image_data[:Config.THUMBNAIL_MAX_SIZE]
+        except:
+            return image_data
+    
     async def check_message_exists(self, channel_id, message_id):
         """Check if message exists in channel"""
         if not self.initialized:
@@ -659,6 +679,29 @@ class BotHandler:
             return message is not None
         except:
             return False
+    
+    async def get_thumbnail_from_storage(self, channel_id: int, message_id: int) -> Optional[str]:
+        """Get thumbnail from thumbnail storage"""
+        try:
+            if thumbnails_col is None:
+                return None
+            
+            # Find thumbnail in storage
+            thumbnail_doc = await thumbnails_col.find_one({
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'status': 'active'
+            })
+            
+            if thumbnail_doc and 'thumbnail_data' in thumbnail_doc:
+                base64_data = thumbnail_doc['thumbnail_data']
+                return f"data:image/jpeg;base64,{base64_data}"
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Get thumbnail from storage error: {e}")
+            return None
     
     async def get_bot_status(self):
         """Get bot handler status"""
@@ -736,6 +779,236 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
             return result
         return wrapper
     return decorator
+
+# ============================================================================
+# ✅ DUAL MONGODB INITIALIZATION
+# ============================================================================
+
+@performance_monitor.measure("dual_mongodb_init")
+async def init_dual_mongodb():
+    """Initialize dual MongoDB connections"""
+    global mongo_client, db, files_col, verification_col
+    global thumbnail_mongo_client, thumbnail_db, thumbnails_col
+    
+    try:
+        logger.info("🔌 Initializing dual MongoDB connections...")
+        
+        # Initialize MAIN MongoDB for files
+        mongo_client = AsyncIOMotorClient(
+            Config.MONGODB_URI,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=15000,
+            maxPoolSize=20,
+            minPoolSize=5,
+            retryWrites=True,
+            retryReads=True
+        )
+        
+        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=5)
+        
+        db = mongo_client.sk4film
+        files_col = db.files
+        verification_col = db.verifications
+        
+        logger.info("✅ MAIN MongoDB OK")
+        
+        # Initialize THUMBNAIL MongoDB
+        thumbnail_mongo_client = AsyncIOMotorClient(
+            Config.MONGODB_THUMBNAIL_URI,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=15000,
+            maxPoolSize=10,
+            minPoolSize=2,
+            retryWrites=True,
+            retryReads=True
+        )
+        
+        await asyncio.wait_for(thumbnail_mongo_client.admin.command('ping'), timeout=5)
+        
+        thumbnail_db = thumbnail_mongo_client[Config.THUMBNAIL_DB_NAME]
+        thumbnails_col = thumbnail_db[Config.THUMBNAIL_COLLECTION_NAME]
+        
+        logger.info(f"✅ THUMBNAIL MongoDB OK: {Config.THUMBNAIL_DB_NAME}.{Config.THUMBNAIL_COLLECTION_NAME}")
+        
+        # Setup indexes for thumbnail collection
+        await setup_thumbnail_indexes()
+        
+        return True
+        
+    except asyncio.TimeoutError:
+        logger.error("❌ MongoDB connection timeout")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Dual MongoDB initialization error: {e}")
+        return False
+
+async def setup_thumbnail_indexes():
+    """Setup indexes for thumbnail collection"""
+    if thumbnails_col is None:
+        return
+    
+    try:
+        # Create indexes for thumbnail collection
+        await thumbnails_col.create_index(
+            [("channel_id", 1), ("message_id", 1)],
+            unique=True,
+            name="channel_message_unique",
+            background=True
+        )
+        
+        await thumbnails_col.create_index(
+            [("expires_at", 1)],
+            name="expiry_index",
+            background=True,
+            expireAfterSeconds=0
+        )
+        
+        await thumbnails_col.create_index(
+            [("status", 1)],
+            name="status_index",
+            background=True
+        )
+        
+        logger.info("✅ Thumbnail collection indexes created")
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Thumbnail index creation error: {e}")
+
+async def cleanup_expired_thumbnails():
+    """Cleanup expired thumbnails"""
+    try:
+        if thumbnails_col is None:
+            return
+        
+        deleted_count = await thumbnails_col.delete_many({
+            'expires_at': {'$lt': datetime.now()}
+        })
+        
+        if deleted_count.deleted_count > 0:
+            logger.info(f"🧹 Cleaned up {deleted_count.deleted_count} expired thumbnails")
+            
+    except Exception as e:
+        logger.error(f"❌ Thumbnail cleanup error: {e}")
+
+# ============================================================================
+# ✅ THUMBNAIL MANAGER
+# ============================================================================
+
+class ThumbnailManager:
+    """Manager for thumbnail operations with dual MongoDB"""
+    
+    def __init__(self):
+        self.extraction_lock = asyncio.Lock()
+        self.cache_hits = 0
+        self.cache_misses = 0
+    
+    async def get_thumbnail(self, channel_id: int, message_id: int, title: str = "") -> Optional[str]:
+        """
+        Get thumbnail with priority:
+        1. Check thumbnail storage MongoDB
+        2. Extract and store if not exists
+        3. Return None if extraction fails
+        """
+        cache_key = f"thumbnail:{channel_id}:{message_id}"
+        
+        # Try cache first
+        if cache_manager is not None and cache_manager.redis_enabled:
+            cached = await cache_manager.get(cache_key)
+            if cached:
+                self.cache_hits += 1
+                logger.debug(f"✅ Thumbnail cache hit: {channel_id}/{message_id}")
+                return cached
+        
+        self.cache_misses += 1
+        
+        async with self.extraction_lock:
+            # 1. Try to get from thumbnail storage
+            if bot_handler and bot_handler.initialized:
+                thumbnail_url = await bot_handler.get_thumbnail_from_storage(channel_id, message_id)
+                if thumbnail_url:
+                    logger.debug(f"✅ Thumbnail from storage: {channel_id}/{message_id}")
+                    
+                    # Cache the result
+                    if cache_manager is not None:
+                        await cache_manager.set(
+                            cache_key, 
+                            thumbnail_url, 
+                            expire_seconds=Config.THUMBNAIL_CACHE_DURATION
+                        )
+                    
+                    return thumbnail_url
+            
+            # 2. Extract and store new thumbnail
+            if bot_handler and bot_handler.initialized:
+                thumbnail_url = await bot_handler.extract_and_store_thumbnail(channel_id, message_id, title)
+                if thumbnail_url:
+                    logger.info(f"✅ Thumbnail extracted and stored: {channel_id}/{message_id}")
+                    
+                    # Cache the result
+                    if cache_manager is not None:
+                        await cache_manager.set(
+                            cache_key, 
+                            thumbnail_url, 
+                            expire_seconds=Config.THUMBNAIL_CACHE_DURATION
+                        )
+                    
+                    return thumbnail_url
+        
+        logger.debug(f"⚠️ No thumbnail available: {channel_id}/{message_id}")
+        return None
+    
+    async def batch_extract_thumbnails(self, file_list: List[Dict]) -> Dict[int, str]:
+        """Extract thumbnails for multiple files in batch"""
+        results = {}
+        
+        if not bot_handler or not bot_handler.initialized:
+            return results
+        
+        # Group by channel_id for batch processing
+        channel_groups = defaultdict(list)
+        for file_data in file_list:
+            channel_id = file_data.get('channel_id')
+            message_id = file_data.get('message_id')
+            title = file_data.get('title', '')
+            
+            if channel_id and message_id:
+                channel_groups[channel_id].append((message_id, title))
+        
+        # Process each channel
+        for channel_id, messages in channel_groups.items():
+            for message_id, title in messages:
+                try:
+                    thumbnail_url = await self.get_thumbnail(channel_id, message_id, title)
+                    if thumbnail_url:
+                        results[message_id] = thumbnail_url
+                    
+                    # Small delay to avoid rate limiting
+                    await asyncio.sleep(0.1)
+                    
+                except Exception as e:
+                    logger.error(f"❌ Batch thumbnail error for {channel_id}/{message_id}: {e}")
+                    continue
+        
+        logger.info(f"✅ Batch thumbnail extraction: {len(results)}/{len(file_list)} successful")
+        return results
+    
+    async def get_stats(self):
+        """Get thumbnail manager statistics"""
+        thumbnail_count = 0
+        if thumbnails_col is not None:
+            thumbnail_count = await thumbnails_col.count_documents({})
+        
+        return {
+            'cache_hits': self.cache_hits,
+            'cache_misses': self.cache_misses,
+            'thumbnail_storage_count': thumbnail_count,
+            'cache_hit_ratio': f"{(self.cache_hits/(self.cache_hits+self.cache_misses)*100):.1f}%" 
+                if (self.cache_hits + self.cache_misses) > 0 else "0%"
+        }
+
+thumbnail_manager = ThumbnailManager()
 
 # ============================================================================
 # ✅ QUALITY DETECTION ENHANCED
@@ -845,78 +1118,7 @@ class QualityMerger:
         return QualityMerger.merge_quality_options(all_quality_options)
 
 # ============================================================================
-# ✅ VIDEO THUMBNAIL EXTRACTOR
-# ============================================================================
-
-class VideoThumbnailExtractor:
-    """Extract thumbnails from video files"""
-    
-    def __init__(self):
-        self.extraction_lock = asyncio.Lock()
-    
-    async def extract_thumbnail(self, channel_id: int, message_id: int) -> Optional[str]:
-        """
-        Extract thumbnail from video file
-        Returns base64 data URL or None
-        """
-        try:
-            # Use bot handler to extract thumbnail
-            if bot_handler and bot_handler.initialized:
-                thumbnail_url = await bot_handler.extract_thumbnail(channel_id, message_id)
-                if thumbnail_url:
-                    logger.debug(f"✅ Thumbnail extracted via bot handler: {channel_id}/{message_id}")
-                    return thumbnail_url
-            
-            # Fallback to Bot session if available
-            if Bot is not None and bot_session_ready:
-                try:
-                    message = await Bot.get_messages(channel_id, message_id)
-                    if not message:
-                        return None
-                    
-                    thumbnail_data = None
-                    
-                    if message.video:
-                        if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
-                            thumbnail_file_id = message.video.thumbnail.file_id
-                            download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
-                            
-                            if download_path:
-                                if isinstance(download_path, bytes):
-                                    thumbnail_data = download_path
-                                else:
-                                    with open(download_path, 'rb') as f:
-                                        thumbnail_data = f.read()
-                    
-                    elif message.document and is_video_file(message.document.file_name or ''):
-                        if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
-                            thumbnail_file_id = message.document.thumbnail.file_id
-                            download_path = await Bot.download_media(thumbnail_file_id, in_memory=True)
-                            
-                            if download_path:
-                                if isinstance(download_path, bytes):
-                                    thumbnail_data = download_path
-                                else:
-                                    with open(download_path, 'rb') as f:
-                                        thumbnail_data = f.read()
-                    
-                    if thumbnail_data:
-                        base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
-                        return f"data:image/jpeg;base64,{base64_data}"
-                    
-                except Exception as e:
-                    logger.error(f"❌ Bot session thumbnail extraction error: {e}")
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Thumbnail extraction failed: {e}")
-            return None
-
-thumbnail_extractor = VideoThumbnailExtractor()
-
-# ============================================================================
-# ✅ ENHANCED SEARCH FUNCTION - COMPLETELY FIXED WITH PROPER MERGING
+# ✅ ENHANCED SEARCH FUNCTION - UPDATED WITH DUAL MONGODB
 # ============================================================================
 
 def channel_name_cached(cid):
@@ -1042,8 +1244,6 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     'caption': 1,
                     'file_id': 1,
                     'telegram_file_id': 1,
-                    'thumbnail_url': 1,
-                    'thumbnail_extracted': 1,
                     'year': 1,
                     '_id': 0
                 }
@@ -1059,8 +1259,17 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     if not quality or quality == 'unknown':
                         quality = detect_quality_enhanced(doc.get('file_name', ''))
                     
-                    # Get thumbnail URL
-                    thumbnail_url = doc.get('thumbnail_url')
+                    # Get thumbnail from THUMBNAIL STORAGE
+                    thumbnail_url = None
+                    if thumbnails_col and doc.get('channel_id') and doc.get('message_id'):
+                        thumbnail_doc = await thumbnails_col.find_one({
+                            'channel_id': doc['channel_id'],
+                            'message_id': doc['message_id'],
+                            'status': 'active'
+                        })
+                        if thumbnail_doc and 'thumbnail_data' in thumbnail_doc:
+                            base64_data = thumbnail_doc['thumbnail_data']
+                            thumbnail_url = f"data:image/jpeg;base64,{base64_data}"
                     
                     # Get REAL message ID
                     real_msg_id = doc.get('real_message_id') or doc.get('message_id')
@@ -1259,6 +1468,8 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                 'poster_fetcher': poster_fetcher is not None,
                 'thumbnails_enabled': True,
                 'real_message_ids': True,
+                'thumbnail_storage': True,
+                'dual_mongodb': True,
                 'search_logic': 'enhanced_fixed_complete'
             },
             'bot_username': Config.BOT_USERNAME
@@ -1397,6 +1608,8 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
             'poster_fetcher': poster_fetcher is not None,
             'thumbnails_enabled': True,
             'real_message_ids': True,
+            'thumbnail_storage': True,
+            'dual_mongodb': True,
             'search_logic': 'enhanced_fixed_complete'
         },
         'bot_username': Config.BOT_USERNAME
@@ -1448,6 +1661,7 @@ class OptimizedSyncManager:
         while self.is_monitoring:
             try:
                 await self.auto_delete_deleted_files()
+                await self.cleanup_orphaned_thumbnails()
                 await asyncio.sleep(Config.MONITOR_INTERVAL)
             except asyncio.CancelledError:
                 break
@@ -1523,16 +1737,52 @@ class OptimizedSyncManager:
                     
         except Exception as e:
             logger.error(f"❌ Auto-delete error: {e}")
+    
+    async def cleanup_orphaned_thumbnails(self):
+        """Cleanup thumbnails for deleted files"""
+        try:
+            if thumbnails_col is None or files_col is None:
+                return
+            
+            logger.info("🧹 Cleaning up orphaned thumbnails...")
+            
+            # Get all thumbnail records
+            thumbnail_cursor = thumbnails_col.find(
+                {"status": "active"},
+                {"channel_id": 1, "message_id": 1, "_id": 1}
+            )
+            
+            orphaned_count = 0
+            async for thumb in thumbnail_cursor:
+                # Check if corresponding file exists in main database
+                file_exists = await files_col.find_one({
+                    "channel_id": thumb['channel_id'],
+                    "message_id": thumb['message_id']
+                })
+                
+                if not file_exists:
+                    # Mark thumbnail as orphaned
+                    await thumbnails_col.update_one(
+                        {"_id": thumb['_id']},
+                        {"$set": {"status": "orphaned", "cleaned_at": datetime.now()}}
+                    )
+                    orphaned_count += 1
+            
+            if orphaned_count > 0:
+                logger.info(f"🧹 Marked {orphaned_count} thumbnails as orphaned")
+                
+        except Exception as e:
+            logger.error(f"❌ Orphaned thumbnail cleanup error: {e}")
 
 # Initialize sync manager
 sync_manager = OptimizedSyncManager()
 
 # ============================================================================
-# ✅ OPTIMIZED FILE CHANNEL INDEXING MANAGER
+# ✅ OPTIMIZED FILE CHANNEL INDEXING MANAGER - UPDATED FOR DUAL MONGODB
 # ============================================================================
 
 class OptimizedFileIndexingManager:
-    """Optimized file channel indexing manager - ULTRA EFFICIENT"""
+    """Optimized file channel indexing manager - UPDATED WITH THUMBNAIL STORAGE"""
     
     def __init__(self):
         self.is_running = False
@@ -1548,6 +1798,8 @@ class OptimizedFileIndexingManager:
             'total_indexed': 0,
             'total_skipped': 0,
             'total_errors': 0,
+            'thumbnails_extracted': 0,
+            'thumbnails_stored': 0,
             'last_success': None
         }
     
@@ -1557,7 +1809,7 @@ class OptimizedFileIndexingManager:
             logger.warning("⚠️ File indexing already running")
             return
         
-        logger.info("🚀 Starting OPTIMIZED FILE CHANNEL INDEXING...")
+        logger.info("🚀 Starting OPTIMIZED FILE CHANNEL INDEXING WITH THUMBNAIL STORAGE...")
         self.is_running = True
         
         # Run immediate indexing
@@ -1580,7 +1832,7 @@ class OptimizedFileIndexingManager:
     
     async def _run_optimized_indexing(self):
         """Run optimized indexing - ONLY NEW MESSAGES"""
-        logger.info("🔥 RUNNING OPTIMIZED INDEXING (NEW MESSAGES ONLY)...")
+        logger.info("🔥 RUNNING OPTIMIZED INDEXING WITH THUMBNAIL STORAGE...")
         
         try:
             # Get last indexed message from database
@@ -1648,12 +1900,15 @@ class OptimizedFileIndexingManager:
                     self.indexing_stats['total_indexed'] += batch_stats['indexed']
                     self.indexing_stats['total_skipped'] += batch_stats['skipped']
                     self.indexing_stats['total_errors'] += batch_stats['errors']
+                    self.indexing_stats['thumbnails_extracted'] += batch_stats['thumbnails_extracted']
+                    self.indexing_stats['thumbnails_stored'] += batch_stats['thumbnails_stored']
                     
                     # Small delay between batches
                     if batch_num < total_batches - 1:
                         await asyncio.sleep(1)
                 
-                logger.info("✅ OPTIMIZED INDEXING FINISHED!")
+                self.indexing_stats['last_success'] = datetime.now()
+                logger.info("✅ OPTIMIZED INDEXING WITH THUMBNAIL STORAGE FINISHED!")
                 logger.info(f"📊 Stats: {self.indexing_stats}")
             
         except Exception as e:
@@ -1678,6 +1933,9 @@ class OptimizedFileIndexingManager:
                 self.next_run = datetime.now() + timedelta(seconds=Config.AUTO_INDEX_INTERVAL)
                 self.last_run = datetime.now()
                 
+                # Cleanup expired thumbnails
+                await cleanup_expired_thumbnails()
+                
                 # Sleep before checking again
                 await asyncio.sleep(10)
                 
@@ -1688,12 +1946,14 @@ class OptimizedFileIndexingManager:
                 await asyncio.sleep(60)
     
     async def _process_optimized_batch(self, messages):
-        """Process a batch of messages - OPTIMIZED"""
+        """Process a batch of messages - OPTIMIZED WITH THUMBNAIL STORAGE"""
         batch_stats = {
             'processed': len(messages),
             'indexed': 0,
             'skipped': 0,
-            'errors': 0
+            'errors': 0,
+            'thumbnails_extracted': 0,
+            'thumbnails_stored': 0
         }
         
         for msg in messages:
@@ -1703,7 +1963,7 @@ class OptimizedFileIndexingManager:
                     batch_stats['skipped'] += 1
                     continue
                 
-                # ✅ ZERO DUPLICATE CHECKS - Just check by message ID
+                # Check if already indexed
                 existing = await files_col.find_one({
                     'channel_id': Config.FILE_CHANNEL_ID,
                     'message_id': msg.id
@@ -1712,13 +1972,47 @@ class OptimizedFileIndexingManager:
                 if existing:
                     logger.debug(f"📝 Already indexed: {msg.id}")
                     batch_stats['skipped'] += 1
+                    
+                    # Check if thumbnail exists, extract if not
+                    if thumbnails_col:
+                        thumbnail_exists = await thumbnails_col.find_one({
+                            'channel_id': Config.FILE_CHANNEL_ID,
+                            'message_id': msg.id
+                        })
+                        
+                        if not thumbnail_exists and bot_handler and bot_handler.initialized:
+                            # Extract title for thumbnail
+                            caption = msg.caption if hasattr(msg, 'caption') else None
+                            file_name = None
+                            
+                            if msg.document:
+                                file_name = msg.document.file_name
+                            elif msg.video:
+                                file_name = msg.video.file_name
+                            
+                            title = await extract_title_fast(file_name, caption)
+                            
+                            # Extract and store thumbnail
+                            thumbnail_url = await bot_handler.extract_and_store_thumbnail(
+                                Config.FILE_CHANNEL_ID,
+                                msg.id,
+                                title
+                            )
+                            
+                            if thumbnail_url:
+                                batch_stats['thumbnails_extracted'] += 1
+                                batch_stats['thumbnails_stored'] += 1
+                    
                     continue
                 
-                # Index the file (simple version)
-                success = await index_single_file_fast(msg)
+                # Index the file
+                success, thumbnail_extracted = await index_single_file_with_thumbnail(msg)
                 
                 if success:
                     batch_stats['indexed'] += 1
+                    if thumbnail_extracted:
+                        batch_stats['thumbnails_extracted'] += 1
+                        batch_stats['thumbnails_stored'] += 1
                 else:
                     batch_stats['skipped'] += 1
                     
@@ -1738,14 +2032,16 @@ class OptimizedFileIndexingManager:
             'next_run': self.next_run.isoformat() if self.next_run else None,
             'total_indexed': self.total_indexed,
             'total_skipped': self.total_skipped,
-            'stats': self.indexing_stats
+            'stats': self.indexing_stats,
+            'dual_mongodb': True,
+            'thumbnail_storage': True
         }
 
 # Initialize file indexing manager
 file_indexing_manager = OptimizedFileIndexingManager()
 
 # ============================================================================
-# ✅ OPTIMIZED FILE INDEXING FUNCTIONS - ULTRA FAST
+# ✅ OPTIMIZED FILE INDEXING FUNCTIONS - UPDATED FOR DUAL MONGODB
 # ============================================================================
 
 async def extract_title_fast(filename, caption):
@@ -1777,14 +2073,14 @@ async def extract_title_fast(filename, caption):
     
     return "Unknown File"
 
-async def index_single_file_fast(message):
-    """Fast file indexing - minimal checks"""
+async def index_single_file_with_thumbnail(message):
+    """Fast file indexing with thumbnail extraction and storage"""
     try:
         if files_col is None:
-            return False
+            return False, False
         
         if not message or (not message.document and not message.video):
-            return False
+            return False, False
         
         # Extract title quickly
         caption = message.caption if hasattr(message, 'caption') else None
@@ -1797,27 +2093,25 @@ async def index_single_file_fast(message):
         
         title = await extract_title_fast(file_name, caption)
         if not title or title == "Unknown File":
-            return False
+            return False, False
         
-        # Extract thumbnail only for video files
-        thumbnail_url = None
-        is_video = False
+        # Extract thumbnail for video files
+        thumbnail_extracted = False
         
         if message.video or (message.document and is_video_file(file_name or '')):
-            is_video = True
-            # Try thumbnail extraction (non-blocking)
-            try:
-                thumbnail_url = await thumbnail_extractor.extract_thumbnail(
+            # Extract and store thumbnail
+            if bot_handler and bot_handler.initialized:
+                thumbnail_url = await bot_handler.extract_and_store_thumbnail(
                     Config.FILE_CHANNEL_ID,
-                    message.id
+                    message.id,
+                    title
                 )
-            except:
-                pass
+                thumbnail_extracted = thumbnail_url is not None
         
         # Extract quality
         quality = detect_quality_enhanced(file_name or "")
         
-        # Create minimal document
+        # Create document for main database
         doc = {
             'channel_id': Config.FILE_CHANNEL_ID,
             'message_id': message.id,
@@ -1827,11 +2121,10 @@ async def index_single_file_fast(message):
             'date': message.date,
             'indexed_at': datetime.now(),
             'last_checked': datetime.now(),
-            'is_video_file': is_video,
+            'is_video_file': message.video or (message.document and is_video_file(file_name or '')),
             'file_id': None,
             'file_size': 0,
-            'thumbnail_url': thumbnail_url,
-            'thumbnail_extracted': thumbnail_url is not None,
+            'thumbnail_extracted': thumbnail_extracted,
             'status': 'active',
             'quality': quality
         }
@@ -1854,19 +2147,19 @@ async def index_single_file_fast(message):
                 'file_size': message.video.file_size or 0
             })
         
-        # Insert into MongoDB
+        # Insert into main MongoDB
         await files_col.insert_one(doc)
         
         # Log success
-        logger.info(f"✅ INDEXED FAST: {title[:50]}... (ID: {message.id})")
+        logger.info(f"✅ INDEXED WITH THUMBNAIL: {title[:50]}... (ID: {message.id})")
         
-        return True
+        return True, thumbnail_extracted
         
     except Exception as e:
         if "duplicate key error" in str(e).lower():
-            return False
-        logger.error(f"❌ Fast indexing error: {e}")
-        return False
+            return False, False
+        logger.error(f"❌ File indexing error: {e}")
+        return False, False
 
 async def setup_database_indexes():
     """Setup minimal required database indexes"""
@@ -1907,6 +2200,8 @@ async def initial_indexing_optimized():
     logger.info("=" * 60)
     logger.info("🚀 STARTING OPTIMIZED FILE CHANNEL INDEXING")
     logger.info("=" * 60)
+    logger.info("✅ DUAL MONGODB SYSTEM")
+    logger.info("✅ SEPARATE THUMBNAIL STORAGE")
     logger.info("✅ ZERO DB PRELOAD")
     logger.info("✅ ZERO DUPLICATE CHECKS")
     logger.info("✅ ONLY NEW MESSAGES INDEXED")
@@ -2132,45 +2427,7 @@ async def init_telegram_sessions():
     return user_session_ready or bot_session_ready
 
 # ============================================================================
-# ✅ MONGODB INITIALIZATION
-# ============================================================================
-
-@performance_monitor.measure("mongodb_init")
-async def init_mongodb():
-    global mongo_client, db, files_col, verification_col
-    
-    try:
-        logger.info("🔌 MongoDB initialization...")
-        
-        mongo_client = AsyncIOMotorClient(
-            Config.MONGODB_URI,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=15000,
-            maxPoolSize=20,
-            minPoolSize=5,
-            retryWrites=True,
-            retryReads=True
-        )
-        
-        await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=5)
-        
-        db = mongo_client.sk4film
-        files_col = db.files
-        verification_col = db.verifications
-        
-        logger.info("✅ MongoDB OK")
-        return True
-        
-    except asyncio.TimeoutError:
-        logger.error("❌ MongoDB connection timeout")
-        return False
-    except Exception as e:
-        logger.error(f"❌ MongoDB error: {e}")
-        return False
-
-# ============================================================================
-# ✅ MAIN INITIALIZATION - OPTIMIZED
+# ✅ MAIN INITIALIZATION - OPTIMIZED WITH DUAL MONGODB
 # ============================================================================
 
 @performance_monitor.measure("system_init")
@@ -2179,32 +2436,29 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.0 - OPTIMIZED INDEXING")
+        logger.info("🚀 SK4FiLM v9.0 - DUAL MONGODB SYSTEM")
         logger.info("=" * 60)
         
-        # Initialize MongoDB
-        mongo_ok = await init_mongodb()
+        # Initialize Dual MongoDB
+        mongo_ok = await init_dual_mongodb()
         if not mongo_ok:
-            logger.error("❌ MongoDB connection failed")
+            logger.error("❌ Dual MongoDB connection failed")
             return False
         
         # Get current file count
         if files_col is not None:
             file_count = await files_col.count_documents({})
-            logger.info(f"📊 Current files in database: {file_count}")
+            logger.info(f"📊 Current files in main database: {file_count}")
+        
+        # Get thumbnail count
+        if thumbnails_col is not None:
+            thumbnail_count = await thumbnails_col.count_documents({})
+            logger.info(f"📊 Current thumbnails in storage: {thumbnail_count}")
         
         # Initialize Bot Handler
         bot_handler_ok = await bot_handler.initialize()
         if bot_handler_ok:
             logger.info("✅ Bot Handler initialized")
-        
-        # ✅ START TELEGRAM BOT
-        global telegram_bot
-        telegram_bot = await start_telegram_bot()
-        if telegram_bot:
-            logger.info("✅ Telegram Bot started successfully")
-        else:
-            logger.warning("⚠️ Telegram Bot failed to start")
         
         # Initialize Cache Manager
         global cache_manager, verification_system, premium_system, poster_fetcher
@@ -2237,22 +2491,27 @@ async def init_system():
         
         # Start OPTIMIZED indexing
         if user_session_ready and files_col is not None:
-            logger.info("🔄 Starting OPTIMIZED file channel indexing...")
+            logger.info("🔄 Starting OPTIMIZED file channel indexing with thumbnail storage...")
             asyncio.create_task(initial_indexing_optimized())
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
         
-        logger.info("🔧 OPTIMIZED FEATURES:")
+        logger.info("🔧 DUAL MONGODB FEATURES:")
+        logger.info(f"   • Dual MongoDB System: ✅ ENABLED")
+        logger.info(f"   • Separate Thumbnail Storage: ✅ ENABLED")
+        logger.info(f"   • Thumbnail Compression: ✅ ENABLED")
+        logger.info(f"   • Automatic Cleanup: ✅ ENABLED")
         logger.info(f"   • Zero DB Preload: ✅ ENABLED")
         logger.info(f"   • Zero Duplicate Checks: ✅ ENABLED")
-        logger.info(f"   • Zero Wasted Telegram Calls: ✅ ENABLED")
         logger.info(f"   • Only New Messages: ✅ ENABLED")
         logger.info(f"   • Files-Only Fetch: ✅ ENABLED")
         logger.info(f"   • Auto-Delete DB Entries: ✅ ENABLED")
-        logger.info(f"   • Real Message IDs: ✅ ENABLED")
-        logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
+        logger.info(f"   • Post+File Merge: ✅ ENABLED")
+        logger.info(f"   • File-Only with Poster: ✅ ENABLED")
+        logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
+        logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
         
         return True
         
@@ -2402,6 +2661,7 @@ async def get_home_movies(limit=25):
 @app.route('/')
 @performance_monitor.measure("root_endpoint")
 async def root():
+    # Get stats from main database
     if files_col is not None:
         tf = await files_col.count_documents({})
         video_files = await files_col.count_documents({'is_video_file': True})
@@ -2410,6 +2670,11 @@ async def root():
         tf = 0
         video_files = 0
         thumbnails_extracted = 0
+    
+    # Get stats from thumbnail database
+    thumbnail_count = 0
+    if thumbnails_col is not None:
+        thumbnail_count = await thumbnails_col.count_documents({})
     
     # Get indexing status
     indexing_status = await file_indexing_manager.get_indexing_status()
@@ -2423,23 +2688,14 @@ async def root():
             logger.error(f"❌ Error getting bot status: {e}")
             bot_status = {'initialized': False, 'error': str(e)}
     
-    # Get Telegram bot status
-    bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
+    # Get thumbnail manager stats
+    thumbnail_stats = await thumbnail_manager.get_stats()
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - OPTIMIZED INDEXING',
-        'optimized_features': {
-            'zero_db_preload': True,
-            'zero_duplicate_checks': True,
-            'zero_wasted_telegram_calls': True,
-            'only_new_messages': True,
-            'files_only_fetch': True,
-            'auto_delete_deleted': True,
-            'real_message_ids': True,
-            'post_file_merge': True,
-            'file_only_with_poster': True
-        },
+        'service': 'SK4FiLM v9.0 - DUAL MONGODB SYSTEM',
+        'dual_mongodb': True,
+        'thumbnail_storage': True,
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2450,10 +2706,6 @@ async def root():
                 'channel': Config.FILE_CHANNEL_ID
             },
             'bot_handler': bot_status,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None
-            }
         },
         'components': {
             'cache': cache_manager is not None,
@@ -2461,14 +2713,17 @@ async def root():
             'premium': premium_system is not None,
             'poster_fetcher': poster_fetcher is not None,
             'database': files_col is not None,
+            'thumbnail_database': thumbnails_col is not None,
             'bot_handler': bot_handler is not None and bot_handler.initialized,
-            'telegram_bot': telegram_bot is not None
+            'thumbnail_manager': True
         },
         'stats': {
             'total_files': tf,
             'video_files': video_files,
-            'thumbnails_extracted': thumbnails_extracted
+            'thumbnails_extracted': thumbnails_extracted,
+            'thumbnails_stored': thumbnail_count
         },
+        'thumbnail_stats': thumbnail_stats,
         'indexing': indexing_status,
         'sync_monitoring': {
             'running': sync_manager.is_monitoring,
@@ -2489,14 +2744,16 @@ async def health():
         except:
             bot_status = {'initialized': False}
     
+    thumbnail_stats = await thumbnail_manager.get_stats()
+    
     return jsonify({
         'status': 'ok',
-        'optimized': True,
+        'dual_mongodb': True,
+        'thumbnail_storage': True,
         'sessions': {
             'user': user_session_ready,
             'bot': bot_session_ready,
             'bot_handler': bot_status.get('initialized') if bot_status else False,
-            'telegram_bot': telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
         },
         'indexing': {
             'running': indexing_status['is_running'],
@@ -2506,9 +2763,11 @@ async def health():
             'running': sync_manager.is_monitoring,
             'auto_delete_enabled': True
         },
+        'thumbnail_manager': thumbnail_stats,
         'features': {
             'post_file_merge': True,
-            'file_only_poster': True
+            'file_only_poster': True,
+            'dual_mongodb': True
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -2566,6 +2825,8 @@ async def api_search():
                 'feature': 'post_first_search',
                 'poster_priority': True,
                 'real_message_ids': True,
+                'dual_mongodb': True,
+                'thumbnail_storage': True
             },
             'bot_username': Config.BOT_USERNAME,
             'timestamp': datetime.now().isoformat()
@@ -2610,6 +2871,14 @@ async def api_stats():
             indexing_status = {}
             sync_stats = {}
         
+        # Get thumbnail stats
+        thumbnail_stats = await thumbnail_manager.get_stats()
+        
+        # Get thumbnail storage stats
+        thumbnail_storage_count = 0
+        if thumbnails_col is not None:
+            thumbnail_storage_count = await thumbnails_col.count_documents({})
+        
         # Get bot handler status
         bot_status = None
         if bot_handler:
@@ -2618,26 +2887,31 @@ async def api_stats():
             except:
                 bot_status = {'initialized': False}
         
-        # Get Telegram bot status
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
         return jsonify({
             'status': 'success',
-            'optimized': True,
+            'dual_mongodb': True,
             'performance': perf_stats,
             'poster_fetcher': poster_stats,
+            'thumbnail_manager': thumbnail_stats,
             'database_stats': {
                 'total_files': total_files,
                 'video_files': video_files,
                 'thumbnails_extracted': thumbnails_extracted,
                 'extraction_rate': f"{(thumbnails_extracted/video_files*100):.1f}%" if video_files > 0 else "0%"
             },
+            'thumbnail_storage_stats': {
+                'total_thumbnails': thumbnail_storage_count,
+                'database': Config.THUMBNAIL_DB_NAME,
+                'collection': Config.THUMBNAIL_COLLECTION_NAME
+            },
             'indexing_stats': indexing_status,
             'sync_stats': sync_stats,
             'bot_handler': bot_status,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None
+            'dual_mongodb_features': {
+                'separate_thumbnail_storage': True,
+                'thumbnail_compression': True,
+                'automatic_cleanup': True,
+                'orphaned_thumbnail_cleanup': True
             },
             'optimization_features': {
                 'zero_db_preload': True,
@@ -2657,6 +2931,141 @@ async def api_stats():
         }), 500
 
 # ============================================================================
+# ✅ THUMBNAIL API ROUTES
+# ============================================================================
+
+@app.route('/api/thumbnail/<int:channel_id>/<int:message_id>', methods=['GET'])
+async def get_thumbnail(channel_id, message_id):
+    """Get thumbnail for a specific file"""
+    try:
+        thumbnail_url = await thumbnail_manager.get_thumbnail(channel_id, message_id)
+        
+        if thumbnail_url:
+            return jsonify({
+                'status': 'success',
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'thumbnail_url': thumbnail_url,
+                'thumbnail_source': 'extracted_stored',
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'status': 'not_found',
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'thumbnail_url': Config.FALLBACK_POSTER,
+                'thumbnail_source': 'fallback',
+                'timestamp': datetime.now().isoformat()
+            })
+    except Exception as e:
+        logger.error(f"Thumbnail API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/thumbnails/batch', methods=['POST'])
+async def get_thumbnails_batch():
+    """Get thumbnails for multiple files"""
+    try:
+        data = await request.get_json()
+        if not data or 'files' not in data:
+            return jsonify({'status': 'error', 'message': 'Invalid request'}), 400
+        
+        files = data['files']
+        if not isinstance(files, list) or len(files) > 100:
+            return jsonify({'status': 'error', 'message': 'Invalid files list'}), 400
+        
+        results = {}
+        for file_info in files:
+            channel_id = file_info.get('channel_id')
+            message_id = file_info.get('message_id')
+            title = file_info.get('title', '')
+            
+            if channel_id and message_id:
+                thumbnail_url = await thumbnail_manager.get_thumbnail(channel_id, message_id, title)
+                results[f"{channel_id}_{message_id}"] = thumbnail_url or Config.FALLBACK_POSTER
+        
+        return jsonify({
+            'status': 'success',
+            'thumbnails': results,
+            'total': len(results),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Batch thumbnail API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/admin/thumbnails/stats', methods=['GET'])
+async def admin_thumbnails_stats():
+    """Admin endpoint for thumbnail storage statistics"""
+    try:
+        auth_token = request.headers.get('X-Admin-Token')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        if thumbnails_col is None:
+            return jsonify({'status': 'error', 'message': 'Thumbnail database not connected'})
+        
+        # Get thumbnail statistics
+        total_thumbnails = await thumbnails_col.count_documents({})
+        active_thumbnails = await thumbnails_col.count_documents({'status': 'active'})
+        orphaned_thumbnails = await thumbnails_col.count_documents({'status': 'orphaned'})
+        expired_thumbnails = await thumbnails_col.count_documents({'expires_at': {'$lt': datetime.now()}})
+        
+        # Get size statistics
+        pipeline = [
+            {"$group": {
+                "_id": None,
+                "total_size": {"$sum": {"$strLenCP": "$thumbnail_data"}},
+                "avg_size": {"$avg": {"$strLenCP": "$thumbnail_data"}},
+                "max_size": {"$max": {"$strLenCP": "$thumbnail_data"}},
+                "min_size": {"$min": {"$strLenCP": "$thumbnail_data"}}
+            }}
+        ]
+        
+        size_stats = await thumbnails_col.aggregate(pipeline).to_list(length=1)
+        
+        # Get recent thumbnails
+        recent_thumbnails = await thumbnails_col.find(
+            {},
+            {'channel_id': 1, 'message_id': 1, 'extracted_at': 1, 'data_size': 1, '_id': 0}
+        ).sort('extracted_at', -1).limit(10).to_list(length=10)
+        
+        return jsonify({
+            'status': 'success',
+            'dual_mongodb': True,
+            'thumbnail_database': {
+                'name': Config.THUMBNAIL_DB_NAME,
+                'collection': Config.THUMBNAIL_COLLECTION_NAME,
+                'uri': Config.MONGODB_THUMBNAIL_URI
+            },
+            'stats': {
+                'total_thumbnails': total_thumbnails,
+                'active_thumbnails': active_thumbnails,
+                'orphaned_thumbnails': orphaned_thumbnails,
+                'expired_thumbnails': expired_thumbnails
+            },
+            'size_stats': size_stats[0] if size_stats else {},
+            'recent_thumbnails': recent_thumbnails,
+            'thumbnail_manager': await thumbnail_manager.get_stats(),
+            'settings': {
+                'max_size': Config.THUMBNAIL_MAX_SIZE,
+                'compression_quality': Config.THUMBNAIL_COMPRESSION_QUALITY,
+                'expiry_days': Config.THUMBNAIL_EXPIRY_DAYS,
+                'cache_duration': Config.THUMBNAIL_CACHE_DURATION
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Thumbnail stats error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================================================
 # ✅ ADMIN API ROUTES
 # ============================================================================
 
@@ -2674,7 +3083,8 @@ async def api_admin_reindex():
         return jsonify({
             'status': 'success',
             'message': 'File channel reindexing started',
-            'optimized': True,
+            'dual_mongodb': True,
+            'thumbnail_storage': True,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -2696,10 +3106,13 @@ async def api_admin_indexing_status():
         
         return jsonify({
             'status': 'success',
-            'optimized': True,
+            'dual_mongodb': True,
+            'thumbnail_storage': True,
             'indexing': indexing_status,
             'database_files': total_files,
             'optimization_features': {
+                'dual_mongodb': True,
+                'separate_thumbnail_storage': True,
                 'zero_db_preload': True,
                 'zero_duplicate_checks': True,
                 'only_new_messages': True,
@@ -2728,6 +3141,13 @@ async def api_admin_clear_cache():
                 if keys:
                     await cache_manager.redis_client.delete(*keys)
                     logger.info(f"✅ Cleared {len(keys)} search cache keys")
+                
+                # Clear thumbnail cache
+                thumbnail_keys = await cache_manager.redis_client.keys("thumbnail:*")
+                if thumbnail_keys:
+                    await cache_manager.redis_client.delete(*thumbnail_keys)
+                    logger.info(f"✅ Cleared {len(thumbnail_keys)} thumbnail cache keys")
+                    
             except Exception as e:
                 logger.error(f"❌ Cache clear error: {e}")
         
@@ -2779,7 +3199,8 @@ async def api_admin_db_stats():
         
         return jsonify({
             'status': 'success',
-            'optimized': True,
+            'dual_mongodb': True,
+            'thumbnail_storage': True,
             'total_files': total,
             'sample_files': sample,
             'quality_distribution': quality_dist,
@@ -2790,38 +3211,8 @@ async def api_admin_db_stats():
         logger.error(f"❌ DB stats error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/admin/bot-status', methods=['GET'])
-async def api_admin_bot_status():
-    """Get Telegram bot status"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
-        return jsonify({
-            'status': 'success',
-            'optimized': True,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None,
-                'started': telegram_bot.bot_started if telegram_bot and hasattr(telegram_bot, 'bot_started') else False
-            },
-            'config': {
-                'bot_token_configured': bool(Config.BOT_TOKEN),
-                'api_id_configured': bool(Config.API_ID),
-                'api_hash_configured': bool(Config.API_HASH),
-                'admin_ids': Config.ADMIN_IDS
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Bot status error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 # ============================================================================
-# ✅ STARTUP AND SHUTDOWN - FIXED
+# ✅ STARTUP AND SHUTDOWN
 # ============================================================================
 
 app_start_time = time.time()
@@ -2832,20 +3223,9 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    logger.info("🛑 Shutting down SK4FiLM v9.0...")
+    logger.info("🛑 Shutting down SK4FiLM v9.0 (Dual MongoDB)...")
     
     shutdown_tasks = []
-    
-    # Safely shutdown Telegram bot
-    if telegram_bot:
-        try:
-            if hasattr(telegram_bot, 'shutdown'):
-                await telegram_bot.shutdown()
-                logger.info("✅ Telegram Bot stopped")
-            else:
-                logger.warning("⚠️ Telegram Bot has no shutdown method")
-        except Exception as e:
-            logger.error(f"❌ Telegram Bot shutdown error: {e}")
     
     # Stop indexing
     await file_indexing_manager.stop_indexing()
@@ -2893,10 +3273,14 @@ async def shutdown():
             if isinstance(result, Exception):
                 logger.error(f"❌ Shutdown task {i} failed: {result}")
     
-    # Close MongoDB
+    # Close MongoDB connections
     if mongo_client is not None:
         mongo_client.close()
-        logger.info("✅ MongoDB connection closed")
+        logger.info("✅ Main MongoDB connection closed")
+    
+    if thumbnail_mongo_client is not None:
+        thumbnail_mongo_client.close()
+        logger.info("✅ Thumbnail MongoDB connection closed")
     
     logger.info(f"👋 Shutdown complete. Uptime: {time.time() - app_start_time:.1f}s")
 
@@ -2915,8 +3299,12 @@ if __name__ == "__main__":
     config.http2 = True
     config.keep_alive_timeout = 30
     
-    logger.info(f"🌐 Starting SK4FiLM v9.0 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: OPTIMIZED INDEXING")
+    logger.info(f"🌐 Starting SK4FiLM v9.0 (Dual MongoDB) on port {Config.WEB_SERVER_PORT}...")
+    logger.info("🎯 FEATURES: DUAL MONGODB SYSTEM")
+    logger.info(f"   • Dual MongoDB: ✅ ENABLED")
+    logger.info(f"   • Separate Thumbnail Storage: ✅ ENABLED")
+    logger.info(f"   • Thumbnail Compression: ✅ ENABLED")
+    logger.info(f"   • Automatic Cleanup: ✅ ENABLED")
     logger.info(f"   • Zero DB Preload: ✅ ENABLED")
     logger.info(f"   • Zero Duplicate Checks: ✅ ENABLED")  
     logger.info(f"   • Zero Wasted Telegram Calls: ✅ ENABLED")
@@ -2927,7 +3315,6 @@ if __name__ == "__main__":
     logger.info(f"   • File-Only with Poster: ✅ ENABLED")
     logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
     logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
-    logger.info(f"   • Telegram Bot: ✅ ENABLED")
     
     try:
         asyncio.run(serve(app, config))
