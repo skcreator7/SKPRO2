@@ -308,7 +308,7 @@ class PerformanceMonitor:
 performance_monitor = PerformanceMonitor()
 
 # ============================================================================
-# ✅ CONFIGURATION - DUAL MONGODB SYSTEM
+# ✅ CONFIGURATION - DUAL MONGODB SYSTEM WITH EXPLICIT DATABASE NAMES
 # ============================================================================
 
 class Config:
@@ -318,9 +318,15 @@ class Config:
     USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     
-    # ✅ DUAL MONGODB CONFIGURATION
-    MONGODB_URI_FILES = os.environ.get("MONGODB_URI_FILES", "mongodb://localhost:27017/sk4film_files")
-    MONGODB_URI_THUMBNAILS = os.environ.get("MONGODB_URI_THUMBNAILS", "mongodb://localhost:27017/sk4film_thumbnails")
+    # ✅ DUAL MONGODB CONFIGURATION WITH EXPLICIT DATABASE NAMES
+    # Files Database
+    MONGODB_URI_FILES = os.environ.get("MONGODB_URI_FILES", 
+        "mongodb+srv://Sklink:skweb@cluster0.bfiw4el.mongodb.net/sk4film_files?retryWrites=true&w=majority&appName=Cluster0")
+    
+    # Thumbnails Database
+    MONGODB_URI_THUMBNAILS = os.environ.get("MONGODB_URI_THUMBNAILS", 
+        "mongodb+srv://Thumb:store@cluster0.bypnyhv.mongodb.net/sk4film_thumbnails?retryWrites=true&w=majority&appName=Cluster0")
+    
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
     
@@ -775,12 +781,12 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ DUAL MONGODB INITIALIZATION
+# ✅ DUAL MONGODB INITIALIZATION - FIXED WITH EXPLICIT DATABASE NAMES
 # ============================================================================
 
 @performance_monitor.measure("dual_mongodb_init")
 async def init_dual_mongodb():
-    """Initialize dual MongoDB connections"""
+    """Initialize dual MongoDB connections with explicit database names"""
     global mongo_client_files, mongo_client_thumbnails
     global db_files, files_col, verification_col
     global db_thumbnails, thumbnails_col
@@ -790,63 +796,143 @@ async def init_dual_mongodb():
         
         # 1. Initialize Files Database
         logger.info("📁 Initializing Files Database...")
+        files_uri = Config.MONGODB_URI_FILES
+        
+        # Extract database name safely
+        db_name_files = extract_database_name(files_uri, "sk4film_files")
+        logger.info(f"Files Database: {db_name_files}")
+        
+        # Create client with timeout
         mongo_client_files = AsyncIOMotorClient(
-            Config.MONGODB_URI_FILES,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=15000,
-            maxPoolSize=20,
-            minPoolSize=5,
+            files_uri,
+            serverSelectionTimeoutMS=20000,
+            connectTimeoutMS=20000,
+            socketTimeoutMS=30000,
+            maxPoolSize=10,
+            minPoolSize=2,
             retryWrites=True,
-            retryReads=True
+            retryReads=True,
+            appname="SK4FiLM-Files"
         )
         
-        await asyncio.wait_for(mongo_client_files.admin.command('ping'), timeout=5)
-        db_files = mongo_client_files.get_database()
+        # Test connection
+        try:
+            await asyncio.wait_for(mongo_client_files.admin.command('ping'), timeout=15)
+            logger.info("✅ Files Database connection test successful")
+        except asyncio.TimeoutError:
+            logger.error("❌ Files Database connection timeout")
+            return False
+        
+        # Get database
+        db_files = mongo_client_files[db_name_files]
         files_col = db_files.files
         verification_col = db_files.verifications
+        
+        # Try to create a test document
+        try:
+            test_doc = {"test": True, "timestamp": datetime.now()}
+            await files_col.insert_one(test_doc)
+            await files_col.delete_one({"test": True})
+            logger.info("✅ Files Database read/write test successful")
+        except Exception as e:
+            logger.warning(f"⚠️ Files Database write test failed (may be permissions): {e}")
         
         # Setup indexes for files database
         await setup_files_database_indexes()
         
-        logger.info("✅ Files Database OK")
+        logger.info("✅ Files Database initialized successfully")
         
         # 2. Initialize Thumbnails Database
         logger.info("🖼️ Initializing Thumbnails Database...")
+        thumbnails_uri = Config.MONGODB_URI_THUMBNAILS
+        
+        # Extract database name safely
+        db_name_thumbnails = extract_database_name(thumbnails_uri, "sk4film_thumbnails")
+        logger.info(f"Thumbnails Database: {db_name_thumbnails}")
+        
+        # Create client with timeout
         mongo_client_thumbnails = AsyncIOMotorClient(
-            Config.MONGODB_URI_THUMBNAILS,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=15000,
-            maxPoolSize=20,
-            minPoolSize=5,
+            thumbnails_uri,
+            serverSelectionTimeoutMS=20000,
+            connectTimeoutMS=20000,
+            socketTimeoutMS=30000,
+            maxPoolSize=10,
+            minPoolSize=2,
             retryWrites=True,
-            retryReads=True
+            retryReads=True,
+            appname="SK4FiLM-Thumbnails"
         )
         
-        await asyncio.wait_for(mongo_client_thumbnails.admin.command('ping'), timeout=5)
-        db_thumbnails = mongo_client_thumbnails.get_database()
+        # Test connection
+        try:
+            await asyncio.wait_for(mongo_client_thumbnails.admin.command('ping'), timeout=15)
+            logger.info("✅ Thumbnails Database connection test successful")
+        except asyncio.TimeoutError:
+            logger.error("❌ Thumbnails Database connection timeout")
+            return False
+        
+        # Get database
+        db_thumbnails = mongo_client_thumbnails[db_name_thumbnails]
         thumbnails_col = db_thumbnails.thumbnails
+        
+        # Try to create a test document
+        try:
+            test_doc = {"test": True, "timestamp": datetime.now()}
+            await thumbnails_col.insert_one(test_doc)
+            await thumbnails_col.delete_one({"test": True})
+            logger.info("✅ Thumbnails Database read/write test successful")
+        except Exception as e:
+            logger.warning(f"⚠️ Thumbnails Database write test failed (may be permissions): {e}")
         
         # Setup indexes for thumbnails database
         await setup_thumbnails_database_indexes()
         
-        logger.info("✅ Thumbnails Database OK")
+        logger.info("✅ Thumbnails Database initialized successfully")
         
         # Log database stats
-        files_count = await files_col.count_documents({})
-        thumbnails_count = await thumbnails_col.count_documents({})
-        
-        logger.info(f"📊 Database Stats: Files={files_count}, Thumbnails={thumbnails_count}")
+        try:
+            files_count = await files_col.count_documents({})
+            thumbnails_count = await thumbnails_col.count_documents({})
+            logger.info(f"📊 Database Stats: Files={files_count}, Thumbnails={thumbnails_count}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not get database stats: {e}")
         
         return True
         
-    except asyncio.TimeoutError:
-        logger.error("❌ MongoDB connection timeout")
-        return False
     except Exception as e:
         logger.error(f"❌ MongoDB initialization error: {e}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         return False
+
+def extract_database_name(uri, default_name):
+    """Extract database name from MongoDB URI"""
+    try:
+        # Parse the URI
+        from urllib.parse import urlparse, parse_qs
+        
+        parsed = urlparse(uri)
+        
+        # Get database name from path
+        if parsed.path and parsed.path.strip('/'):
+            db_name = parsed.path.strip('/')
+            
+            # Remove query parameters if present
+            if '?' in db_name:
+                db_name = db_name.split('?')[0]
+            
+            if db_name:
+                return db_name
+        
+        # Try to extract from query parameters
+        query_params = parse_qs(parsed.query)
+        if 'authSource' in query_params:
+            return query_params['authSource'][0]
+        
+        return default_name
+        
+    except:
+        return default_name
 
 async def setup_files_database_indexes():
     """Setup indexes for files database"""
@@ -883,7 +969,7 @@ async def setup_files_database_indexes():
         logger.info("✅ Files database indexes created")
         
     except Exception as e:
-        logger.warning(f"⚠️ Files index creation error: {e}")
+        logger.warning(f"⚠️ Files index creation error (may already exist): {e}")
 
 async def setup_thumbnails_database_indexes():
     """Setup indexes for thumbnails database"""
@@ -921,7 +1007,7 @@ async def setup_thumbnails_database_indexes():
         logger.info("✅ Thumbnails database indexes created")
         
     except Exception as e:
-        logger.warning(f"⚠️ Thumbnails index creation error: {e}")
+        logger.warning(f"⚠️ Thumbnails index creation error (may already exist): {e}")
 
 # ============================================================================
 # ✅ ENHANCED SEARCH FUNCTION - WITH THUMBNAIL INTEGRATION
