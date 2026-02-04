@@ -418,24 +418,29 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
         
-        /* Thumbnail Source Colors */
+        /* SK4FiLM Badge (Fallback) */
+        .thumbnail-source-badge.fallback {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Extracted from Telegram */
         .thumbnail-source-badge.telegram {
             background: linear-gradient(135deg, #0088cc, #00aaff);
             color: white;
         }
         
+        /* TMDB */
         .thumbnail-source-badge.tmdb {
             background: linear-gradient(135deg, #01d277, #0d253f);
             color: white;
         }
         
+        /* OMDB */
         .thumbnail-source-badge.omdb {
             background: linear-gradient(135deg, #f5c518, #000000);
-            color: white;
-        }
-        
-        .thumbnail-source-badge.fallback {
-            background: linear-gradient(135deg, #666666, #999999);
             color: white;
         }
         
@@ -1267,6 +1272,41 @@ function extractRealMessageId(messageIdData) {
     return null;
 }
 
+// ✅ NEW: Get thumbnail source badge class with SK4FiLM text
+function getThumbnailSourceBadgeClass(source) {
+    if (!source) return 'fallback';
+    
+    source = source.toLowerCase();
+    
+    // Special cases
+    if (source === 'extracted' || source === 'telegram') {
+        return 'telegram';  // This shows "Extracted" but badge color is blue
+    }
+    if (source === 'tmdb') return 'tmdb';
+    if (source === 'omdb') return 'omdb';
+    
+    // Default fallback
+    return 'fallback';  // This will show "SK4FiLM"
+}
+
+// ✅ NEW: Get thumbnail source badge text
+function getThumbnailSourceBadgeText(source) {
+    if (!source) return 'SK4FiLM';
+    
+    source = source.toLowerCase();
+    
+    // Special cases
+    if (source === 'extracted' || source === 'telegram') {
+        return 'Extracted';
+    }
+    if (source === 'tmdb') return 'TMDB';
+    if (source === 'omdb') return 'OMDB';
+    if (source === 'sk4film' || source === 'sk') return 'SK4FiLM';
+    
+    // Capitalize first letter
+    return source.charAt(0).toUpperCase() + source.slice(1);
+}
+
 // Network status detection
 function updateOnlineStatus() {
     isOnline = navigator.onLine;
@@ -1755,156 +1795,7 @@ function sortResultsWithExactMatchFirst(results, query) {
     return resultsCopy;
 }
 
-// ✅ NEW: Get thumbnail source badge class
-function getThumbnailSourceBadgeClass(source) {
-    if (!source) return 'fallback';
-    
-    source = source.toLowerCase();
-    if (source === 'telegram') return 'telegram';
-    if (source === 'tmdb') return 'tmdb';
-    if (source === 'omdb') return 'omdb';
-    return 'fallback';
-}
-
-async function displayResults(results, pagination) {
-    if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
-        return;
-    }
-    
-    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
-    
-    let html = '';
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const hasFile = result.has_file === true;
-        const qualityOptions = result.quality_options || {};
-        const hasQualities = Object.keys(qualityOptions).length > 0;
-        const postContent = result.post_content || '';
-        const hasPostContent = postContent.trim().length > 0;
-        const thumbnail = result.thumbnail_url || result.poster_url || '';
-        const thumbnailSource = result.thumbnail_source || result.poster_source || 'fallback';
-        const hasThumbnail = result.has_thumbnail === true;
-        const thumbnailExtracted = result.thumbnail_extracted === true;
-        
-        console.log(`Result ${i}: ${result.title}`);
-        console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
-        console.log(`Thumbnail source: ${thumbnailSource}, Extracted: ${thumbnailExtracted}`);
-        console.log(`Quality options:`, qualityOptions);
-        console.log(`Quality options type:`, typeof qualityOptions);
-        console.log(`Quality options keys:`, Object.keys(qualityOptions));
-        
-        // Debug: Show first quality option details
-        if (hasQualities) {
-            const firstKey = Object.keys(qualityOptions)[0];
-            console.log(`First quality option (${firstKey}):`, qualityOptions[firstKey]);
-        }
-        
-        // Get thumbnail source badge
-        const thumbnailBadgeClass = getThumbnailSourceBadgeClass(thumbnailSource);
-        const thumbnailBadgeText = thumbnailSource.charAt(0).toUpperCase() + thumbnailSource.slice(1);
-        
-        html += `
-        <div class="result-card">
-            <!-- 1. THUMBNAIL - सबसे ऊपर -->
-            <div class="result-thumbnail-top">
-                <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
-                    <!-- Thumbnail will be loaded here -->
-                </div>
-            </div>
-            
-            <!-- 3. POST CONTENT - बीच में -->
-            ${hasPostContent ? `
-                <div class="result-post-content">
-                        ${formatPostContent(postContent)}
-                    </div>
-                </div>
-            ` : ''}
-            
-            <!-- 4. ACTION BUTTONS - सबसे नीचे -->
-            <div class="result-download-section">
-                ${hasFile && hasQualities ? `
-                    <div class="action-buttons-container">
-                        <!-- STREAM NOW BUTTON -->
-                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
-                        </button>
-                        
-                        <!-- DOWNLOAD BUTTON -->
-                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
-                            <i class="fas fa-download me-2"></i>Download Now
-                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
-                        </button>
-                    </div>
-                    
-                    <!-- STREAM QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="stream-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'stream')}
-                    </div>
-                    
-                    <!-- DOWNLOAD QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="download-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'download')}
-                    </div>
-                ` : hasFile ? `
-                    <div class="action-buttons-container">
-                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
-                        </button>
-                        
-                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
-                            <i class="fas fa-download me-2"></i>Download Now
-                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
-                        </button>
-                    </div>
-                    
-                    <!-- STREAM QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="stream-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'stream')}
-                    </div>
-                    
-                    <!-- DOWNLOAD QUALITY DROPDOWN -->
-                    <div class="quality-dropdown" id="download-quality-${i}">
-                        ${generateQualityOptions(qualityOptions, result, 'download')}
-                    </div>
-                ` : `
-                    <button class="btn btn-stream-now" disabled>
-                        <i class="fas fa-times me-2"></i>File Not Available
-                    </button>
-                `}
-            </div>
-            
-            <!-- DEBUG INFO (visible only in console) -->
-            <div style="display:none;" id="debug-${i}">
-                ${JSON.stringify({
-                    title: result.title,
-                    hasFile: hasFile,
-                    hasQualities: hasQualities,
-                    thumbnailSource: thumbnailSource,
-                    thumbnailExtracted: thumbnailExtracted,
-                    qualityKeys: Object.keys(qualityOptions),
-                    qualityOptions: qualityOptions,
-                    resultKeys: Object.keys(result)
-                })}
-            </div>
-        </div>
-        `;
-    }
-    
-    resultsContainer.innerHTML = html;
-    
-    // Load thumbnails for ALL results
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        loadThumbnailForResult(result, i);
-    }
-    
-    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
-    if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
+// ✅ UPDATED: Load thumbnail for result with proper fallback
 async function loadThumbnailForResult(result, index) {
     const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
     if (!thumbnailContainer) return;
@@ -1912,7 +1803,7 @@ async function loadThumbnailForResult(result, index) {
     const thumbnail = result.thumbnail_url || result.poster_url || '';
     const thumbnailSource = result.thumbnail_source || result.poster_source || 'fallback';
     const thumbnailBadgeClass = getThumbnailSourceBadgeClass(thumbnailSource);
-    const thumbnailBadgeText = thumbnailSource.charAt(0).toUpperCase() + thumbnailSource.slice(1);
+    const thumbnailBadgeText = getThumbnailSourceBadgeText(thumbnailSource);
     
     // Show loading state first
     thumbnailContainer.innerHTML = `
@@ -1923,60 +1814,108 @@ async function loadThumbnailForResult(result, index) {
         </div>
     `;
     
-    if (thumbnail && thumbnail !== 'https://iili.io/fAeIwv9.th.png') {
-        setTimeout(() => {
+    // Check if we have a valid thumbnail (not fallback URL)
+    const hasValidThumbnail = thumbnail && 
+                              thumbnail.trim() !== '' && 
+                              !thumbnail.includes('fAeIwv9.th.png') &&
+                              !thumbnail.includes('default-thumbnail');
+    
+    if (hasValidThumbnail) {
+        console.log(`✅ Loading thumbnail for ${result.title}: ${thumbnail.substring(0, 50)}...`);
+        
+        // Create image element
+        const img = new Image();
+        img.onload = function() {
             thumbnailContainer.innerHTML = `
                 <div class="thumbnail-source-badge ${thumbnailBadgeClass}">${thumbnailBadgeText}</div>
                 ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
-                <img src="${thumbnail}" alt="${escapeHtml(result.title)}" loading="lazy" 
-                     onerror="loadFallbackThumbnail('${escapeHtml(result.title)}', ${index})">
+                <img src="${thumbnail}" 
+                     alt="${escapeHtml(result.title)}" 
+                     loading="lazy"
+                     style="width: 100%; height: 100%; object-fit: cover;">
                 <div class="play-overlay" onclick="triggerAdLink()">
                     <div class="play-button">
                         <i class="fas fa-play"></i>
                     </div>
                 </div>
             `;
-        }, 100);
+        };
+        
+        img.onerror = function() {
+            console.log(`❌ Thumbnail failed to load, showing fallback`);
+            showDefaultThumbnail(result.title, index);
+        };
+        
+        img.src = thumbnail;
+        
+        // Set timeout in case image loading hangs
+        setTimeout(() => {
+            if (thumbnailContainer.querySelector('.thumbnail-loading')) {
+                console.log(`⏱️ Thumbnail loading timeout, showing fallback`);
+                showDefaultThumbnail(result.title, index);
+            }
+        }, 3000);
+        
     } else {
-        await loadFallbackThumbnail(result.title, index);
+        console.log(`⚠️ No valid thumbnail for ${result.title}, showing default`);
+        showDefaultThumbnail(result.title, index);
     }
 }
 
+// ✅ UPDATED: Load fallback thumbnail from TMDB/OMDB
 async function loadFallbackThumbnail(movieTitle, index) {
     const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
     if (!thumbnailContainer) return;
     
     try {
         const thumbnailUrl = await thumbnailCache.getThumbnail(movieTitle);
-        if (thumbnailUrl) {
-            thumbnailContainer.innerHTML = `
-                <div class="thumbnail-source-badge tmdb">SK</div>
-                <img src="${thumbnailUrl}" alt="${escapeHtml(movieTitle)}" loading="lazy" 
-                     onerror="showDefaultThumbnail('${escapeHtml(movieTitle)}', ${index})">
-                <div class="play-overlay" onclick="triggerAdLink()">
-                    <div class="play-button">
-                        <i class="fas fa-play"></i>
+        if (thumbnailUrl && !thumbnailUrl.includes('N/A')) {
+            console.log(`✅ Found fallback thumbnail from TMDB/OMDB`);
+            
+            const img = new Image();
+            img.onload = function() {
+                thumbnailContainer.innerHTML = `
+                    <div class="thumbnail-source-badge tmdb">SK</div>
+                    ${movieTitle ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
+                    <img src="${thumbnailUrl}" 
+                         alt="${escapeHtml(movieTitle)}" 
+                         loading="lazy"
+                         style="width: 100%; height: 100%; object-fit: cover;">
+                    <div class="play-overlay" onclick="triggerAdLink()">
+                        <div class="play-button">
+                            <i class="fas fa-play"></i>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            };
+            
+            img.onerror = function() {
+                showDefaultThumbnail(movieTitle, index);
+            };
+            
+            img.src = thumbnailUrl;
+            
         } else {
             showDefaultThumbnail(movieTitle, index);
         }
     } catch (error) {
+        console.log(`❌ Fallback thumbnail error: ${error.message}`);
         showDefaultThumbnail(movieTitle, index);
     }
 }
 
+// ✅ UPDATED: Show default thumbnail with SK4FiLM image
 function showDefaultThumbnail(movieTitle, index) {
     const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
     if (!thumbnailContainer) return;
     
     thumbnailContainer.innerHTML = `
         <div class="thumbnail-source-badge fallback">SK4FiLM</div>
-        <div class="default-thumbnail" onclick="triggerAdLink()">
-            <i class="fas fa-film"></i>
-            <span>${escapeHtml(movieTitle.substring(0, 30))}${movieTitle.length > 30 ? '...' : ''}</span>
-        </div>
+        ${movieTitle ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
+        <img src="https://iili.io/fAeIwv9.th.png" 
+             alt="${escapeHtml(movieTitle)}" 
+             loading="lazy"
+             style="width: 100%; height: 100%; object-fit: cover;">
         <div class="play-overlay" onclick="triggerAdLink()">
             <div class="play-button">
                 <i class="fas fa-play"></i>
