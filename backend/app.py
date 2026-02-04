@@ -254,8 +254,8 @@ class Config:
     BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
     
     # ✅ POSTER FETCHING API KEYS - IMPORTANT!
-    TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "")
-    OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "")
+    TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "e547e17d4e91f3e62a571655cd1ccaff")
+    OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "8265bd1c")
     
     # Performance Settings
     MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "50"))
