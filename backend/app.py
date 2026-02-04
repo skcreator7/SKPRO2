@@ -347,7 +347,7 @@ class Config:
     QUALITY_PRIORITY = ['2160p', '1080p', '720p', '480p', '360p']
     HEVC_VARIANTS = ['720p HEVC', '1080p HEVC', '2160p HEVC']
     
-    # Fallback Poster
+    # Fallback Poster - FIXED URL
     FALLBACK_POSTER = "https://iili.io/fAeIwv9.th.png"
     
     # Thumbnail Settings
@@ -964,7 +964,7 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ ENHANCED SEARCH FUNCTION - UPDATED WITH THUMBNAIL SUPPORT
+# ✅ ENHANCED SEARCH FUNCTION - COMPLETELY FIXED VERSION
 # ============================================================================
 
 # Helper function for channel names
@@ -974,7 +974,7 @@ def channel_name_cached(cid):
 @performance_monitor.measure("enhanced_search_fixed")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
 async def search_movies_enhanced_fixed(query, limit=15, page=1):
-    """FIXED: Combine post and file results for same title into SINGLE result with thumbnail support"""
+    """FIXED VERSION: Combine post and file results with proper thumbnail support"""
     offset = (page - 1) * limit
     
     # Try cache first
@@ -1108,9 +1108,6 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     quality_info = extract_quality_info(doc.get('file_name', ''))
                     quality = quality_info['full']
                     
-                    # Get existing thumbnail URL if any
-                    thumbnail_url = doc.get('thumbnail_url')
-                    
                     # Get REAL message ID
                     real_msg_id = doc.get('real_message_id') or doc.get('message_id')
                     
@@ -1130,8 +1127,6 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                             'real_message_id': real_msg_id,
                             'channel_id': doc.get('channel_id'),
                             'channel_name': channel_name_cached(doc.get('channel_id')),
-                            'thumbnail_url': thumbnail_url or existing_result.get('thumbnail_url'),
-                            'has_thumbnail': (thumbnail_url is not None) or existing_result.get('has_thumbnail', False),
                             'result_type': 'post_and_file',  # Changed to indicate both
                             'combined': True,  # Mark as combined
                             'search_score': 5  # Combined results get highest score
@@ -1177,8 +1172,6 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                             'file_caption': doc.get('caption', ''),
                             'year': year,
                             'quality': quality,
-                            'has_thumbnail': thumbnail_url is not None,
-                            'thumbnail_url': thumbnail_url,
                             'real_message_id': real_msg_id,
                             'search_score': 2,  # File-only results get medium score
                             'result_type': 'file_only',
@@ -1201,33 +1194,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
             logger.error(f"❌ File search error: {e}")
     
     # ============================================================================
-    # ✅ 3. FETCH THUMBNAILS FROM MOVIE_THUMBNAILS COLLECTION
-    # ============================================================================
-    logger.info(f"🖼️ Fetching thumbnails for {len(merged_results)} results...")
-    
-    thumbnail_fetch_tasks = []
-    for norm_title, result in merged_results.items():
-        # Only fetch thumbnail if not already available
-        if not result.get('has_thumbnail') or not result.get('thumbnail_url'):
-            task = thumbnail_manager.get_thumbnail_for_movie(norm_title)
-            thumbnail_fetch_tasks.append((norm_title, task))
-    
-    # Fetch thumbnails in parallel
-    if thumbnail_fetch_tasks:
-        for norm_title, task in thumbnail_fetch_tasks:
-            try:
-                thumbnail_url = await task
-                if thumbnail_url and norm_title in merged_results:
-                    merged_results[norm_title]['thumbnail_url'] = thumbnail_url
-                    merged_results[norm_title]['has_thumbnail'] = True
-                    merged_results[norm_title]['thumbnail_source'] = 'extracted'
-            except Exception as e:
-                logger.debug(f"Thumbnail fetch error for {norm_title}: {e}")
-        
-        logger.info(f"✅ Fetched thumbnails for {len(thumbnail_fetch_tasks)} movies")
-    
-    # ============================================================================
-    # ✅ 4. CONVERT DICTIONARY TO LIST AND SORT
+    # ✅ 3. CONVERT DICTIONARY TO LIST
     # ============================================================================
     all_results = list(merged_results.values())
     
@@ -1269,63 +1236,87 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         return result_data
     
     # ============================================================================
-    # ✅ 5. FETCH POSTERS FOR ALL RESULTS
+    # ✅ 4. FETCH THUMBNAILS AND POSTERS FOR ALL RESULTS - FIXED VERSION
     # ============================================================================
-    logger.info(f"🎬 Fetching posters for {len(all_results)} results...")
+    logger.info(f"🎬 Fetching thumbnails and posters for {len(all_results)} results...")
     
-    # Prepare movies for poster fetching
-    movies_for_posters = []
-    for result in all_results:
-        movie_data = {
-            'title': result.get('title', ''),
-            'year': result.get('year', ''),
-            'quality': result.get('quality', ''),
-            'original_title': result.get('original_title', ''),
-            'has_thumbnail': result.get('has_thumbnail', False),
-            'thumbnail_url': result.get('thumbnail_url'),
-            'result_type': result.get('result_type', 'unknown')
-        }
+    # Prepare list for poster fetching
+    poster_tasks = []
+    for idx, result in enumerate(all_results):
+        title = result.get('title', '')
+        year = result.get('year', '')
+        quality = result.get('quality', '')
         
-        movies_for_posters.append(movie_data)
+        # Create task for each movie
+        task = asyncio.create_task(get_poster_for_movie(title, year, quality))
+        poster_tasks.append((idx, task))
     
-    if movies_for_posters:
-        # Fetch posters in batch
-        movies_with_posters = await get_posters_for_movies_batch(movies_for_posters)
-        
-        # Update results with poster data
-        for i, result in enumerate(all_results):
-            title = result.get('title', '')
+    # Process all poster tasks
+    for idx, task in poster_tasks:
+        try:
+            poster_data = await asyncio.wait_for(task, timeout=3.0)
             
-            # Find matching poster data
-            poster_data = None
-            for movie in movies_with_posters:
-                if movie.get('title') == title:
-                    poster_data = movie
-                    break
-            
-            if poster_data:
-                # Update with poster info
-                result.update({
-                    'poster_url': poster_data.get('poster_url', Config.FALLBACK_POSTER),
-                    'poster_source': poster_data.get('poster_source', 'fallback'),
-                    'poster_rating': poster_data.get('poster_rating', '0.0'),
+            if poster_data and poster_data.get('poster_url'):
+                # Update result with poster data
+                all_results[idx].update({
+                    'poster_url': poster_data.get('poster_url'),
+                    'poster_source': poster_data.get('source', 'custom'),
+                    'poster_rating': poster_data.get('rating', '0.0'),
                     'has_poster': True,
-                    # Use thumbnail if available, otherwise use poster
-                    'thumbnail': result.get('thumbnail_url') or poster_data.get('poster_url'),
-                    'thumbnail_source': result.get('thumbnail_source') or poster_data.get('poster_source', 'fallback'),
+                    # Set thumbnail to poster if no thumbnail available
+                    'thumbnail_url': all_results[idx].get('thumbnail_url') or poster_data.get('poster_url'),
+                    'thumbnail_source': all_results[idx].get('thumbnail_source') or poster_data.get('source', 'custom'),
                     'has_thumbnail': True
                 })
             else:
                 # Fallback for movies without poster
-                result.update({
+                all_results[idx].update({
                     'poster_url': Config.FALLBACK_POSTER,
                     'poster_source': 'fallback',
                     'poster_rating': '0.0',
                     'has_poster': True,
-                    'thumbnail': result.get('thumbnail_url') or Config.FALLBACK_POSTER,
-                    'thumbnail_source': result.get('thumbnail_source') or 'fallback',
+                    'thumbnail_url': all_results[idx].get('thumbnail_url') or Config.FALLBACK_POSTER,
+                    'thumbnail_source': all_results[idx].get('thumbnail_source') or 'fallback',
                     'has_thumbnail': True
                 })
+                
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.warning(f"⚠️ Poster fetch timeout for {all_results[idx].get('title', '')}: {e}")
+            # Fallback
+            all_results[idx].update({
+                'poster_url': Config.FALLBACK_POSTER,
+                'poster_source': 'fallback',
+                'poster_rating': '0.0',
+                'has_poster': True,
+                'thumbnail_url': all_results[idx].get('thumbnail_url') or Config.FALLBACK_POSTER,
+                'thumbnail_source': all_results[idx].get('thumbnail_source') or 'fallback',
+                'has_thumbnail': True
+            })
+    
+    # ============================================================================
+    # ✅ 5. ENSURE ALL RESULTS HAVE THUMBNAIL AND POSTER URLS
+    # ============================================================================
+    logger.info("✅ Ensuring all results have thumbnail and poster URLs...")
+    
+    for result in all_results:
+        # Ensure thumbnail URL is set
+        if not result.get('thumbnail_url'):
+            result['thumbnail_url'] = result.get('poster_url') or Config.FALLBACK_POSTER
+        
+        # Ensure poster URL is set
+        if not result.get('poster_url'):
+            result['poster_url'] = Config.FALLBACK_POSTER
+        
+        # Ensure thumbnail_source is set
+        if not result.get('thumbnail_source'):
+            result['thumbnail_source'] = result.get('poster_source') or 'fallback'
+        
+        # Ensure has_thumbnail is True if we have a thumbnail URL
+        if result.get('thumbnail_url') and result['thumbnail_url'] != Config.FALLBACK_POSTER:
+            result['has_thumbnail'] = True
+        
+        # Ensure has_poster is True
+        result['has_poster'] = True
     
     # ============================================================================
     # ✅ 6. SORT RESULTS
@@ -1373,20 +1364,22 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     logger.info(f"   • Files merged with posts: {file_results_merged}")
     logger.info(f"   • Thumbnails in DB: {thumbnail_stats.get('total_thumbnails', 0)}")
     
-    # Show sample of results
-    for i, result in enumerate(paginated[:5]):
+    # Show sample of results with thumbnail info
+    for i, result in enumerate(paginated[:3]):
         result_type = result.get('result_type', 'unknown')
         title = result.get('title', '')[:40]
         has_poster = result.get('has_poster', False)
         has_thumbnail = result.get('has_thumbnail', False)
-        has_file = result.get('has_file', False)
-        has_post = result.get('has_post', False)
-        thumbnail_source = result.get('thumbnail_source', 'none')
+        thumbnail_url = result.get('thumbnail_url', '')[:50] if result.get('thumbnail_url') else 'None'
+        poster_url = result.get('poster_url', '')[:50] if result.get('poster_url') else 'None'
         
-        logger.info(f"   📋 {i+1}. {result_type}: {title}... | File: {has_file} | Post: {has_post} | Thumb: {has_thumbnail} ({thumbnail_source})")
+        logger.info(f"   📋 {i+1}. {result_type}: {title}...")
+        logger.info(f"      Thumbnail URL: {thumbnail_url}...")
+        logger.info(f"      Poster URL: {poster_url}...")
+        logger.info(f"      Has Thumbnail: {has_thumbnail}, Has Poster: {has_poster}")
     
     # ============================================================================
-    # ✅ 8. FINAL DATA STRUCTURE
+    # ✅ 8. FINAL DATA STRUCTURE - WITH FIXED THUMBNAIL DATA
     # ============================================================================
     result_data = {
         'results': paginated,
@@ -1402,15 +1395,19 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
             'query': query,
             'stats': stats,
             'thumbnail_stats': thumbnail_stats,
-            'post_file_merged': True,  # ✅ New feature
-            'file_only_with_poster': True,  # ✅ New feature
+            'post_file_merged': True,
+            'file_only_with_poster': True,
             'poster_fetcher': poster_fetcher is not None,
             'thumbnails_enabled': True,
             'thumbnail_manager': True,
             'real_message_ids': True,
             'search_logic': 'enhanced_fixed_with_merging'
         },
-        'bot_username': Config.BOT_USERNAME
+        'bot_username': Config.BOT_USERNAME,
+        'config': {
+            'fallback_poster': Config.FALLBACK_POSTER,
+            'thumbnail_extraction_enabled': Config.THUMBNAIL_EXTRACTION_ENABLED
+        }
     }
     
     # Cache results
@@ -2233,113 +2230,172 @@ async def initial_indexing_optimized():
         logger.error(f"❌ Initial indexing error: {e}")
 
 # ============================================================================
-# ✅ POSTER FETCHING FUNCTIONS
+# ✅ POSTER FETCHING FUNCTIONS - COMPLETELY FIXED VERSION
 # ============================================================================
 
 async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
-    """Get poster for movie"""
+    """Get poster for movie - FIXED with proper error handling and fallback"""
     global poster_fetcher
     
-    # If poster_fetcher is not available, use fallback
+    # Clean the title for better search results
+    def clean_movie_title(title):
+        if not title:
+            return ""
+        
+        # Remove common prefixes
+        title = title.strip()
+        if title.startswith('@CSZMovies '):
+            title = title.replace('@CSZMovies ', '', 1)
+        
+        # Remove quality indicators
+        patterns_to_remove = [
+            r'\b\d{3,4}p\b',
+            r'\bHD\b',
+            r'\bHQ\b',
+            r'\bHEVC\b',
+            r'\bx265\b',
+            r'\bx264\b',
+            r'\bWEB-DL\b',
+            r'\bWEBRip\b',
+            r'\bHDRip\b',
+            r'\bBluRay\b',
+            r'\bDVDRip\b',
+            r'\bTC\b',
+            r'\bTS\b',
+            r'\bCAM\b',
+            r'\bHindi\b',
+            r'\bEnglish\b',
+            r'\bTamil\b',
+            r'\bTelugu\b',
+            r'\bMalayalam\b',
+            r'\bKannada\b',
+            r'\b[\d\.]+GB\b',
+            r'\b[\d\.]+MB\b',
+            r'\[.*?\]',
+            r'\(.*?\)',
+            r'\{.*?\}'
+        ]
+        
+        for pattern in patterns_to_remove:
+            title = re.sub(pattern, '', title, flags=re.IGNORECASE)
+        
+        # Clean up extra spaces
+        title = re.sub(r'\s+', ' ', title)
+        title = title.strip()
+        
+        # Remove year at the end
+        title = re.sub(r'\s*\d{4}$', '', title)
+        
+        return title
+    
+    clean_title = clean_movie_title(title)
+    
+    logger.debug(f"🔍 Fetching poster for: '{clean_title}' (original: '{title}')")
+    
+    # If poster_fetcher is not available, use fallback immediately
     if poster_fetcher is None:
+        logger.debug(f"⚠️ Poster fetcher not available, using fallback for: {clean_title}")
         return {
             'poster_url': Config.FALLBACK_POSTER,
-            'source': 'custom',
+            'source': 'fallback',
             'rating': '0.0',
             'year': year,
-            'title': title,
+            'title': clean_title,
             'quality': quality or 'unknown'
         }
     
     try:
-        # Fetch poster with timeout
-        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title))
+        # Try with cleaned title first (most likely to succeed)
+        logger.debug(f"🔄 Trying cleaned title: {clean_title}")
+        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(clean_title))
         
         try:
-            poster_data = await asyncio.wait_for(poster_task, timeout=3.0)
+            poster_data = await asyncio.wait_for(poster_task, timeout=2.0)
             
-            if poster_data and poster_data.get('poster_url'):
-                logger.debug(f"✅ Poster fetched: {title} - {poster_data['source']}")
-                return poster_data
-            else:
-                raise ValueError("Invalid poster data")
-                
-        except (asyncio.TimeoutError, ValueError, Exception) as e:
-            logger.warning(f"⚠️ Poster fetch timeout/error for {title}: {e}")
-            
+            if poster_data and poster_data.get('poster_url') and poster_data['poster_url'] != Config.FALLBACK_POSTER:
+                logger.debug(f"✅ Poster found with cleaned title: {clean_title}")
+                return {
+                    'poster_url': poster_data['poster_url'],
+                    'source': poster_data['source'],
+                    'rating': poster_data.get('rating', '0.0'),
+                    'year': year,
+                    'title': clean_title,
+                    'quality': quality or 'unknown'
+                }
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.debug(f"⚠️ Cleaned title fetch failed: {e}")
             if not poster_task.done():
                 poster_task.cancel()
+        
+        # If cleaned title failed, try with original title
+        if title != clean_title:
+            logger.debug(f"🔄 Trying original title: {title}")
+            poster_task2 = asyncio.create_task(poster_fetcher.fetch_poster(title))
             
-            # Return fallback
-            return {
-                'poster_url': Config.FALLBACK_POSTER,
-                'source': 'custom',
-                'rating': '0.0',
-                'year': year,
-                'title': title,
-                'quality': quality or 'unknown'
-            }
+            try:
+                poster_data2 = await asyncio.wait_for(poster_task2, timeout=2.0)
+                
+                if poster_data2 and poster_data2.get('poster_url') and poster_data2['poster_url'] != Config.FALLBACK_POSTER:
+                    logger.debug(f"✅ Poster found with original title: {title}")
+                    return {
+                        'poster_url': poster_data2['poster_url'],
+                        'source': poster_data2['source'],
+                        'rating': poster_data2.get('rating', '0.0'),
+                        'year': year,
+                        'title': title,
+                        'quality': quality or 'unknown'
+                    }
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.debug(f"⚠️ Original title fetch failed: {e}")
+                if not poster_task2.done():
+                    poster_task2.cancel()
+        
+        # If both failed, use fallback
+        logger.warning(f"⚠️ No poster found for: {clean_title} (tried: '{clean_title}' and '{title}')")
+        return {
+            'poster_url': Config.FALLBACK_POSTER,
+            'source': 'fallback',
+            'rating': '0.0',
+            'year': year,
+            'title': clean_title,
+            'quality': quality or 'unknown'
+        }
             
     except Exception as e:
         logger.error(f"❌ Unexpected error in get_poster_for_movie: {e}")
         return {
             'poster_url': Config.FALLBACK_POSTER,
-            'source': 'custom',
+            'source': 'error',
             'rating': '0.0',
             'year': year,
-            'title': title,
+            'title': clean_title,
             'quality': quality or 'unknown'
         }
 
 async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
-    """Get posters for multiple movies in batch"""
+    """Get posters for multiple movies in batch - SIMPLIFIED VERSION"""
     results = []
     
-    # Create tasks for all movies
-    tasks = []
     for movie in movies:
         title = movie.get('title', '')
         year = movie.get('year', '')
         quality = movie.get('quality', '')
         
-        task = asyncio.create_task(get_poster_for_movie(title, year, quality))
-        tasks.append((movie, task))
-    
-    # Process results
-    for movie, task in tasks:
-        try:
-            poster_data = await task
-            
-            # Update movie with poster data
-            movie_with_poster = movie.copy()
-            movie_with_poster.update({
-                'poster_url': poster_data['poster_url'],
-                'poster_source': poster_data['source'],
-                'poster_rating': poster_data['rating'],
-                'thumbnail': poster_data['poster_url'],
-                'thumbnail_source': poster_data['source'],
-                'has_poster': True,
-                'has_thumbnail': True
-            })
-            
-            results.append(movie_with_poster)
-            
-        except Exception as e:
-            logger.warning(f"⚠️ Batch poster error for {movie.get('title')}: {e}")
-            
-            # Add movie with fallback
-            movie_with_fallback = movie.copy()
-            movie_with_fallback.update({
-                'poster_url': Config.FALLBACK_POSTER,
-                'poster_source': 'fallback',
-                'poster_rating': '0.0',
-                'thumbnail': Config.FALLBACK_POSTER,
-                'thumbnail_source': 'fallback',
-                'has_poster': True,
-                'has_thumbnail': True
-            })
-            
-            results.append(movie_with_fallback)
+        poster_data = await get_poster_for_movie(title, year, quality)
+        
+        # Update movie with poster data
+        movie_with_poster = movie.copy()
+        movie_with_poster.update({
+            'poster_url': poster_data['poster_url'],
+            'poster_source': poster_data['source'],
+            'poster_rating': poster_data['rating'],
+            'thumbnail_url': poster_data['poster_url'],  # Use poster as thumbnail
+            'thumbnail_source': poster_data['source'],
+            'has_poster': True,
+            'has_thumbnail': True
+        })
+        
+        results.append(movie_with_poster)
     
     return results
 
@@ -2674,14 +2730,6 @@ async def get_home_movies(limit=25):
                     # Get normalized title for thumbnail lookup
                     norm_title = normalize_title(clean_title)
                     
-                    # Try to get thumbnail
-                    thumbnail_url = None
-                    has_thumbnail = False
-                    
-                    if Config.THUMBNAIL_EXTRACTION_ENABLED:
-                        thumbnail_url = await thumbnail_manager.get_thumbnail_for_movie(norm_title)
-                        has_thumbnail = thumbnail_url is not None
-                    
                     movie_data = {
                         'title': clean_title,
                         'original_title': title,
@@ -2701,9 +2749,11 @@ async def get_home_movies(limit=25):
                         'result_type': 'post_only',
                         'search_score': 1,
                         'has_poster': False,
-                        'has_thumbnail': has_thumbnail,
-                        'thumbnail_url': thumbnail_url,
-                        'thumbnail_source': 'extracted' if has_thumbnail else None
+                        'has_thumbnail': False,
+                        'thumbnail_url': None,
+                        'thumbnail_source': None,
+                        'poster_url': None,
+                        'poster_source': None
                     }
                     
                     movies.append(movie_data)
@@ -2711,8 +2761,8 @@ async def get_home_movies(limit=25):
                     if len(movies) >= limit:
                         break
         
-        # Fetch posters for all movies in batch
-        if movies:
+        # Fetch posters for all movies
+        if movies and poster_fetcher is not None:
             movies_with_posters = await get_posters_for_movies_batch(movies)
             logger.info(f"✅ Fetched {len(movies_with_posters)} home movies with posters")
             return movies_with_posters[:limit]
@@ -2899,6 +2949,17 @@ async def api_search():
         
         result_data = await search_movies_enhanced_fixed(query, limit, page)
         
+        # Add debug info to response
+        result_data['debug_info'] = {
+            'query': query,
+            'page': page,
+            'limit': limit,
+            'results_count': len(result_data.get('results', [])),
+            'poster_fetcher_available': poster_fetcher is not None,
+            'thumbnail_manager_available': True,
+            'fallback_poster': Config.FALLBACK_POSTER
+        }
+        
         return jsonify({
             'status': 'success',
             'query': query,
@@ -2912,7 +2973,8 @@ async def api_search():
                 'real_message_ids': True,
             },
             'bot_username': Config.BOT_USERNAME,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'debug_info': result_data.get('debug_info', {})
         })
     except Exception as e:
         logger.error(f"Search API error: {e}")
@@ -3121,6 +3183,7 @@ async def api_admin_db_stats():
             'real_message_id': 1,
             'quality': 1, 
             'thumbnail_extracted': 1,
+            'thumbnail_url': 1,
             '_id': 0
         }).limit(5).to_list(length=5)
         
@@ -3137,6 +3200,7 @@ async def api_admin_db_stats():
             'date': 1, 
             'real_message_id': 1,
             'thumbnail_extracted': 1,
+            'thumbnail_url': 1,
             '_id': 0
         }).sort('date', -1).limit(5).to_list(length=5)
         
@@ -3145,6 +3209,7 @@ async def api_admin_db_stats():
         if movie_thumbnails_col is not None:
             sample_thumbnails = await movie_thumbnails_col.find({}, {
                 'normalized_title': 1,
+                'thumbnail_url': 1,
                 'extracted_at': 1,
                 '_id': 0
             }).sort('extracted_at', -1).limit(5).to_list(length=5)
@@ -3210,6 +3275,7 @@ async def api_admin_thumbnails_stats():
         if movie_thumbnails_col is not None:
             recent_thumbnails = await movie_thumbnails_col.find({}, {
                 'normalized_title': 1,
+                'thumbnail_url': 1,
                 'extracted_at': 1,
                 'channel_id': 1,
                 'message_id': 1,
