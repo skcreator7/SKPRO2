@@ -1,5 +1,5 @@
 # ============================================================================
-# thumbnail_manager.py - DUAL MONGODB THUMBNAIL MANAGEMENT SYSTEM
+# thumbnail_manager.py - SINGLE MONGODB THUMBNAIL MANAGEMENT SYSTEM
 # ============================================================================
 
 import asyncio
@@ -11,17 +11,16 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import hashlib
 import aiohttp
-from motor.motor_asyncio import AsyncIOMotorCollection
 
 logger = logging.getLogger(__name__)
 
 class ThumbnailManager:
-    """Thumbnail management system with separate MongoDB database"""
+    """Thumbnail management system with single MongoDB database"""
     
     def __init__(self, mongo_client, config, bot_handler=None):
         self.mongo_client = mongo_client
         self.db = mongo_client.get_database()
-        self.thumbnails_col = self.db.thumbnails
+        self.thumbnails_col = self.db.thumbnails  # ✅ Same database
         self.config = config
         self.bot_handler = bot_handler
         
@@ -45,7 +44,7 @@ class ThumbnailManager:
     
     async def initialize(self):
         """Initialize thumbnail manager"""
-        logger.info("🖼️ Initializing Thumbnail Manager with separate database...")
+        logger.info("🖼️ Initializing Thumbnail Manager with single database...")
         
         # Create indexes
         await self.create_indexes()
@@ -63,7 +62,7 @@ class ThumbnailManager:
             await self.thumbnails_col.create_index(
                 [("last_accessed", 1)],
                 expireAfterSeconds=self.config.THUMBNAIL_TTL_DAYS * 24 * 60 * 60,
-                name="ttl_index",
+                name="thumbnails_ttl_index",
                 background=True
             )
             
@@ -71,32 +70,32 @@ class ThumbnailManager:
             await self.thumbnails_col.create_index(
                 [("channel_id", 1), ("message_id", 1)],
                 unique=True,
-                name="message_unique",
+                name="thumbnails_message_unique",
                 background=True
             )
             
             # Create index for normalized_title
             await self.thumbnails_col.create_index(
                 [("normalized_title", 1)],
-                name="title_index",
+                name="thumbnails_title_index",
                 background=True
             )
             
             # Create index for source
             await self.thumbnails_col.create_index(
                 [("source", 1)],
-                name="source_index",
+                name="thumbnails_source_index",
                 background=True
             )
             
             # Create index for extracted flag
             await self.thumbnails_col.create_index(
                 [("extracted", 1)],
-                name="extracted_index",
+                name="thumbnails_extracted_index",
                 background=True
             )
             
-            logger.info("✅ Thumbnail database indexes created")
+            logger.info("✅ Thumbnail collection indexes created")
             
         except Exception as e:
             logger.error(f"❌ Error creating thumbnail indexes: {e}")
@@ -199,8 +198,8 @@ class ThumbnailManager:
             
             normalized_title = self.normalize_title(title)
             
-            # 1. Check Thumbnails Database for existing thumbnail
-            thumbnail_data = await self._get_from_thumbnails_db(normalized_title, channel_id, message_id)
+            # 1. Check Thumbnails Collection for existing thumbnail
+            thumbnail_data = await self._get_from_thumbnails_collection(normalized_title, channel_id, message_id)
             if thumbnail_data:
                 # Update cache
                 self.thumbnail_cache[cache_key] = {
@@ -213,8 +212,8 @@ class ThumbnailManager:
             if channel_id and message_id:
                 telegram_thumbnail = await self.extract_thumbnail_from_telegram(channel_id, message_id)
                 if telegram_thumbnail:
-                    # Save to Thumbnails Database
-                    await self._save_to_thumbnails_db(
+                    # Save to Thumbnails Collection
+                    await self._save_to_thumbnails_collection(
                         normalized_title=normalized_title,
                         thumbnail_url=telegram_thumbnail,
                         source='telegram',
@@ -237,14 +236,14 @@ class ThumbnailManager:
                     }
                     
                     self.stats['total_extracted'] += 1
-                    logger.info(f"✅ Thumbnail extracted and saved to thumbnails DB: {title}")
+                    logger.info(f"✅ Thumbnail extracted and saved to thumbnails collection: {title}")
                     return thumbnail_data
             
             # 3. Try to fetch from TMDB/OMDB
             api_thumbnail = await self._fetch_from_api(title)
             if api_thumbnail:
-                # Save to Thumbnails Database
-                await self._save_to_thumbnails_db(
+                # Save to Thumbnails Collection
+                await self._save_to_thumbnails_collection(
                     normalized_title=normalized_title,
                     thumbnail_url=api_thumbnail['url'],
                     source=api_thumbnail['source'],
@@ -268,7 +267,7 @@ class ThumbnailManager:
                 
                 self.stats['total_fetched_from_api'] += 1
                 self.stats['api_fetches'] += 1
-                logger.info(f"✅ Thumbnail fetched from API and saved to thumbnails DB: {title} - {api_thumbnail['source']}")
+                logger.info(f"✅ Thumbnail fetched from API and saved to thumbnails collection: {title} - {api_thumbnail['source']}")
                 return thumbnail_data
             
             # 4. Return fallback image
@@ -298,8 +297,8 @@ class ThumbnailManager:
                 'extracted': False
             }
     
-    async def _get_from_thumbnails_db(self, normalized_title: str, channel_id: int = None, message_id: int = None) -> Optional[Dict]:
-        """Get thumbnail from Thumbnails Database"""
+    async def _get_from_thumbnails_collection(self, normalized_title: str, channel_id: int = None, message_id: int = None) -> Optional[Dict]:
+        """Get thumbnail from Thumbnails Collection"""
         try:
             query = {}
             
@@ -333,13 +332,13 @@ class ThumbnailManager:
             return None
             
         except Exception as e:
-            logger.error(f"❌ Thumbnails DB fetch error: {e}")
+            logger.error(f"❌ Thumbnails collection fetch error: {e}")
             return None
     
-    async def _save_to_thumbnails_db(self, normalized_title: str, thumbnail_url: str, 
+    async def _save_to_thumbnails_collection(self, normalized_title: str, thumbnail_url: str, 
                                    source: str, extracted: bool, 
                                    channel_id: int = None, message_id: int = None):
-        """Save thumbnail to Thumbnails Database"""
+        """Save thumbnail to Thumbnails Collection"""
         try:
             thumbnail_doc = {
                 'normalized_title': normalized_title,
@@ -387,10 +386,10 @@ class ThumbnailManager:
                     upsert=True
                 )
             
-            logger.debug(f"✅ Thumbnail saved to Thumbnails DB: {normalized_title}")
+            logger.debug(f"✅ Thumbnail saved to Thumbnails Collection: {normalized_title}")
             
         except Exception as e:
-            logger.error(f"❌ Error saving thumbnail to Thumbnails DB: {e}")
+            logger.error(f"❌ Error saving thumbnail to Thumbnails Collection: {e}")
     
     async def _fetch_from_api(self, title: str) -> Optional[Dict]:
         """Fetch thumbnail from TMDB/OMDB APIs"""
@@ -580,8 +579,9 @@ class ThumbnailManager:
         try:
             logger.info("🧹 Cleaning up orphaned thumbnails...")
             
-            # Import files collection from main app
-            from app import files_col
+            # Get files collection from same database
+            files_col = self.db.files  # ✅ Same database
+            
             if files_col is None:
                 logger.warning("⚠️ Files collection not available for cleanup")
                 return
@@ -653,6 +653,10 @@ class ThumbnailManager:
                 'cache_stats': {
                     'cache_size': len(self.thumbnail_cache),
                     'cache_ttl_hours': self.cache_ttl / 3600
+                },
+                'database_info': {
+                    'single_database': True,
+                    'collection_name': 'thumbnails'
                 }
             }
             
