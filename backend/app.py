@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - DUAL MONGODB SYSTEM WITH AUTO THUMBNAIL EXTRACTION
+# 🚀 SK4FiLM v9.0 - SINGLE MONGODB SYSTEM WITH AUTO THUMBNAIL EXTRACTION
 # ============================================================================
 
 import asyncio
@@ -308,7 +308,7 @@ class PerformanceMonitor:
 performance_monitor = PerformanceMonitor()
 
 # ============================================================================
-# ✅ CONFIGURATION - DUAL MONGODB SYSTEM WITH EXPLICIT DATABASE NAMES
+# ✅ CONFIGURATION - SINGLE MONGODB SYSTEM
 # ============================================================================
 
 class Config:
@@ -318,14 +318,9 @@ class Config:
     USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     
-    # ✅ DUAL MONGODB CONFIGURATION WITH EXPLICIT DATABASE NAMES
-    # Files Database
-    MONGODB_URI_FILES = os.environ.get("MONGODB_URI_FILES", 
-        "mongodb+srv://Sklink:skweb@cluster0.bfiw4el.mongodb.net/sk4film_files?retryWrites=true&w=majority&appName=Cluster0")
-    
-    # Thumbnails Database
-    MONGODB_URI_THUMBNAILS = os.environ.get("MONGODB_URI_THUMBNAILS", 
-        "mongodb+srv://Thumb:store@cluster0.bypnyhv.mongodb.net/sk4film_thumbnails?retryWrites=true&w=majority&appName=Cluster0")
+    # ✅ SINGLE MONGODB CONFIGURATION
+    MONGODB_URI = os.environ.get("MONGODB_URI", 
+        "mongodb+srv://Sklink:skweb@cluster0.bfiw4el.mongodb.net/sk4film?retryWrites=true&w=majority&appName=Cluster0")
     
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
@@ -415,26 +410,20 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.0-DUAL-MONGODB'
+    response.headers['X-SK4FiLM-Version'] = '9.0-SINGLE-MONGODB'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
 # ============================================================================
-# ✅ GLOBAL COMPONENTS - DUAL MONGODB
+# ✅ GLOBAL COMPONENTS - SINGLE MONGODB
 # ============================================================================
 
-# ✅ DUAL MONGODB CONNECTIONS
-mongo_client_files = None
-mongo_client_thumbnails = None
-
-# Files Database
-db_files = None
+# ✅ SINGLE MONGODB CONNECTION
+mongo_client = None
+db = None
 files_col = None
 verification_col = None
-
-# Thumbnails Database
-db_thumbnails = None
-thumbnails_col = None
+thumbnails_col = None  # ✅ Now in same database
 
 # Telegram Sessions
 try:
@@ -465,11 +454,11 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ BOT HANDLER MODULE - FIXED WITH MISSING METHODS
+# ✅ BOT HANDLER MODULE
 # ============================================================================
 
 class BotHandler:
-    """Bot handler for Telegram bot operations - FIXED VERSION"""
+    """Bot handler for Telegram bot operations"""
     
     def __init__(self, bot_token=None, api_id=None, api_hash=None):
         self.bot_token = bot_token or Config.BOT_TOKEN
@@ -781,122 +770,72 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ DUAL MONGODB INITIALIZATION - FIXED WITH EXPLICIT DATABASE NAMES
+# ✅ SINGLE MONGODB INITIALIZATION
 # ============================================================================
 
-@performance_monitor.measure("dual_mongodb_init")
-async def init_dual_mongodb():
-    """Initialize dual MongoDB connections with explicit database names"""
-    global mongo_client_files, mongo_client_thumbnails
-    global db_files, files_col, verification_col
-    global db_thumbnails, thumbnails_col
+@performance_monitor.measure("single_mongodb_init")
+async def init_single_mongodb():
+    """Initialize single MongoDB connection with two collections"""
+    global mongo_client, db, files_col, verification_col, thumbnails_col
     
     try:
-        logger.info("🔌 Initializing DUAL MongoDB system...")
+        logger.info("🔌 Initializing SINGLE MongoDB system with 2 collections...")
         
-        # 1. Initialize Files Database
-        logger.info("📁 Initializing Files Database...")
-        files_uri = Config.MONGODB_URI_FILES
-        
-        # Extract database name safely
-        db_name_files = extract_database_name(files_uri, "sk4film_files")
-        logger.info(f"Files Database: {db_name_files}")
+        # Get MongoDB URI
+        mongodb_uri = Config.MONGODB_URI
         
         # Create client with timeout
-        mongo_client_files = AsyncIOMotorClient(
-            files_uri,
-            serverSelectionTimeoutMS=20000,
-            connectTimeoutMS=20000,
-            socketTimeoutMS=30000,
+        mongo_client = AsyncIOMotorClient(
+            mongodb_uri,
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=45000,
             maxPoolSize=10,
             minPoolSize=2,
             retryWrites=True,
             retryReads=True,
-            appname="SK4FiLM-Files"
+            appname="SK4FiLM-Single"
         )
         
         # Test connection
         try:
-            await asyncio.wait_for(mongo_client_files.admin.command('ping'), timeout=15)
-            logger.info("✅ Files Database connection test successful")
+            await asyncio.wait_for(mongo_client.admin.command('ping'), timeout=15)
+            logger.info("✅ MongoDB connection test successful")
         except asyncio.TimeoutError:
-            logger.error("❌ Files Database connection timeout")
+            logger.error("❌ MongoDB connection timeout")
             return False
         
-        # Get database
-        db_files = mongo_client_files[db_name_files]
-        files_col = db_files.files
-        verification_col = db_files.verifications
+        # Get database name from URI or use default
+        db_name = extract_database_name(mongodb_uri, "sk4film")
+        logger.info(f"Database: {db_name}")
+        
+        # Get database and collections
+        db = mongo_client[db_name]
+        files_col = db.files
+        verification_col = db.verifications
+        thumbnails_col = db.thumbnails  # ✅ Now in same database
         
         # Try to create a test document
         try:
             test_doc = {"test": True, "timestamp": datetime.now()}
             await files_col.insert_one(test_doc)
             await files_col.delete_one({"test": True})
-            logger.info("✅ Files Database read/write test successful")
+            logger.info("✅ Files collection read/write test successful")
         except Exception as e:
-            logger.warning(f"⚠️ Files Database write test failed (may be permissions): {e}")
+            logger.warning(f"⚠️ Files collection write test failed (may be permissions): {e}")
         
-        # Setup indexes for files database
-        await setup_files_database_indexes()
+        # Setup indexes for both collections
+        await setup_database_indexes()
         
-        logger.info("✅ Files Database initialized successfully")
-        
-        # 2. Initialize Thumbnails Database
-        logger.info("🖼️ Initializing Thumbnails Database...")
-        thumbnails_uri = Config.MONGODB_URI_THUMBNAILS
-        
-        # Extract database name safely
-        db_name_thumbnails = extract_database_name(thumbnails_uri, "sk4film_thumbnails")
-        logger.info(f"Thumbnails Database: {db_name_thumbnails}")
-        
-        # Create client with timeout
-        mongo_client_thumbnails = AsyncIOMotorClient(
-            thumbnails_uri,
-            serverSelectionTimeoutMS=20000,
-            connectTimeoutMS=20000,
-            socketTimeoutMS=30000,
-            maxPoolSize=10,
-            minPoolSize=2,
-            retryWrites=True,
-            retryReads=True,
-            appname="SK4FiLM-Thumbnails"
-        )
-        
-        # Test connection
-        try:
-            await asyncio.wait_for(mongo_client_thumbnails.admin.command('ping'), timeout=15)
-            logger.info("✅ Thumbnails Database connection test successful")
-        except asyncio.TimeoutError:
-            logger.error("❌ Thumbnails Database connection timeout")
-            return False
-        
-        # Get database
-        db_thumbnails = mongo_client_thumbnails[db_name_thumbnails]
-        thumbnails_col = db_thumbnails.thumbnails
-        
-        # Try to create a test document
-        try:
-            test_doc = {"test": True, "timestamp": datetime.now()}
-            await thumbnails_col.insert_one(test_doc)
-            await thumbnails_col.delete_one({"test": True})
-            logger.info("✅ Thumbnails Database read/write test successful")
-        except Exception as e:
-            logger.warning(f"⚠️ Thumbnails Database write test failed (may be permissions): {e}")
-        
-        # Setup indexes for thumbnails database
-        await setup_thumbnails_database_indexes()
-        
-        logger.info("✅ Thumbnails Database initialized successfully")
-        
-        # Log database stats
+        # Log collection stats
         try:
             files_count = await files_col.count_documents({})
             thumbnails_count = await thumbnails_col.count_documents({})
-            logger.info(f"📊 Database Stats: Files={files_count}, Thumbnails={thumbnails_count}")
+            logger.info(f"📊 Collection Stats: Files={files_count}, Thumbnails={thumbnails_count}")
         except Exception as e:
-            logger.warning(f"⚠️ Could not get database stats: {e}")
+            logger.warning(f"⚠️ Could not get collection stats: {e}")
         
+        logger.info("✅ Single MongoDB system initialized successfully")
         return True
         
     except Exception as e:
@@ -934,8 +873,10 @@ def extract_database_name(uri, default_name):
     except:
         return default_name
 
-async def setup_files_database_indexes():
-    """Setup indexes for files database"""
+async def setup_database_indexes():
+    """Setup indexes for both collections in single database"""
+    
+    # 1. Files collection indexes
     try:
         # Channel + Message ID unique index
         await files_col.create_index(
@@ -966,19 +907,18 @@ async def setup_files_database_indexes():
             background=True
         )
         
-        logger.info("✅ Files database indexes created")
+        logger.info("✅ Files collection indexes created")
         
     except Exception as e:
         logger.warning(f"⚠️ Files index creation error (may already exist): {e}")
-
-async def setup_thumbnails_database_indexes():
-    """Setup indexes for thumbnails database"""
+    
+    # 2. Thumbnails collection indexes
     try:
         # TTL index for automatic deletion after 30 days
         await thumbnails_col.create_index(
             [("last_accessed", 1)],
             expireAfterSeconds=Config.THUMBNAIL_TTL_DAYS * 24 * 60 * 60,
-            name="ttl_index",
+            name="thumbnails_ttl_index",
             background=True
         )
         
@@ -986,25 +926,25 @@ async def setup_thumbnails_database_indexes():
         await thumbnails_col.create_index(
             [("channel_id", 1), ("message_id", 1)],
             unique=True,
-            name="message_unique",
+            name="thumbnails_message_unique",
             background=True
         )
         
         # Normalized title index
         await thumbnails_col.create_index(
             [("normalized_title", 1)],
-            name="title_index",
+            name="thumbnails_title_index",
             background=True
         )
         
         # Source index
         await thumbnails_col.create_index(
             [("source", 1)],
-            name="source_index",
+            name="thumbnails_source_index",
             background=True
         )
         
-        logger.info("✅ Thumbnails database indexes created")
+        logger.info("✅ Thumbnails collection indexes created")
         
     except Exception as e:
         logger.warning(f"⚠️ Thumbnails index creation error (may already exist): {e}")
@@ -1485,7 +1425,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
             'thumbnails_enabled': True,
             'real_message_ids': True,
             'thumbnail_manager': thumbnail_manager is not None,
-            'dual_mongodb': True,
+            'single_mongodb': True,  # ✅ Changed from dual_mongodb
             'search_logic': 'enhanced_fixed_single_result'
         },
         'bot_username': Config.BOT_USERNAME
@@ -2093,9 +2033,9 @@ async def initial_indexing_optimized():
     logger.info("=" * 60)
     logger.info("🚀 STARTING OPTIMIZED FILE CHANNEL INDEXING WITH THUMBNAILS")
     logger.info("=" * 60)
-    logger.info("✅ DUAL MONGODB SYSTEM")
+    logger.info("✅ SINGLE MONGODB SYSTEM")
     logger.info("✅ AUTOMATIC THUMBNAIL EXTRACTION")
-    logger.info("✅ THUMBNAILS IN SEPARATE DATABASE")
+    logger.info("✅ THUMBNAILS IN SAME DATABASE")
     logger.info("✅ AUTO-DELETE ORPHANED THUMBNAILS")
     logger.info("=" * 60)
     
@@ -2314,7 +2254,7 @@ async def init_telegram_sessions():
     return user_session_ready or bot_session_ready
 
 # ============================================================================
-# ✅ MAIN INITIALIZATION - DUAL MONGODB SYSTEM
+# ✅ MAIN INITIALIZATION - SINGLE MONGODB SYSTEM
 # ============================================================================
 
 @performance_monitor.measure("system_init")
@@ -2323,13 +2263,13 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.0 - DUAL MONGODB WITH AUTO THUMBNAIL EXTRACTION")
+        logger.info("🚀 SK4FiLM v9.0 - SINGLE MONGODB WITH AUTO THUMBNAIL EXTRACTION")
         logger.info("=" * 60)
         
-        # Initialize DUAL MongoDB
-        mongo_ok = await init_dual_mongodb()
+        # Initialize SINGLE MongoDB
+        mongo_ok = await init_single_mongodb()
         if not mongo_ok:
-            logger.error("❌ Dual MongoDB connection failed")
+            logger.error("❌ Single MongoDB connection failed")
             return False
         
         # Get current file count
@@ -2365,12 +2305,12 @@ async def init_system():
         
         # Initialize Verification System
         if VerificationSystem is not None:
-            verification_system = VerificationSystem(Config, mongo_client_files)
+            verification_system = VerificationSystem(Config, mongo_client)
             logger.info("✅ Verification System initialized")
         
         # Initialize Premium System
         if PremiumSystem is not None:
-            premium_system = PremiumSystem(Config, mongo_client_files)
+            premium_system = PremiumSystem(Config, mongo_client)
             logger.info("✅ Premium System initialized")
         
         # Initialize Poster Fetcher
@@ -2378,11 +2318,11 @@ async def init_system():
             poster_fetcher = PosterFetcher(Config, cache_manager)
             logger.info("✅ Poster Fetcher initialized")
         
-        # ✅ Initialize Thumbnail Manager with THUMBNAILS database
-        thumbnail_manager = ThumbnailManager(mongo_client_thumbnails, Config, bot_handler)
+        # ✅ Initialize Thumbnail Manager with SAME database
+        thumbnail_manager = ThumbnailManager(mongo_client, Config, bot_handler)
         thumbnail_manager_ok = await thumbnail_manager.initialize()
         if thumbnail_manager_ok:
-            logger.info("✅ Thumbnail Manager initialized with separate database")
+            logger.info("✅ Thumbnail Manager initialized with single database")
         
         # Initialize Thumbnail Extractor
         if thumbnail_manager:
@@ -2404,9 +2344,9 @@ async def init_system():
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
         
-        logger.info("🔧 DUAL MONGODB FEATURES:")
-        logger.info(f"   • Files Database: ✅ CONNECTED ({file_count} files)")
-        logger.info(f"   • Thumbnails Database: ✅ CONNECTED ({thumbnail_count} thumbnails)")
+        logger.info("🔧 SINGLE MONGODB FEATURES:")
+        logger.info(f"   • Database: ✅ CONNECTED ({file_count} files)")
+        logger.info(f"   • Collections: files, thumbnails ({thumbnail_count} thumbnails)")
         logger.info(f"   • Auto Thumbnail Extraction: ✅ ENABLED")
         logger.info(f"   • Thumbnail TTL (30 days): ✅ ENABLED")
         logger.info(f"   • Auto-delete Orphaned Thumbnails: ✅ ENABLED")
@@ -2601,10 +2541,11 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - DUAL MONGODB',
-        'dual_mongodb': {
-            'files_database': True,
-            'thumbnails_database': True,
+        'service': 'SK4FiLM v9.0 - SINGLE MONGODB',
+        'single_mongodb': {  # ✅ Changed from dual_mongodb
+            'database': True,
+            'files_collection': True,
+            'thumbnails_collection': True,
             'files_count': tf,
             'thumbnails_count': thumbnails_count
         },
@@ -2673,7 +2614,7 @@ async def health():
     
     return jsonify({
         'status': 'ok',
-        'dual_mongodb': True,
+        'single_mongodb': True,  # ✅ Changed from dual_mongodb
         'sessions': {
             'user': user_session_ready,
             'bot': bot_session_ready,
@@ -2748,7 +2689,7 @@ async def api_search():
             'search_metadata': {
                 **result_data.get('search_metadata', {}),
                 'feature': 'post_first_search',
-                'thumbnail_system': 'dual_mongodb',
+                'thumbnail_system': 'single_mongodb',  # ✅ Changed
                 'real_message_ids': True,
             },
             'bot_username': Config.BOT_USERNAME,
@@ -2818,16 +2759,14 @@ async def api_stats():
         
         return jsonify({
             'status': 'success',
-            'dual_mongodb': True,
+            'single_mongodb': True,  # ✅ Changed
             'performance': perf_stats,
             'poster_fetcher': poster_stats,
             'thumbnail_stats': thumbnail_stats,
             'database_stats': {
-                'files_database': {
+                'database': {
                     'total_files': total_files,
-                    'video_files': video_files
-                },
-                'thumbnails_database': {
+                    'video_files': video_files,
                     'total_thumbnails': total_thumbnails,
                     'extracted_thumbnails': extracted_thumbnails,
                     'extraction_rate': f"{(extracted_thumbnails/total_thumbnails*100):.1f}%" if total_thumbnails > 0 else "0%"
@@ -2841,7 +2780,7 @@ async def api_stats():
                 'initialized': telegram_bot is not None
             },
             'system_features': {
-                'dual_mongodb': True,
+                'single_mongodb': True,  # ✅ Changed
                 'auto_thumbnail_extraction': thumbnail_manager is not None,
                 'thumbnail_ttl': f"{Config.THUMBNAIL_TTL_DAYS} days",
                 'post_file_merge': True,
@@ -2869,7 +2808,7 @@ async def api_admin_thumbnail_stats():
             return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
         
         if thumbnails_col is None:
-            return jsonify({'status': 'error', 'message': 'Thumbnails database not connected'})
+            return jsonify({'status': 'error', 'message': 'Thumbnails collection not connected'})
         
         # Get total count
         total = await thumbnails_col.count_documents({})
@@ -2901,7 +2840,7 @@ async def api_admin_thumbnail_stats():
         
         return jsonify({
             'status': 'success',
-            'dual_mongodb': True,
+            'single_mongodb': True,  # ✅ Changed
             'total_thumbnails': total,
             'extraction_stats': {
                 'extracted': extracted,
@@ -2932,7 +2871,7 @@ async def api_admin_cleanup_thumbnails():
             return jsonify({
                 'status': 'success',
                 'message': 'Thumbnail cleanup triggered',
-                'dual_mongodb': True
+                'single_mongodb': True  # ✅ Changed
             })
         else:
             return jsonify({
@@ -2958,7 +2897,7 @@ async def api_admin_reindex():
         return jsonify({
             'status': 'success',
             'message': 'File channel reindexing started',
-            'dual_mongodb': True,
+            'single_mongodb': True,  # ✅ Changed
             'thumbnail_extraction': True,
             'timestamp': datetime.now().isoformat()
         })
@@ -2986,14 +2925,14 @@ async def api_admin_indexing_status():
         
         return jsonify({
             'status': 'success',
-            'dual_mongodb': True,
+            'single_mongodb': True,  # ✅ Changed
             'indexing': indexing_status,
             'database_stats': {
                 'files': total_files,
                 'thumbnails': total_thumbnails
             },
             'system_features': {
-                'dual_mongodb': True,
+                'single_mongodb': True,  # ✅ Changed
                 'auto_thumbnail_extraction': True,
                 'thumbnail_ttl_days': Config.THUMBNAIL_TTL_DAYS,
                 'post_file_merge': True,
@@ -3072,7 +3011,7 @@ async def api_admin_db_stats():
         
         return jsonify({
             'status': 'success',
-            'dual_mongodb': True,
+            'single_mongodb': True,  # ✅ Changed
             'total_files': total,
             'sample_files': sample,
             'quality_distribution': quality_dist,
@@ -3095,7 +3034,7 @@ async def api_admin_bot_status():
         
         return jsonify({
             'status': 'success',
-            'dual_mongodb': True,
+            'single_mongodb': True,  # ✅ Changed
             'telegram_bot': {
                 'running': bot_running,
                 'initialized': telegram_bot is not None,
@@ -3106,7 +3045,7 @@ async def api_admin_bot_status():
                 'api_id_configured': bool(Config.API_ID),
                 'api_hash_configured': bool(Config.API_HASH),
                 'admin_ids': Config.ADMIN_IDS,
-                'dual_mongodb': True
+                'single_mongodb': True  # ✅ Changed
             }
         })
         
@@ -3115,7 +3054,7 @@ async def api_admin_bot_status():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
-# ✅ STARTUP AND SHUTDOWN - DUAL MONGODB
+# ✅ STARTUP AND SHUTDOWN - SINGLE MONGODB
 # ============================================================================
 
 app_start_time = time.time()
@@ -3126,7 +3065,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    logger.info("🛑 Shutting down SK4FiLM v9.0 (Dual MongoDB)...")
+    logger.info("🛑 Shutting down SK4FiLM v9.0 (Single MongoDB)...")
     
     shutdown_tasks = []
     
@@ -3195,14 +3134,10 @@ async def shutdown():
             if isinstance(result, Exception):
                 logger.error(f"❌ Shutdown task {i} failed: {result}")
     
-    # Close MongoDB connections
-    if mongo_client_files is not None:
-        mongo_client_files.close()
-        logger.info("✅ Files Database connection closed")
-    
-    if mongo_client_thumbnails is not None:
-        mongo_client_thumbnails.close()
-        logger.info("✅ Thumbnails Database connection closed")
+    # Close MongoDB connection
+    if mongo_client is not None:
+        mongo_client.close()
+        logger.info("✅ Single MongoDB connection closed")
     
     logger.info(f"👋 Shutdown complete. Uptime: {time.time() - app_start_time:.1f}s")
 
@@ -3222,9 +3157,9 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v9.0 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: DUAL MONGODB SYSTEM")
-    logger.info(f"   • Files Database: ✅ CONNECTED ({Config.MONGODB_URI_FILES})")
-    logger.info(f"   • Thumbnails Database: ✅ CONNECTED ({Config.MONGODB_URI_THUMBNAILS})")
+    logger.info("🎯 FEATURES: SINGLE MONGODB SYSTEM")
+    logger.info(f"   • Database: ✅ CONNECTED ({Config.MONGODB_URI})")
+    logger.info(f"   • Collections: files, thumbnails")
     logger.info(f"   • Auto Thumbnail Extraction: ✅ ENABLED")
     logger.info(f"   • Thumbnail TTL: {Config.THUMBNAIL_TTL_DAYS} days")
     logger.info(f"   • Auto-delete Orphaned: ✅ ENABLED")
