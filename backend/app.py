@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - STREAMING & DOWNLOAD SUPPORT WITH REAL MESSAGE IDS - OPTIMIZED
+# 🚀 SK4FiLM v9.0 - COMPLETE MOVIE SEARCH API WITH REAL MESSAGE IDS - OPTIMIZED
 # ============================================================================
 
 import asyncio
@@ -380,7 +380,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.0-STREAMING-ENABLED'
+    response.headers['X-SK4FiLM-Version'] = '9.0-COMPLETE-SEARCH'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -560,41 +560,6 @@ class BotHandler:
             logger.error(f"❌ Get file info error: {e}")
             return None
     
-    async def get_file_download_url(self, file_id):
-        """Get direct download URL for file"""
-        try:
-            if not self.initialized or not self.bot_token:
-                return None
-            
-            # Try to get file info using get_file
-            try:
-                file = await self.bot.get_file(file_id)
-                if file and hasattr(file, 'file_path') and file.file_path:
-                    return f"https://api.telegram.org/file/bot{self.bot_token}/{file.file_path}"
-            except Exception as get_file_error:
-                logger.debug(f"Get file error, trying alternative: {get_file_error}")
-            
-            # Alternative: Use Telegram Bot API
-            try:
-                async with aiohttp.ClientSession() as session:
-                    api_url = f"https://api.telegram.org/bot{self.bot_token}/getFile"
-                    params = {'file_id': file_id}
-                    
-                    async with session.get(api_url, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            if data.get('ok') and data.get('result'):
-                                file_path = data['result']['file_path']
-                                return f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
-            except Exception as api_error:
-                logger.debug(f"API fallback error: {api_error}")
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Get file download URL error: {e}")
-            return None
-    
     async def extract_thumbnail(self, channel_id, message_id):
         """Extract thumbnail from video file"""
         if not self.initialized:
@@ -699,6 +664,118 @@ class BotHandler:
         self.bot = None
 
 bot_handler = BotHandler()
+
+# ============================================================================
+# ✅ CACHE MODULE - COMPLETE IMPLEMENTATION
+# ============================================================================
+
+class CacheManager:
+    """Complete Cache Manager implementation"""
+    
+    def __init__(self, config):
+        self.config = config
+        self.redis_enabled = False
+        self.redis_client = None
+        self.cleanup_task = None
+    
+    async def init_redis(self):
+        """Initialize Redis connection"""
+        try:
+            if not self.config.REDIS_URL:
+                logger.warning("⚠️ Redis URL not configured")
+                return False
+            
+            self.redis_client = redis.from_url(
+                self.config.REDIS_URL,
+                password=self.config.REDIS_PASSWORD or None,
+                decode_responses=True,
+                socket_keepalive=True,
+                max_connections=20
+            )
+            
+            await self.redis_client.ping()
+            self.redis_enabled = True
+            logger.info("✅ Redis connection established")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Redis connection failed: {e}")
+            return False
+    
+    async def get(self, key):
+        """Get value from cache"""
+        if not self.redis_enabled or not self.redis_client:
+            return None
+        
+        try:
+            value = await self.redis_client.get(key)
+            if value:
+                return json.loads(value)
+            return None
+        except Exception as e:
+            logger.error(f"❌ Cache get error for key {key}: {e}")
+            return None
+    
+    async def set(self, key, value, expire_seconds=0):
+        """Set value in cache"""
+        if not self.redis_enabled or not self.redis_client:
+            return
+        
+        try:
+            json_value = json.dumps(value)
+            if expire_seconds > 0:
+                await self.redis_client.setex(key, expire_seconds, json_value)
+            else:
+                await self.redis_client.set(key, json_value)
+        except Exception as e:
+            logger.error(f"❌ Cache set error for key {key}: {e}")
+    
+    async def delete(self, key):
+        """Delete key from cache"""
+        if not self.redis_enabled or not self.redis_client:
+            return
+        
+        try:
+            await self.redis_client.delete(key)
+        except Exception as e:
+            logger.error(f"❌ Cache delete error for key {key}: {e}")
+    
+    async def start_cleanup_task(self):
+        """Start cache cleanup task"""
+        if not self.redis_enabled:
+            return
+        
+        async def cleanup_loop():
+            while True:
+                try:
+                    # Clean expired keys
+                    await asyncio.sleep(3600)  # Run every hour
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.error(f"❌ Cache cleanup error: {e}")
+                    await asyncio.sleep(60)
+        
+        self.cleanup_task = asyncio.create_task(cleanup_loop())
+        logger.info("✅ Cache cleanup task started")
+    
+    async def stop(self):
+        """Stop cache manager"""
+        if self.cleanup_task:
+            self.cleanup_task.cancel()
+            try:
+                await self.cleanup_task
+            except asyncio.CancelledError:
+                pass
+        
+        if self.redis_client:
+            await self.redis_client.close()
+            logger.info("✅ Redis connection closed")
+        
+        self.redis_enabled = False
+
+# Initialize cache manager globally
+cache_manager = CacheManager(Config)
 
 # ============================================================================
 # ✅ ASYNC CACHE DECORATOR
@@ -914,6 +991,171 @@ class VideoThumbnailExtractor:
             return None
 
 thumbnail_extractor = VideoThumbnailExtractor()
+
+# ============================================================================
+# ✅ POSTER FETCHER MODULE - COMPLETE IMPLEMENTATION
+# ============================================================================
+
+class PosterFetcher:
+    """Complete Poster Fetcher implementation"""
+    
+    def __init__(self, config, cache_manager=None):
+        self.config = config
+        self.cache_manager = cache_manager
+        self.session = None
+        self.stats = {
+            'tmdb_hits': 0,
+            'omdb_hits': 0,
+            'fallback_hits': 0,
+            'total_requests': 0
+        }
+    
+    async def initialize(self):
+        """Initialize poster fetcher"""
+        try:
+            self.session = aiohttp.ClientSession()
+            logger.info("✅ Poster Fetcher initialized")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Poster Fetcher initialization error: {e}")
+            return False
+    
+    async def fetch_poster(self, title):
+        """Fetch poster for movie"""
+        self.stats['total_requests'] += 1
+        
+        # Clean title for search
+        search_title = self._clean_title_for_search(title)
+        
+        # Try TMDB first
+        tmdb_result = await self._fetch_from_tmdb(search_title)
+        if tmdb_result and tmdb_result.get('poster_url'):
+            self.stats['tmdb_hits'] += 1
+            return tmdb_result
+        
+        # Try OMDB
+        omdb_result = await self._fetch_from_omdb(search_title)
+        if omdb_result and omdb_result.get('poster_url'):
+            self.stats['omdb_hits'] += 1
+            return omdb_result
+        
+        # Fallback
+        self.stats['fallback_hits'] += 1
+        return {
+            'poster_url': self.config.FALLBACK_POSTER,
+            'source': 'fallback',
+            'rating': '0.0',
+            'year': '',
+            'title': title
+        }
+    
+    def _clean_title_for_search(self, title):
+        """Clean title for API search"""
+        # Remove year if present
+        title = re.sub(r'\s*\(\d{4}\)$', '', title)
+        title = re.sub(r'\s+\d{4}$', '', title)
+        
+        # Remove quality info
+        quality_patterns = [
+            r'\b\d{3,4}p\b',
+            r'\b4k\b',
+            r'\bhd\b',
+            r'\bfullhd\b',
+            r'\bhevc\b',
+            r'\bx265\b',
+            r'\bx264\b',
+            r'\[.*?\]',
+            r'\(.*?\)'
+        ]
+        
+        for pattern in quality_patterns:
+            title = re.sub(pattern, '', title, flags=re.IGNORECASE)
+        
+        # Clean up
+        title = re.sub(r'\s+', ' ', title)
+        title = title.strip()
+        
+        return title
+    
+    async def _fetch_from_tmdb(self, title):
+        """Fetch from TMDB API"""
+        if not self.config.TMDB_API_KEY or self.config.TMDB_API_KEY == "e547e17d4e91f3e62a571655cd1ccaff":
+            return None
+        
+        try:
+            search_url = "https://api.themoviedb.org/3/search/movie"
+            params = {
+                'api_key': self.config.TMDB_API_KEY,
+                'query': title,
+                'language': 'en-US',
+                'page': 1,
+                'include_adult': False
+            }
+            
+            async with self.session.get(search_url, params=params, timeout=5) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get('results') and len(data['results']) > 0:
+                        movie = data['results'][0]
+                        poster_path = movie.get('poster_path')
+                        
+                        if poster_path:
+                            return {
+                                'poster_url': f"https://image.tmdb.org/t/p/w500{poster_path}",
+                                'source': 'tmdb',
+                                'rating': str(movie.get('vote_average', '0.0')),
+                                'year': str(movie.get('release_date', '')[:4]),
+                                'title': movie.get('title', title)
+                            }
+        
+        except Exception as e:
+            logger.debug(f"TMDB API error for {title}: {e}")
+        
+        return None
+    
+    async def _fetch_from_omdb(self, title):
+        """Fetch from OMDB API"""
+        if not self.config.OMDB_API_KEY or self.config.OMDB_API_KEY == "8265bd1c":
+            return None
+        
+        try:
+            search_url = "http://www.omdbapi.com/"
+            params = {
+                'apikey': self.config.OMDB_API_KEY,
+                't': title,
+                'plot': 'short',
+                'r': 'json'
+            }
+            
+            async with self.session.get(search_url, params=params, timeout=5) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get('Response') == 'True' and data.get('Poster') != 'N/A':
+                        return {
+                            'poster_url': data['Poster'],
+                            'source': 'omdb',
+                            'rating': data.get('imdbRating', '0.0'),
+                            'year': data.get('Year', ''),
+                            'title': data.get('Title', title)
+                        }
+        
+        except Exception as e:
+            logger.debug(f"OMDB API error for {title}: {e}")
+        
+        return None
+    
+    def get_stats(self):
+        """Get poster fetcher statistics"""
+        return self.stats.copy()
+    
+    async def close(self):
+        """Close poster fetcher"""
+        if self.session:
+            await self.session.close()
+            logger.info("✅ Poster Fetcher session closed")
+
+# Initialize poster fetcher globally
+poster_fetcher = PosterFetcher(Config, cache_manager)
 
 # ============================================================================
 # ✅ ENHANCED SEARCH FUNCTION - COMPLETELY FIXED WITH PROPER MERGING
@@ -2207,8 +2449,7 @@ async def init_system():
             logger.warning("⚠️ Telegram Bot failed to start")
         
         # Initialize Cache Manager
-        global cache_manager, verification_system, premium_system, poster_fetcher
-        cache_manager = CacheManager(Config)
+        global cache_manager
         redis_ok = await cache_manager.init_redis()
         if redis_ok:
             logger.info("✅ Cache Manager initialized")
@@ -2228,6 +2469,10 @@ async def init_system():
         if PosterFetcher is not None:
             poster_fetcher = PosterFetcher(Config, cache_manager)
             logger.info("✅ Poster Fetcher initialized")
+        else:
+            # Use our implementation
+            await poster_fetcher.initialize()
+            logger.info("✅ Built-in Poster Fetcher initialized")
         
         # Initialize Telegram Sessions
         if PYROGRAM_AVAILABLE:
@@ -2252,7 +2497,11 @@ async def init_system():
         logger.info(f"   • Files-Only Fetch: ✅ ENABLED")
         logger.info(f"   • Auto-Delete DB Entries: ✅ ENABLED")
         logger.info(f"   • Real Message IDs: ✅ ENABLED")
-        logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
+        logger.info(f"   • Post+File Merge: ✅ ENABLED")
+        logger.info(f"   • File-Only with Poster: ✅ ENABLED")
+        logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
+        logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
+        logger.info(f"   • Telegram Bot: ✅ ENABLED")
         
         return True
         
@@ -2261,11 +2510,62 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ BOT INITIALIZATION FUNCTION
+# ✅ TELEGRAM BOT IMPLEMENTATION
 # ============================================================================
 
+class SK4FiLMBot:
+    """Telegram Bot Implementation"""
+    
+    def __init__(self, config, db_manager=None):
+        self.config = config
+        self.db_manager = db_manager
+        self.bot = None
+        self.bot_started = False
+        
+    async def initialize(self):
+        """Initialize the Telegram bot"""
+        try:
+            if not self.config.BOT_TOKEN:
+                logger.warning("⚠️ Bot token not configured")
+                return False
+            
+            if not PYROGRAM_AVAILABLE:
+                logger.error("❌ Pyrogram not available")
+                return False
+            
+            self.bot = Client(
+                "sk4film_telegram_bot",
+                api_id=self.config.API_ID,
+                api_hash=self.config.API_HASH,
+                bot_token=self.config.BOT_TOKEN,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await self.bot.start()
+            bot_info = await self.bot.get_me()
+            logger.info(f"✅ Telegram Bot Ready: @{bot_info.username}")
+            self.bot_started = True
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Telegram Bot initialization error: {e}")
+            return False
+    
+    async def shutdown(self):
+        """Shutdown the bot"""
+        if self.bot:
+            try:
+                await self.bot.stop()
+                logger.info("✅ Telegram Bot stopped")
+            except Exception as e:
+                logger.error(f"❌ Telegram Bot shutdown error: {e}")
+        self.bot_started = False
+
 async def start_telegram_bot():
-    """Start Telegram bot with handlers"""
+    """Start Telegram bot"""
     try:
         if not PYROGRAM_AVAILABLE:
             logger.warning("❌ Pyrogram not available, bot won't start")
@@ -2277,23 +2577,6 @@ async def start_telegram_bot():
             return None
         
         logger.info("🤖 Starting SK4FiLM Telegram Bot...")
-        
-        # Import bot handler
-        try:
-            from bot_handlers import SK4FiLMBot
-            logger.info("✅ Bot handler module imported")
-        except ImportError as e:
-            logger.error(f"❌ Bot handler import error: {e}")
-            # Create fallback bot
-            class FallbackBot:
-                def __init__(self):
-                    self.bot_started = False
-                async def initialize(self): 
-                    logger.warning("⚠️ Using fallback bot")
-                    return False
-                async def shutdown(self): 
-                    logger.info("✅ Fallback bot shutdown")
-            return FallbackBot()
         
         # Initialize bot
         bot_instance = SK4FiLMBot(Config, db_manager=None)
