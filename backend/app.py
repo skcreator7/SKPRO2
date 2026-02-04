@@ -2077,7 +2077,7 @@ async def index_single_file_fast(message):
         
         if Config.THUMBNAIL_EXTRACTION_ENABLED:
             # Check if thumbnail exists in movie_thumbnails collection
-            if movie_thumbnails_col:
+            if movie_thumbnails_col is not None:
                 existing_thumbnail = await movie_thumbnails_col.find_one(
                     {'normalized_title': normalized_title},
                     {'thumbnail_url': 1}
@@ -2176,7 +2176,7 @@ async def setup_database_indexes():
         logger.warning(f"⚠️ Files index creation error: {e}")
     
     # Setup indexes for movie_thumbnails collection
-    if movie_thumbnails_col:
+    if movie_thumbnails_col is not None:
         try:
             # Unique index on normalized_title
             await movie_thumbnails_col.create_index(
@@ -3111,7 +3111,7 @@ async def api_admin_db_stats():
         
         # Get thumbnail count
         thumbnail_total = 0
-        if movie_thumbnails_col:
+        if movie_thumbnails_col is not None:
             thumbnail_total = await movie_thumbnails_col.count_documents({})
         
         # Get sample documents with REAL MESSAGE IDS
@@ -3142,7 +3142,7 @@ async def api_admin_db_stats():
         
         # Get sample thumbnails
         sample_thumbnails = []
-        if movie_thumbnails_col:
+        if movie_thumbnails_col is not None:
             sample_thumbnails = await movie_thumbnails_col.find({}, {
                 'normalized_title': 1,
                 'extracted_at': 1,
@@ -3207,7 +3207,7 @@ async def api_admin_thumbnails_stats():
         
         # Get recent thumbnails
         recent_thumbnails = []
-        if movie_thumbnails_col:
+        if movie_thumbnails_col is not None:
             recent_thumbnails = await movie_thumbnails_col.find({}, {
                 'normalized_title': 1,
                 'extracted_at': 1,
