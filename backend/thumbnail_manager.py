@@ -1,11 +1,12 @@
 # ============================================================================
-# thumbnail_manager.py - AUTOMATIC THUMBNAIL EXTRACTION & MANAGEMENT
+# thumbnail_manager.py - DUAL MONGODB THUMBNAIL MANAGEMENT SYSTEM
 # ============================================================================
 
 import asyncio
 import base64
 import logging
 import time
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import hashlib
@@ -15,11 +16,11 @@ from motor.motor_asyncio import AsyncIOMotorCollection
 logger = logging.getLogger(__name__)
 
 class ThumbnailManager:
-    """Automatic thumbnail extraction and management system"""
+    """Thumbnail management system with separate MongoDB database"""
     
     def __init__(self, mongo_client, config, bot_handler=None):
         self.mongo_client = mongo_client
-        self.db = mongo_client.sk4film
+        self.db = mongo_client.get_database()
         self.thumbnails_col = self.db.thumbnails
         self.config = config
         self.bot_handler = bot_handler
@@ -34,7 +35,9 @@ class ThumbnailManager:
             'total_cached': 0,
             'total_fetched_from_api': 0,
             'total_fallback': 0,
-            'cleanup_count': 0
+            'cleanup_count': 0,
+            'telegram_extractions': 0,
+            'api_fetches': 0
         }
         
         # Start cleanup task
@@ -42,7 +45,7 @@ class ThumbnailManager:
     
     async def initialize(self):
         """Initialize thumbnail manager"""
-        logger.info("🖼️ Initializing Thumbnail Manager...")
+        logger.info("🖼️ Initializing Thumbnail Manager with separate database...")
         
         # Create indexes
         await self.create_indexes()
@@ -56,10 +59,10 @@ class ThumbnailManager:
     async def create_indexes(self):
         """Create MongoDB indexes for thumbnails collection"""
         try:
-            # Create TTL index for automatic deletion
+            # Create TTL index for automatic deletion after 30 days
             await self.thumbnails_col.create_index(
                 [("last_accessed", 1)],
-                expireAfterSeconds=30 * 24 * 60 * 60,  # 30 days
+                expireAfterSeconds=self.config.THUMBNAIL_TTL_DAYS * 24 * 60 * 60,
                 name="ttl_index",
                 background=True
             )
@@ -79,7 +82,21 @@ class ThumbnailManager:
                 background=True
             )
             
-            logger.info("✅ Thumbnail indexes created")
+            # Create index for source
+            await self.thumbnails_col.create_index(
+                [("source", 1)],
+                name="source_index",
+                background=True
+            )
+            
+            # Create index for extracted flag
+            await self.thumbnails_col.create_index(
+                [("extracted", 1)],
+                name="extracted_index",
+                background=True
+            )
+            
+            logger.info("✅ Thumbnail database indexes created")
             
         except Exception as e:
             logger.error(f"❌ Error creating thumbnail indexes: {e}")
@@ -97,9 +114,10 @@ class ThumbnailManager:
                 thumbnail_url = await self.bot_handler.extract_thumbnail(channel_id, message_id)
                 if thumbnail_url:
                     logger.info(f"✅ Thumbnail extracted via bot handler: {channel_id}/{message_id}")
+                    self.stats['telegram_extractions'] += 1
                     return thumbnail_url
             
-            # Try direct Telegram API
+            # Try direct Telegram API if available
             try:
                 from pyrogram import Client
                 
@@ -140,6 +158,7 @@ class ThumbnailManager:
                         base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
                         thumbnail_url = f"data:image/jpeg;base64,{base64_data}"
                         logger.info(f"✅ Telegram thumbnail extracted: {channel_id}/{message_id}")
+                        self.stats['telegram_extractions'] += 1
                         return thumbnail_url
                     
             except Exception as e:
@@ -180,8 +199,8 @@ class ThumbnailManager:
             
             normalized_title = self.normalize_title(title)
             
-            # 1. Check MongoDB for existing thumbnail
-            thumbnail_data = await self._get_from_mongodb(normalized_title, channel_id, message_id)
+            # 1. Check Thumbnails Database for existing thumbnail
+            thumbnail_data = await self._get_from_thumbnails_db(normalized_title, channel_id, message_id)
             if thumbnail_data:
                 # Update cache
                 self.thumbnail_cache[cache_key] = {
@@ -194,11 +213,12 @@ class ThumbnailManager:
             if channel_id and message_id:
                 telegram_thumbnail = await self.extract_thumbnail_from_telegram(channel_id, message_id)
                 if telegram_thumbnail:
-                    # Save to MongoDB
-                    await self._save_to_mongodb(
+                    # Save to Thumbnails Database
+                    await self._save_to_thumbnails_db(
                         normalized_title=normalized_title,
                         thumbnail_url=telegram_thumbnail,
                         source='telegram',
+                        extracted=True,
                         channel_id=channel_id,
                         message_id=message_id
                     )
@@ -217,17 +237,18 @@ class ThumbnailManager:
                     }
                     
                     self.stats['total_extracted'] += 1
-                    logger.info(f"✅ Thumbnail extracted and saved: {title}")
+                    logger.info(f"✅ Thumbnail extracted and saved to thumbnails DB: {title}")
                     return thumbnail_data
             
             # 3. Try to fetch from TMDB/OMDB
             api_thumbnail = await self._fetch_from_api(title)
             if api_thumbnail:
-                # Save to MongoDB
-                await self._save_to_mongodb(
+                # Save to Thumbnails Database
+                await self._save_to_thumbnails_db(
                     normalized_title=normalized_title,
                     thumbnail_url=api_thumbnail['url'],
                     source=api_thumbnail['source'],
+                    extracted=True,
                     channel_id=channel_id,
                     message_id=message_id
                 )
@@ -246,7 +267,8 @@ class ThumbnailManager:
                 }
                 
                 self.stats['total_fetched_from_api'] += 1
-                logger.info(f"✅ Thumbnail fetched from API: {title} - {api_thumbnail['source']}")
+                self.stats['api_fetches'] += 1
+                logger.info(f"✅ Thumbnail fetched from API and saved to thumbnails DB: {title} - {api_thumbnail['source']}")
                 return thumbnail_data
             
             # 4. Return fallback image
@@ -276,15 +298,20 @@ class ThumbnailManager:
                 'extracted': False
             }
     
-    async def _get_from_mongodb(self, normalized_title: str, channel_id: int = None, message_id: int = None) -> Optional[Dict]:
-        """Get thumbnail from MongoDB"""
+    async def _get_from_thumbnails_db(self, normalized_title: str, channel_id: int = None, message_id: int = None) -> Optional[Dict]:
+        """Get thumbnail from Thumbnails Database"""
         try:
-            query = {"normalized_title": normalized_title}
+            query = {}
             
             # Prioritize by message_id if provided
             if channel_id and message_id:
-                query["channel_id"] = channel_id
-                query["message_id"] = message_id
+                query = {
+                    "channel_id": channel_id,
+                    "message_id": message_id
+                }
+            else:
+                # Search by title
+                query = {"normalized_title": normalized_title}
             
             # Find thumbnail
             thumbnail_doc = await self.thumbnails_col.find_one(query)
@@ -306,20 +333,22 @@ class ThumbnailManager:
             return None
             
         except Exception as e:
-            logger.error(f"❌ MongoDB thumbnail fetch error: {e}")
+            logger.error(f"❌ Thumbnails DB fetch error: {e}")
             return None
     
-    async def _save_to_mongodb(self, normalized_title: str, thumbnail_url: str, 
-                              source: str, channel_id: int = None, message_id: int = None):
-        """Save thumbnail to MongoDB"""
+    async def _save_to_thumbnails_db(self, normalized_title: str, thumbnail_url: str, 
+                                   source: str, extracted: bool, 
+                                   channel_id: int = None, message_id: int = None):
+        """Save thumbnail to Thumbnails Database"""
         try:
             thumbnail_doc = {
                 'normalized_title': normalized_title,
                 'thumbnail_url': thumbnail_url,
                 'source': source,
-                'extracted': True,
+                'extracted': extracted,
                 'created_at': datetime.now(),
-                'last_accessed': datetime.now()
+                'last_accessed': datetime.now(),
+                'updated_at': datetime.now()
             }
             
             if channel_id:
@@ -358,10 +387,10 @@ class ThumbnailManager:
                     upsert=True
                 )
             
-            logger.debug(f"✅ Thumbnail saved to MongoDB: {normalized_title}")
+            logger.debug(f"✅ Thumbnail saved to Thumbnails DB: {normalized_title}")
             
         except Exception as e:
-            logger.error(f"❌ Error saving thumbnail to MongoDB: {e}")
+            logger.error(f"❌ Error saving thumbnail to Thumbnails DB: {e}")
     
     async def _fetch_from_api(self, title: str) -> Optional[Dict]:
         """Fetch thumbnail from TMDB/OMDB APIs"""
@@ -491,7 +520,7 @@ class ThumbnailManager:
             for movie in movies:
                 title = movie.get('title', '')
                 channel_id = movie.get('channel_id')
-                message_id = movie.get('message_id')
+                message_id = movie.get('message_id') or movie.get('real_message_id')
                 
                 task = asyncio.create_task(
                     self.get_thumbnail_for_movie(title, channel_id, message_id)
@@ -551,13 +580,19 @@ class ThumbnailManager:
         try:
             logger.info("🧹 Cleaning up orphaned thumbnails...")
             
+            # Import files collection from main app
+            from app import files_col
+            if files_col is None:
+                logger.warning("⚠️ Files collection not available for cleanup")
+                return
+            
             # Get all thumbnails with channel_id and message_id
             cursor = self.thumbnails_col.find(
                 {
                     "channel_id": {"$exists": True},
                     "message_id": {"$exists": True}
                 },
-                {"channel_id": 1, "message_id": 1, "_id": 1}
+                {"channel_id": 1, "message_id": 1, "_id": 1, "normalized_title": 1}
             )
             
             orphaned_count = 0
@@ -566,17 +601,18 @@ class ThumbnailManager:
                 message_id = doc.get('message_id')
                 
                 # Check if file exists in files collection
-                from app import files_col
-                if files_col:
-                    file_exists = await files_col.find_one({
-                        "channel_id": channel_id,
-                        "message_id": message_id
-                    })
+                file_exists = await files_col.find_one({
+                    "channel_id": channel_id,
+                    "message_id": message_id
+                })
+                
+                # If file doesn't exist, delete thumbnail
+                if not file_exists:
+                    await self.thumbnails_col.delete_one({"_id": doc["_id"]})
+                    orphaned_count += 1
                     
-                    # If file doesn't exist, delete thumbnail
-                    if not file_exists:
-                        await self.thumbnails_col.delete_one({"_id": doc["_id"]})
-                        orphaned_count += 1
+                    if orphaned_count <= 10:  # Log first few
+                        logger.info(f"🗑️ Deleted orphaned thumbnail: {doc.get('normalized_title', 'Unknown')}")
             
             self.stats['cleanup_count'] += orphaned_count
             
@@ -592,6 +628,7 @@ class ThumbnailManager:
         """Get thumbnail manager statistics"""
         try:
             total_thumbnails = await self.thumbnails_col.count_documents({})
+            extracted_count = await self.thumbnails_col.count_documents({'extracted': True})
             
             # Get source distribution
             pipeline = [
@@ -603,20 +640,19 @@ class ThumbnailManager:
             # Get recent thumbnails
             recent = await self.thumbnails_col.find(
                 {},
-                {"normalized_title": 1, "source": 1, "created_at": 1, "_id": 0}
-            ).sort("created_at", -1).limit(5).to_list(length=5)
+                {"normalized_title": 1, "source": 1, "extracted": 1, "created_at": 1, "_id": 0}
+            ).sort("created_at", -1).limit(10).to_list(length=10)
             
             return {
                 'total_thumbnails': total_thumbnails,
+                'extracted_thumbnails': extracted_count,
+                'extraction_rate': f"{(extracted_count/total_thumbnails*100):.1f}%" if total_thumbnails > 0 else "0%",
                 'source_distribution': source_dist,
                 'recent_thumbnails': recent,
+                'performance_stats': self.stats,
                 'cache_stats': {
                     'cache_size': len(self.thumbnail_cache),
-                    'total_extracted': self.stats['total_extracted'],
-                    'total_cached': self.stats['total_cached'],
-                    'total_api_fetches': self.stats['total_fetched_from_api'],
-                    'total_fallback': self.stats['total_fallback'],
-                    'total_cleanup': self.stats['cleanup_count']
+                    'cache_ttl_hours': self.cache_ttl / 3600
                 }
             }
             
@@ -633,12 +669,7 @@ class ThumbnailManager:
             except asyncio.CancelledError:
                 pass
         
+        # Clear cache
+        self.thumbnail_cache.clear()
+        
         logger.info("✅ Thumbnail Manager shutdown complete")
-
-# Helper function to check if file is video
-def is_video_file(filename: str) -> bool:
-    """Check if file is video"""
-    if not filename:
-        return False
-    video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
-    return any(filename.lower().endswith(ext) for ext in video_extensions)
