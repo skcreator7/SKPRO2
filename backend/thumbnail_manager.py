@@ -19,7 +19,8 @@ class ThumbnailManager:
     
     def __init__(self, mongo_client, config, bot_handler=None):
         self.mongo_client = mongo_client
-        self.db = mongo_client.get_database()
+        self.db_name = "sk4film"  # Default database name
+        self.db = mongo_client[self.db_name]  # Access database directly
         self.thumbnails_col = self.db.thumbnails  # Main thumbnails collection
         self.files_col = self.db.files  # Reference to files collection
         self.config = config
@@ -62,6 +63,14 @@ class ThumbnailManager:
         """Initialize thumbnail manager"""
         logger.info("🖼️ Initializing ENHANCED Thumbnail Manager (99% success rate)...")
         
+        # Test database connection
+        try:
+            await self.db.command('ping')
+            logger.info(f"✅ Database connection verified: {self.db_name}")
+        except Exception as e:
+            logger.error(f"❌ Database connection failed: {e}")
+            return False
+        
         # Create indexes
         await self.create_indexes()
         
@@ -75,7 +84,7 @@ class ThumbnailManager:
         """Create MongoDB indexes for thumbnails collection"""
         try:
             # TTL index for automatic cleanup
-            if self.config.THUMBNAIL_TTL_DAYS > 0:
+            if hasattr(self.config, 'THUMBNAIL_TTL_DAYS') and self.config.THUMBNAIL_TTL_DAYS > 0:
                 await self.thumbnails_col.create_index(
                     [("last_accessed", 1)],
                     expireAfterSeconds=self.config.THUMBNAIL_TTL_DAYS * 24 * 60 * 60,
@@ -83,14 +92,20 @@ class ThumbnailManager:
                     background=True
                 )
                 logger.info(f"✅ TTL index created ({self.config.THUMBNAIL_TTL_DAYS} days)")
+            else:
+                logger.info("ℹ️ TTL index disabled (THUMBNAIL_TTL_DAYS not set)")
             
             # Normalized title index (unique per movie)
-            await self.thumbnails_col.create_index(
-                [("normalized_title", 1)],
-                unique=True,
-                name="thumbnails_title_unique",
-                background=True
-            )
+            try:
+                await self.thumbnails_col.create_index(
+                    [("normalized_title", 1)],
+                    unique=True,
+                    name="thumbnails_title_unique",
+                    background=True
+                )
+                logger.info("✅ Normalized title unique index created")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not create unique index (may already exist): {e}")
             
             # Channel + Message ID index for quick lookup
             await self.thumbnails_col.create_index(
@@ -113,7 +128,7 @@ class ThumbnailManager:
                 background=True
             )
             
-            logger.info("✅ Thumbnail collection indexes created")
+            logger.info("✅ Thumbnail collection indexes created/verified")
             
         except Exception as e:
             logger.error(f"❌ Error creating thumbnail indexes: {e}")
@@ -251,8 +266,9 @@ class ThumbnailManager:
                 return thumbnail_data
             
             # 5. Fallback (ONLY 1% cases)
+            fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
             fallback_data = {
-                'thumbnail_url': self.config.FALLBACK_POSTER,
+                'thumbnail_url': fallback_url,
                 'source': 'fallback',
                 'has_thumbnail': True,
                 'extracted': False
@@ -279,8 +295,9 @@ class ThumbnailManager:
             self.stats['failed'] += 1
             
             # Return fallback
+            fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
             return {
-                'thumbnail_url': self.config.FALLBACK_POSTER,
+                'thumbnail_url': fallback_url,
                 'source': 'fallback',
                 'has_thumbnail': True,
                 'extracted': False
@@ -317,7 +334,7 @@ class ThumbnailManager:
     async def _fetch_from_tmdb(self, title: str) -> Optional[Dict]:
         """Fetch from TMDB (Primary Source)"""
         try:
-            if not self.config.TMDB_API_KEY:
+            if not hasattr(self.config, 'TMDB_API_KEY') or not self.config.TMDB_API_KEY:
                 return None
             
             async with aiohttp.ClientSession() as session:
@@ -371,7 +388,7 @@ class ThumbnailManager:
     async def _fetch_from_omdb(self, title: str) -> Optional[Dict]:
         """Fetch from OMDB (Secondary Source)"""
         try:
-            if not self.config.OMDB_API_KEY:
+            if not hasattr(self.config, 'OMDB_API_KEY') or not self.config.OMDB_API_KEY:
                 return None
             
             async with aiohttp.ClientSession() as session:
@@ -415,7 +432,7 @@ class ThumbnailManager:
             imdb_pattern = r'tt\d{7,8}'
             imdb_match = re.search(imdb_pattern, title)
             
-            if imdb_match and self.config.OMDB_API_KEY:
+            if imdb_match and hasattr(self.config, 'OMDB_API_KEY') and self.config.OMDB_API_KEY:
                 imdb_id = imdb_match.group()
                 async with aiohttp.ClientSession() as session:
                     url = "http://www.omdbapi.com/"
@@ -658,9 +675,10 @@ class ThumbnailManager:
                     logger.error(f"❌ Batch thumbnail error for {movie.get('title')}: {e}")
                     
                     # Add fallback
+                    fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
                     movie_with_fallback = movie.copy()
                     movie_with_fallback.update({
-                        'thumbnail_url': self.config.FALLBACK_POSTER,
+                        'thumbnail_url': fallback_url,
                         'source': 'fallback',
                         'has_thumbnail': True,
                         'extracted': False
@@ -682,9 +700,10 @@ class ThumbnailManager:
         except Exception as e:
             logger.error(f"❌ Batch thumbnails error: {e}")
             # Return movies with fallback thumbnails
+            fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
             return [{
                 **movie,
-                'thumbnail_url': self.config.FALLBACK_POSTER,
+                'thumbnail_url': fallback_url,
                 'source': 'fallback',
                 'has_thumbnail': True,
                 'extracted': False
@@ -913,6 +932,8 @@ class ThumbnailManager:
                 }
             ).sort('created_at', -1).limit(5).to_list(length=5)
             
+            ttl_days = getattr(self.config, 'THUMBNAIL_TTL_DAYS', 0)
+            
             return {
                 'total_thumbnails': total_thumbnails,
                 'extracted_thumbnails': extracted_count,
@@ -940,8 +961,8 @@ class ThumbnailManager:
                     'multi_quality_same_thumbnail': True,
                     'priority_extracted_first': True,
                     'fallback_system': True,
-                    'ttl_enabled': self.config.THUMBNAIL_TTL_DAYS > 0,
-                    'ttl_days': self.config.THUMBNAIL_TTL_DAYS
+                    'ttl_enabled': ttl_days > 0,
+                    'ttl_days': ttl_days
                 },
                 'target': '99% success rate'
             }
