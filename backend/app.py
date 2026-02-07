@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - STREAMING & DOWNLOAD SUPPORT WITH REAL MESSAGE IDS - OPTIMIZED
+# 🚀 SK4FiLM v9.0 - COMPLETE THUMBNAIL SYSTEM - ONE MOVIE, ONE THUMBNAIL
 # ============================================================================
 
 import asyncio
@@ -104,6 +104,55 @@ except ImportError as e:
         async def get_subscription_details(self, user_id):
             return {"tier": "basic", "expiry": None}
         async def stop_cleanup_task(self): pass
+
+# Import thumbnail_manager first
+try:
+    from thumbnail_manager import ThumbnailManager
+    THUMBNAIL_MANAGER_AVAILABLE = True
+    logger.info("✅ ThumbnailManager module imported")
+except ImportError as e:
+    logger.error(f"❌ ThumbnailManager import error: {e}")
+    THUMBNAIL_MANAGER_AVAILABLE = False
+    
+    # Fallback ThumbnailManager
+    class ThumbnailManager:
+        def __init__(self, mongo_client, config, bot_handler=None):
+            self.mongo_client = mongo_client
+            self.config = config
+            self.bot_handler = bot_handler
+            self.thumbnails_col = None
+            
+        async def initialize(self):
+            logger.warning("⚠️ Using fallback ThumbnailManager")
+            return True
+        
+        async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
+            return {
+                'thumbnail_url': '',
+                'source': 'fallback',
+                'has_thumbnail': False,
+                'extracted': False
+            }
+        
+        async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
+            return [{
+                **movie,
+                'thumbnail_url': '',
+                'source': 'fallback',
+                'has_thumbnail': False,
+                'extracted': False
+            } for movie in movies]
+        
+        async def get_stats(self) -> Dict[str, Any]:
+            return {
+                'total_thumbnails': 0,
+                'performance_stats': {},
+                'success_rate': '0%',
+                'target': '99% success rate (fallback)'
+            }
+        
+        async def shutdown(self):
+            logger.info("✅ ThumbnailManager shutdown (fallback)")
 
 try:
     from poster_fetching import PosterFetcher, PosterSource
@@ -347,9 +396,6 @@ class Config:
     QUALITY_PRIORITY = ['2160p', '1080p', '720p', '480p', '360p']
     HEVC_VARIANTS = ['720p HEVC', '1080p HEVC', '2160p HEVC']
     
-    # Fallback Poster
-    FALLBACK_POSTER = "https://iili.io/fAeIwv9.th.png"
-    
     # Thumbnail Settings
     THUMBNAIL_EXTRACT_TIMEOUT = 10
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
@@ -374,6 +420,9 @@ class Config:
     
     # Thumbnail Manager Settings
     THUMBNAIL_TTL_DAYS = int(os.environ.get("THUMBNAIL_TTL_DAYS", "30"))  # 30 days TTL
+    
+    # NO FALLBACK POSTER - EMPTY STRING
+    FALLBACK_POSTER = ""
 
 # ============================================================================
 # ✅ FAST INITIALIZATION
@@ -389,7 +438,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.0-STREAMING-ENABLED'
+    response.headers['X-SK4FiLM-Version'] = '9.0-THUMBNAIL-SYSTEM'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -402,7 +451,6 @@ mongo_client = None
 db = None
 files_col = None
 verification_col = None
-movie_thumbnails_col = None  # ✅ NEW: Separate collection for thumbnails
 
 # Telegram Sessions
 try:
@@ -427,7 +475,7 @@ bot_handler = None
 telegram_bot = None
 
 # Thumbnail Manager
-thumbnail_manager = None  # ✅ NEW: ThumbnailManager instance
+thumbnail_manager = None
 
 # Indexing State
 is_indexing = False
@@ -435,11 +483,11 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ BOT HANDLER MODULE - FIXED WITH MISSING METHODS
+# ✅ BOT HANDLER MODULE
 # ============================================================================
 
 class BotHandler:
-    """Bot handler for Telegram bot operations - FIXED VERSION"""
+    """Bot handler for Telegram bot operations"""
     
     def __init__(self, bot_token=None, api_id=None, api_hash=None):
         self.bot_token = bot_token or Config.BOT_TOKEN
@@ -573,41 +621,6 @@ class BotHandler:
             logger.error(f"❌ Get file info error: {e}")
             return None
     
-    async def get_file_download_url(self, file_id):
-        """Get direct download URL for file"""
-        try:
-            if not self.initialized or not self.bot_token:
-                return None
-            
-            # Try to get file info using get_file
-            try:
-                file = await self.bot.get_file(file_id)
-                if file and hasattr(file, 'file_path') and file.file_path:
-                    return f"https://api.telegram.org/file/bot{self.bot_token}/{file.file_path}"
-            except Exception as get_file_error:
-                logger.debug(f"Get file error, trying alternative: {get_file_error}")
-            
-            # Alternative: Use Telegram Bot API
-            try:
-                async with aiohttp.ClientSession() as session:
-                    api_url = f"https://api.telegram.org/bot{self.bot_token}/getFile"
-                    params = {'file_id': file_id}
-                    
-                    async with session.get(api_url, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            if data.get('ok') and data.get('result'):
-                                file_path = data['result']['file_path']
-                                return f"https://api.telegram.org/file/bot{self.bot_token}/{file_path}"
-            except Exception as api_error:
-                logger.debug(f"API fallback error: {api_error}")
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Get file download URL error: {e}")
-            return None
-    
     async def extract_thumbnail(self, channel_id, message_id):
         """Extract thumbnail from video file"""
         if not self.initialized:
@@ -661,110 +674,8 @@ class BotHandler:
         except Exception as e:
             logger.error(f"❌ Download file error: {e}")
             return None
-    
-    async def check_message_exists(self, channel_id, message_id):
-        """Check if message exists in channel"""
-        if not self.initialized:
-            return False
-        
-        try:
-            message = await self.bot.get_messages(channel_id, message_id)
-            return message is not None
-        except:
-            return False
-    
-    async def get_bot_status(self):
-        """Get bot handler status"""
-        if not self.initialized:
-            return {
-                'initialized': False,
-                'last_update': None,
-                'bot_username': None
-            }
-        
-        try:
-            bot_info = await self.bot.get_me()
-            return {
-                'initialized': self.initialized,
-                'last_update': self.last_update.isoformat() if self.last_update else None,
-                'bot_username': bot_info.username if bot_info else self.bot_username,
-                'bot_id': bot_info.id if bot_info else None,
-                'session_active': True
-            }
-        except:
-            return {
-                'initialized': self.initialized,
-                'last_update': self.last_update.isoformat() if self.last_update else None,
-                'bot_username': self.bot_username,
-                'session_active': False
-            }
-    
-    async def shutdown(self):
-        """Shutdown bot handler"""
-        if self.bot:
-            try:
-                await self.bot.stop()
-                logger.info("✅ Bot Handler shutdown complete")
-            except Exception as e:
-                logger.error(f"❌ Bot Handler shutdown error: {e}")
-        
-        self.initialized = False
-        self.bot = None
 
 bot_handler = BotHandler()
-
-# ============================================================================
-# ✅ THUMBNAIL MANAGER INTEGRATION
-# ============================================================================
-
-# Import the ThumbnailManager class from thumbnail_manager.py
-try:
-    from thumbnail_manager import ThumbnailManager
-    THUMBNAIL_MANAGER_AVAILABLE = True
-    logger.info("✅ ThumbnailManager module imported")
-except ImportError as e:
-    logger.error(f"❌ ThumbnailManager import error: {e}")
-    THUMBNAIL_MANAGER_AVAILABLE = False
-    
-    # Fallback ThumbnailManager
-    class ThumbnailManager:
-        def __init__(self, mongo_client, config, bot_handler=None):
-            self.mongo_client = mongo_client
-            self.config = config
-            self.bot_handler = bot_handler
-            self.thumbnails_col = None
-            
-        async def initialize(self):
-            logger.warning("⚠️ Using fallback ThumbnailManager")
-            return True
-        
-        async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
-            return {
-                'thumbnail_url': self.config.FALLBACK_POSTER,
-                'source': 'fallback',
-                'has_thumbnail': True,
-                'extracted': False
-            }
-        
-        async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
-            return [{
-                **movie,
-                'thumbnail_url': self.config.FALLBACK_POSTER,
-                'source': 'fallback',
-                'has_thumbnail': True,
-                'extracted': False
-            } for movie in movies]
-        
-        async def get_stats(self) -> Dict[str, Any]:
-            return {
-                'total_thumbnails': 0,
-                'performance_stats': {},
-                'success_rate': '0%',
-                'target': '99% success rate (fallback)'
-            }
-        
-        async def shutdown(self):
-            logger.info("✅ ThumbnailManager shutdown (fallback)")
 
 # ============================================================================
 # ✅ OPTIMIZED SYNC MANAGEMENT
@@ -1221,7 +1132,6 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                 },
                 'post_file_merged': True,
                 'file_only_with_poster': True,
-                'poster_fetcher': poster_fetcher is not None,
                 'thumbnails_enabled': True,
                 'thumbnail_manager': thumbnail_manager is not None,
                 'real_message_ids': True,
@@ -1237,67 +1147,49 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         return result_data
     
     # ============================================================================
-    # ✅ 5. FETCH POSTERS FOR ALL RESULTS (Only if no thumbnail available)
+    # ✅ 5. FETCH POSTERS FOR RESULTS WITHOUT THUMBNAILS
     # ============================================================================
     logger.info(f"🎬 Fetching posters for results without thumbnails...")
     
-    # Prepare movies that need posters (no thumbnail or fallback thumbnail)
+    # Prepare movies that need posters (no thumbnail)
     movies_needing_posters = []
     for result in all_results:
-        thumbnail_url = result.get('thumbnail_url')
-        thumbnail_source = result.get('thumbnail_source')
+        has_thumbnail = result.get('has_thumbnail', False)
         
-        # Only fetch poster if no thumbnail or thumbnail is fallback
-        if not thumbnail_url or thumbnail_source == 'fallback':
+        # Only fetch poster if no thumbnail
+        if not has_thumbnail:
             movie_data = {
                 'title': result.get('title', ''),
                 'year': result.get('year', ''),
                 'quality': result.get('quality', ''),
                 'original_title': result.get('original_title', ''),
-                'has_thumbnail': result.get('has_thumbnail', False),
-                'thumbnail_url': thumbnail_url,
+                'has_thumbnail': has_thumbnail,
                 'result_type': result.get('result_type', 'unknown')
             }
             movies_needing_posters.append(movie_data)
     
-    if movies_needing_posters:
+    if movies_needing_posters and poster_fetcher:
         # Fetch posters in batch
         movies_with_posters = await get_posters_for_movies_batch(movies_needing_posters)
         
         # Update results with poster data
         for i, result in enumerate(all_results):
-            title = result.get('title', '')
-            
-            # Find matching poster data
-            poster_data = None
-            for movie in movies_with_posters:
-                if movie.get('title') == title:
-                    poster_data = movie
-                    break
-            
-            if poster_data and (not result.get('thumbnail_url') or result.get('thumbnail_source') == 'fallback'):
-                # Update with poster info only if we don't have a good thumbnail
-                result.update({
-                    'poster_url': poster_data.get('poster_url', Config.FALLBACK_POSTER),
-                    'poster_source': poster_data.get('poster_source', 'fallback'),
-                    'poster_rating': poster_data.get('poster_rating', '0.0'),
-                    'has_poster': True,
-                    # Use poster as thumbnail if we don't have extracted thumbnail
-                    'thumbnail': result.get('thumbnail_url') or poster_data.get('poster_url'),
-                    'thumbnail_source': result.get('thumbnail_source') or poster_data.get('poster_source', 'fallback'),
-                    'has_thumbnail': True
-                })
-            else:
-                # Fallback for movies without poster
-                result.update({
-                    'poster_url': Config.FALLBACK_POSTER,
-                    'poster_source': 'fallback',
-                    'poster_rating': '0.0',
-                    'has_poster': True,
-                    'thumbnail': result.get('thumbnail_url') or Config.FALLBACK_POSTER,
-                    'thumbnail_source': result.get('thumbnail_source') or 'fallback',
-                    'has_thumbnail': True
-                })
+            if not result.get('has_thumbnail'):
+                # Try to find poster for this movie
+                for movie in movies_with_posters:
+                    if movie.get('title') == result.get('title'):
+                        # Update with poster info
+                        result.update({
+                            'poster_url': movie.get('poster_url'),
+                            'poster_source': movie.get('poster_source'),
+                            'poster_rating': movie.get('poster_rating', '0.0'),
+                            'has_poster': True,
+                            # Use poster as thumbnail
+                            'thumbnail_url': movie.get('poster_url'),
+                            'thumbnail_source': movie.get('poster_source'),
+                            'has_thumbnail': True
+                        })
+                        break
     
     # ============================================================================
     # ✅ 6. SORT RESULTS
@@ -1351,7 +1243,6 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
     for i, result in enumerate(paginated[:5]):
         result_type = result.get('result_type', 'unknown')
         title = result.get('title', '')[:40]
-        has_poster = result.get('has_poster', False)
         has_thumbnail = result.get('has_thumbnail', False)
         has_file = result.get('has_file', False)
         has_post = result.get('has_post', False)
@@ -1562,11 +1453,11 @@ class QualityMerger:
         return " • ".join(summary_parts)
 
 # ============================================================================
-# ✅ OPTIMIZED FILE CHANNEL INDEXING MANAGER - UPDATED WITH THUMBNAIL MANAGER
+# ✅ OPTIMIZED FILE CHANNEL INDEXING MANAGER
 # ============================================================================
 
 class OptimizedFileIndexingManager:
-    """Optimized file channel indexing manager - ULTRA EFFICIENT with thumbnail manager"""
+    """Optimized file channel indexing manager with thumbnail extraction"""
     
     def __init__(self):
         self.is_running = False
@@ -1808,7 +1699,7 @@ class OptimizedFileIndexingManager:
 file_indexing_manager = OptimizedFileIndexingManager()
 
 # ============================================================================
-# ✅ OPTIMIZED FILE INDEXING FUNCTIONS - UPDATED
+# ✅ OPTIMIZED FILE INDEXING FUNCTIONS
 # ============================================================================
 
 async def extract_title_fast(filename, caption):
@@ -2071,22 +1962,23 @@ async def extract_thumbnails_for_existing_files():
         logger.error(f"❌ Error extracting thumbnails for existing files: {e}")
 
 # ============================================================================
-# ✅ POSTER FETCHING FUNCTIONS
+# ✅ POSTER FETCHING FUNCTIONS - UPDATED FOR NO FALLBACK
 # ============================================================================
 
 async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
-    """Get poster for movie"""
+    """Get poster for movie - Returns empty string if not found"""
     global poster_fetcher
     
-    # If poster_fetcher is not available, use fallback
+    # If poster_fetcher is not available, return empty
     if poster_fetcher is None:
         return {
-            'poster_url': Config.FALLBACK_POSTER,
-            'source': 'custom',
+            'poster_url': '',
+            'source': 'none',
             'rating': '0.0',
             'year': year,
             'title': title,
-            'quality': quality or 'unknown'
+            'quality': quality or 'unknown',
+            'found': False
         }
     
     try:
@@ -2098,6 +1990,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
             
             if poster_data and poster_data.get('poster_url'):
                 logger.debug(f"✅ Poster fetched: {title} - {poster_data['source']}")
+                poster_data['found'] = True
                 return poster_data
             else:
                 raise ValueError("Invalid poster data")
@@ -2108,25 +2001,27 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
             if not poster_task.done():
                 poster_task.cancel()
             
-            # Return fallback
+            # Return empty
             return {
-                'poster_url': Config.FALLBACK_POSTER,
-                'source': 'custom',
+                'poster_url': '',
+                'source': 'none',
                 'rating': '0.0',
                 'year': year,
                 'title': title,
-                'quality': quality or 'unknown'
+                'quality': quality or 'unknown',
+                'found': False
             }
             
     except Exception as e:
         logger.error(f"❌ Unexpected error in get_poster_for_movie: {e}")
         return {
-            'poster_url': Config.FALLBACK_POSTER,
-            'source': 'custom',
+            'poster_url': '',
+            'source': 'none',
             'rating': '0.0',
             'year': year,
             'title': title,
-            'quality': quality or 'unknown'
+            'quality': quality or 'unknown',
+            'found': False
         }
 
 async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
@@ -2148,30 +2043,41 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
         try:
             poster_data = await task
             
-            # Update movie with poster data
+            # Update movie with poster data (only if found)
             movie_with_poster = movie.copy()
-            movie_with_poster.update({
-                'poster_url': poster_data['poster_url'],
-                'poster_source': poster_data['source'],
-                'poster_rating': poster_data['rating'],
-                'has_poster': True
-            })
+            if poster_data['found']:
+                movie_with_poster.update({
+                    'poster_url': poster_data['poster_url'],
+                    'poster_source': poster_data['source'],
+                    'poster_rating': poster_data['rating'],
+                    'has_poster': True,
+                    'found': True
+                })
+            else:
+                movie_with_poster.update({
+                    'poster_url': '',
+                    'poster_source': 'none',
+                    'poster_rating': '0.0',
+                    'has_poster': False,
+                    'found': False
+                })
             
             results.append(movie_with_poster)
             
         except Exception as e:
             logger.warning(f"⚠️ Batch poster error for {movie.get('title')}: {e}")
             
-            # Add movie with fallback
-            movie_with_fallback = movie.copy()
-            movie_with_fallback.update({
-                'poster_url': Config.FALLBACK_POSTER,
-                'poster_source': 'fallback',
+            # Add movie with empty
+            movie_with_empty = movie.copy()
+            movie_with_empty.update({
+                'poster_url': '',
+                'poster_source': 'none',
                 'poster_rating': '0.0',
-                'has_poster': True
+                'has_poster': False,
+                'found': False
             })
             
-            results.append(movie_with_fallback)
+            results.append(movie_with_empty)
     
     return results
 
@@ -2307,7 +2213,7 @@ async def init_mongodb():
         return False
 
 # ============================================================================
-# ✅ MAIN INITIALIZATION - OPTIMIZED WITH THUMBNAIL MANAGER
+# ✅ MAIN INITIALIZATION - COMPLETE THUMBNAIL SYSTEM
 # ============================================================================
 
 @performance_monitor.measure("system_init")
@@ -2316,7 +2222,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.0 - OPTIMIZED INDEXING WITH THUMBNAIL MANAGER")
+        logger.info("🚀 SK4FiLM v9.0 - COMPLETE THUMBNAIL SYSTEM")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2374,6 +2280,8 @@ async def init_system():
             logger.info("✅ Thumbnail Manager initialized")
         else:
             logger.warning("⚠️ Thumbnail Manager not available, using fallback")
+            thumbnail_manager = ThumbnailManager(mongo_client, Config, bot_handler)
+            await thumbnail_manager.initialize()
         
         # Initialize Telegram Sessions
         if PYROGRAM_AVAILABLE:
@@ -2395,23 +2303,15 @@ async def init_system():
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
         
-        logger.info("🔧 OPTIMIZED FEATURES:")
-        logger.info(f"   • Zero DB Preload: ✅ ENABLED")
-        logger.info(f"   • Zero Duplicate Checks: ✅ ENABLED")
-        logger.info(f"   • Zero Wasted Telegram Calls: ✅ ENABLED")
-        logger.info(f"   • Only New Messages: ✅ ENABLED")
-        logger.info(f"   • Files-Only Fetch: ✅ ENABLED")
-        logger.info(f"   • Auto-Delete DB Entries: ✅ ENABLED")
-        logger.info(f"   • Post+File Merge: ✅ ENABLED")
-        logger.info(f"   • File-Only with Poster: ✅ ENABLED")
-        logger.info(f"   • Thumbnail Manager: {'✅ ENABLED' if thumbnail_manager else '❌ DISABLED'}")
-        logger.info(f"   • Real Message IDs: ✅ ENABLED")
-        logger.info(f"   • Telegram Bot: {'✅ RUNNING' if telegram_bot else '❌ NOT RUNNING'}")
+        logger.info("🔧 COMPLETE THUMBNAIL SYSTEM:")
         logger.info(f"   • One Movie → One Thumbnail: ✅ ENABLED")
         logger.info(f"   • 4 Qualities → Same Thumbnail: ✅ ENABLED")
         logger.info(f"   • Existing Files Auto-Extract: ✅ ENABLED")
         logger.info(f"   • New Files Auto-Extract: ✅ ENABLED")
-        logger.info(f"   • Priority: Extracted → Poster → Fallback: ✅ ENABLED")
+        logger.info(f"   • Priority: Extracted → Poster → Empty: ✅ ENABLED")
+        logger.info(f"   • No Default/Fallback Image: ✅ ENABLED")
+        logger.info(f"   • MongoDB Optimized: ✅ ENABLED")
+        logger.info(f"   • Thumbnail Success Rate: 99% TARGET")
         
         return True
         
@@ -2519,15 +2419,15 @@ async def get_home_movies(limit=25):
                     norm_title = normalize_title(clean_title)
                     
                     # Try to get thumbnail from ThumbnailManager
-                    thumbnail_url = None
+                    thumbnail_url = ''
                     has_thumbnail = False
-                    thumbnail_source = None
+                    thumbnail_source = ''
                     
                     if thumbnail_manager:
                         thumbnail_data = await thumbnail_manager.get_thumbnail_for_movie(clean_title)
                         if thumbnail_data and thumbnail_data.get('thumbnail_url'):
                             thumbnail_url = thumbnail_data['thumbnail_url']
-                            thumbnail_source = thumbnail_data.get('source', 'unknown')
+                            thumbnail_source = thumbnail_data.get('source', '')
                             has_thumbnail = thumbnail_data.get('has_thumbnail', False)
                     
                     movie_data = {
@@ -2560,9 +2460,9 @@ async def get_home_movies(limit=25):
                         break
         
         # Fetch posters for all movies in batch
-        if movies:
+        if movies and poster_fetcher:
             movies_with_posters = await get_posters_for_movies_batch(movies)
-            logger.info(f"✅ Fetched {len(movies_with_posters)} home movies with posters")
+            logger.info(f"✅ Fetched {len(movies_with_posters)} home movies")
             return movies_with_posters[:limit]
         else:
             logger.warning("⚠️ No movies found for home page")
@@ -2610,22 +2510,16 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - OPTIMIZED INDEXING WITH THUMBNAIL MANAGER',
-        'optimized_features': {
-            'zero_db_preload': True,
-            'zero_duplicate_checks': True,
-            'zero_wasted_telegram_calls': True,
-            'only_new_messages': True,
-            'files_only_fetch': True,
-            'auto_delete_deleted': True,
-            'real_message_ids': True,
-            'post_file_merge': True,
-            'file_only_with_poster': True,
-            'thumbnail_manager': thumbnail_manager is not None,
+        'service': 'SK4FiLM v9.0 - COMPLETE THUMBNAIL SYSTEM',
+        'thumbnail_system': {
             'one_movie_one_thumbnail': True,
             'multi_quality_same_thumbnail': True,
             'existing_files_auto_extract': True,
-            'new_files_auto_extract': True
+            'new_files_auto_extract': True,
+            'no_fallback_image': True,
+            'priority_extracted_first': True,
+            'thumbnail_manager': thumbnail_manager is not None,
+            'success_rate_target': '99%'
         },
         'sessions': {
             'user_session': {
@@ -2684,7 +2578,7 @@ async def health():
     
     return jsonify({
         'status': 'ok',
-        'optimized': True,
+        'thumbnail_system': True,
         'sessions': {
             'user': user_session_ready,
             'bot': bot_session_ready,
@@ -2701,10 +2595,10 @@ async def health():
         },
         'thumbnails': thumbnail_stats,
         'features': {
-            'post_file_merge': True,
-            'file_only_poster': True,
-            'thumbnail_manager': thumbnail_manager is not None,
-            'one_movie_one_thumbnail': True
+            'one_movie_one_thumbnail': True,
+            'multi_quality_same_thumbnail': True,
+            'no_fallback_image': True,
+            'thumbnail_manager': thumbnail_manager is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -2761,8 +2655,8 @@ async def api_search():
             'search_metadata': {
                 **result_data.get('search_metadata', {}),
                 'feature': 'post_first_search',
-                'poster_priority': True,
                 'thumbnail_priority': True,
+                'no_fallback_image': True,
                 'real_message_ids': True,
             },
             'bot_username': Config.BOT_USERNAME,
@@ -2826,7 +2720,7 @@ async def api_stats():
         
         return jsonify({
             'status': 'success',
-            'optimized': True,
+            'thumbnail_system': True,
             'performance': perf_stats,
             'poster_fetcher': poster_stats,
             'thumbnail_manager': thumbnail_stats,
@@ -2843,17 +2737,14 @@ async def api_stats():
                 'running': bot_running,
                 'initialized': telegram_bot is not None
             },
-            'optimization_features': {
-                'zero_db_preload': True,
-                'zero_duplicate_checks': True,
-                'only_new_messages': True,
-                'auto_delete_deleted': True,
-                'post_file_merge': True,
-                'file_only_poster': True,
-                'thumbnail_manager': thumbnail_manager is not None,
+            'thumbnail_features': {
                 'one_movie_one_thumbnail': True,
+                'multi_quality_same_thumbnail': True,
                 'existing_files_auto_extract': True,
-                'new_files_auto_extract': True
+                'new_files_auto_extract': True,
+                'no_fallback_image': True,
+                'thumbnail_manager': thumbnail_manager is not None,
+                'priority_extracted_first': True
             },
             'timestamp': datetime.now().isoformat()
         })
@@ -2865,7 +2756,7 @@ async def api_stats():
         }), 500
 
 # ============================================================================
-# ✅ ADMIN API ROUTES - UPDATED WITH THUMBNAIL MANAGER
+# ✅ ADMIN API ROUTES
 # ============================================================================
 
 @app.route('/api/admin/reindex', methods=['POST'])
@@ -2882,7 +2773,7 @@ async def api_admin_reindex():
         return jsonify({
             'status': 'success',
             'message': 'File channel reindexing started',
-            'optimized': True,
+            'thumbnail_system': True,
             'thumbnail_manager': thumbnail_manager is not None,
             'timestamp': datetime.now().isoformat()
         })
@@ -2905,15 +2796,14 @@ async def api_admin_indexing_status():
         
         return jsonify({
             'status': 'success',
-            'optimized': True,
+            'thumbnail_system': True,
             'indexing': indexing_status,
             'database_files': total_files,
-            'optimization_features': {
-                'zero_db_preload': True,
-                'zero_duplicate_checks': True,
-                'only_new_messages': True,
-                'auto_delete_deleted': True,
-                'post_file_merge': True,
+            'thumbnail_features': {
+                'one_movie_one_thumbnail': True,
+                'multi_quality_same_thumbnail': True,
+                'existing_files_auto_extract': True,
+                'new_files_auto_extract': True,
                 'thumbnail_manager': thumbnail_manager is not None
             },
             'timestamp': datetime.now().isoformat()
@@ -2949,101 +2839,6 @@ async def api_admin_clear_cache():
         logger.error(f"❌ Clear cache error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/admin/db-stats', methods=['GET'])
-async def api_admin_db_stats():
-    """Get detailed database stats"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if files_col is None:
-            return jsonify({'status': 'error', 'message': 'Database not connected'})
-        
-        # Get total count
-        total = await files_col.count_documents({})
-        
-        # Get sample documents with REAL MESSAGE IDS
-        sample = await files_col.find({}, {
-            'title': 1, 
-            'message_id': 1, 
-            'real_message_id': 1,
-            'quality': 1, 
-            'thumbnail_extracted': 1,
-            'thumbnail_source': 1,
-            '_id': 0
-        }).limit(5).to_list(length=5)
-        
-        # Get quality distribution
-        pipeline = [
-            {"$group": {"_id": "$quality", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}}
-        ]
-        quality_dist = await files_col.aggregate(pipeline).to_list(length=10)
-        
-        # Get recent files
-        recent = await files_col.find({}, {
-            'title': 1, 
-            'date': 1, 
-            'real_message_id': 1,
-            'thumbnail_extracted': 1,
-            'thumbnail_source': 1,
-            '_id': 0
-        }).sort('date', -1).limit(5).to_list(length=5)
-        
-        # Get thumbnail source distribution
-        pipeline_thumb = [
-            {"$match": {"thumbnail_source": {"$exists": True}}},
-            {"$group": {"_id": "$thumbnail_source", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}}
-        ]
-        thumb_dist = await files_col.aggregate(pipeline_thumb).to_list(length=10)
-        
-        return jsonify({
-            'status': 'success',
-            'optimized': True,
-            'total_files': total,
-            'sample_files': sample,
-            'quality_distribution': quality_dist,
-            'thumbnail_source_distribution': thumb_dist,
-            'recent_files': recent
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ DB stats error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/bot-status', methods=['GET'])
-async def api_admin_bot_status():
-    """Get Telegram bot status"""
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
-        
-        return jsonify({
-            'status': 'success',
-            'optimized': True,
-            'telegram_bot': {
-                'running': bot_running,
-                'initialized': telegram_bot is not None,
-                'started': telegram_bot.bot_started if telegram_bot and hasattr(telegram_bot, 'bot_started') else False
-            },
-            'config': {
-                'bot_token_configured': bool(Config.BOT_TOKEN),
-                'api_id_configured': bool(Config.API_ID),
-                'api_hash_configured': bool(Config.API_HASH),
-                'admin_ids': Config.ADMIN_IDS,
-                'thumbnail_manager_enabled': thumbnail_manager is not None
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Bot status error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 @app.route('/api/admin/thumbnails/stats', methods=['GET'])
 async def api_admin_thumbnails_stats():
     """Get thumbnail statistics"""
@@ -3068,7 +2863,8 @@ async def api_admin_thumbnails_stats():
                 'multi_quality_same_thumbnail': True,
                 'existing_files_auto_extract': True,
                 'new_files_auto_extract': True,
-                'priority_extracted_first': True
+                'priority_extracted_first': True,
+                'no_fallback_image': True
             }
         })
         
@@ -3104,7 +2900,7 @@ async def api_admin_thumbnails_extract_existing():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
-# ✅ STARTUP AND SHUTDOWN - FIXED
+# ✅ STARTUP AND SHUTDOWN
 # ============================================================================
 
 app_start_time = time.time()
@@ -3207,23 +3003,16 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v9.0 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 FEATURES: OPTIMIZED INDEXING WITH THUMBNAIL MANAGER")
-    logger.info(f"   • Zero DB Preload: ✅ ENABLED")
-    logger.info(f"   • Zero Duplicate Checks: ✅ ENABLED")  
-    logger.info(f"   • Zero Wasted Telegram Calls: ✅ ENABLED")
-    logger.info(f"   • Only New Messages: ✅ ENABLED")
-    logger.info(f"   • Files-Only Fetch: ✅ ENABLED")
-    logger.info(f"   • Auto-Delete DB Entries: ✅ ENABLED")
-    logger.info(f"   • Post+File Merge: ✅ ENABLED")
-    logger.info(f"   • File-Only with Poster: ✅ ENABLED")
-    logger.info(f"   • Thumbnail Manager: {'✅ ENABLED' if THUMBNAIL_MANAGER_AVAILABLE else '❌ DISABLED'}")
+    logger.info("🎯 COMPLETE THUMBNAIL SYSTEM")
     logger.info(f"   • One Movie → One Thumbnail: ✅ ENABLED")
     logger.info(f"   • 4 Qualities → Same Thumbnail: ✅ ENABLED")
     logger.info(f"   • Existing Files Auto-Extract: ✅ ENABLED")
     logger.info(f"   • New Files Auto-Extract: ✅ ENABLED")
-    logger.info(f"   • Priority: Extracted → Poster → Fallback: ✅ ENABLED")
+    logger.info(f"   • Priority: Extracted → Poster → Empty: ✅ ENABLED")
+    logger.info(f"   • No Default/Fallback Image: ✅ ENABLED")
+    logger.info(f"   • Thumbnail Success Rate Target: 99%")
+    logger.info(f"   • MongoDB Optimized: ✅ ENABLED")
     logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
-    logger.info(f"   • Max Messages: {'Unlimited' if Config.MAX_INDEX_LIMIT == 0 else Config.MAX_INDEX_LIMIT}")
     logger.info(f"   • Telegram Bot: ✅ ENABLED")
     
     try:
