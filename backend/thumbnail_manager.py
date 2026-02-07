@@ -20,7 +20,8 @@ class ThumbnailManager:
     def __init__(self, mongo_client, config, bot_handler=None):
         self.mongo_client = mongo_client
         self.db = mongo_client.get_database()
-        self.thumbnails_col = self.db.thumbnails
+        self.thumbnails_col = self.db.thumbnails  # Main thumbnails collection
+        self.files_col = self.db.files  # Reference to files collection
         self.config = config
         self.bot_handler = bot_handler
         
@@ -52,6 +53,10 @@ class ThumbnailManager:
         
         # Start cleanup task
         self.cleanup_task = None
+        
+        # Batch processing
+        self.batch_queue = []
+        self.batch_processing = False
     
     async def initialize(self):
         """Initialize thumbnail manager"""
@@ -69,26 +74,42 @@ class ThumbnailManager:
     async def create_indexes(self):
         """Create MongoDB indexes for thumbnails collection"""
         try:
-            # TTL index
-            await self.thumbnails_col.create_index(
-                [("last_accessed", 1)],
-                expireAfterSeconds=self.config.THUMBNAIL_TTL_DAYS * 24 * 60 * 60,
-                name="thumbnails_ttl_index",
-                background=True
-            )
+            # TTL index for automatic cleanup
+            if self.config.THUMBNAIL_TTL_DAYS > 0:
+                await self.thumbnails_col.create_index(
+                    [("last_accessed", 1)],
+                    expireAfterSeconds=self.config.THUMBNAIL_TTL_DAYS * 24 * 60 * 60,
+                    name="thumbnails_ttl_index",
+                    background=True
+                )
+                logger.info(f"✅ TTL index created ({self.config.THUMBNAIL_TTL_DAYS} days)")
             
-            # Channel + Message ID index
-            await self.thumbnails_col.create_index(
-                [("channel_id", 1), ("message_id", 1)],
-                unique=True,
-                name="thumbnails_message_unique",
-                background=True
-            )
-            
-            # Normalized title index
+            # Normalized title index (unique per movie)
             await self.thumbnails_col.create_index(
                 [("normalized_title", 1)],
-                name="thumbnails_title_index",
+                unique=True,
+                name="thumbnails_title_unique",
+                background=True
+            )
+            
+            # Channel + Message ID index for quick lookup
+            await self.thumbnails_col.create_index(
+                [("channel_id", 1), ("message_id", 1)],
+                name="thumbnails_message_index",
+                background=True
+            )
+            
+            # Source index for analytics
+            await self.thumbnails_col.create_index(
+                [("source", 1)],
+                name="thumbnails_source_index",
+                background=True
+            )
+            
+            # Created at index for sorting
+            await self.thumbnails_col.create_index(
+                [("created_at", -1)],
+                name="thumbnails_created_index",
                 background=True
             )
             
@@ -100,6 +121,7 @@ class ThumbnailManager:
     async def extract_thumbnail_from_telegram(self, channel_id: int, message_id: int) -> Optional[str]:
         """
         Extract thumbnail directly from Telegram message - FIXED
+        Returns base64 data URL or None
         """
         try:
             if self.bot_handler and self.bot_handler.initialized:
@@ -126,7 +148,7 @@ class ThumbnailManager:
     async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
         """
         Get thumbnail for movie with 99% success rate
-        Priority: Cache -> Telegram -> Multiple APIs -> Fallback
+        Priority: Cache -> Database -> Telegram -> Multiple APIs -> Fallback
         """
         self.stats['total_requests'] += 1
         start_time = time.time()
@@ -448,21 +470,27 @@ class ThumbnailManager:
     async def _get_from_database(self, normalized_title: str, channel_id: int = None, message_id: int = None) -> Optional[Dict]:
         """Get thumbnail from database"""
         try:
-            query = {"normalized_title": normalized_title}
+            # First try by normalized_title (one movie → one thumbnail)
+            thumbnail_doc = await self.thumbnails_col.find_one(
+                {"normalized_title": normalized_title},
+                sort=[("created_at", -1)]  # Get the latest
+            )
             
-            if channel_id and message_id:
-                query = {
+            # If not found and we have message details, try that
+            if not thumbnail_doc and channel_id and message_id:
+                thumbnail_doc = await self.thumbnails_col.find_one({
                     "channel_id": channel_id,
                     "message_id": message_id
-                }
-            
-            thumbnail_doc = await self.thumbnails_col.find_one(query)
+                })
             
             if thumbnail_doc:
                 # Update last_accessed
                 await self.thumbnails_col.update_one(
                     {"_id": thumbnail_doc["_id"]},
-                    {"$set": {"last_accessed": datetime.now()}}
+                    {
+                        "$set": {"last_accessed": datetime.now()},
+                        "$inc": {"access_count": 1}
+                    }
                 )
                 
                 return {
@@ -502,8 +530,7 @@ class ThumbnailManager:
             # Use upsert to update or insert
             await self.thumbnails_col.update_one(
                 {
-                    'normalized_title': normalized_title,
-                    'source': source
+                    'normalized_title': normalized_title
                 },
                 {
                     '$set': thumbnail_doc,
@@ -519,15 +546,15 @@ class ThumbnailManager:
             logger.error(f"Error saving to database: {e}")
     
     def normalize_title(self, title: str) -> str:
-        """Advanced title normalization"""
+        """Advanced title normalization for one movie → one thumbnail"""
         if not title:
             return ""
         
         # Convert to lowercase
         title = title.lower().strip()
         
-        # Remove year patterns
-        title = re.sub(r'\s*(?:\(|\[)?\d{4}(?:\)|\])?', '', title)
+        # Remove year patterns (1999), (2000), [2020], etc.
+        title = re.sub(r'\s*[\(\[]?\d{4}[\)\]]?', '', title)
         
         # Remove quality indicators
         quality_patterns = [
@@ -548,6 +575,23 @@ class ThumbnailManager:
         title = re.sub(r'[^\w\s]', ' ', title)
         title = re.sub(r'\s+', ' ', title)
         
+        # Remove common prefixes/suffixes
+        common_patterns = [
+            r'^movie\s+',
+            r'^film\s+',
+            r'^full\s+',
+            r'^latest\s+',
+            r'^new\s+',
+            r'\s+full$',
+            r'\s+movie$',
+            r'\s+film$',
+            r'\s+hindi$',
+            r'\s+english$',
+        ]
+        
+        for pattern in common_patterns:
+            title = re.sub(pattern, '', title, flags=re.IGNORECASE)
+        
         return title.strip()
     
     def clean_title_for_api(self, title: str) -> str:
@@ -556,7 +600,7 @@ class ThumbnailManager:
             return ""
         
         # Remove year
-        title = re.sub(r'\s*(?:\(|\[)?\d{4}(?:\)|\])?', '', title)
+        title = re.sub(r'\s*[\(\[]?\d{4}[\)\]]?', '', title)
         
         # Remove quality info
         title = re.sub(r'\b(?:720p|1080p|2160p|4k|hd|hevc|bluray|webrip|hdtv)\b', '', title, flags=re.IGNORECASE)
@@ -565,18 +609,21 @@ class ThumbnailManager:
         title = re.sub(r'[^\w\s\-]', '', title)
         title = re.sub(r'\s+', ' ', title)
         
-        # Take only first 3 words for better matching
+        # Take only first 3-5 words for better matching
         words = title.split()
-        if len(words) > 3:
-            title = ' '.join(words[:3])
+        if len(words) > 5:
+            title = ' '.join(words[:5])
         
         return title.strip()
     
     async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
-        """Get thumbnails for multiple movies in batch with 99% success"""
+        """
+        Get thumbnails for multiple movies in batch with 99% success
+        Optimized for search results
+        """
         try:
-            # Prepare tasks for all movies
-            tasks = []
+            # Prepare batch data
+            batch_tasks = []
             for movie in movies:
                 title = movie.get('title', '')
                 channel_id = movie.get('channel_id')
@@ -585,14 +632,14 @@ class ThumbnailManager:
                 task = asyncio.create_task(
                     self.get_thumbnail_for_movie(title, channel_id, message_id)
                 )
-                tasks.append((movie, task))
+                batch_tasks.append((movie, task))
             
             # Process results
             results = []
             successful = 0
             failed = 0
             
-            for movie, task in tasks:
+            for movie, task in batch_tasks:
                 try:
                     thumbnail_data = await task
                     
@@ -643,26 +690,140 @@ class ThumbnailManager:
                 'extracted': False
             } for movie in movies]
     
+    async def extract_thumbnails_for_existing_files(self):
+        """
+        Extract thumbnails for all existing video files in database
+        This ensures one movie → one thumbnail for all existing content
+        """
+        if self.files_col is None:
+            logger.warning("⚠️ Files collection not available")
+            return
+        
+        logger.info("🔄 Extracting thumbnails for existing files in database...")
+        
+        try:
+            # Get all video files from database
+            cursor = self.files_col.find({
+                'is_video_file': True
+            }, {
+                'title': 1,
+                'normalized_title': 1,
+                'channel_id': 1,
+                'message_id': 1,
+                'real_message_id': 1,
+                'thumbnail_extracted': 1,
+                '_id': 1
+            })
+            
+            files_to_process = []
+            async for doc in cursor:
+                # Skip if already has extracted thumbnail
+                if doc.get('thumbnail_extracted'):
+                    continue
+                
+                files_to_process.append({
+                    'title': doc.get('title', ''),
+                    'normalized_title': doc.get('normalized_title', ''),
+                    'channel_id': doc.get('channel_id'),
+                    'message_id': doc.get('real_message_id') or doc.get('message_id'),
+                    'db_id': doc.get('_id')
+                })
+            
+            logger.info(f"📊 Found {len(files_to_process)} files needing thumbnails")
+            
+            if not files_to_process:
+                logger.info("✅ All files already have thumbnails")
+                return
+            
+            # Process in batches
+            batch_size = 20
+            total_batches = (len(files_to_process) + batch_size - 1) // batch_size
+            total_success = 0
+            total_failed = 0
+            
+            for batch_num in range(total_batches):
+                start_idx = batch_num * batch_size
+                end_idx = min(start_idx + batch_size, len(files_to_process))
+                batch = files_to_process[start_idx:end_idx]
+                
+                logger.info(f"🖼️ Processing batch {batch_num + 1}/{total_batches} ({len(batch)} files)...")
+                
+                # Get thumbnails for batch
+                thumbnail_results = await self.get_thumbnails_batch(batch)
+                
+                # Update files collection with thumbnail info
+                for i, file_info in enumerate(batch):
+                    if i < len(thumbnail_results):
+                        thumbnail_data = thumbnail_results[i]
+                        
+                        if thumbnail_data.get('thumbnail_url'):
+                            # Update files collection
+                            await self.files_col.update_one(
+                                {'_id': file_info['db_id']},
+                                {'$set': {
+                                    'thumbnail_url': thumbnail_data['thumbnail_url'],
+                                    'thumbnail_extracted': thumbnail_data.get('extracted', False),
+                                    'thumbnail_source': thumbnail_data.get('source', 'unknown')
+                                }}
+                            )
+                            
+                            total_success += 1
+                        else:
+                            total_failed += 1
+                
+                # Small delay between batches
+                if batch_num < total_batches - 1:
+                    await asyncio.sleep(2)
+            
+            logger.info(f"✅ Existing files thumbnail extraction complete: {total_success} successful, {total_failed} failed")
+            
+        except Exception as e:
+            logger.error(f"❌ Error extracting thumbnails for existing files: {e}")
+    
     async def periodic_cleanup(self):
-        """Periodic cleanup"""
+        """Periodic cleanup of cache and orphaned thumbnails"""
         while True:
             try:
                 await asyncio.sleep(24 * 60 * 60)  # Daily
+                
+                # Clean memory cache
+                self._cleanup_memory_cache()
+                
+                # Clean orphaned thumbnails
                 await self.cleanup_orphaned_thumbnails()
+                
+                logger.info("✅ Periodic cleanup completed")
+                
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"❌ Cleanup task error: {e}")
                 await asyncio.sleep(3600)
     
+    def _cleanup_memory_cache(self):
+        """Clean up expired entries from memory cache"""
+        try:
+            current_time = time.time()
+            expired_keys = [
+                key for key, data in self.thumbnail_cache.items()
+                if current_time - data['timestamp'] > self.cache_ttl
+            ]
+            
+            for key in expired_keys:
+                del self.thumbnail_cache[key]
+            
+            if expired_keys:
+                logger.debug(f"🧹 Cleaned {len(expired_keys)} expired cache entries")
+                
+        except Exception as e:
+            logger.error(f"❌ Memory cache cleanup error: {e}")
+    
     async def cleanup_orphaned_thumbnails(self):
-        """Remove orphaned thumbnails"""
+        """Remove orphaned thumbnails (no corresponding files)"""
         try:
             logger.info("🧹 Cleaning up orphaned thumbnails...")
             
-            files_col = self.db.files
-            
-            if files_col is None:
+            if self.files_col is None:
                 return
             
             # Find thumbnails without corresponding files
@@ -670,45 +831,50 @@ class ThumbnailManager:
                 {
                     '$lookup': {
                         'from': 'files',
-                        'let': {'channel': '$channel_id', 'message': '$message_id'},
+                        'let': {'norm_title': '$normalized_title'},
                         'pipeline': [
                             {
                                 '$match': {
                                     '$expr': {
-                                        '$and': [
-                                            {'$eq': ['$channel_id', '$$channel']},
-                                            {'$eq': ['$message_id', '$$message']}
-                                        ]
+                                        '$eq': ['$normalized_title', '$$norm_title']
                                     }
                                 }
                             }
                         ],
-                        'as': 'file'
+                        'as': 'matching_files'
                     }
                 },
                 {
                     '$match': {
-                        'file': {'$size': 0},
-                        'channel_id': {'$exists': True},
-                        'message_id': {'$exists': True}
+                        'matching_files': {'$size': 0},
+                        'source': {'$ne': 'fallback'}  # Keep fallback thumbnails
                     }
                 },
                 {
                     '$project': {
                         '_id': 1,
-                        'normalized_title': 1
+                        'normalized_title': 1,
+                        'source': 1,
+                        'created_at': 1
                     }
                 }
             ]
             
             orphaned = await self.thumbnails_col.aggregate(pipeline).to_list(length=None)
             
+            deleted_count = 0
             for doc in orphaned:
-                await self.thumbnails_col.delete_one({"_id": doc["_id"]})
-                logger.debug(f"🗑️ Deleted orphaned thumbnail: {doc.get('normalized_title', 'Unknown')}")
+                try:
+                    await self.thumbnails_col.delete_one({"_id": doc["_id"]})
+                    deleted_count += 1
+                    logger.debug(f"🗑️ Deleted orphaned thumbnail: {doc.get('normalized_title', 'Unknown')}")
+                except Exception as e:
+                    logger.error(f"❌ Error deleting orphaned thumbnail: {e}")
             
-            if orphaned:
-                logger.info(f"✅ Cleaned up {len(orphaned)} orphaned thumbnails")
+            if deleted_count > 0:
+                logger.info(f"✅ Cleaned up {deleted_count} orphaned thumbnails")
+            else:
+                logger.info("✅ No orphaned thumbnails found")
                 
         except Exception as e:
             logger.error(f"❌ Cleanup error: {e}")
@@ -735,16 +901,47 @@ class ThumbnailManager:
             ]
             source_dist = await self.thumbnails_col.aggregate(pipeline).to_list(length=10)
             
+            # Get recent thumbnails
+            recent_thumbnails = await self.thumbnails_col.find(
+                {},
+                {
+                    'normalized_title': 1,
+                    'source': 1,
+                    'created_at': 1,
+                    'access_count': 1,
+                    '_id': 0
+                }
+            ).sort('created_at', -1).limit(5).to_list(length=5)
+            
             return {
                 'total_thumbnails': total_thumbnails,
                 'extracted_thumbnails': extracted_count,
-                'performance_stats': self.stats,
+                'performance_stats': {
+                    'total_requests': self.stats['total_requests'],
+                    'successful': self.stats['successful'],
+                    'failed': self.stats['failed'],
+                    'from_cache': self.stats['from_cache'],
+                    'from_telegram': self.stats['from_telegram'],
+                    'from_api': self.stats['from_api'],
+                    'fallback_used': self.stats['fallback_used'],
+                    'api_success_rate': self.stats['api_success_rate']
+                },
                 'success_rate': f"{success_rate:.2f}%",
                 'avg_response_time_ms': f"{avg_response_time * 1000:.1f}",
                 'source_distribution': source_dist,
+                'recent_thumbnails': recent_thumbnails,
                 'cache_stats': {
                     'memory_cache_size': len(self.thumbnail_cache),
-                    'memory_cache_ttl_hours': self.cache_ttl / 3600
+                    'memory_cache_ttl_hours': self.cache_ttl / 3600,
+                    'database_cache_size': total_thumbnails
+                },
+                'features': {
+                    'one_movie_one_thumbnail': True,
+                    'multi_quality_same_thumbnail': True,
+                    'priority_extracted_first': True,
+                    'fallback_system': True,
+                    'ttl_enabled': self.config.THUMBNAIL_TTL_DAYS > 0,
+                    'ttl_days': self.config.THUMBNAIL_TTL_DAYS
                 },
                 'target': '99% success rate'
             }
@@ -753,8 +950,80 @@ class ThumbnailManager:
             logger.error(f"❌ Stats error: {e}")
             return {}
     
+    async def find_duplicate_titles(self) -> List[Dict]:
+        """Find duplicate normalized titles (for debugging)"""
+        try:
+            pipeline = [
+                {"$group": {
+                    "_id": "$normalized_title",
+                    "count": {"$sum": 1},
+                    "titles": {"$push": "$original_title"},
+                    "sources": {"$push": "$source"},
+                    "ids": {"$push": "$_id"}
+                }},
+                {"$match": {"count": {"$gt": 1}}},
+                {"$sort": {"count": -1}}
+            ]
+            
+            duplicates = await self.thumbnails_col.aggregate(pipeline).to_list(length=50)
+            return duplicates
+            
+        except Exception as e:
+            logger.error(f"❌ Error finding duplicates: {e}")
+            return []
+    
+    async def merge_duplicate_thumbnails(self):
+        """Merge duplicate thumbnails (keep best one)"""
+        try:
+            duplicates = await self.find_duplicate_titles()
+            
+            if not duplicates:
+                logger.info("✅ No duplicate thumbnails found")
+                return
+            
+            logger.info(f"🔄 Merging {len(duplicates)} duplicate thumbnails...")
+            
+            merged_count = 0
+            for dup in duplicates:
+                normalized_title = dup['_id']
+                ids = dup['ids']
+                sources = dup['sources']
+                
+                # Determine best thumbnail (priority: telegram > tmdb > omdb > others > fallback)
+                source_priority = {
+                    'telegram': 1,
+                    'tmdb': 2,
+                    'tmdb_tv': 3,
+                    'omdb': 4,
+                    'imdb': 5,
+                    'duckduckgo': 6,
+                    'fallback': 999
+                }
+                
+                # Find best thumbnail
+                best_id = None
+                best_priority = 999
+                
+                for i, source in enumerate(sources):
+                    priority = source_priority.get(source, 100)
+                    if priority < best_priority:
+                        best_priority = priority
+                        best_id = ids[i]
+                
+                # Delete duplicates, keep best
+                if best_id and len(ids) > 1:
+                    delete_ids = [id for id in ids if id != best_id]
+                    await self.thumbnails_col.delete_many({"_id": {"$in": delete_ids}})
+                    merged_count += len(delete_ids)
+                    logger.debug(f"✅ Merged duplicates for: {normalized_title}")
+            
+            logger.info(f"✅ Merged {merged_count} duplicate thumbnails")
+            
+        except Exception as e:
+            logger.error(f"❌ Error merging duplicates: {e}")
+    
     async def shutdown(self):
-        """Shutdown"""
+        """Shutdown thumbnail manager"""
         if self.cleanup_task:
             self.cleanup_task.cancel()
             try:
