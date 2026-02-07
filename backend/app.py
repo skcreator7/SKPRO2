@@ -674,6 +674,23 @@ class BotHandler:
         except Exception as e:
             logger.error(f"❌ Download file error: {e}")
             return None
+    
+    async def get_bot_status(self):
+        """Get bot status for API endpoint"""
+        try:
+            return {
+                'initialized': getattr(self, 'initialized', True),
+                'bot_username': getattr(self, 'bot_username', '@sk4filmbot'),
+                'last_update': getattr(self, 'last_update', None),
+                'status': 'active'
+            }
+        except Exception as e:
+            logger.error(f"Bot status error: {e}")
+            return {
+                'initialized': False,
+                'bot_username': 'Error',
+                'error': str(e)
+            }
 
 bot_handler = BotHandler()
 
@@ -2497,13 +2514,7 @@ async def root():
     indexing_status = await file_indexing_manager.get_indexing_status()
     
     # Get bot handler status
-    bot_status = None
-    if bot_handler:
-        try:
-            bot_status = await bot_handler.get_bot_status()
-        except Exception as e:
-            logger.error(f"❌ Error getting bot status: {e}")
-            bot_status = {'initialized': False, 'error': str(e)}
+    bot_status = await bot_handler.get_bot_status() if bot_handler and hasattr(bot_handler, 'get_bot_status') else {'initialized': False, 'reason': 'BotHandler unavailable'}
     
     # Get Telegram bot status
     bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
@@ -2565,12 +2576,7 @@ async def root():
 async def health():
     indexing_status = await file_indexing_manager.get_indexing_status()
     
-    bot_status = None
-    if bot_handler:
-        try:
-            bot_status = await bot_handler.get_bot_status()
-        except:
-            bot_status = {'initialized': False}
+    bot_status = await bot_handler.get_bot_status() if bot_handler and hasattr(bot_handler, 'get_bot_status') else {'initialized': False, 'reason': 'BotHandler unavailable'}
     
     thumbnail_stats = {}
     if thumbnail_manager:
@@ -2704,8 +2710,12 @@ async def api_stats():
         
         # Get thumbnail stats
         thumbnail_stats = {}
-        if thumbnail_manager:
-            thumbnail_stats = await thumbnail_manager.get_stats()
+        if 'thumbnail_manager' in globals() and thumbnail_manager:
+            try:
+                thumbnail_stats = await thumbnail_manager.get_stats()
+            except Exception as e:
+                logger.error(f"Thumbnail stats error: {e}")
+                thumbnail_stats = {'error': 'unavailable'}
         
         # Get bot handler status
         bot_status = None
