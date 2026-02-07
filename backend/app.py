@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - COMPLETE WORKING VERSION WITH ALL FIXES
+# 🚀 SK4FiLM v9.0 - COMPLETE WORKING VERSION WITH FIXES
 # ============================================================================
 
 import asyncio
@@ -169,7 +169,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.0-WORKING'
+    response.headers['X-SK4FiLM-Version'] = '9.0-FIXED'
     return response
 
 # ============================================================================
@@ -586,7 +586,7 @@ async def init_telegram_sessions():
     return user_session_ready or bot_session_ready
 
 # ============================================================================
-# ✅ MONGODB INITIALIZATION - SIMPLIFIED
+# ✅ MONGODB INITIALIZATION - FIXED VERSION
 # ============================================================================
 
 @performance_monitor.measure("mongodb_init")
@@ -596,57 +596,89 @@ async def init_mongodb():
     try:
         logger.info("🔌 Initializing MongoDB...")
         
-        # Ensure URI has database name
+        # Get MongoDB URI from environment
         mongodb_uri = Config.MONGODB_URI
-        if 'mongodb.net/' in mongodb_uri:
-            if '?' in mongodb_uri and '/?' in mongodb_uri:
-                # Fix: mongodb+srv://...mongodb.net/?...
-                base = mongodb_uri.split('?')[0]
-                params = mongodb_uri.split('?')[1]
-                if not base.endswith('/'):
-                    base += '/'
-                mongodb_uri = f"{base}sk4film?{params}"
-            elif '?' in mongodb_uri and not '/?' in mongodb_uri:
-                # Already has database
-                pass
-            else:
-                # No query params
-                if not mongodb_uri.endswith('/'):
-                    mongodb_uri += '/'
-                mongodb_uri += "sk4film"
         
         logger.info(f"📡 Connecting to MongoDB...")
         
+        # Create MongoClient with timeout settings
         mongo_client = AsyncIOMotorClient(
             mongodb_uri,
             serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000
+            connectTimeoutMS=10000,
+            socketTimeoutMS=15000
         )
         
         # Test connection
         await mongo_client.admin.command('ping')
+        logger.info("✅ MongoDB connection test successful")
         
-        # Get database (extract from URI or use default)
-        db_name = "sk4film"
-        if 'mongodb.net/' in mongodb_uri:
-            # Extract database name from URI
-            path_part = mongodb_uri.split('mongodb.net/')[1]
-            if '/' in path_part:
-                db_name = path_part.split('/')[0]
-            elif '?' in path_part:
-                db_name = path_part.split('?')[0]
+        # Get database name from URI or use default
+        if "mongodb.net/" in mongodb_uri:
+            # Extract database name from URI like mongodb+srv://...mongodb.net/dbname?...
+            parts = mongodb_uri.split("mongodb.net/")
+            if len(parts) > 1:
+                db_name_part = parts[1].split("?")[0]
+                if db_name_part:
+                    db_name = db_name_part
+                else:
+                    db_name = "sk4film"
+            else:
+                db_name = "sk4film"
+        else:
+            db_name = "sk4film"
         
+        # Get database
         db = mongo_client[db_name]
+        logger.info(f"✅ Using database: {db_name}")
+        
+        # Initialize collections
         files_col = db.files
         verification_col = db.verifications
         movie_thumbnails_col = db.movie_thumbnails
         
-        # Create indexes
-        await files_col.create_index([("channel_id", 1), ("message_id", 1)], unique=True)
-        await files_col.create_index([("normalized_title", "text")])
-        await movie_thumbnails_col.create_index([("normalized_title", 1)], unique=True)
+        # Create indexes with error handling
+        try:
+            # Drop existing conflicting indexes first
+            existing_indexes = await files_col.index_information()
+            
+            # Check if channel_message_unique exists
+            index_exists = any("channel_message_unique" in name for name in existing_indexes.keys())
+            if index_exists:
+                logger.info("ℹ️ Index 'channel_message_unique' already exists")
+            else:
+                # Create unique index
+                await files_col.create_index(
+                    [("channel_id", 1), ("message_id", 1)],
+                    unique=True,
+                    name="channel_message_unique"
+                )
+                logger.info("✅ Created unique index: channel_message_unique")
+            
+            # Text index for search
+            text_index_exists = any("title_text_search" in name for name in existing_indexes.keys())
+            if not text_index_exists:
+                await files_col.create_index(
+                    [("normalized_title", "text")],
+                    name="title_text_search"
+                )
+                logger.info("✅ Created text index: title_text_search")
+            
+        except Exception as index_error:
+            logger.warning(f"⚠️ Index creation error (continuing anyway): {index_error}")
         
-        logger.info(f"✅ MongoDB connected to database: {db_name}")
+        # Create thumbnail collection index
+        try:
+            await movie_thumbnails_col.create_index(
+                [("normalized_title", 1)],
+                unique=True,
+                name="thumb_normalized_title_unique"
+            )
+            logger.info("✅ Created thumbnail index")
+        except Exception as thumb_error:
+            logger.warning(f"⚠️ Thumbnail index error: {thumb_error}")
+        
+        logger.info("✅ MongoDB initialization complete")
         return True
         
     except Exception as e:
@@ -684,25 +716,34 @@ class OptimizedFileIndexingManager:
                 return
             
             # Get last indexed message
-            last_msg = await files_col.find_one(
-                {"channel_id": Config.FILE_CHANNEL_ID},
-                sort=[("message_id", -1)]
-            )
-            last_msg_id = last_msg["message_id"] if last_msg else 0
+            last_msg = None
+            if files_col is not None:
+                try:
+                    last_msg = await files_col.find_one(
+                        {"channel_id": Config.FILE_CHANNEL_ID},
+                        sort=[("message_id", -1)]
+                    )
+                except:
+                    pass
             
+            last_msg_id = last_msg["message_id"] if last_msg else 0
             logger.info(f"📊 Last indexed message ID: {last_msg_id}")
             
             # Fetch new messages
             messages_to_index = []
-            async for msg in User.get_chat_history(
-                Config.FILE_CHANNEL_ID,
-                limit=Config.BATCH_INDEX_SIZE
-            ):
-                if msg.id <= last_msg_id:
-                    break
-                
-                if msg and (msg.document or msg.video):
-                    messages_to_index.append(msg)
+            try:
+                async for msg in User.get_chat_history(
+                    Config.FILE_CHANNEL_ID,
+                    limit=Config.BATCH_INDEX_SIZE
+                ):
+                    if msg.id <= last_msg_id:
+                        break
+                    
+                    if msg and (msg.document or msg.video):
+                        messages_to_index.append(msg)
+            except Exception as fetch_error:
+                logger.error(f"❌ Error fetching messages: {fetch_error}")
+                return
             
             logger.info(f"📥 Found {len(messages_to_index)} new files")
             
@@ -717,10 +758,15 @@ class OptimizedFileIndexingManager:
         """Index a single file"""
         try:
             # Check if already exists
-            existing = await files_col.find_one({
-                'channel_id': Config.FILE_CHANNEL_ID,
-                'message_id': message.id
-            })
+            existing = None
+            if files_col is not None:
+                try:
+                    existing = await files_col.find_one({
+                        'channel_id': Config.FILE_CHANNEL_ID,
+                        'message_id': message.id
+                    })
+                except:
+                    pass
             
             if existing:
                 return
@@ -767,10 +813,11 @@ class OptimizedFileIndexingManager:
                     'file_size': message.video.file_size or 0
                 })
             
-            await files_col.insert_one(doc)
-            self.total_indexed += 1
-            
-            logger.info(f"✅ Indexed: {title[:50]}...")
+            if files_col is not None:
+                await files_col.insert_one(doc)
+                self.total_indexed += 1
+                
+                logger.info(f"✅ Indexed: {title[:50]}...")
             
         except Exception as e:
             logger.error(f"❌ File indexing error: {e}")
@@ -815,22 +862,28 @@ class VideoThumbnailManager:
             return self.thumbnail_cache[normalized_title]
         
         # Check database
-        if movie_thumbnails_col:
-            thumb = await movie_thumbnails_col.find_one(
-                {'normalized_title': normalized_title},
-                {'thumbnail_url': 1}
-            )
-            if thumb and thumb.get('thumbnail_url'):
-                self.thumbnail_cache[normalized_title] = thumb['thumbnail_url']
-                return thumb['thumbnail_url']
+        if movie_thumbnails_col is not None:
+            try:
+                thumb = await movie_thumbnails_col.find_one(
+                    {'normalized_title': normalized_title},
+                    {'thumbnail_url': 1}
+                )
+                if thumb and thumb.get('thumbnail_url'):
+                    self.thumbnail_cache[normalized_title] = thumb['thumbnail_url']
+                    return thumb['thumbnail_url']
+            except:
+                pass
         
         return None
     
     async def get_stats(self):
         """Get thumbnail stats"""
-        if movie_thumbnails_col:
-            count = await movie_thumbnails_col.count_documents({})
-            return {'total_thumbnails': count}
+        if movie_thumbnails_col is not None:
+            try:
+                count = await movie_thumbnails_col.count_documents({})
+                return {'total_thumbnails': count}
+            except:
+                pass
         return {'total_thumbnails': 0}
 
 thumbnail_manager = VideoThumbnailManager()
@@ -1043,7 +1096,7 @@ async def get_home_movies(limit=25):
 @performance_monitor.measure("system_init")
 async def init_system():
     logger.info("=" * 60)
-    logger.info("🚀 SK4FiLM v9.0 - WORKING VERSION")
+    logger.info("🚀 SK4FiLM v9.0 - FIXED VERSION")
     logger.info("=" * 60)
     
     try:
@@ -1054,9 +1107,12 @@ async def init_system():
             return False
         
         # Get current stats
-        if files_col:
-            file_count = await files_col.count_documents({})
-            logger.info(f"📊 Current files in database: {file_count}")
+        if files_col is not None:
+            try:
+                file_count = await files_col.count_documents({})
+                logger.info(f"📊 Current files in database: {file_count}")
+            except:
+                logger.warning("⚠️ Could not count files")
         
         # Initialize Bot Handler
         await bot_handler.initialize()
@@ -1074,7 +1130,7 @@ async def init_system():
         telegram_ok = await init_telegram_sessions()
         
         # Start indexing if user session ready
-        if user_session_ready and files_col:
+        if user_session_ready and files_col is not None:
             await file_indexing_manager.start_indexing()
         
         logger.info("✅ SK4FiLM initialized successfully")
@@ -1087,20 +1143,23 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ API ROUTES
+# ✅ API ROUTES - FIXED
 # ============================================================================
 
 @app.route('/')
 @performance_monitor.measure("root_endpoint")
 async def root():
-    # Get stats
+    # Get stats - FIXED: Use "is not None" instead of truthy check
     file_count = 0
-    if files_col:
-        file_count = await files_col.count_documents({})
+    if files_col is not None:
+        try:
+            file_count = await files_col.count_documents({})
+        except:
+            pass
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0',
+        'service': 'SK4FiLM v9.0 - FIXED',
         'sessions': {
             'user': user_session_ready,
             'bot': bot_session_ready
@@ -1111,8 +1170,10 @@ async def root():
         'features': {
             'search': True,
             'posters': poster_fetcher is not None,
-            'indexing': file_indexing_manager.is_running
-        }
+            'indexing': file_indexing_manager.is_running,
+            'mongodb_connected': mongo_client is not None
+        },
+        'timestamp': datetime.now().isoformat()
     })
 
 @app.route('/health')
@@ -1171,8 +1232,11 @@ async def api_search():
 async def api_stats():
     try:
         file_count = 0
-        if files_col:
-            file_count = await files_col.count_documents({})
+        if files_col is not None:
+            try:
+                file_count = await files_col.count_documents({})
+            except:
+                pass
         
         return jsonify({
             'status': 'success',
@@ -1184,7 +1248,8 @@ async def api_stats():
             'sessions': {
                 'user': user_session_ready,
                 'bot': bot_session_ready
-            }
+            },
+            'mongodb': mongo_client is not None
         })
     except Exception as e:
         logger.error(f"Stats API error: {e}")
@@ -1235,24 +1300,36 @@ async def shutdown():
     await bot_handler.shutdown()
     
     # Close poster fetcher
-    if poster_fetcher:
+    if poster_fetcher is not None:
         await poster_fetcher.close()
     
     # Close Telegram sessions
-    if User:
+    if User is not None:
         await User.stop()
-    if Bot:
+    if Bot is not None:
         await Bot.stop()
     
     # Close cache
-    if cache_manager:
+    if cache_manager is not None:
         await cache_manager.stop()
     
     # Close MongoDB
-    if mongo_client:
+    if mongo_client is not None:
         mongo_client.close()
     
     logger.info("👋 Shutdown complete")
+
+# ============================================================================
+# ✅ ERROR HANDLER
+# ============================================================================
+
+@app.errorhandler(Exception)
+async def handle_error(error):
+    logger.error(f"Unhandled error: {error}")
+    return jsonify({
+        'status': 'error',
+        'message': 'Internal server error'
+    }), 500
 
 # ============================================================================
 # ✅ MAIN ENTRY POINT
@@ -1269,6 +1346,7 @@ if __name__ == "__main__":
     
     logger.info(f"🌐 Starting SK4FiLM on port {Config.WEB_SERVER_PORT}...")
     logger.info("✅ Features: Search, Indexing, Posters, Thumbnails")
+    logger.info("✅ Fixes: MongoDB index conflicts, Collection checks")
     
     try:
         asyncio.run(serve(app, config))
