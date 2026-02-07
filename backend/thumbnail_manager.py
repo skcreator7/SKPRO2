@@ -1,5 +1,5 @@
 # ============================================================================
-# thumbnail_manager.py - SINGLE MONGODB THUMBNAIL MANAGEMENT SYSTEM (FIXED)
+# thumbnail_manager.py - COMPLETE THUMBNAIL SYSTEM - ONE MOVIE, ONE THUMBNAIL
 # ============================================================================
 
 import asyncio
@@ -8,21 +8,21 @@ import logging
 import time
 import re
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 import hashlib
 import aiohttp
 
 logger = logging.getLogger(__name__)
 
 class ThumbnailManager:
-    """Thumbnail management system with single MongoDB database - FIXED VERSION"""
+    """COMPLETE Thumbnail management system - ONE MOVIE → ONE THUMBNAIL"""
     
     def __init__(self, mongo_client, config, bot_handler=None):
         self.mongo_client = mongo_client
-        self.db_name = "sk4film"  # Default database name
-        self.db = mongo_client[self.db_name]  # Access database directly
-        self.thumbnails_col = self.db.thumbnails  # Main thumbnails collection
-        self.files_col = self.db.files  # Reference to files collection
+        self.db_name = "sk4film"
+        self.db = mongo_client[self.db_name]
+        self.thumbnails_col = self.db.thumbnails
+        self.files_col = self.db.files
         self.config = config
         self.bot_handler = bot_handler
         
@@ -34,9 +34,9 @@ class ThumbnailManager:
         self.api_services = [
             self._fetch_from_tmdb,
             self._fetch_from_omdb,
-            self._fetch_from_tvdb,  # New service
-            self._fetch_from_imdb,   # New service
-            self._fetch_from_google_images  # New service
+            self._fetch_from_imdb,
+            self._fetch_from_google_images,
+            self._fetch_from_letterboxd
         ]
         
         # Statistics
@@ -47,7 +47,7 @@ class ThumbnailManager:
             'from_cache': 0,
             'from_telegram': 0,
             'from_api': 0,
-            'fallback_used': 0,
+            'no_thumbnail': 0,
             'api_success_rate': {},
             'response_times': []
         }
@@ -58,10 +58,14 @@ class ThumbnailManager:
         # Batch processing
         self.batch_queue = []
         self.batch_processing = False
+        
+        # API Keys
+        self.tmdb_api_key = getattr(config, 'TMDB_API_KEY', '')
+        self.omdb_api_key = getattr(config, 'OMDB_API_KEY', '')
     
     async def initialize(self):
         """Initialize thumbnail manager"""
-        logger.info("🖼️ Initializing ENHANCED Thumbnail Manager (99% success rate)...")
+        logger.info("🖼️ Initializing COMPLETE Thumbnail Manager (ONE MOVIE → ONE THUMBNAIL)...")
         
         # Test database connection
         try:
@@ -77,25 +81,33 @@ class ThumbnailManager:
         # Start cleanup task
         self.cleanup_task = asyncio.create_task(self.periodic_cleanup())
         
-        logger.info("✅ ENHANCED Thumbnail Manager initialized")
+        logger.info("✅ COMPLETE Thumbnail Manager initialized")
+        logger.info("🎯 FEATURES:")
+        logger.info("   • One Movie → One Thumbnail")
+        logger.info("   • 4 Qualities → Same Thumbnail")
+        logger.info("   • Existing Files Auto-Extract")
+        logger.info("   • New Files Auto-Extract")
+        logger.info("   • Priority: Extracted → Poster → Empty")
+        logger.info("   • No Default/Fallback Image")
+        logger.info("   • Success Rate Target: 99%")
+        
         return True
     
     async def create_indexes(self):
         """Create MongoDB indexes for thumbnails collection"""
         try:
-            # TTL index for automatic cleanup
-            if hasattr(self.config, 'THUMBNAIL_TTL_DAYS') and self.config.THUMBNAIL_TTL_DAYS > 0:
+            # TTL index for automatic cleanup (30 days)
+            ttl_days = getattr(self.config, 'THUMBNAIL_TTL_DAYS', 30)
+            if ttl_days > 0:
                 await self.thumbnails_col.create_index(
                     [("last_accessed", 1)],
-                    expireAfterSeconds=self.config.THUMBNAIL_TTL_DAYS * 24 * 60 * 60,
+                    expireAfterSeconds=ttl_days * 24 * 60 * 60,
                     name="thumbnails_ttl_index",
                     background=True
                 )
-                logger.info(f"✅ TTL index created ({self.config.THUMBNAIL_TTL_DAYS} days)")
-            else:
-                logger.info("ℹ️ TTL index disabled (THUMBNAIL_TTL_DAYS not set)")
+                logger.info(f"✅ TTL index created ({ttl_days} days)")
             
-            # Normalized title index (unique per movie)
+            # Normalized title index (unique per movie) - MOST IMPORTANT
             try:
                 await self.thumbnails_col.create_index(
                     [("normalized_title", 1)],
@@ -103,7 +115,7 @@ class ThumbnailManager:
                     name="thumbnails_title_unique",
                     background=True
                 )
-                logger.info("✅ Normalized title unique index created")
+                logger.info("✅ Normalized title unique index created (One Movie → One Thumbnail)")
             except Exception as e:
                 logger.warning(f"⚠️ Could not create unique index (may already exist): {e}")
             
@@ -135,11 +147,12 @@ class ThumbnailManager:
     
     async def extract_thumbnail_from_telegram(self, channel_id: int, message_id: int) -> Optional[str]:
         """
-        Extract thumbnail directly from Telegram message - FIXED
+        Extract thumbnail directly from Telegram message
         Returns base64 data URL or None
         """
         try:
             if self.bot_handler and self.bot_handler.initialized:
+                # First try bot_handler method
                 thumbnail_url = await self.bot_handler.extract_thumbnail(channel_id, message_id)
                 if thumbnail_url:
                     logger.info(f"✅ Telegram thumbnail extracted: {channel_id}/{message_id}")
@@ -163,7 +176,8 @@ class ThumbnailManager:
     async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
         """
         Get thumbnail for movie with 99% success rate
-        Priority: Cache -> Database -> Telegram -> Multiple APIs -> Fallback
+        Priority: Cache → Database → Telegram → Multiple APIs → Empty (No Fallback)
+        Returns empty string if no thumbnail found
         """
         self.stats['total_requests'] += 1
         start_time = time.time()
@@ -178,13 +192,14 @@ class ThumbnailManager:
                 if time.time() - cached_data['timestamp'] < self.cache_ttl:
                     logger.debug(f"✅ Memory cache hit: {title}")
                     self.stats['from_cache'] += 1
-                    self.stats['successful'] += 1
                     return cached_data['data']
             
+            # Normalize title for ONE MOVIE → ONE THUMBNAIL
             normalized_title = self.normalize_title(title)
+            logger.debug(f"🔍 Looking for thumbnail: '{title}' → '{normalized_title}'")
             
-            # 2. Check database cache
-            db_thumbnail = await self._get_from_database(normalized_title, channel_id, message_id)
+            # 2. Check database cache (One Movie → One Thumbnail)
+            db_thumbnail = await self._get_from_database(normalized_title)
             if db_thumbnail:
                 # Update memory cache
                 self.thumbnail_cache[cache_key] = {
@@ -201,6 +216,7 @@ class ThumbnailManager:
                 telegram_thumbnail = await self.extract_thumbnail_from_telegram(channel_id, message_id)
             
             if telegram_thumbnail:
+                # Save to database with normalized title (One Movie → One Thumbnail)
                 await self._save_to_database(
                     normalized_title=normalized_title,
                     thumbnail_url=telegram_thumbnail,
@@ -217,25 +233,27 @@ class ThumbnailManager:
                     'extracted': True
                 }
                 
+                # Update cache
                 self.thumbnail_cache[cache_key] = {
                     'data': thumbnail_data,
                     'timestamp': time.time()
                 }
                 
                 self.stats['successful'] += 1
+                logger.info(f"✅ Telegram thumbnail saved for: {title}")
                 return thumbnail_data
             
             # 4. Try MULTIPLE API services for 99% success
             logger.info(f"🔍 Fetching thumbnail from APIs for: {title}")
             api_thumbnail = await self._fetch_from_multiple_apis(title)
             
-            if api_thumbnail:
-                # Save to database
+            if api_thumbnail and api_thumbnail.get('url'):
+                # Save to database with normalized title (One Movie → One Thumbnail)
                 await self._save_to_database(
                     normalized_title=normalized_title,
                     thumbnail_url=api_thumbnail['url'],
                     source=api_thumbnail['source'],
-                    extracted=True,
+                    extracted=False,
                     channel_id=channel_id,
                     message_id=message_id
                 )
@@ -244,7 +262,7 @@ class ThumbnailManager:
                     'thumbnail_url': api_thumbnail['url'],
                     'source': api_thumbnail['source'],
                     'has_thumbnail': True,
-                    'extracted': True
+                    'extracted': False
                 }
                 
                 # Update cache
@@ -265,41 +283,49 @@ class ThumbnailManager:
                 logger.info(f"✅ API thumbnail fetched: {title} - {api_source}")
                 return thumbnail_data
             
-            # 5. Fallback (ONLY 1% cases)
-            fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
-            fallback_data = {
-                'thumbnail_url': fallback_url,
-                'source': 'fallback',
-                'has_thumbnail': True,
+            # 5. NO FALLBACK - Return empty (as requested)
+            empty_data = {
+                'thumbnail_url': '',
+                'source': 'none',
+                'has_thumbnail': False,
                 'extracted': False
             }
             
+            # Still save to database to avoid repeated API calls
+            await self._save_to_database(
+                normalized_title=normalized_title,
+                thumbnail_url='',
+                source='none',
+                extracted=False,
+                channel_id=channel_id,
+                message_id=message_id
+            )
+            
             self.thumbnail_cache[cache_key] = {
-                'data': fallback_data,
+                'data': empty_data,
                 'timestamp': time.time()
             }
             
-            self.stats['fallback_used'] += 1
+            self.stats['no_thumbnail'] += 1
             self.stats['failed'] += 1
-            logger.warning(f"⚠️ Fallback used for: {title}")
+            logger.warning(f"⚠️ No thumbnail found for: {title}")
             
             # Calculate success rate
             success_rate = (self.stats['successful'] / self.stats['total_requests']) * 100
             if success_rate < 99:
                 logger.warning(f"⚠️ Success rate: {success_rate:.2f}% (target: 99%)")
             
-            return fallback_data
+            return empty_data
             
         except Exception as e:
             logger.error(f"❌ Error getting thumbnail for {title}: {e}")
             self.stats['failed'] += 1
             
-            # Return fallback
-            fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
+            # Return empty on error too
             return {
-                'thumbnail_url': fallback_url,
-                'source': 'fallback',
-                'has_thumbnail': True,
+                'thumbnail_url': '',
+                'source': 'error',
+                'has_thumbnail': False,
                 'extracted': False
             }
         finally:
@@ -314,6 +340,9 @@ class ThumbnailManager:
         """Fetch thumbnail from multiple API services concurrently"""
         clean_title = self.clean_title_for_api(title)
         
+        if not clean_title:
+            return None
+        
         # Create tasks for all API services
         tasks = []
         for api_service in self.api_services:
@@ -323,8 +352,8 @@ class ThumbnailManager:
         # Wait for first successful result
         for task in tasks:
             try:
-                result = await asyncio.wait_for(task, timeout=2.0)
-                if result:
+                result = await asyncio.wait_for(task, timeout=3.0)
+                if result and result.get('url'):
                     return result
             except (asyncio.TimeoutError, Exception):
                 continue
@@ -334,21 +363,21 @@ class ThumbnailManager:
     async def _fetch_from_tmdb(self, title: str) -> Optional[Dict]:
         """Fetch from TMDB (Primary Source)"""
         try:
-            if not hasattr(self.config, 'TMDB_API_KEY') or not self.config.TMDB_API_KEY:
+            if not self.tmdb_api_key:
                 return None
             
             async with aiohttp.ClientSession() as session:
                 # Try movie search
                 movie_url = "https://api.themoviedb.org/3/search/movie"
                 movie_params = {
-                    'api_key': self.config.TMDB_API_KEY,
+                    'api_key': self.tmdb_api_key,
                     'query': title,
                     'language': 'en-US',
                     'page': 1,
                     'include_adult': False
                 }
                 
-                async with session.get(movie_url, params=movie_params, timeout=3) as response:
+                async with session.get(movie_url, params=movie_params, timeout=5) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data.get('results') and len(data['results']) > 0:
@@ -362,13 +391,13 @@ class ThumbnailManager:
                 # Try TV search
                 tv_url = "https://api.themoviedb.org/3/search/tv"
                 tv_params = {
-                    'api_key': self.config.TMDB_API_KEY,
+                    'api_key': self.tmdb_api_key,
                     'query': title,
                     'language': 'en-US',
                     'page': 1
                 }
                 
-                async with session.get(tv_url, params=tv_params, timeout=3) as response:
+                async with session.get(tv_url, params=tv_params, timeout=5) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data.get('results') and len(data['results']) > 0:
@@ -388,18 +417,18 @@ class ThumbnailManager:
     async def _fetch_from_omdb(self, title: str) -> Optional[Dict]:
         """Fetch from OMDB (Secondary Source)"""
         try:
-            if not hasattr(self.config, 'OMDB_API_KEY') or not self.config.OMDB_API_KEY:
+            if not self.omdb_api_key:
                 return None
             
             async with aiohttp.ClientSession() as session:
                 url = "http://www.omdbapi.com/"
                 params = {
                     't': title,
-                    'apikey': self.config.OMDB_API_KEY,
+                    'apikey': self.omdb_api_key,
                     'plot': 'short'
                 }
                 
-                async with session.get(url, params=params, timeout=3) as response:
+                async with session.get(url, params=params, timeout=5) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data.get('Poster') and data['Poster'] != 'N/A':
@@ -414,34 +443,23 @@ class ThumbnailManager:
             logger.debug(f"OMDB fetch error: {e}")
             return None
     
-    async def _fetch_from_tvdb(self, title: str) -> Optional[Dict]:
-        """Fetch from TVDB (For TV Shows)"""
-        try:
-            # TVDB requires authentication, using fallback approach
-            # Try to search via TMDB first
-            return None
-            
-        except Exception:
-            return None
-    
     async def _fetch_from_imdb(self, title: str) -> Optional[Dict]:
-        """Fetch from IMDb via OMDB"""
+        """Fetch from IMDb (via OMDB with IMDb ID)"""
         try:
-            # OMDB already handles IMDb IDs
-            # Try with IMDb ID pattern
+            # Extract IMDb ID from title if present
             imdb_pattern = r'tt\d{7,8}'
             imdb_match = re.search(imdb_pattern, title)
             
-            if imdb_match and hasattr(self.config, 'OMDB_API_KEY') and self.config.OMDB_API_KEY:
+            if imdb_match and self.omdb_api_key:
                 imdb_id = imdb_match.group()
                 async with aiohttp.ClientSession() as session:
                     url = "http://www.omdbapi.com/"
                     params = {
                         'i': imdb_id,
-                        'apikey': self.config.OMDB_API_KEY
+                        'apikey': self.omdb_api_key
                     }
                     
-                    async with session.get(url, params=params, timeout=3) as response:
+                    async with session.get(url, params=params, timeout=5) as response:
                         if response.status == 200:
                             data = await response.json()
                             if data.get('Poster') and data['Poster'] != 'N/A':
@@ -457,9 +475,8 @@ class ThumbnailManager:
             return None
     
     async def _fetch_from_google_images(self, title: str) -> Optional[Dict]:
-        """Fetch from Google Images (Fallback Source)"""
+        """Fetch from Google Images via DuckDuckGo"""
         try:
-            # Use DuckDuckGo Instant Answer API as fallback
             async with aiohttp.ClientSession() as session:
                 url = "https://api.duckduckgo.com/"
                 params = {
@@ -469,7 +486,7 @@ class ThumbnailManager:
                     'skip_disambig': '1'
                 }
                 
-                async with session.get(url, params=params, timeout=3) as response:
+                async with session.get(url, params=params, timeout=5) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data.get('Image'):
@@ -484,24 +501,41 @@ class ThumbnailManager:
             logger.debug(f"Google Images fetch error: {e}")
             return None
     
-    async def _get_from_database(self, normalized_title: str, channel_id: int = None, message_id: int = None) -> Optional[Dict]:
-        """Get thumbnail from database"""
+    async def _fetch_from_letterboxd(self, title: str) -> Optional[Dict]:
+        """Fetch from Letterboxd"""
         try:
-            # First try by normalized_title (one movie → one thumbnail)
+            # Create letterboxd slug
+            slug = re.sub(r'[^\w\s-]', '', title).strip().lower()
+            slug = re.sub(r'[-\s]+', '-', slug)
+            
+            async with aiohttp.ClientSession() as session:
+                url = f"https://letterboxd.com/film/{slug}/"
+                async with session.get(url, timeout=5) as response:
+                    if response.status == 200:
+                        html = await response.text()
+                        # Look for og:image meta tag
+                        og_image_match = re.search(r'property="og:image" content="([^"]+)"', html)
+                        if og_image_match:
+                            return {
+                                'url': og_image_match.group(1),
+                                'source': 'letterboxd'
+                            }
+            
+            return None
+            
+        except Exception as e:
+            logger.debug(f"Letterboxd fetch error: {e}")
+            return None
+    
+    async def _get_from_database(self, normalized_title: str) -> Optional[Dict]:
+        """Get thumbnail from database using normalized title (One Movie → One Thumbnail)"""
+        try:
             thumbnail_doc = await self.thumbnails_col.find_one(
-                {"normalized_title": normalized_title},
-                sort=[("created_at", -1)]  # Get the latest
+                {"normalized_title": normalized_title}
             )
             
-            # If not found and we have message details, try that
-            if not thumbnail_doc and channel_id and message_id:
-                thumbnail_doc = await self.thumbnails_col.find_one({
-                    "channel_id": channel_id,
-                    "message_id": message_id
-                })
-            
             if thumbnail_doc:
-                # Update last_accessed
+                # Update last_accessed and access_count
                 await self.thumbnails_col.update_one(
                     {"_id": thumbnail_doc["_id"]},
                     {
@@ -510,10 +544,14 @@ class ThumbnailManager:
                     }
                 )
                 
+                # Check if thumbnail_url is empty
+                thumbnail_url = thumbnail_doc.get('thumbnail_url', '')
+                has_thumbnail = bool(thumbnail_url)
+                
                 return {
-                    'thumbnail_url': thumbnail_doc.get('thumbnail_url'),
+                    'thumbnail_url': thumbnail_url,
                     'source': thumbnail_doc.get('source', 'database'),
-                    'has_thumbnail': True,
+                    'has_thumbnail': has_thumbnail,
                     'extracted': thumbnail_doc.get('extracted', False)
                 }
             
@@ -526,7 +564,7 @@ class ThumbnailManager:
     async def _save_to_database(self, normalized_title: str, thumbnail_url: str, 
                                source: str, extracted: bool, 
                                channel_id: int = None, message_id: int = None):
-        """Save thumbnail to database"""
+        """Save thumbnail to database with normalized title (One Movie → One Thumbnail)"""
         try:
             thumbnail_doc = {
                 'normalized_title': normalized_title,
@@ -544,7 +582,7 @@ class ThumbnailManager:
             if message_id:
                 thumbnail_doc['message_id'] = message_id
             
-            # Use upsert to update or insert
+            # Use upsert to update or insert (One Movie → One Thumbnail)
             await self.thumbnails_col.update_one(
                 {
                     'normalized_title': normalized_title
@@ -557,13 +595,16 @@ class ThumbnailManager:
                 upsert=True
             )
             
-            logger.debug(f"✅ Thumbnail saved to database: {normalized_title}")
+            logger.debug(f"✅ Thumbnail saved to database: {normalized_title} ({source})")
             
         except Exception as e:
             logger.error(f"Error saving to database: {e}")
     
     def normalize_title(self, title: str) -> str:
-        """Advanced title normalization for one movie → one thumbnail"""
+        """
+        Advanced title normalization for ONE MOVIE → ONE THUMBNAIL
+        This ensures 4 qualities → same thumbnail
+        """
         if not title:
             return ""
         
@@ -580,9 +621,9 @@ class ThumbnailManager:
             r'\b(?:webrip|web-dl|bluray|dvdrip|hdtv|brrip)\b',
             r'\b(?:dts|ac3|aac|dd5\.1|dd\+)\b',
             r'\b(?:esub|subs|subtitles)\b',
-            r'@\w+',  # Remove @mentions
             r'\[.*?\]',  # Remove brackets
             r'\(.*?\)',  # Remove parentheses
+            r'\{.*?\}',  # Remove curly braces
         ]
         
         for pattern in quality_patterns:
@@ -604,6 +645,8 @@ class ThumbnailManager:
             r'\s+film$',
             r'\s+hindi$',
             r'\s+english$',
+            r'\s+dual\s+audio$',
+            r'\s+complete$',
         ]
         
         for pattern in common_patterns:
@@ -635,8 +678,8 @@ class ThumbnailManager:
     
     async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
         """
-        Get thumbnails for multiple movies in batch with 99% success
-        Optimized for search results
+        Get thumbnails for multiple movies in batch
+        Optimized for search results - ONE MOVIE → ONE THUMBNAIL
         """
         try:
             # Prepare batch data
@@ -654,7 +697,7 @@ class ThumbnailManager:
             # Process results
             results = []
             successful = 0
-            failed = 0
+            no_thumbnail = 0
             
             for movie, task in batch_tasks:
                 try:
@@ -666,28 +709,27 @@ class ThumbnailManager:
                     
                     results.append(movie_with_thumbnail)
                     
-                    if thumbnail_data.get('source') != 'fallback':
+                    if thumbnail_data.get('has_thumbnail'):
                         successful += 1
                     else:
-                        failed += 1
+                        no_thumbnail += 1
                         
                 except Exception as e:
                     logger.error(f"❌ Batch thumbnail error for {movie.get('title')}: {e}")
                     
-                    # Add fallback
-                    fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
-                    movie_with_fallback = movie.copy()
-                    movie_with_fallback.update({
-                        'thumbnail_url': fallback_url,
-                        'source': 'fallback',
-                        'has_thumbnail': True,
+                    # Add empty thumbnail
+                    movie_with_empty = movie.copy()
+                    movie_with_empty.update({
+                        'thumbnail_url': '',
+                        'source': 'error',
+                        'has_thumbnail': False,
                         'extracted': False
                     })
-                    results.append(movie_with_fallback)
-                    failed += 1
+                    results.append(movie_with_empty)
+                    no_thumbnail += 1
             
             # Calculate batch success rate
-            total = successful + failed
+            total = successful + no_thumbnail
             if total > 0:
                 success_rate = (successful / total) * 100
                 logger.info(f"📊 Batch thumbnail success: {successful}/{total} ({success_rate:.1f}%)")
@@ -699,20 +741,19 @@ class ThumbnailManager:
             
         except Exception as e:
             logger.error(f"❌ Batch thumbnails error: {e}")
-            # Return movies with fallback thumbnails
-            fallback_url = getattr(self.config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
+            # Return movies with empty thumbnails
             return [{
                 **movie,
-                'thumbnail_url': fallback_url,
-                'source': 'fallback',
-                'has_thumbnail': True,
+                'thumbnail_url': '',
+                'source': 'error',
+                'has_thumbnail': False,
                 'extracted': False
             } for movie in movies]
     
     async def extract_thumbnails_for_existing_files(self):
         """
         Extract thumbnails for all existing video files in database
-        This ensures one movie → one thumbnail for all existing content
+        This ensures ONE MOVIE → ONE THUMBNAIL for all existing content
         """
         if self.files_col is None:
             logger.warning("⚠️ Files collection not available")
@@ -730,16 +771,11 @@ class ThumbnailManager:
                 'channel_id': 1,
                 'message_id': 1,
                 'real_message_id': 1,
-                'thumbnail_extracted': 1,
                 '_id': 1
             })
             
             files_to_process = []
             async for doc in cursor:
-                # Skip if already has extracted thumbnail
-                if doc.get('thumbnail_extracted'):
-                    continue
-                
                 files_to_process.append({
                     'title': doc.get('title', ''),
                     'normalized_title': doc.get('normalized_title', ''),
@@ -748,17 +784,17 @@ class ThumbnailManager:
                     'db_id': doc.get('_id')
                 })
             
-            logger.info(f"📊 Found {len(files_to_process)} files needing thumbnails")
+            logger.info(f"📊 Found {len(files_to_process)} video files to process")
             
             if not files_to_process:
-                logger.info("✅ All files already have thumbnails")
+                logger.info("✅ No files found")
                 return
             
             # Process in batches
             batch_size = 20
             total_batches = (len(files_to_process) + batch_size - 1) // batch_size
             total_success = 0
-            total_failed = 0
+            total_no_thumbnail = 0
             
             for batch_num in range(total_batches):
                 start_idx = batch_num * batch_size
@@ -775,26 +811,26 @@ class ThumbnailManager:
                     if i < len(thumbnail_results):
                         thumbnail_data = thumbnail_results[i]
                         
-                        if thumbnail_data.get('thumbnail_url'):
-                            # Update files collection
-                            await self.files_col.update_one(
-                                {'_id': file_info['db_id']},
-                                {'$set': {
-                                    'thumbnail_url': thumbnail_data['thumbnail_url'],
-                                    'thumbnail_extracted': thumbnail_data.get('extracted', False),
-                                    'thumbnail_source': thumbnail_data.get('source', 'unknown')
-                                }}
-                            )
-                            
+                        # Update files collection
+                        await self.files_col.update_one(
+                            {'_id': file_info['db_id']},
+                            {'$set': {
+                                'thumbnail_url': thumbnail_data.get('thumbnail_url', ''),
+                                'thumbnail_extracted': thumbnail_data.get('extracted', False),
+                                'thumbnail_source': thumbnail_data.get('source', 'none')
+                            }}
+                        )
+                        
+                        if thumbnail_data.get('has_thumbnail'):
                             total_success += 1
                         else:
-                            total_failed += 1
+                            total_no_thumbnail += 1
                 
                 # Small delay between batches
                 if batch_num < total_batches - 1:
                     await asyncio.sleep(2)
             
-            logger.info(f"✅ Existing files thumbnail extraction complete: {total_success} successful, {total_failed} failed")
+            logger.info(f"✅ Existing files thumbnail extraction complete: {total_success} successful, {total_no_thumbnail} no thumbnail")
             
         except Exception as e:
             logger.error(f"❌ Error extracting thumbnails for existing files: {e}")
@@ -810,6 +846,9 @@ class ThumbnailManager:
                 
                 # Clean orphaned thumbnails
                 await self.cleanup_orphaned_thumbnails()
+                
+                # Merge duplicate thumbnails
+                await self.merge_duplicate_thumbnails()
                 
                 logger.info("✅ Periodic cleanup completed")
                 
@@ -866,7 +905,7 @@ class ThumbnailManager:
                 {
                     '$match': {
                         'matching_files': {'$size': 0},
-                        'source': {'$ne': 'fallback'}  # Keep fallback thumbnails
+                        'thumbnail_url': {'$ne': ''}  # Keep empty thumbnails
                     }
                 },
                 {
@@ -902,7 +941,7 @@ class ThumbnailManager:
         """Get detailed statistics"""
         try:
             total_thumbnails = await self.thumbnails_col.count_documents({})
-            extracted_count = await self.thumbnails_col.count_documents({'extracted': True})
+            thumbnails_with_image = await self.thumbnails_col.count_documents({'thumbnail_url': {'$ne': ''}})
             
             # Calculate success rate
             total_requests = self.stats['total_requests']
@@ -915,6 +954,7 @@ class ThumbnailManager:
             
             # Get source distribution
             pipeline = [
+                {"$match": {"source": {"$ne": "none"}}},
                 {"$group": {"_id": "$source", "count": {"$sum": 1}}},
                 {"$sort": {"count": -1}}
             ]
@@ -922,7 +962,7 @@ class ThumbnailManager:
             
             # Get recent thumbnails
             recent_thumbnails = await self.thumbnails_col.find(
-                {},
+                {"thumbnail_url": {"$ne": ""}},
                 {
                     'normalized_title': 1,
                     'source': 1,
@@ -932,11 +972,12 @@ class ThumbnailManager:
                 }
             ).sort('created_at', -1).limit(5).to_list(length=5)
             
-            ttl_days = getattr(self.config, 'THUMBNAIL_TTL_DAYS', 0)
+            ttl_days = getattr(self.config, 'THUMBNAIL_TTL_DAYS', 30)
             
             return {
                 'total_thumbnails': total_thumbnails,
-                'extracted_thumbnails': extracted_count,
+                'thumbnails_with_image': thumbnails_with_image,
+                'thumbnails_empty': total_thumbnails - thumbnails_with_image,
                 'performance_stats': {
                     'total_requests': self.stats['total_requests'],
                     'successful': self.stats['successful'],
@@ -944,7 +985,7 @@ class ThumbnailManager:
                     'from_cache': self.stats['from_cache'],
                     'from_telegram': self.stats['from_telegram'],
                     'from_api': self.stats['from_api'],
-                    'fallback_used': self.stats['fallback_used'],
+                    'no_thumbnail': self.stats['no_thumbnail'],
                     'api_success_rate': self.stats['api_success_rate']
                 },
                 'success_rate': f"{success_rate:.2f}%",
@@ -959,8 +1000,10 @@ class ThumbnailManager:
                 'features': {
                     'one_movie_one_thumbnail': True,
                     'multi_quality_same_thumbnail': True,
+                    'existing_files_auto_extract': True,
+                    'new_files_auto_extract': True,
                     'priority_extracted_first': True,
-                    'fallback_system': True,
+                    'no_fallback_image': True,
                     'ttl_enabled': ttl_days > 0,
                     'ttl_days': ttl_days
                 },
@@ -978,7 +1021,6 @@ class ThumbnailManager:
                 {"$group": {
                     "_id": "$normalized_title",
                     "count": {"$sum": 1},
-                    "titles": {"$push": "$original_title"},
                     "sources": {"$push": "$source"},
                     "ids": {"$push": "$_id"}
                 }},
@@ -1010,7 +1052,7 @@ class ThumbnailManager:
                 ids = dup['ids']
                 sources = dup['sources']
                 
-                # Determine best thumbnail (priority: telegram > tmdb > omdb > others > fallback)
+                # Determine best thumbnail (priority: telegram > tmdb > omdb > others > empty)
                 source_priority = {
                     'telegram': 1,
                     'tmdb': 2,
@@ -1018,7 +1060,10 @@ class ThumbnailManager:
                     'omdb': 4,
                     'imdb': 5,
                     'duckduckgo': 6,
-                    'fallback': 999
+                    'letterboxd': 7,
+                    'database': 8,
+                    'none': 999,
+                    'error': 999
                 }
                 
                 # Find best thumbnail
