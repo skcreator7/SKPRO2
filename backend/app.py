@@ -369,7 +369,7 @@ class Config:
     UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
     
     # Verification
-    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "true").lower() == "true"
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "true").lower() == "False"
     VERIFICATION_DURATION = 6 * 60 * 60  # 6 hours
     
     # Application
@@ -410,7 +410,7 @@ class Config:
     # 🔥 SEARCH SETTINGS
     SEARCH_MIN_QUERY_LENGTH = 2
     SEARCH_RESULTS_PER_PAGE = 12
-    SEARCH_CACHE_TTL = 600  # 10 minutes
+    SEARCH_CACHE_TTL = 1800  # 30 minutes
     
     # 🔥 THUMBNAIL SETTINGS
     THUMBNAIL_EXTRACTION_ENABLED = os.environ.get("THUMBNAIL_EXTRACTION_ENABLED", "true").lower() == "true"
@@ -419,10 +419,10 @@ class Config:
     THUMBNAIL_MAX_SIZE_KB = int(os.environ.get("THUMBNAIL_MAX_SIZE_KB", "200"))
     
     # Thumbnail Manager Settings
-    THUMBNAIL_TTL_DAYS = int(os.environ.get("THUMBNAIL_TTL_DAYS", "30"))  # 30 days TTL
+    THUMBNAIL_TTL_DAYS = int(os.environ.get("THUMBNAIL_TTL_DAYS", "180"))  # 30 days TTL
     
     # NO FALLBACK POSTER - EMPTY STRING
-    FALLBACK_POSTER = ""
+    FALLBACK_POSTER = "https://iili.io/fAeIwv9.th.png"
 
 # ============================================================================
 # ✅ FAST INITIALIZATION
