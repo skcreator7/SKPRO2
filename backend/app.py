@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - COMPLETE WORKING VERSION WITH FIXES
+# 🚀 SK4FiLM v9.0 - COMPLETE POST+FILE MERGE WITH QUALITIES
 # ============================================================================
 
 import asyncio
@@ -51,7 +51,7 @@ class Config:
     USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     
-    # Database Configuration - SIMPLIFIED
+    # Database Configuration
     MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/sk4film")
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     
@@ -169,7 +169,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.0-FIXED'
+    response.headers['X-SK4FiLM-Version'] = '9.0-POST-FILE-MERGE'
     return response
 
 # ============================================================================
@@ -270,6 +270,41 @@ def is_new(date):
         except:
             return False
     return (datetime.now() - date).days < 7
+
+def extract_year_from_title(title):
+    """Extract year from title"""
+    if not title:
+        return ""
+    
+    # Look for year patterns like (2024) or 2024
+    year_match = re.search(r'\((\d{4})\)', title)
+    if year_match:
+        return year_match.group(1)
+    
+    year_match = re.search(r'\b(19|20)\d{2}\b', title)
+    if year_match:
+        return year_match.group()
+    
+    return ""
+
+def clean_title(title):
+    """Clean title by removing year and other artifacts"""
+    if not title:
+        return ""
+    
+    # Remove year in parentheses
+    title = re.sub(r'\s*\(\d{4}\)', '', title)
+    
+    # Remove year at end
+    title = re.sub(r'\s+\d{4}$', '', title)
+    
+    # Remove quality indicators
+    title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264|web-dl|webrip|hdrip|bluray|dvdrip|tc|ts|cam)\b', '', title, flags=re.IGNORECASE)
+    
+    # Clean extra spaces
+    title = re.sub(r'\s+', ' ', title)
+    
+    return title.strip()
 
 # ============================================================================
 # ✅ CACHE DECORATOR
@@ -380,16 +415,16 @@ class PosterFetcher:
         """Fetch movie poster with fallback"""
         try:
             # Clean title
-            clean_title = self._clean_title(title)
+            clean_title_val = self._clean_title(title)
             
             # Try TMDB
-            poster_url = await self._fetch_from_tmdb(clean_title, year)
+            poster_url = await self._fetch_from_tmdb(clean_title_val, year)
             if poster_url:
                 return {
                     'poster_url': poster_url,
                     'source': 'tmdb',
                     'rating': '0.0',
-                    'title': clean_title,
+                    'title': clean_title_val,
                     'year': year
                 }
             
@@ -398,7 +433,7 @@ class PosterFetcher:
                 'poster_url': self.config.FALLBACK_POSTER,
                 'source': 'fallback',
                 'rating': '0.0',
-                'title': clean_title,
+                'title': clean_title_val,
                 'year': year
             }
             
@@ -422,6 +457,7 @@ class PosterFetcher:
             r'\bHD\b',
             r'\bHEVC\b',
             r'\bx265\b',
+            r'\bx264\b',
             r'\bWEB-DL\b',
             r'\bWEBRip\b',
             r'\bHDRip\b',
@@ -639,44 +675,37 @@ async def init_mongodb():
         
         # Create indexes with error handling
         try:
-            # Drop existing conflicting indexes first
+            # Get existing indexes
             existing_indexes = await files_col.index_information()
             
-            # Check if channel_message_unique exists
-            index_exists = any("channel_message_unique" in name for name in existing_indexes.keys())
-            if index_exists:
-                logger.info("ℹ️ Index 'channel_message_unique' already exists")
-            else:
+            # Check if unique index exists
+            unique_index_exists = any(
+                index.get('key') == [('channel_id', 1), ('message_id', 1)]
+                for index in existing_indexes.values()
+            )
+            
+            if not unique_index_exists:
                 # Create unique index
                 await files_col.create_index(
                     [("channel_id", 1), ("message_id", 1)],
-                    unique=True,
-                    name="channel_message_unique"
+                    unique=True
                 )
-                logger.info("✅ Created unique index: channel_message_unique")
+                logger.info("✅ Created unique index")
             
-            # Text index for search
-            text_index_exists = any("title_text_search" in name for name in existing_indexes.keys())
+            # Create text index for search if not exists
+            text_index_exists = any(
+                'text' in str(index.get('key', []))
+                for index in existing_indexes.values()
+            )
+            
             if not text_index_exists:
                 await files_col.create_index(
-                    [("normalized_title", "text")],
-                    name="title_text_search"
+                    [("normalized_title", "text")]
                 )
-                logger.info("✅ Created text index: title_text_search")
+                logger.info("✅ Created text index")
             
         except Exception as index_error:
             logger.warning(f"⚠️ Index creation error (continuing anyway): {index_error}")
-        
-        # Create thumbnail collection index
-        try:
-            await movie_thumbnails_col.create_index(
-                [("normalized_title", 1)],
-                unique=True,
-                name="thumb_normalized_title_unique"
-            )
-            logger.info("✅ Created thumbnail index")
-        except Exception as thumb_error:
-            logger.warning(f"⚠️ Thumbnail index error: {thumb_error}")
         
         logger.info("✅ MongoDB initialization complete")
         return True
@@ -782,6 +811,9 @@ class OptimizedFileIndexingManager:
             # Simple title extraction
             title = self._extract_title(file_name, caption)
             
+            # Extract year from title
+            year = extract_year_from_title(title)
+            
             # Create document
             doc = {
                 'channel_id': Config.FILE_CHANNEL_ID,
@@ -794,7 +826,9 @@ class OptimizedFileIndexingManager:
                 'is_video_file': is_video_file(file_name),
                 'file_size': 0,
                 'status': 'active',
-                'quality': detect_quality_enhanced(file_name)
+                'quality': detect_quality_enhanced(file_name),
+                'year': year,
+                'caption': caption
             }
             
             # Add file info
@@ -817,7 +851,7 @@ class OptimizedFileIndexingManager:
                 await files_col.insert_one(doc)
                 self.total_indexed += 1
                 
-                logger.info(f"✅ Indexed: {title[:50]}...")
+                logger.info(f"✅ Indexed: {title[:50]}... (Quality: {doc['quality']})")
             
         except Exception as e:
             logger.error(f"❌ File indexing error: {e}")
@@ -914,21 +948,76 @@ async def get_poster_for_movie(title, year="", quality=""):
         }
 
 # ============================================================================
-# ✅ ENHANCED SEARCH FUNCTION - WORKING VERSION
+# ✅ ENHANCED SEARCH FUNCTION - POST+FILE MERGE VERSION
 # ============================================================================
 
-@performance_monitor.measure("enhanced_search")
+@performance_monitor.measure("enhanced_search_merged")
 @async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
-async def search_movies_enhanced_fixed(query, limit=15, page=1):
-    """Working search function"""
+async def search_movies_enhanced_merged(query, limit=15, page=1):
+    """Search with POST and FILE results merged"""
     offset = (page - 1) * limit
     
-    logger.info(f"🔍 Searching for: {query}")
+    logger.info(f"🔍 POST+FILE MERGED SEARCH for: {query}")
     
-    # Search in database
-    results = []
+    query_lower = query.lower()
+    all_results = []
+    
+    # ============================================================================
+    # ✅ STEP 1: SEARCH TEXT CHANNELS FOR POSTS
+    # ============================================================================
+    
+    post_results = []
+    if user_session_ready and User is not None:
+        logger.info(f"📝 Searching TEXT CHANNELS for posts...")
+        
+        for channel_id in Config.TEXT_CHANNEL_IDS:
+            try:
+                async for msg in User.search_messages(channel_id, query=query, limit=10):
+                    if msg and msg.text and len(msg.text) > 15:
+                        title = extract_title_smart(msg.text)
+                        if title and (query_lower in title.lower() or query_lower in msg.text.lower()):
+                            # Extract year from title
+                            year = extract_year_from_title(title)
+                            clean_title_val = clean_title(title)
+                            
+                            post_data = {
+                                'title': clean_title_val,
+                                'original_title': title,
+                                'normalized_title': normalize_title(clean_title_val),
+                                'content': format_post(msg.text, max_length=500),
+                                'post_content': msg.text,
+                                'channel_id': channel_id,
+                                'message_id': msg.id,
+                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+                                'is_new': is_new(msg.date) if msg.date else False,
+                                'has_file': False,
+                                'has_post': True,
+                                'quality_options': {},
+                                'is_video_file': False,
+                                'year': year,
+                                'search_score': 3,  # Higher score for posts
+                                'result_type': 'post_only',
+                                'poster_url': None,
+                                'poster_source': None
+                            }
+                            
+                            post_results.append(post_data)
+                            
+            except Exception as e:
+                logger.error(f"Text search error in {channel_id}: {e}")
+                continue
+        
+        logger.info(f"📝 Found {len(post_results)} POST results")
+    
+    # ============================================================================
+    # ✅ STEP 2: SEARCH FILE CHANNEL DATABASE
+    # ============================================================================
+    
+    file_results = []
     if files_col is not None:
         try:
+            logger.info(f"📁 Searching FILE CHANNEL database...")
+            
             search_query = {
                 "$or": [
                     {"title": {"$regex": query, "$options": "i"}},
@@ -953,6 +1042,7 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     'real_message_id': 1,
                     'date': 1,
                     'caption': 1,
+                    'year': 1,
                     '_id': 0
                 }
             ).limit(100)
@@ -961,14 +1051,9 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                 title = doc.get('title', 'Unknown')
                 norm_title = doc.get('normalized_title', '')
                 quality = doc.get('quality', '480p')
+                year = doc.get('year', '')
                 
-                # Get thumbnail if available
-                thumbnail_url = None
-                if norm_title:
-                    thumbnail_url = await thumbnail_manager.get_thumbnail_for_movie(norm_title)
-                
-                # Create result
-                result = {
+                file_data = {
                     'title': title,
                     'normalized_title': norm_title,
                     'content': format_post(doc.get('caption', ''), max_length=300),
@@ -988,27 +1073,93 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
                     'quality': quality,
                     'real_message_id': doc.get('real_message_id') or doc.get('message_id'),
                     'result_type': 'file_only',
-                    'thumbnail_url': thumbnail_url,
-                    'has_thumbnail': thumbnail_url is not None
+                    'year': year,
+                    'search_score': 2  # Lower score for files alone
                 }
                 
-                results.append(result)
+                file_results.append(file_data)
             
-            logger.info(f"📁 Found {len(results)} files")
+            logger.info(f"📁 Found {len(file_results)} FILE results")
             
         except Exception as e:
-            logger.error(f"❌ Search error: {e}")
+            logger.error(f"❌ File search error: {e}")
     
-    # Apply pagination
-    total = len(results)
-    start_idx = offset
-    end_idx = offset + limit
-    paginated = results[start_idx:end_idx]
+    # ============================================================================
+    # ✅ STEP 3: MERGE POST AND FILE RESULTS
+    # ============================================================================
     
-    # Add posters to results
-    for result in paginated:
+    logger.info("🔄 Merging post and file results...")
+    
+    # Dictionary to hold merged results by normalized_title
+    merged_dict = {}
+    
+    # First add all post results
+    for post in post_results:
+        norm_title = post['normalized_title']
+        if norm_title:
+            merged_dict[norm_title] = post.copy()
+    
+    # Now merge file results with existing posts or add as new
+    for file_item in file_results:
+        norm_title = file_item['normalized_title']
+        
+        if norm_title in merged_dict:
+            # Merge file with existing post
+            existing_item = merged_dict[norm_title]
+            
+            # Update with file information
+            existing_item.update({
+                'has_file': True,
+                'is_video_file': file_item['is_video_file'],
+                'real_message_id': file_item['real_message_id'],
+                'result_type': 'post_and_file',
+                'search_score': 5  # Highest score for merged results
+            })
+            
+            # Add quality option
+            if 'quality_options' not in existing_item:
+                existing_item['quality_options'] = {}
+            
+            for quality, q_data in file_item['quality_options'].items():
+                existing_item['quality_options'][quality] = q_data
+            
+            # Update quality count
+            existing_item['quality_count'] = len(existing_item['quality_options'])
+            
+            logger.debug(f"✅ Merged file with post: {norm_title}")
+            
+        else:
+            # This is a file-only result
+            file_item['result_type'] = 'file_only'
+            merged_dict[norm_title] = file_item
+    
+    # Convert dictionary to list
+    all_results = list(merged_dict.values())
+    
+    # ============================================================================
+    # ✅ STEP 4: SORT RESULTS
+    # ============================================================================
+    
+    # Sort by: post+file merged > post-only > file-only, then by search_score
+    all_results.sort(key=lambda x: (
+        x.get('result_type') == 'post_and_file',  # Merged first
+        x.get('result_type') == 'post_only',      # Posts second
+        x.get('search_score', 0),                 # Higher score first
+        x.get('is_new', False),                   # New first
+    ), reverse=True)
+    
+    # ============================================================================
+    # ✅ STEP 5: ADD POSTERS AND THUMBNAILS
+    # ============================================================================
+    
+    logger.info(f"🎬 Adding posters and thumbnails to {len(all_results)} results...")
+    
+    for result in all_results:
         title = result.get('title', '')
-        poster_data = await get_poster_for_movie(title)
+        year = result.get('year', '')
+        
+        # Get poster
+        poster_data = await get_poster_for_movie(title, year)
         
         result.update({
             'poster_url': poster_data['poster_url'],
@@ -1017,12 +1168,82 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
             'has_poster': True
         })
         
-        # Use poster as thumbnail if no thumbnail
-        if not result.get('thumbnail_url'):
-            result['thumbnail_url'] = poster_data['poster_url']
-            result['has_thumbnail'] = True
+        # Get thumbnail if available
+        norm_title = result.get('normalized_title')
+        thumbnail_url = None
+        if norm_title:
+            thumbnail_url = await thumbnail_manager.get_thumbnail_for_movie(norm_title)
+        
+        if thumbnail_url:
+            result.update({
+                'thumbnail_url': thumbnail_url,
+                'has_thumbnail': True,
+                'thumbnail_source': 'extracted'
+            })
+        else:
+            # Use poster as thumbnail
+            result.update({
+                'thumbnail_url': poster_data['poster_url'],
+                'has_thumbnail': True,
+                'thumbnail_source': 'poster'
+            })
+        
+        # Add quality summary
+        if 'quality_options' in result and result['quality_options']:
+            qualities = list(result['quality_options'].keys())
+            result['all_qualities'] = qualities
+            result['quality_count'] = len(qualities)
+            
+            # Create quality summary
+            if len(qualities) <= 3:
+                result['quality_summary'] = " • ".join(qualities)
+            else:
+                result['quality_summary'] = f"{qualities[0]} • {qualities[1]} • +{len(qualities)-2} more"
     
-    # Return results
+    # ============================================================================
+    # ✅ STEP 6: PAGINATION
+    # ============================================================================
+    
+    total = len(all_results)
+    start_idx = offset
+    end_idx = offset + limit
+    paginated = all_results[start_idx:end_idx]
+    
+    # Calculate statistics
+    post_count = sum(1 for r in all_results if r.get('result_type') == 'post_only')
+    file_count = sum(1 for r in all_results if r.get('result_type') == 'file_only')
+    merged_count = sum(1 for r in all_results if r.get('result_type') == 'post_and_file')
+    
+    stats = {
+        'total': total,
+        'post_only': post_count,
+        'file_only': file_count,
+        'post_and_file': merged_count,
+        'merged_percentage': f"{(merged_count/total*100):.1f}%" if total > 0 else "0%"
+    }
+    
+    # Log detailed results
+    logger.info("📊 FINAL MERGED RESULTS:")
+    logger.info(f"   • Total results: {total}")
+    logger.info(f"   • Post-only: {post_count}")
+    logger.info(f"   • File-only: {file_count}")
+    logger.info(f"   • Post+File merged: {merged_count}")
+    
+    # Show sample results
+    for i, result in enumerate(paginated[:3]):
+        result_type = result.get('result_type', 'unknown')
+        title = result.get('title', '')[:40]
+        has_file = result.get('has_file', False)
+        has_post = result.get('has_post', False)
+        quality_count = result.get('quality_count', 0)
+        
+        logger.info(f"   📋 {i+1}. {result_type}: {title}...")
+        logger.info(f"      File: {has_file} | Post: {has_post} | Qualities: {quality_count}")
+    
+    # ============================================================================
+    # ✅ STEP 7: RETURN FINAL RESULTS
+    # ============================================================================
+    
     return {
         'results': paginated,
         'pagination': {
@@ -1035,8 +1256,10 @@ async def search_movies_enhanced_fixed(query, limit=15, page=1):
         },
         'search_metadata': {
             'query': query,
-            'stats': {'total': total},
-            'poster_fetcher': poster_fetcher is not None
+            'stats': stats,
+            'post_file_merged': True,
+            'thumbnail_enabled': True,
+            'search_logic': 'post_file_merge_v2'
         },
         'bot_username': Config.BOT_USERNAME
     }
@@ -1057,19 +1280,28 @@ async def get_home_movies(limit=25):
                 if msg and msg.text and len(msg.text) > 25:
                     title = extract_title_smart(msg.text)
                     if title:
+                        # Extract year
+                        year = extract_year_from_title(title)
+                        clean_title_val = clean_title(title)
+                        
                         # Create movie data
                         movie_data = {
-                            'title': title,
+                            'title': clean_title_val,
+                            'year': year,
                             'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
                             'channel_id': Config.MAIN_CHANNEL_ID,
                             'message_id': msg.id,
                             'has_file': False,
                             'has_post': True,
-                            'content': format_post(msg.text, max_length=500)
+                            'content': format_post(msg.text, max_length=500),
+                            'post_content': msg.text,
+                            'result_type': 'post_only',
+                            'quality_options': {},
+                            'is_video_file': False
                         }
                         
                         # Get poster
-                        poster_data = await get_poster_for_movie(title)
+                        poster_data = await get_poster_for_movie(clean_title_val, year)
                         movie_data.update({
                             'poster_url': poster_data['poster_url'],
                             'poster_source': poster_data['source'],
@@ -1096,7 +1328,7 @@ async def get_home_movies(limit=25):
 @performance_monitor.measure("system_init")
 async def init_system():
     logger.info("=" * 60)
-    logger.info("🚀 SK4FiLM v9.0 - FIXED VERSION")
+    logger.info("🚀 SK4FiLM v9.0 - POST+FILE MERGE SYSTEM")
     logger.info("=" * 60)
     
     try:
@@ -1135,6 +1367,12 @@ async def init_system():
         
         logger.info("✅ SK4FiLM initialized successfully")
         logger.info("=" * 60)
+        logger.info("🎯 FEATURES:")
+        logger.info(f"   • Post+File Merge: ✅ ENABLED")
+        logger.info(f"   • Text Channels: {len(Config.TEXT_CHANNEL_IDS)}")
+        logger.info(f"   • File Channel: {Config.FILE_CHANNEL_ID}")
+        logger.info(f"   • Quality Detection: ✅ ENABLED")
+        logger.info(f"   • Poster Fetching: ✅ ENABLED")
         
         return True
         
@@ -1143,13 +1381,13 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ API ROUTES - FIXED
+# ✅ API ROUTES - UPDATED
 # ============================================================================
 
 @app.route('/')
 @performance_monitor.measure("root_endpoint")
 async def root():
-    # Get stats - FIXED: Use "is not None" instead of truthy check
+    # Get stats
     file_count = 0
     if files_col is not None:
         try:
@@ -1159,7 +1397,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.0 - FIXED',
+        'service': 'SK4FiLM v9.0 - Post+File Merge',
         'sessions': {
             'user': user_session_ready,
             'bot': bot_session_ready
@@ -1168,10 +1406,10 @@ async def root():
             'total_files': file_count
         },
         'features': {
-            'search': True,
+            'post_file_merge': True,
+            'text_channels': len(Config.TEXT_CHANNEL_IDS),
             'posters': poster_fetcher is not None,
-            'indexing': file_indexing_manager.is_running,
-            'mongodb_connected': mongo_client is not None
+            'indexing': file_indexing_manager.is_running
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -1180,6 +1418,7 @@ async def root():
 async def health():
     return jsonify({
         'status': 'ok',
+        'post_file_merge': True,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -1190,7 +1429,8 @@ async def api_movies():
         return jsonify({
             'status': 'success',
             'movies': movies,
-            'total': len(movies)
+            'total': len(movies),
+            'poster_fetcher': poster_fetcher is not None
         })
     except Exception as e:
         logger.error(f"Movies API error: {e}")
@@ -1209,16 +1449,17 @@ async def api_search():
         if len(query) < Config.SEARCH_MIN_QUERY_LENGTH:
             return jsonify({
                 'status': 'error',
-                'message': f'Query too short'
+                'message': f'Query must be at least {Config.SEARCH_MIN_QUERY_LENGTH} characters'
             }), 400
         
-        result_data = await search_movies_enhanced_fixed(query, limit, page)
+        result_data = await search_movies_enhanced_merged(query, limit, page)
         
         return jsonify({
             'status': 'success',
             'query': query,
             'results': result_data['results'],
             'pagination': result_data['pagination'],
+            'search_metadata': result_data['search_metadata'],
             'bot_username': Config.BOT_USERNAME
         })
     except Exception as e:
@@ -1249,7 +1490,10 @@ async def api_stats():
                 'user': user_session_ready,
                 'bot': bot_session_ready
             },
-            'mongodb': mongo_client is not None
+            'features': {
+                'post_file_merge': True,
+                'text_channels': len(Config.TEXT_CHANNEL_IDS)
+            }
         })
     except Exception as e:
         logger.error(f"Stats API error: {e}")
@@ -1275,10 +1519,55 @@ async def api_admin_reindex():
         
         return jsonify({
             'status': 'success',
-            'message': 'Reindexing started'
+            'message': 'Reindexing started',
+            'post_file_merge': True
         })
     except Exception as e:
         logger.error(f"Admin reindex error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/search-test', methods=['GET'])
+async def api_admin_search_test():
+    """Test search functionality"""
+    try:
+        auth_token = request.headers.get('X-Admin-Token')
+        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        test_query = request.args.get('query', 'test')
+        result_data = await search_movies_enhanced_merged(test_query, 5, 1)
+        
+        # Analyze results
+        results = result_data.get('results', [])
+        analysis = {
+            'total_results': len(results),
+            'result_types': {},
+            'sample_titles': []
+        }
+        
+        for result in results[:5]:
+            result_type = result.get('result_type', 'unknown')
+            if result_type not in analysis['result_types']:
+                analysis['result_types'][result_type] = 0
+            analysis['result_types'][result_type] += 1
+            
+            analysis['sample_titles'].append({
+                'title': result.get('title', '')[:50],
+                'type': result_type,
+                'has_file': result.get('has_file', False),
+                'has_post': result.get('has_post', False),
+                'qualities': list(result.get('quality_options', {}).keys())
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'test_query': test_query,
+            'analysis': analysis,
+            'search_metadata': result_data.get('search_metadata', {})
+        })
+        
+    except Exception as e:
+        logger.error(f"Search test error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
@@ -1345,8 +1634,15 @@ if __name__ == "__main__":
     config.loglevel = "warning"
     
     logger.info(f"🌐 Starting SK4FiLM on port {Config.WEB_SERVER_PORT}...")
-    logger.info("✅ Features: Search, Indexing, Posters, Thumbnails")
-    logger.info("✅ Fixes: MongoDB index conflicts, Collection checks")
+    logger.info("=" * 60)
+    logger.info("🎯 POST+FILE MERGE SYSTEM")
+    logger.info("=" * 60)
+    logger.info(f"   • Text Channels: {len(Config.TEXT_CHANNEL_IDS)}")
+    logger.info(f"   • File Channel: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"   • Search Logic: POST first, then merge with FILES")
+    logger.info(f"   • Quality Merge: ✅ ENABLED")
+    logger.info(f"   • Poster Fetching: ✅ ENABLED")
+    logger.info("=" * 60)
     
     try:
         asyncio.run(serve(app, config))
