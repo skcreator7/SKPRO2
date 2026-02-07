@@ -535,7 +535,7 @@ class ThumbnailManager:
             )
             
             if thumbnail_doc:
-                # Update last_accessed and access_count
+                # Update last_accessed
                 await self.thumbnails_col.update_one(
                     {"_id": thumbnail_doc["_id"]},
                     {
@@ -566,14 +566,18 @@ class ThumbnailManager:
                                channel_id: int = None, message_id: int = None):
         """Save thumbnail to database with normalized title (One Movie → One Thumbnail)"""
         try:
+            # First, try to find existing document
+            existing_doc = await self.thumbnails_col.find_one(
+                {'normalized_title': normalized_title}
+            )
+            
             thumbnail_doc = {
                 'normalized_title': normalized_title,
                 'thumbnail_url': thumbnail_url,
                 'source': source,
                 'extracted': extracted,
-                'created_at': datetime.now(),
-                'last_accessed': datetime.now(),
                 'updated_at': datetime.now(),
+                'last_accessed': datetime.now(),
                 'access_count': 1
             }
             
@@ -582,18 +586,21 @@ class ThumbnailManager:
             if message_id:
                 thumbnail_doc['message_id'] = message_id
             
-            # Use upsert to update or insert (One Movie → One Thumbnail)
-            await self.thumbnails_col.update_one(
-                {
-                    'normalized_title': normalized_title
-                },
-                {
-                    '$set': thumbnail_doc,
-                    '$inc': {'access_count': 1},
-                    '$setOnInsert': {'first_seen': datetime.now()}
-                },
-                upsert=True
-            )
+            if existing_doc:
+                # Update existing document
+                thumbnail_doc['created_at'] = existing_doc.get('created_at', datetime.now())
+                thumbnail_doc['access_count'] = existing_doc.get('access_count', 0) + 1
+                
+                await self.thumbnails_col.update_one(
+                    {'normalized_title': normalized_title},
+                    {'$set': thumbnail_doc}
+                )
+            else:
+                # Insert new document
+                thumbnail_doc['created_at'] = datetime.now()
+                thumbnail_doc['first_seen'] = datetime.now()
+                
+                await self.thumbnails_col.insert_one(thumbnail_doc)
             
             logger.debug(f"✅ Thumbnail saved to database: {normalized_title} ({source})")
             
@@ -608,22 +615,78 @@ class ThumbnailManager:
         if not title:
             return ""
         
+        # Store original for debugging
+        original_title = title
+        
         # Convert to lowercase
         title = title.lower().strip()
+        
+        # Remove @mentions and hashtags at start
+        title = re.sub(r'^@\w+\s*', '', title)
+        title = re.sub(r'^#\w+\s*', '', title)
+        
+        # Remove common prefixes
+        prefixes = [
+            r'^@ap\s+files\s+',
+            r'^@cszmovies\s+',
+            r'^@\w+\s+files\s+',
+            r'^@\w+\s+movie[s]?\s+',
+            r'^latest\s+movie[s]?\s+',
+            r'^new\s+movie[s]?\s+',
+            r'^movie\s+',
+            r'^film\s+',
+            r'^full\s+',
+        ]
+        
+        for prefix in prefixes:
+            title = re.sub(prefix, '', title, flags=re.IGNORECASE)
         
         # Remove year patterns (1999), (2000), [2020], etc.
         title = re.sub(r'\s*[\(\[]?\d{4}[\)\]]?', '', title)
         
-        # Remove quality indicators
+        # Remove quality indicators - EXPANDED LIST FOR HINDI MOVIES
         quality_patterns = [
+            # Resolutions
             r'\b\d{3,4}p\b',
-            r'\b(?:hd|fhd|uhd|4k|hevc|x265|x264|h264|h265)\b',
-            r'\b(?:webrip|web-dl|bluray|dvdrip|hdtv|brrip)\b',
-            r'\b(?:dts|ac3|aac|dd5\.1|dd\+)\b',
-            r'\b(?:esub|subs|subtitles)\b',
-            r'\[.*?\]',  # Remove brackets
-            r'\(.*?\)',  # Remove parentheses
-            r'\{.*?\}',  # Remove curly braces
+            r'\b(?:hd|fhd|uhd|4k|2160p|1080p|720p|480p|360p)\b',
+            
+            # Codecs
+            r'\b(?:hevc|x265|x264|h264|h265|10bit|av1|avc|av1\s+10bit)\b',
+            
+            # Sources
+            r'\b(?:webrip|web-dl|webdl|bluray|dvdrip|hdtv|brrip|camrip|hdrip|tc|ts|pre\d*|org|original)\b',
+            r'\b(?:amzn|netflix|nf|zee5|zee|hotstar|prime|disney\+?|ds4k)\b',
+            
+            # Audio
+            r'\b(?:dts|ac3|aac|dd5\.1|dd\+|ddp|he-aac|atmos|dolby|aac2\.0|aac5\.1|dd2\.0|dd5\.1|dpp5\.1|he-aac2\.0)\b',
+            
+            # Languages
+            r'\b(?:hindi|english|tamil|telugu|malayalam|kannada|bengali|marathi|gujarati|punjabi|odia|assamese)\b',
+            r'\b(?:hin|eng|ta|te|ml|kn|bn|mr|gu|pa|or|as)\b',
+            r'\b(?:dub|dubbed|sub|subbed|subtitle[s]?|esub|hsub|msub|clean\s+audio)\b',
+            r'\b(?:dual\s+audio|multi\s+audio|multi\s+language|multi\s+sub)\b',
+            
+            # Editions
+            r'\b(?:clean|uncut|theatrical|director\'?s\s+cut|extended|unrated|remastered)\b',
+            
+            # File info
+            r'\b(?:part\d+|cd\d+|vol\d+|chapter\s+\d+)\b',
+            r'\b(?:sample|trailer|teaser|promo)\b',
+            
+            # Brackets and parentheses
+            r'\[.*?\]',
+            r'\(.*?\)',
+            r'\{.*?\}',
+            
+            # Special patterns
+            r'\b(?:hc|esub|hcesub|hc-esub)\b',
+            r'\b(?:line\s+audio|li?ne)\b',
+            r'\b(?:exclusive|uploaded\s+by|first\s+on\s+net)\b',
+            
+            # Numbers at end
+            r'\s+\d+$',
+            r'\s+\d+\s*gb$',
+            r'\s+\d+\s*mb$',
         ]
         
         for pattern in quality_patterns:
@@ -633,46 +696,67 @@ class ThumbnailManager:
         title = re.sub(r'[^\w\s]', ' ', title)
         title = re.sub(r'\s+', ' ', title)
         
-        # Remove common prefixes/suffixes
-        common_patterns = [
-            r'^movie\s+',
-            r'^film\s+',
-            r'^full\s+',
-            r'^latest\s+',
-            r'^new\s+',
-            r'\s+full$',
+        # Remove common suffixes
+        suffixes = [
+            r'\s+full\s+movie$',
             r'\s+movie$',
             r'\s+film$',
-            r'\s+hindi$',
-            r'\s+english$',
-            r'\s+dual\s+audio$',
-            r'\s+complete$',
+            r'\s+hd$',
+            r'\s+version$',
+            r'\s+edit$',
+            r'\s+print$',
+            r'\s+rip$',
         ]
         
-        for pattern in common_patterns:
-            title = re.sub(pattern, '', title, flags=re.IGNORECASE)
+        for suffix in suffixes:
+            title = re.sub(suffix, '', title, flags=re.IGNORECASE)
         
-        return title.strip()
+        # Trim and clean
+        title = title.strip()
+        
+        # If title is too short after cleaning, use smarter extraction
+        if len(title) < 3:
+            # Try to extract just the movie name
+            words = original_title.split()
+            movie_words = []
+            for word in words:
+                word_lower = word.lower()
+                if (len(word) > 2 and 
+                    not re.match(r'^\d{3,4}p$', word_lower) and
+                    not re.match(r'^\d+$', word_lower) and
+                    word_lower not in ['hd', 'full', 'movie', 'film', 'hindi', 'english'] and
+                    not re.match(r'^x\d+$', word_lower) and
+                    not re.match(r'^h\.?\d+$', word_lower)):
+                    movie_words.append(word)
+            
+            if movie_words:
+                title = ' '.join(movie_words[:5])
+        
+        # Final cleanup
+        title = re.sub(r'\s+', ' ', title).strip()
+        
+        # Debug log
+        if original_title != title:
+            logger.debug(f"🧹 Title normalized: '{original_title}' → '{title}'")
+        
+        return title
     
     def clean_title_for_api(self, title: str) -> str:
-        """Clean title for API search"""
+        """Clean title for API search - Better version"""
         if not title:
             return ""
         
-        # Remove year
-        title = re.sub(r'\s*[\(\[]?\d{4}[\)\]]?', '', title)
+        # First normalize
+        title = self.normalize_title(title)
         
-        # Remove quality info
-        title = re.sub(r'\b(?:720p|1080p|2160p|4k|hd|hevc|bluray|webrip|hdtv)\b', '', title, flags=re.IGNORECASE)
-        
-        # Remove special characters
-        title = re.sub(r'[^\w\s\-]', '', title)
-        title = re.sub(r'\s+', ' ', title)
+        # Remove any remaining numbers at end
+        title = re.sub(r'\s+\d+$', '', title)
         
         # Take only first 3-5 words for better matching
         words = title.split()
         if len(words) > 5:
-            title = ' '.join(words[:5])
+            # Try to keep important words (usually movie names are 1-3 words)
+            title = ' '.join(words[:3])
         
         return title.strip()
     
