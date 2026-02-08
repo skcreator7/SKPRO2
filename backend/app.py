@@ -483,11 +483,11 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ BOT HANDLER MODULE
+# ✅ BOT HANDLER MODULE - FIXED VERSION
 # ============================================================================
 
 class BotHandler:
-    """Bot handler for Telegram bot operations"""
+    """Bot handler for Telegram bot operations - FIXED"""
     
     def __init__(self, bot_token=None, api_id=None, api_hash=None):
         self.bot_token = bot_token or Config.BOT_TOKEN
@@ -499,7 +499,7 @@ class BotHandler:
         self.bot_username = None
         
     async def initialize(self):
-        """Initialize bot handler"""
+        """Initialize bot handler - FIXED"""
         if not self.bot_token or not self.api_id or not self.api_hash:
             logger.error("❌ Bot token or API credentials not configured")
             return False
@@ -540,6 +540,11 @@ class BotHandler:
             self.initialized = True
             self.last_update = datetime.now()
             
+            # Store bot instance globally for reuse
+            global Bot
+            Bot = self.bot
+            bot_session_ready = True
+            
             # Start periodic tasks
             asyncio.create_task(self._periodic_tasks())
             
@@ -561,7 +566,10 @@ class BotHandler:
                     await self.bot.get_me()
                 except:
                     logger.warning("⚠️ Bot session disconnected, reconnecting...")
-                    await self.bot.stop()
+                    try:
+                        await self.bot.stop()
+                    except:
+                        pass
                     await asyncio.sleep(5)
                     await self.bot.start()
                 
@@ -574,125 +582,46 @@ class BotHandler:
                 logger.error(f"❌ Bot handler periodic task error: {e}")
                 await asyncio.sleep(60)
     
-    async def get_file_info(self, channel_id, message_id):
-        """Get file information from message"""
-        if not self.initialized:
+    async def get_message(self, channel_id, message_id):
+        """Get message from Telegram"""
+        if not self.initialized or not self.bot:
             return None
         
         try:
-            message = await self.bot.get_messages(channel_id, message_id)
-            if not message:
-                return None
-            
-            file_info = {
-                'channel_id': channel_id,
-                'message_id': message_id,
-                'has_file': False,
-                'file_type': None,
-                'file_size': 0,
-                'file_name': '',
-                'caption': message.caption or ''
-            }
-            
-            if message.document:
-                file_info.update({
-                    'has_file': True,
-                    'file_type': 'document',
-                    'file_size': message.document.file_size or 0,
-                    'file_name': message.document.file_name or '',
-                    'mime_type': message.document.mime_type or '',
-                    'file_id': message.document.file_id
-                })
-            elif message.video:
-                file_info.update({
-                    'has_file': True,
-                    'file_type': 'video',
-                    'file_size': message.video.file_size or 0,
-                    'file_name': message.video.file_name or 'video.mp4',
-                    'duration': message.video.duration if hasattr(message.video, 'duration') else 0,
-                    'width': message.video.width if hasattr(message.video, 'width') else 0,
-                    'height': message.video.height if hasattr(message.video, 'height') else 0,
-                    'file_id': message.video.file_id
-                })
-            
-            return file_info
-            
+            return await self.bot.get_messages(channel_id, message_id)
         except Exception as e:
-            logger.error(f"❌ Get file info error: {e}")
+            logger.error(f"❌ Get message error: {e}")
             return None
     
-    async def extract_thumbnail(self, channel_id, message_id):
-        """Extract thumbnail from video file"""
-        if not self.initialized:
+    async def download_media(self, media):
+        """Download media from Telegram"""
+        if not self.initialized or not self.bot:
             return None
         
         try:
-            message = await self.bot.get_messages(channel_id, message_id)
-            if not message:
-                return None
-            
-            # Check if message has video or video document
-            thumbnail_data = None
-            
-            if message.video:
-                # Video messages have thumbnails
-                if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
-                    thumbnail_file_id = message.video.thumbnail.file_id
-                    thumbnail_data = await self._download_file(thumbnail_file_id)
-            
-            elif message.document and is_video_file(message.document.file_name or ''):
-                # Video document - try to get thumbnail
-                if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
-                    thumbnail_file_id = message.document.thumbnail.file_id
-                    thumbnail_data = await self._download_file(thumbnail_file_id)
-            
-            if thumbnail_data:
-                # Convert to base64
-                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
-                return f"data:image/jpeg;base64,{base64_data}"
-            
-            return None
-            
+            return await self.bot.download_media(media, in_memory=True)
         except Exception as e:
-            logger.error(f"❌ Extract thumbnail error: {e}")
-            return None
-    
-    async def _download_file(self, file_id):
-        """Download file from Telegram"""
-        try:
-            download_path = await self.bot.download_media(file_id, in_memory=True)
-            
-            if not download_path:
-                return None
-            
-            if isinstance(download_path, bytes):
-                return download_path
-            else:
-                with open(download_path, 'rb') as f:
-                    return f.read()
-                    
-        except Exception as e:
-            logger.error(f"❌ Download file error: {e}")
+            logger.error(f"❌ Download media error: {e}")
             return None
     
     async def get_bot_status(self):
-        """Get bot status for API endpoint"""
-        try:
-            return {
-                'initialized': getattr(self, 'initialized', True),
-                'bot_username': getattr(self, 'bot_username', '@sk4filmbot'),
-                'last_update': getattr(self, 'last_update', None),
-                'status': 'active'
-            }
-        except Exception as e:
-            logger.error(f"Bot status error: {e}")
-            return {
-                'initialized': False,
-                'bot_username': 'Error',
-                'error': str(e)
-            }
-
-bot_handler = BotHandler()
+        """Get bot status"""
+        return {
+            'initialized': self.initialized,
+            'bot_username': self.bot_username,
+            'last_update': self.last_update.isoformat() if self.last_update else None
+        }
+    
+    async def shutdown(self):
+        """Shutdown bot handler"""
+        if self.bot:
+            try:
+                await self.bot.stop()
+            except:
+                pass
+        
+        self.initialized = False
+        logger.info("✅ Bot Handler shutdown")
 
 # ============================================================================
 # ✅ OPTIMIZED SYNC MANAGEMENT
@@ -1894,11 +1823,11 @@ async def initial_indexing_optimized():
         logger.error(f"❌ Initial indexing error: {e}")
 
 # ============================================================================
-# ✅ EXTRACT THUMBNAILS FOR EXISTING FILES
+# ✅ EXTRACT THUMBNAILS FOR EXISTING FILES - FIXED VERSION
 # ============================================================================
 
 async def extract_thumbnails_for_existing_files():
-    """Extract thumbnails for all existing files in database"""
+    """Extract thumbnails for all existing files in database - FIXED"""
     if not thumbnail_manager or files_col is None:
         logger.warning("⚠️ ThumbnailManager or files collection not available")
         return
@@ -1906,10 +1835,16 @@ async def extract_thumbnails_for_existing_files():
     logger.info("🔄 Extracting thumbnails for existing files...")
     
     try:
-        # Get all video files without thumbnails
+        # Get all video files without thumbnails OR with fallback thumbnails
         cursor = files_col.find({
             'is_video_file': True,
-            'channel_id': Config.FILE_CHANNEL_ID
+            'channel_id': Config.FILE_CHANNEL_ID,
+            '$or': [
+                {'thumbnail_url': {'$exists': False}},
+                {'thumbnail_url': ''},
+                {'thumbnail_url': Config.FALLBACK_POSTER},
+                {'thumbnail_source': {'$in': ['fallback', 'api', None]}}
+            ]
         }, {
             'title': 1,
             'normalized_title': 1,
@@ -1929,14 +1864,14 @@ async def extract_thumbnails_for_existing_files():
                 'db_id': doc.get('_id')
             })
         
-        logger.info(f"📊 Found {len(files_to_process)} video files to process")
+        logger.info(f"📊 Found {len(files_to_process)} video files to process for thumbnails")
         
         if not files_to_process:
             logger.info("✅ No files need thumbnail extraction")
             return
         
         # Process in batches
-        batch_size = 10
+        batch_size = 5  # Smaller batch size for reliability
         total_batches = math.ceil(len(files_to_process) / batch_size)
         successful = 0
         failed = 0
@@ -1965,15 +1900,26 @@ async def extract_thumbnails_for_existing_files():
                                 'thumbnail_source': thumbnail_data.get('source', 'unknown')
                             }}
                         )
+                        
+                        if thumbnail_data.get('source', '').startswith('telegram'):
+                            logger.info(f"✅ Telegram thumbnail extracted for: {file_info['title'][:50]}...")
+                        else:
+                            logger.info(f"📄 API thumbnail fetched for: {file_info['title'][:50]}...")
+                        
                         successful += 1
                     else:
+                        logger.warning(f"⚠️ No thumbnail for: {file_info['title'][:50]}...")
                         failed += 1
             
-            # Small delay between batches
+            # Small delay between batches to avoid rate limiting
             if batch_num < total_batches - 1:
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
         
         logger.info(f"✅ Thumbnail extraction complete: {successful} successful, {failed} failed")
+        
+        # Get stats
+        stats = await thumbnail_manager.get_stats()
+        logger.info(f"📊 Thumbnail Stats: {stats}")
         
     except Exception as e:
         logger.error(f"❌ Error extracting thumbnails for existing files: {e}")
