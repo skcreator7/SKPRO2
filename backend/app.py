@@ -2137,7 +2137,7 @@ async def init_telegram_sessions():
     logger.info(f"Bot Handler: {'✅ INITIALIZED' if bot_handler.initialized else '❌ NOT READY'}")
     
     return user_session_ready or bot_session_ready
-
+    
 # ============================================================================
 # ✅ MONGODB INITIALIZATION
 # ============================================================================
