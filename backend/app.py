@@ -2051,6 +2051,7 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
 @performance_monitor.measure("telegram_init")
 async def init_telegram_sessions():
     """Initialize Telegram sessions"""
+    # FIX: Move global declarations to the TOP of the function
     global User, Bot, user_session_ready, bot_session_ready
     
     logger.info("=" * 50)
