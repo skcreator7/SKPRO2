@@ -1,5 +1,14 @@
 # ============================================================================
-#. EXTRACTED ONLY STORAGE - Sirf Telegram extracted thumbnails store honge
+# thumbnail_manager.py - EXTRACTED ONLY STORAGE SYSTEM - FIXED VERSION
+# ============================================================================
+# ✅ Ek movie → ek thumbnail (sirf extracted store hoga)
+# ✅ 4 qualities → same thumbnail  
+# ✅ Old files auto migrate (ek baar extract)
+# ✅ New files auto extract
+# ✅ Search priority system
+#     1. Extracted thumbnail (database se)
+#     2. Poster sources API Services (live fetch, no store)
+#     3. Last Fallback poster https://iili.io/fAeIwv9.th.png
 # ============================================================================
 
 import asyncio
@@ -707,7 +716,7 @@ class ThumbnailManager:
                         if match:
                             return {
                                 'url': match.group(1),
-                                'source': 'Sk4Film'
+                                'source': 'letterboxd_live'
                             }
             
             return None
@@ -837,89 +846,74 @@ class ThumbnailManager:
             } for movie in movies]
     
     async def extract_thumbnails_for_existing_files(self):
-        """OLD FILES AUTO MIGRATE - Sirf extracted save honge database mein"""
-        if not self.files_col:
-            return
+        """SAFE MIGRATION - Ek movie ek extract"""
         
-        logger.info("🔄 Extracting thumbnails for OLD FILES (sirf extracted store honge)...")
+        logger.info("🔄 SAFE MIGRATION STARTED (movie-wise)")
         
-        try:
-            # Get all video files
-            cursor = self.files_col.find(
-                {'is_video_file': True},
-                {'title': 1, 'channel_id': 1, 'real_message_id': 1, '_id': 1}
-            )
-            
-            files = []
-            async for doc in cursor:
-                files.append({
-                    'title': doc.get('title', ''),
-                    'channel_id': doc.get('channel_id'),
-                    'message_id': doc.get('real_message_id'),
-                    'db_id': doc.get('_id')
-                })
-            
-            logger.info(f"📊 Found {len(files)} old files to process")
-            
-            if not files:
-                logger.info("✅ No old files found")
-                return
-            
-            # Process in batches
-            batch_size = 10
-            extracted_count = 0
-            
-            for i in range(0, len(files), batch_size):
-                batch = files[i:i + batch_size]
+        # 1️⃣ Get unique movies
+        pipeline = [
+            {"$match": {"is_video_file": True}},
+            {
+                "$group": {
+                    "_id": "$normalized_title",
+                    "title": {"$first": "$title"},
+                    "channel_id": {"$first": "$channel_id"},
+                    "message_id": {"$first": "$real_message_id"}
+                }
+            }
+        ]
+
+        movies = []
+        async for doc in self.files_col.aggregate(pipeline):
+            movies.append(doc)
+
+        logger.info(f"🎬 Unique movies found: {len(movies)}")
+
+        extracted = 0
+
+        # 2️⃣ Process slowly (anti flood)
+        for movie in movies:
+            title = movie.get("title", "")
+            if not title:
+                continue
                 
-                for file_info in batch:
-                    # Try to extract thumbnail from Telegram
-                    if file_info['channel_id'] and file_info['message_id']:
-                        logger.info(f"🔄 Extracting thumbnail for: {file_info['title']}")
-                        
-                        thumbnail = await self._extract_from_telegram(
-                            file_info['channel_id'], 
-                            file_info['message_id']
-                        )
-                        
-                        if thumbnail:
-                            # Generate movie ID
-                            movie_id = self._generate_movie_id(file_info['title'])
-                            
-                            # ✅ SIRF EXTRACTED THUMBNAIL DATABASE MEIN STORE HOTA HAI
-                            await self._save_extracted_to_database(
-                                movie_id=movie_id,
-                                thumbnail_url=thumbnail,
-                                title=file_info['title'],
-                                channel_id=file_info['channel_id'],
-                                message_id=file_info['message_id']
-                            )
-                            
-                            # Update files collection
-                            await self.files_col.update_one(
-                                {'_id': file_info['db_id']},
-                                {'$set': {
-                                    'thumbnail_url': thumbnail,
-                                    'thumbnail_source': 'telegram_extracted',
-                                    'has_thumbnail': True
-                                }}
-                            )
-                            
-                            extracted_count += 1
-                            logger.info(f"✅ Extracted & stored: {file_info['title']}")
-                        else:
-                            logger.warning(f"⚠️ Failed to extract thumbnail for: {file_info['title']}")
-                
-                logger.info(f"🔄 Processed {min(i + batch_size, len(files))}/{len(files)} files")
-                
-                # Small delay between batches
-                if i + batch_size < len(files):
-                    await asyncio.sleep(1)
+            movie_id = self._generate_movie_id(title)
+
+            # skip if already exists
+            exists = await self.extracted_thumbnails_col.find_one({"movie_id": movie_id})
+            if exists:
+                logger.info(f"⏭️ Skipping (already exists): {title}")
+                continue
+
+            channel_id = movie.get("channel_id")
+            message_id = movie.get("message_id")
             
-            logger.info(f"✅ OLD FILES migration complete: {extracted_count}/{len(files)} extracted & stored")
-            
-        except Exception as e:
-            logger.error(f"❌ Old files migration error: {e}")
+            if not channel_id or not message_id:
+                logger.warning(f"⚠️ Missing channel/message ID: {title}")
+                continue
+
+            logger.info(f"🎥 Extracting: {title}")
+
+            thumb = await self._extract_from_telegram(channel_id, message_id)
+
+            if thumb:
+                await self._save_extracted_to_database(
+                    movie_id,
+                    thumb,
+                    title,
+                    channel_id,
+                    message_id
+                )
+                extracted += 1
+                logger.info(f"✅ Extracted: {title}")
+            else:
+                logger.warning(f"⚠️ Failed to extract: {title}")
+
+            # ⭐ MOST IMPORTANT — rate limit (Telegram API limits)
+            await asyncio.sleep(4)
+
+        logger.info(f"✅ Migration Done: {extracted}/{len(movies)} movies extracted")
+        return extracted
     
     async def get_stats(self) -> Dict[str, Any]:
         """Get system statistics"""
