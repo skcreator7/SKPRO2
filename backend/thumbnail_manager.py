@@ -1,14 +1,5 @@
 # ============================================================================
-# thumbnail_manager.py - EXTRACTED ONLY STORAGE SYSTEM
-# ============================================================================
-# ✅ Ek movie → ek thumbnail (sirf extracted store hoga)
-# ✅ 4 qualities → same thumbnail  
-# ✅ Old files auto migrate (ek baar extract)
-# ✅ New files auto extract
-# ✅ Search priority system
-#     1. Extracted thumbnail (database se)
-#     2. Poster sources API Services (live fetch, no store)
-#     3. Last Fallback poster https://iili.io/fAeIwv9.th.png
+#. EXTRACTED ONLY STORAGE - Sirf Telegram extracted thumbnails store honge
 # ============================================================================
 
 import asyncio
@@ -17,6 +8,7 @@ import logging
 import time
 import re
 import hashlib
+import io
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import aiohttp
@@ -233,6 +225,7 @@ class ThumbnailManager:
             # =============================================
             if channel_id and message_id:
                 # Try to extract thumbnail from Telegram
+                logger.info(f"🔍 Attempting Telegram extraction for {title} (Channel: {channel_id}, Message: {message_id})")
                 telegram_thumbnail = await self._extract_from_telegram(channel_id, message_id)
                 
                 if telegram_thumbnail:
@@ -392,87 +385,196 @@ class ThumbnailManager:
                 upsert=True
             )
             
-            logger.debug(f"✅ Extracted thumbnail saved to DB: {title}")
+            logger.info(f"✅ Extracted thumbnail saved to DB: {title}")
             
         except Exception as e:
             logger.error(f"❌ Extracted DB save error: {e}")
     
     async def _extract_from_telegram(self, channel_id: int, message_id: int) -> Optional[str]:
-        """Extract thumbnail from Telegram message"""
+        """Extract thumbnail from Telegram message - FIXED VERSION"""
         try:
+            logger.info(f"🔄 Starting Telegram extraction for {channel_id}/{message_id}")
+            
             if not self.bot_handler:
+                logger.error("❌ No bot handler available")
                 return None
+            
+            # Use bot handler's bot instance directly
+            if not hasattr(self.bot_handler, 'bot') or self.bot_handler.bot is None:
+                logger.error("❌ Bot instance not available in bot handler")
+                return None
+            
+            bot = self.bot_handler.bot
             
             # Try multiple extraction methods
             methods = [
-                self._extract_video_thumbnail,
-                self._extract_document_thumbnail,
-                self._extract_photo_preview
+                self._extract_video_thumbnail_fixed,
+                self._extract_document_thumbnail_fixed,
+                self._extract_photo_preview_fixed
             ]
             
             for method in methods:
                 try:
-                    thumbnail = await method(channel_id, message_id)
+                    logger.info(f"🔍 Trying extraction method: {method.__name__}")
+                    thumbnail = await method(bot, channel_id, message_id)
                     if thumbnail:
+                        logger.info(f"✅ Successfully extracted thumbnail using {method.__name__}")
                         return thumbnail
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"⚠️ Extraction method {method.__name__} failed: {e}")
                     continue
+            
+            logger.warning(f"⚠️ All extraction methods failed for {channel_id}/{message_id}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Telegram extraction failed: {e}")
+            return None
+    
+    async def _extract_video_thumbnail_fixed(self, bot, channel_id: int, message_id: int) -> Optional[str]:
+        """Extract from video thumbnail - FIXED"""
+        try:
+            logger.info(f"🎬 Extracting video thumbnail for {channel_id}/{message_id}")
+            
+            # Get message
+            message = await bot.get_messages(channel_id, message_id)
+            if not message:
+                logger.error(f"❌ Message not found: {channel_id}/{message_id}")
+                return None
+            
+            if not hasattr(message, 'video'):
+                logger.debug(f"⚠️ Message has no video: {message_id}")
+                return None
+            
+            # Check for video thumbnail
+            if message.video and hasattr(message.video, 'thumbs') and message.video.thumbs:
+                logger.info(f"✅ Video has {len(message.video.thumbs)} thumbnails")
+                
+                # Try to download the thumbnail
+                for thumb in message.video.thumbs:
+                    if hasattr(thumb, 'file_id'):
+                        try:
+                            # Download thumbnail
+                            thumbnail_bytes = await bot.download_media(thumb.file_id, in_memory=True)
+                            if thumbnail_bytes:
+                                if isinstance(thumbnail_bytes, bytes):
+                                    thumbnail_data = thumbnail_bytes
+                                else:
+                                    # If it's a file path
+                                    with open(thumbnail_bytes, 'rb') as f:
+                                        thumbnail_data = f.read()
+                                
+                                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                                logger.info(f"✅ Video thumbnail extracted successfully ({len(thumbnail_data)} bytes)")
+                                return f"data:image/jpeg;base64,{base64_data}"
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to download video thumbnail: {e}")
+                            continue
+            
+            logger.debug(f"⚠️ No video thumbnail found for message {message_id}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Video thumbnail extraction error: {e}")
+            return None
+    
+    async def _extract_document_thumbnail_fixed(self, bot, channel_id: int, message_id: int) -> Optional[str]:
+        """Extract from document thumbnail - FIXED"""
+        try:
+            logger.info(f"📄 Extracting document thumbnail for {channel_id}/{message_id}")
+            
+            # Get message
+            message = await bot.get_messages(channel_id, message_id)
+            if not message:
+                return None
+            
+            if not hasattr(message, 'document'):
+                return None
+            
+            # Check if it's a video document
+            if message.document:
+                mime_type = getattr(message.document, 'mime_type', '').lower()
+                file_name = getattr(message.document, 'file_name', '').lower()
+                
+                # Check if it's a video file
+                is_video = ('video' in mime_type) or any(ext in file_name for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv'])
+                
+                if is_video and hasattr(message.document, 'thumbs') and message.document.thumbs:
+                    logger.info(f"✅ Video document has {len(message.document.thumbs)} thumbnails")
+                    
+                    for thumb in message.document.thumbs:
+                        if hasattr(thumb, 'file_id'):
+                            try:
+                                # Download thumbnail
+                                thumbnail_bytes = await bot.download_media(thumb.file_id, in_memory=True)
+                                if thumbnail_bytes:
+                                    if isinstance(thumbnail_bytes, bytes):
+                                        thumbnail_data = thumbnail_bytes
+                                    else:
+                                        with open(thumbnail_bytes, 'rb') as f:
+                                            thumbnail_data = f.read()
+                                    
+                                    base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                                    logger.info(f"✅ Document thumbnail extracted successfully ({len(thumbnail_data)} bytes)")
+                                    return f"data:image/jpeg;base64,{base64_data}"
+                            except Exception as e:
+                                logger.warning(f"⚠️ Failed to download document thumbnail: {e}")
+                                continue
             
             return None
             
         except Exception as e:
-            logger.debug(f"Telegram extraction failed: {e}")
+            logger.error(f"❌ Document thumbnail extraction error: {e}")
             return None
     
-    async def _extract_video_thumbnail(self, channel_id: int, message_id: int) -> Optional[str]:
-        """Extract from video thumbnail"""
+    async def _extract_photo_preview_fixed(self, bot, channel_id: int, message_id: int) -> Optional[str]:
+        """Extract from photo preview - FIXED"""
         try:
-            message = await self.bot_handler.get_message(channel_id, message_id)
-            if not message or not hasattr(message, 'video'):
+            logger.info(f"🖼️ Extracting photo preview for {channel_id}/{message_id}")
+            
+            # Get message
+            message = await bot.get_messages(channel_id, message_id)
+            if not message:
                 return None
             
-            if message.video and hasattr(message.video, 'thumbs'):
-                for thumb in message.video.thumbs:
-                    if hasattr(thumb, 'bytes'):
-                        return f"data:image/jpeg;base64,{base64.b64encode(thumb.bytes).decode()}"
-            
-            return None
-        except Exception:
-            return None
-    
-    async def _extract_document_thumbnail(self, channel_id: int, message_id: int) -> Optional[str]:
-        """Extract from document thumbnail"""
-        try:
-            message = await self.bot_handler.get_message(channel_id, message_id)
-            if not message or not hasattr(message, 'document'):
-                return None
-            
-            if message.document:
-                mime_type = getattr(message.document, 'mime_type', '')
-                if 'video' in mime_type and hasattr(message.document, 'thumbs'):
-                    for thumb in message.document.thumbs:
-                        if hasattr(thumb, 'bytes'):
-                            return f"data:image/jpeg;base64,{base64.b64encode(thumb.bytes).decode()}"
-            
-            return None
-        except Exception:
-            return None
-    
-    async def _extract_photo_preview(self, channel_id: int, message_id: int) -> Optional[str]:
-        """Extract from photo preview"""
-        try:
-            message = await self.bot_handler.get_message(channel_id, message_id)
-            if not message or not hasattr(message, 'photo'):
+            if not hasattr(message, 'photo'):
                 return None
             
             if message.photo:
-                # Download smallest photo for thumbnail
-                file = await self.bot_handler.download_media(message.photo)
-                if file:
-                    return f"data:image/jpeg;base64,{base64.b64encode(file).decode()}"
+                # Download the smallest photo for thumbnail
+                try:
+                    # Get file ID of the smallest photo
+                    if hasattr(message.photo, 'file_id'):
+                        file_id = message.photo.file_id
+                    else:
+                        # If it's a list of photos, use the smallest one
+                        photo_sizes = getattr(message, 'photo', [])
+                        if isinstance(photo_sizes, list) and len(photo_sizes) > 0:
+                            file_id = photo_sizes[0].file_id
+                        else:
+                            return None
+                    
+                    # Download photo
+                    photo_bytes = await bot.download_media(file_id, in_memory=True)
+                    if photo_bytes:
+                        if isinstance(photo_bytes, bytes):
+                            photo_data = photo_bytes
+                        else:
+                            with open(photo_bytes, 'rb') as f:
+                                photo_data = f.read()
+                        
+                        base64_data = base64.b64encode(photo_data).decode('utf-8')
+                        logger.info(f"✅ Photo preview extracted successfully ({len(photo_data)} bytes)")
+                        return f"data:image/jpeg;base64,{base64_data}"
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to download photo: {e}")
+                    return None
             
             return None
-        except Exception:
+            
+        except Exception as e:
+            logger.error(f"❌ Photo preview extraction error: {e}")
             return None
     
     async def _fetch_from_apis(self, title: str) -> Optional[Dict]:
@@ -605,7 +707,7 @@ class ThumbnailManager:
                         if match:
                             return {
                                 'url': match.group(1),
-                                'source': 'letterboxd_live'
+                                'source': 'Sk4Film'
                             }
             
             return None
@@ -773,6 +875,8 @@ class ThumbnailManager:
                 for file_info in batch:
                     # Try to extract thumbnail from Telegram
                     if file_info['channel_id'] and file_info['message_id']:
+                        logger.info(f"🔄 Extracting thumbnail for: {file_info['title']}")
+                        
                         thumbnail = await self._extract_from_telegram(
                             file_info['channel_id'], 
                             file_info['message_id']
@@ -802,11 +906,13 @@ class ThumbnailManager:
                             )
                             
                             extracted_count += 1
-                            logger.debug(f"✅ Extracted & stored: {file_info['title']}")
+                            logger.info(f"✅ Extracted & stored: {file_info['title']}")
+                        else:
+                            logger.warning(f"⚠️ Failed to extract thumbnail for: {file_info['title']}")
                 
                 logger.info(f"🔄 Processed {min(i + batch_size, len(files))}/{len(files)} files")
                 
-                # Small delay
+                # Small delay between batches
                 if i + batch_size < len(files):
                     await asyncio.sleep(1)
             
