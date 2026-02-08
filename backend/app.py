@@ -2045,13 +2045,13 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
     return results
 
 # ============================================================================
-# ✅ DUAL SESSION INITIALIZATION
+# ✅ DUAL SESSION INITIALIZATION - FIXED VERSION
 # ============================================================================
 
 @performance_monitor.measure("telegram_init")
 async def init_telegram_sessions():
-    """Initialize Telegram sessions"""
-    # FIX: Move global declarations to the TOP of the function
+    """Initialize Telegram sessions - FIXED WITH GLOBAL DECLARATION AT TOP"""
+    # ✅ FIX: Global declarations must be at the TOP of function
     global User, Bot, user_session_ready, bot_session_ready
     
     logger.info("=" * 50)
@@ -2137,7 +2137,7 @@ async def init_telegram_sessions():
     logger.info(f"Bot Handler: {'✅ INITIALIZED' if bot_handler.initialized else '❌ NOT READY'}")
     
     return user_session_ready or bot_session_ready
-    
+
 # ============================================================================
 # ✅ MONGODB INITIALIZATION
 # ============================================================================
@@ -2284,11 +2284,11 @@ async def init_system():
         return False
 
 # ============================================================================
-# ✅ BOT INITIALIZATION FUNCTION
+# ✅ BOT INITIALIZATION FUNCTION - FIXED VERSION
 # ============================================================================
 
 async def start_telegram_bot():
-    """Start Telegram bot with handlers"""
+    """Start Telegram bot with handlers - FIXED WITH GLOBAL DECLARATION"""
     try:
         if not PYROGRAM_AVAILABLE:
             logger.warning("❌ Pyrogram not available, bot won't start")
@@ -2857,7 +2857,7 @@ async def api_admin_thumbnails_extract_existing():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
-# ✅ STARTUP AND SHUTDOWN
+# ✅ STARTUP AND SHUTDOWN - FIXED WITH GLOBAL DECLARATIONS
 # ============================================================================
 
 app_start_time = time.time()
@@ -2868,6 +2868,10 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
+    """Shutdown function with proper global declarations"""
+    # ✅ FIX: Global declarations at TOP of function
+    global User, Bot, telegram_bot, thumbnail_manager, bot_handler
+    
     logger.info("🛑 Shutting down SK4FiLM v9.0...")
     
     shutdown_tasks = []
@@ -2943,6 +2947,13 @@ async def shutdown():
         logger.info("✅ MongoDB connection closed")
     
     logger.info(f"👋 Shutdown complete. Uptime: {time.time() - app_start_time:.1f}s")
+
+# ============================================================================
+# ✅ BOT HANDLER INITIALIZATION
+# ============================================================================
+
+# ✅ Initialize bot handler at module level
+bot_handler = BotHandler()
 
 # ============================================================================
 # ✅ MAIN ENTRY POINT
