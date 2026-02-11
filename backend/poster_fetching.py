@@ -1,9 +1,8 @@
 # ============================================================================
-# poster_fetching.py - DUAL PRIORITY THUMBNAIL SYSTEM - PYROGRAM v2+ FIX
+# poster_fetching.py - DUAL PRIORITY THUMBNAIL SYSTEM - 7 API SOURCES
 # ============================================================================
-# ✅ FIXED: Collection checks (is not None)
-# ✅ FIXED: Pyrogram v2+ thumbnail API (thumbs[0] not .thumbnail)
-# ✅ FIXED: Error handling
+# ✅ TMDB, OMDB, IMDb, Letterboxd, Wikipedia, YouTube, Google Images
+# ✅ SEARCH MODE: Thumbnail → Sources (7 APIs) → Fallback
 # ============================================================================
 
 import asyncio
@@ -13,8 +12,10 @@ import time
 import re
 import base64
 import os
+import json
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+from urllib.parse import quote, urlencode
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,11 @@ class PosterSource:
     EXTRACTED = "extracted"
     TMDB = "tmdb"
     OMDB = "omdb"
+    IMDB = "imdb"
+    LETTERBOXD = "letterboxd"
+    WIKIPEDIA = "wikipedia"
+    YOUTUBE = "youtube"
+    GOOGLE = "google_images"
     FALLBACK = "fallback"
     CACHE = "cache"
     ERROR = "error"
@@ -43,9 +49,10 @@ class PosterFetcher:
         # Statistics
         self.stats = {
             'total_requests': 0, 'cache_hits': 0, 'extracted_hits': 0,
-            'tmdb_hits': 0, 'omdb_hits': 0, 'fallback_hits': 0,
-            'errors': 0, 'home_mode_calls': 0, 'search_mode_calls': 0,
-            'channel_invalid_errors': 0
+            'tmdb_hits': 0, 'omdb_hits': 0, 'imdb_hits': 0,
+            'letterboxd_hits': 0, 'wikipedia_hits': 0, 'youtube_hits': 0,
+            'google_hits': 0, 'fallback_hits': 0, 'errors': 0,
+            'home_mode_calls': 0, 'search_mode_calls': 0
         }
         
         # HTTP session
@@ -57,17 +64,28 @@ class PosterFetcher:
         self.thumbnail_cache_ttl = 30 * 24 * 60 * 60
         
         # Rate limiting
-        self.tmdb_last_call = 0
-        self.omdb_last_call = 0
+        self.api_last_call = {}
         self.rate_limit_delay = 0.25
         
         # Fallback URL
         self.fallback_url = getattr(config, 'FALLBACK_POSTER', 'https://iili.io/fAeIwv9.th.png')
         
-        logger.info("🎬 PosterFetcher initialized with User Session for thumbnails")
+        # Headers for different APIs
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+        
+        logger.info("🎬 PosterFetcher initialized with 7 API Sources")
+        logger.info("   • TMDB, OMDB, IMDb, Letterboxd, Wikipedia, YouTube, Google Images")
     
     async def _ensure_collections(self):
-        """Ensure MongoDB collections exist - FIXED collection checks"""
+        """Ensure MongoDB collections exist"""
         if self._collections_initialized:
             return True
         
@@ -81,30 +99,10 @@ class PosterFetcher:
             
             # Create indexes
             try:
-                await self.thumbnails_col.create_index(
-                    "normalized_title", unique=True, background=True
-                )
-            except:
-                pass
-            
-            try:
-                await self.thumbnails_col.create_index(
-                    "expires_at", expireAfterSeconds=0, background=True
-                )
-            except:
-                pass
-            
-            try:
-                await self.poster_cache_col.create_index(
-                    "cache_key", unique=True, background=True
-                )
-            except:
-                pass
-            
-            try:
-                await self.poster_cache_col.create_index(
-                    "expires_at", expireAfterSeconds=0, background=True
-                )
+                await self.thumbnails_col.create_index("normalized_title", unique=True, background=True)
+                await self.thumbnails_col.create_index("expires_at", expireAfterSeconds=0, background=True)
+                await self.poster_cache_col.create_index("cache_key", unique=True, background=True)
+                await self.poster_cache_col.create_index("expires_at", expireAfterSeconds=0, background=True)
             except:
                 pass
             
@@ -119,118 +117,30 @@ class PosterFetcher:
         async with self.session_lock:
             if self.session is None or self.session.closed:
                 self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10),
-                    headers={'User-Agent': 'SK4FiLM/9.0'}
+                    timeout=aiohttp.ClientTimeout(total=15),
+                    headers=self.headers
                 )
             return self.session
     
     # ========================================================================
-    # ✅ FIXED: Pyrogram v2+ Thumbnail Extraction
-    # ========================================================================
-    
-    async def _extract_thumbnail_from_user(self, channel_id: int, message_id: int) -> Optional[str]:
-        """
-        Extract thumbnail using USER session
-        ✅ FIXED: Pyrogram v2+ uses .thumbs[0] not .thumbnail
-        ✅ FIXED: Proper error handling
-        """
-        try:
-            # Get the global User client
-            from __main__ import User as user_client
-            
-            if user_client is None:
-                logger.error("❌ User client not available")
-                return None
-            
-            logger.debug(f"📸 User extracting thumbnail: {channel_id}/{message_id}")
-            
-            # Get message
-            message = await user_client.get_messages(channel_id, message_id)
-            if not message:
-                logger.debug(f"❌ Message not found: {message_id}")
-                return None
-            
-            thumbnail_file_id = None
-            
-            # ✅ FIXED: Pyrogram v2+ - Video thumbs
-            if message.video and message.video.thumbs:
-                thumbnail_file_id = message.video.thumbs[0].file_id
-                logger.debug(f"✅ Video thumbnail found (Pyrogram v2+)")
-            
-            # ✅ FIXED: Pyrogram v2+ - Document thumbs
-            elif message.document and message.document.thumbs:
-                # Check if it's video
-                is_video = False
-                if message.document.mime_type and 'video' in message.document.mime_type:
-                    is_video = True
-                elif message.document.file_name and self._is_video_file(message.document.file_name):
-                    is_video = True
-                
-                if is_video:
-                    thumbnail_file_id = message.document.thumbs[0].file_id
-                    logger.debug(f"✅ Document thumbnail found (Pyrogram v2+)")
-            
-            if not thumbnail_file_id:
-                logger.debug(f"❌ No thumbnail in message {message_id}")
-                return None
-            
-            # Download thumbnail
-            logger.debug(f"⬇️ Downloading thumbnail...")
-            download_path = await user_client.download_media(
-                thumbnail_file_id,
-                in_memory=True
-            )
-            
-            if not download_path:
-                logger.debug(f"❌ Download failed")
-                return None
-            
-            # Convert to base64
-            if isinstance(download_path, bytes):
-                thumbnail_bytes = download_path
-            else:
-                try:
-                    with open(download_path, 'rb') as f:
-                        thumbnail_bytes = f.read()
-                    # Clean up temp file
-                    try:
-                        os.remove(download_path)
-                    except:
-                        pass
-                except Exception as e:
-                    logger.error(f"❌ File read error: {e}")
-                    return None
-            
-            base64_data = base64.b64encode(thumbnail_bytes).decode('utf-8')
-            result = f"data:image/jpeg;base64,{base64_data}"
-            
-            logger.info(f"✅✅✅ Thumbnail EXTRACTED via USER: {message_id}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Extraction error: {e}")
-            return None
-    
-    def _is_video_file(self, filename):
-        """Check if file is video"""
-        if not filename:
-            return False
-        video_ext = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
-        return any(filename.lower().endswith(ext) for ext in video_ext)
-    
-    # ========================================================================
-    # ✅ SEARCH MODE
+    # ✅ SEARCH MODE - Thumbnail → 7 API Sources → Fallback
     # ========================================================================
     
     async def get_thumbnail_for_movie_search(self, title: str, year: str = "",
                                            channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
-        """SEARCH MODE: Thumbnail → Sources → Fallback"""
+        """
+        SEARCH MODE: Thumbnail → 7 API Sources → Fallback
+        1. Try extracted thumbnail (DB)
+        2. Try live extraction (Telegram)
+        3. Try ALL 7 API sources in parallel
+        4. Fallback image
+        """
         self.stats['total_requests'] += 1
         self.stats['search_mode_calls'] += 1
         start_time = time.time()
         
         try:
-            # Check cache
+            # STEP 1: Check cache
             cached = await self._get_cached_poster(title, year)
             if cached is not None:
                 self.stats['cache_hits'] += 1
@@ -243,11 +153,11 @@ class PosterFetcher:
                 })
                 return cached
             
-            # Check database for existing thumbnail
+            # STEP 2: Check database for extracted thumbnail
             db_thumb = await self._get_extracted_thumbnail(title)
             if db_thumb is not None and db_thumb.get('thumbnail_url'):
                 self.stats['extracted_hits'] += 1
-                logger.info(f"✅ [SEARCH] DB thumbnail found: {title[:30]}...")
+                logger.info(f"✅ [SEARCH] DB thumbnail: {title[:30]}...")
                 return {
                     'poster_url': db_thumb['thumbnail_url'],
                     'source': PosterSource.EXTRACTED,
@@ -258,15 +168,13 @@ class PosterFetcher:
                     'response_time': time.time() - start_time
                 }
             
-            # Try LIVE extraction with USER session
+            # STEP 3: Try LIVE extraction with USER session
             if channel_id is not None and message_id is not None and self.user_client is not None:
-                logger.debug(f"[SEARCH] Live extraction: {channel_id}/{message_id}")
                 live_thumb = await self._extract_thumbnail_from_user(channel_id, message_id)
                 if live_thumb is not None:
-                    # Store in database
                     await self._store_extracted_thumbnail(title, live_thumb, channel_id, message_id)
                     self.stats['extracted_hits'] += 1
-                    logger.info(f"✅✅ [SEARCH] LIVE thumbnail extracted: {title[:30]}...")
+                    logger.info(f"✅✅ [SEARCH] LIVE thumbnail: {title[:30]}...")
                     return {
                         'poster_url': live_thumb,
                         'source': PosterSource.EXTRACTED,
@@ -277,8 +185,10 @@ class PosterFetcher:
                         'response_time': time.time() - start_time
                     }
             
-            # Try TMDB/OMDB
-            poster = await self._fetch_from_sources(title, year)
+            # STEP 4: Try ALL 7 API SOURCES IN PARALLEL
+            logger.info(f"🔄 [SEARCH] Fetching from 7 APIs: {title[:30]}...")
+            poster = await self._fetch_from_all_sources_parallel(title, year)
+            
             if poster is not None:
                 await self._cache_poster(title, year, poster)
                 poster.update({
@@ -287,11 +197,12 @@ class PosterFetcher:
                     'has_thumbnail': True,
                     'is_fallback': False
                 })
-                logger.info(f"✅ [SEARCH] API poster: {poster['source']} - {title[:30]}...")
+                logger.info(f"✅ [SEARCH] Poster from {poster['source']}: {title[:30]}...")
                 return poster
             
-            # Fallback
+            # STEP 5: Fallback
             self.stats['fallback_hits'] += 1
+            logger.debug(f"➖ [SEARCH] Fallback: {title[:30]}...")
             return {
                 'poster_url': self.fallback_url,
                 'source': PosterSource.FALLBACK,
@@ -314,156 +225,499 @@ class PosterFetcher:
             }
     
     # ========================================================================
-    # ✅ HOME MODE
+    # ✅ PARALLEL API FETCHING - ALL 7 SOURCES
     # ========================================================================
     
-    async def get_thumbnail_for_movie_home(self, title: str, year: str = "") -> Dict[str, Any]:
-        """HOME MODE: Sources → Thumbnail → Fallback"""
-        self.stats['total_requests'] += 1
-        self.stats['home_mode_calls'] += 1
-        start_time = time.time()
+    async def _fetch_from_all_sources_parallel(self, title: str, year: str = "") -> Optional[Dict]:
+        """
+        Fetch from ALL 7 sources in parallel
+        Returns first successful result
+        """
+        clean_title = self._clean_title_for_api(title)
         
+        # Create all fetch tasks
+        tasks = [
+            self._fetch_from_tmdb(clean_title, year),
+            self._fetch_from_omdb(clean_title, year),
+            self._fetch_from_imdb(clean_title, year),
+            self._fetch_from_letterboxd(clean_title, year),
+            self._fetch_from_wikipedia(clean_title, year),
+            self._fetch_from_youtube(clean_title, year),
+            self._fetch_from_google_images(clean_title, year)
+        ]
+        
+        # Run all tasks concurrently
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Return first successful result
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                continue
+            if result is not None and result.get('poster_url'):
+                # Update stats based on source
+                source = result.get('source')
+                if source == PosterSource.TMDB:
+                    self.stats['tmdb_hits'] += 1
+                elif source == PosterSource.OMDB:
+                    self.stats['omdb_hits'] += 1
+                elif source == PosterSource.IMDB:
+                    self.stats['imdb_hits'] += 1
+                elif source == PosterSource.LETTERBOXD:
+                    self.stats['letterboxd_hits'] += 1
+                elif source == PosterSource.WIKIPEDIA:
+                    self.stats['wikipedia_hits'] += 1
+                elif source == PosterSource.YOUTUBE:
+                    self.stats['youtube_hits'] += 1
+                elif source == PosterSource.GOOGLE:
+                    self.stats['google_hits'] += 1
+                
+                return result
+        
+        return None
+    
+    # ========================================================================
+    # ✅ API 1: TMDB
+    # ========================================================================
+    
+    async def _fetch_from_tmdb(self, title: str, year: str = "") -> Optional[Dict]:
+        """Fetch poster from TMDB API"""
         try:
-            # Check cache
-            cached = await self._get_cached_poster(title, year)
-            if cached is not None:
-                self.stats['cache_hits'] += 1
-                cached.update({
-                    'source': PosterSource.CACHE,
-                    'priority_mode': 'home',
-                    'response_time': time.time() - start_time,
-                    'has_thumbnail': True,
-                    'is_fallback': False
-                })
-                return cached
+            # Rate limiting
+            await self._rate_limit('tmdb')
             
-            # Try API sources
-            poster = await self._fetch_from_sources(title, year)
-            if poster is not None:
-                await self._cache_poster(title, year, poster)
-                poster.update({
-                    'priority_mode': 'home',
-                    'response_time': time.time() - start_time,
-                    'has_thumbnail': True,
-                    'is_fallback': False
-                })
-                return poster
-            
-            # Try DB thumbnail
-            db_thumb = await self._get_extracted_thumbnail(title)
-            if db_thumb is not None and db_thumb.get('thumbnail_url'):
-                self.stats['extracted_hits'] += 1
-                return {
-                    'poster_url': db_thumb['thumbnail_url'],
-                    'source': PosterSource.EXTRACTED,
-                    'extracted': True,
-                    'priority_mode': 'home',
-                    'has_thumbnail': True,
-                    'is_fallback': False,
-                    'response_time': time.time() - start_time
-                }
-            
-            # Fallback
-            self.stats['fallback_hits'] += 1
-            return {
-                'poster_url': self.fallback_url,
-                'source': PosterSource.FALLBACK,
-                'priority_mode': 'home',
-                'has_thumbnail': True,
-                'is_fallback': True,
-                'response_time': time.time() - start_time
+            session = await self._get_session()
+            url = "https://api.themoviedb.org/3/search/movie"
+            params = {
+                'api_key': self.config.TMDB_API_KEY,
+                'query': title,
+                'include_adult': False
             }
+            if year:
+                params['year'] = year
+            
+            async with session.get(url, params=params) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                
+                if not data.get('results'):
+                    return None
+                
+                movie = data['results'][0]
+                if not movie.get('poster_path'):
+                    return None
+                
+                poster_url = f"https://image.tmdb.org/t/p/w500{movie['poster_path']}"
+                
+                return {
+                    'poster_url': poster_url,
+                    'source': PosterSource.TMDB,
+                    'title': movie.get('title', title),
+                    'year': movie.get('release_date', '')[:4] if movie.get('release_date') else year
+                }
+        except Exception as e:
+            logger.debug(f"TMDB error: {e}")
+            return None
+    
+    # ========================================================================
+    # ✅ API 2: OMDB
+    # ========================================================================
+    
+    async def _fetch_from_omdb(self, title: str, year: str = "") -> Optional[Dict]:
+        """Fetch poster from OMDB API"""
+        try:
+            await self._rate_limit('omdb')
+            
+            session = await self._get_session()
+            params = {
+                'apikey': self.config.OMDB_API_KEY,
+                't': title,
+                'plot': 'short'
+            }
+            if year:
+                params['y'] = year
+            
+            async with session.get("http://www.omdbapi.com/", params=params) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                
+                if data.get('Response') != 'True':
+                    return None
+                
+                poster = data.get('Poster')
+                if not poster or poster == 'N/A':
+                    return None
+                
+                return {
+                    'poster_url': poster,
+                    'source': PosterSource.OMDB,
+                    'title': data.get('Title', title),
+                    'year': data.get('Year', year)
+                }
+        except Exception as e:
+            logger.debug(f"OMDB error: {e}")
+            return None
+    
+    # ========================================================================
+    # ✅ API 3: IMDb (via Scraping)
+    # ========================================================================
+    
+    async def _fetch_from_imdb(self, title: str, year: str = "") -> Optional[Dict]:
+        """Fetch poster from IMDb"""
+        try:
+            await self._rate_limit('imdb')
+            
+            session = await self._get_session()
+            search_url = f"https://www.imdb.com/find?q={quote(title)}&s=tt&ttype=ft&ref_=fn_ft"
+            
+            async with session.get(search_url) as resp:
+                if resp.status != 200:
+                    return None
+                
+                html = await resp.text()
+                
+                # Extract first movie URL
+                movie_url_match = re.search(r'/title/(tt\d+)/', html)
+                if not movie_url_match:
+                    return None
+                
+                movie_id = movie_url_match.group(1)
+                poster_url = f"https://img.omdbapi.com/?i={movie_id}&apikey={self.config.OMDB_API_KEY}"
+                
+                # Verify poster exists
+                async with session.get(poster_url) as img_resp:
+                    if img_resp.status == 200 and img_resp.headers.get('content-type', '').startswith('image'):
+                        return {
+                            'poster_url': poster_url,
+                            'source': PosterSource.IMDB,
+                            'title': title,
+                            'year': year
+                        }
+            
+            return None
+        except Exception as e:
+            logger.debug(f"IMDb error: {e}")
+            return None
+    
+    # ========================================================================
+    # ✅ API 4: Letterboxd
+    # ========================================================================
+    
+    async def _fetch_from_letterboxd(self, title: str, year: str = "") -> Optional[Dict]:
+        """Fetch poster from Letterboxd"""
+        try:
+            await self._rate_limit('letterboxd')
+            
+            session = await self._get_session()
+            
+            # Create search query
+            search_title = title.lower().replace(' ', '-')
+            search_title = re.sub(r'[^a-z0-9-]', '', search_title)
+            
+            if year:
+                search_url = f"https://letterboxd.com/film/{search_title}-{year}/"
+            else:
+                search_url = f"https://letterboxd.com/film/{search_title}/"
+            
+            async with session.get(search_url) as resp:
+                if resp.status != 200:
+                    return None
+                
+                html = await resp.text()
+                
+                # Extract poster URL
+                poster_match = re.search(r'<img[^>]*src="([^"]+)"[^>]*class="[^"]*poster[^"]*"', html)
+                if not poster_match:
+                    poster_match = re.search(r'<img[^>]*src="([^"]+)"[^>]*alt="[^"]*poster[^"]*"', html)
+                
+                if poster_match:
+                    poster_url = poster_match.group(1)
+                    if poster_url.startswith('//'):
+                        poster_url = 'https:' + poster_url
+                    
+                    return {
+                        'poster_url': poster_url,
+                        'source': PosterSource.LETTERBOXD,
+                        'title': title,
+                        'year': year
+                    }
+            
+            return None
+        except Exception as e:
+            logger.debug(f"Letterboxd error: {e}")
+            return None
+    
+    # ========================================================================
+    # ✅ API 5: Wikipedia
+    # ========================================================================
+    
+    async def _fetch_from_wikipedia(self, title: str, year: str = "") -> Optional[Dict]:
+        """Fetch poster from Wikipedia"""
+        try:
+            await self._rate_limit('wikipedia')
+            
+            session = await self._get_session()
+            
+            # Search for the film
+            search_url = "https://en.wikipedia.org/w/api.php"
+            params = {
+                'action': 'query',
+                'list': 'search',
+                'srsearch': f"{title} film",
+                'format': 'json'
+            }
+            
+            if year:
+                params['srsearch'] = f"{title} {year} film"
+            
+            async with session.get(search_url, params=params) as resp:
+                if resp.status != 200:
+                    return None
+                
+                data = await resp.json()
+                search_results = data.get('query', {}).get('search', [])
+                
+                if not search_results:
+                    return None
+                
+                page_title = search_results[0]['title']
+                
+                # Get page image
+                image_url = "https://en.wikipedia.org/w/api.php"
+                image_params = {
+                    'action': 'query',
+                    'titles': page_title,
+                    'prop': 'pageimages',
+                    'pithumbsize': 500,
+                    'format': 'json'
+                }
+                
+                async with session.get(image_url, params=image_params) as img_resp:
+                    img_data = await img_resp.json()
+                    pages = img_data.get('query', {}).get('pages', {})
+                    
+                    for page_id, page_info in pages.items():
+                        if page_id != '-1' and 'thumbnail' in page_info:
+                            poster_url = page_info['thumbnail']['source']
+                            return {
+                                'poster_url': poster_url,
+                                'source': PosterSource.WIKIPEDIA,
+                                'title': title,
+                                'year': year
+                            }
+            
+            return None
+        except Exception as e:
+            logger.debug(f"Wikipedia error: {e}")
+            return None
+    
+    # ========================================================================
+    # ✅ API 6: YouTube (Video Thumbnail)
+    # ========================================================================
+    
+    async def _fetch_from_youtube(self, title: str, year: str = "") -> Optional[Dict]:
+        """Fetch thumbnail from YouTube trailer"""
+        try:
+            await self._rate_limit('youtube')
+            
+            session = await self._get_session()
+            
+            # Search for movie trailer
+            search_query = f"{title} {year} official trailer" if year else f"{title} official trailer"
+            search_url = "https://www.youtube.com/results"
+            params = {
+                'search_query': search_query
+            }
+            
+            async with session.get(search_url, params=params) as resp:
+                if resp.status != 200:
+                    return None
+                
+                html = await resp.text()
+                
+                # Extract video ID
+                video_id_match = re.search(r'videoId":"([^"]+)"', html)
+                if not video_id_match:
+                    return None
+                
+                video_id = video_id_match.group(1)
+                
+                # YouTube thumbnail URLs
+                thumbnails = [
+                    f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                    f"https://img.youtube.com/vi/{video_id}/sddefault.jpg",
+                    f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg",
+                    f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
+                ]
+                
+                # Try each thumbnail size
+                for thumb_url in thumbnails:
+                    async with session.get(thumb_url) as thumb_resp:
+                        if thumb_resp.status == 200:
+                            return {
+                                'poster_url': thumb_url,
+                                'source': PosterSource.YOUTUBE,
+                                'title': title,
+                                'year': year,
+                                'video_id': video_id
+                            }
+            
+            return None
+        except Exception as e:
+            logger.debug(f"YouTube error: {e}")
+            return None
+    
+    # ========================================================================
+    # ✅ API 7: Google Images
+    # ========================================================================
+    
+    async def _fetch_from_google_images(self, title: str, year: str = "") -> Optional[Dict]:
+        """Fetch poster from Google Images"""
+        try:
+            await self._rate_limit('google')
+            
+            session = await self._get_session()
+            
+            # Search query
+            search_query = f"{title} {year} movie poster" if year else f"{title} movie poster"
+            
+            # Try different sources
+            sources = [
+                {
+                    'url': 'https://www.googleapis.com/customsearch/v1',
+                    'params': {
+                        'key': getattr(self.config, 'GOOGLE_API_KEY', ''),
+                        'cx': getattr(self.config, 'GOOGLE_CX', ''),
+                        'q': search_query,
+                        'searchType': 'image',
+                        'imgSize': 'large'
+                    }
+                }
+            ]
+            
+            # If Google API not configured, try direct scraping
+            if not getattr(self.config, 'GOOGLE_API_KEY', '') or not getattr(self.config, 'GOOGLE_CX', ''):
+                # Try DuckDuckGo as fallback
+                ddg_url = f"https://duckduckgo.com/?q={quote(search_query)}&iax=images&ia=images"
+                
+                async with session.get(ddg_url) as resp:
+                    if resp.status == 200:
+                        html = await resp.text()
+                        
+                        # Extract image URL from DDG
+                        img_match = re.search(r'https?://[^\s"\']+\.(?:jpg|jpeg|png|webp)[^\s"\']*', html)
+                        if img_match:
+                            poster_url = img_match.group(0)
+                            return {
+                                'poster_url': poster_url,
+                                'source': PosterSource.GOOGLE,
+                                'title': title,
+                                'year': year
+                            }
+            
+            return None
+        except Exception as e:
+            logger.debug(f"Google Images error: {e}")
+            return None
+    
+    # ========================================================================
+    # ✅ Rate Limiting
+    # ========================================================================
+    
+    async def _rate_limit(self, api_name: str):
+        """Rate limiting for APIs"""
+        now = time.time()
+        last_call = self.api_last_call.get(api_name, 0)
+        
+        if now - last_call < self.rate_limit_delay:
+            await asyncio.sleep(self.rate_limit_delay)
+        
+        self.api_last_call[api_name] = time.time()
+    
+    # ========================================================================
+    # ✅ Thumbnail Extraction from Telegram
+    # ========================================================================
+    
+    async def _extract_thumbnail_from_user(self, channel_id: int, message_id: int) -> Optional[str]:
+        """Extract thumbnail using USER session"""
+        try:
+            from __main__ import User as user_client
+            
+            if user_client is None:
+                return None
+            
+            message = await user_client.get_messages(channel_id, message_id)
+            if not message:
+                return None
+            
+            thumbnail_file_id = None
+            
+            # Pyrogram v2+ uses .thumbs[0]
+            if message.video and message.video.thumbs:
+                thumbnail_file_id = message.video.thumbs[0].file_id
+            
+            elif message.document and message.document.thumbs:
+                is_video = False
+                if message.document.mime_type and 'video' in message.document.mime_type:
+                    is_video = True
+                elif message.document.file_name and self._is_video_file(message.document.file_name):
+                    is_video = True
+                
+                if is_video and message.document.thumbs:
+                    thumbnail_file_id = message.document.thumbs[0].file_id
+            
+            if not thumbnail_file_id:
+                return None
+            
+            download_path = await user_client.download_media(
+                thumbnail_file_id,
+                in_memory=True
+            )
+            
+            if not download_path:
+                return None
+            
+            if isinstance(download_path, bytes):
+                thumbnail_bytes = download_path
+            else:
+                with open(download_path, 'rb') as f:
+                    thumbnail_bytes = f.read()
+                try:
+                    os.remove(download_path)
+                except:
+                    pass
+            
+            base64_data = base64.b64encode(thumbnail_bytes).decode('utf-8')
+            return f"data:image/jpeg;base64,{base64_data}"
             
         except Exception as e:
-            logger.error(f"❌ [HOME] Error: {e}")
-            self.stats['errors'] += 1
-            return {
-                'poster_url': self.fallback_url,
-                'source': PosterSource.ERROR,
-                'priority_mode': 'home',
-                'has_thumbnail': True,
-                'is_fallback': True,
-                'response_time': time.time() - start_time
-            }
+            logger.error(f"❌ Extraction error: {e}")
+            return None
+    
+    def _is_video_file(self, filename):
+        """Check if file is video"""
+        if not filename:
+            return False
+        video_ext = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
+        return any(filename.lower().endswith(ext) for ext in video_ext)
     
     # ========================================================================
-    # ✅ BATCH PROCESSING
-    # ========================================================================
-    
-    async def get_thumbnails_batch(self, movies: List[Dict], mode: str = "search") -> List[Dict]:
-        """Batch thumbnail fetching"""
-        results = []
-        for movie in movies:
-            try:
-                title = movie.get('title', '')
-                if not title:
-                    movie_copy = movie.copy()
-                    movie_copy.update({
-                        'poster_url': self.fallback_url,
-                        'thumbnail_url': self.fallback_url,
-                        'source': PosterSource.FALLBACK,
-                        'has_thumbnail': True,
-                        'is_fallback': True
-                    })
-                    results.append(movie_copy)
-                    continue
-                
-                if mode == "home":
-                    thumb = await self.get_thumbnail_for_movie_home(
-                        title, movie.get('year', '')
-                    )
-                else:
-                    thumb = await self.get_thumbnail_for_movie_search(
-                        title,
-                        movie.get('year', ''),
-                        movie.get('channel_id'),
-                        movie.get('message_id') or movie.get('real_message_id')
-                    )
-                
-                movie_copy = movie.copy()
-                movie_copy.update({
-                    'poster_url': thumb.get('poster_url', self.fallback_url),
-                    'thumbnail_url': thumb.get('poster_url', self.fallback_url),
-                    'source': thumb.get('source', PosterSource.FALLBACK),
-                    'has_thumbnail': thumb.get('has_thumbnail', True),
-                    'is_fallback': thumb.get('is_fallback', True),
-                    'extracted': thumb.get('extracted', False)
-                })
-                results.append(movie_copy)
-                
-            except Exception as e:
-                logger.error(f"❌ Batch error: {e}")
-                movie_copy = movie.copy()
-                movie_copy.update({
-                    'poster_url': self.fallback_url,
-                    'thumbnail_url': self.fallback_url,
-                    'source': PosterSource.ERROR,
-                    'has_thumbnail': True,
-                    'is_fallback': True
-                })
-                results.append(movie_copy)
-        
-        return results
-    
-    # ========================================================================
-    # ✅ DATABASE OPERATIONS - FIXED collection is not None checks
+    # ✅ Database Operations
     # ========================================================================
     
     async def _get_extracted_thumbnail(self, title: str) -> Optional[Dict]:
-        """Get thumbnail from database - FIXED collection check"""
+        """Get thumbnail from database"""
         try:
             await self._ensure_collections()
-            
-            # ✅ FIXED: Use 'is not None' instead of truth value testing
             if self.thumbnails_col is None:
                 return None
             
             norm_title = self._normalize_title(title)
             thumb = await self.thumbnails_col.find_one({'normalized_title': norm_title})
             
-            if thumb is not None and thumb.get('thumbnail_url') is not None:
-                # Check expiry
-                if thumb.get('expires_at') is not None and datetime.now() > thumb['expires_at']:
+            if thumb is not None and thumb.get('thumbnail_url'):
+                if thumb.get('expires_at') and datetime.now() > thumb['expires_at']:
                     await self.thumbnails_col.delete_one({'_id': thumb['_id']})
                     return None
                 return {
@@ -477,11 +731,9 @@ class PosterFetcher:
     
     async def _store_extracted_thumbnail(self, title: str, thumbnail_base64: str,
                                        channel_id: int, message_id: int) -> bool:
-        """Store thumbnail in database - FIXED collection check"""
+        """Store thumbnail in database"""
         try:
             await self._ensure_collections()
-            
-            # ✅ FIXED: Use 'is not None'
             if self.thumbnails_col is None:
                 return False
             
@@ -502,26 +754,23 @@ class PosterFetcher:
                 }},
                 upsert=True
             )
-            logger.info(f"✅ Stored thumbnail: {title[:30]}...")
             return True
         except Exception as e:
             logger.error(f"❌ DB store error: {e}")
             return False
     
     async def _get_cached_poster(self, title: str, year: str = "") -> Optional[Dict]:
-        """Get cached poster - FIXED collection check"""
+        """Get cached poster"""
         try:
             await self._ensure_collections()
-            
-            # ✅ FIXED: Use 'is not None'
             if self.poster_cache_col is None:
                 return None
             
             cache_key = self._make_cache_key(title, year)
             cached = await self.poster_cache_col.find_one({'cache_key': cache_key})
             
-            if cached is not None and cached.get('poster_url') is not None:
-                if cached.get('expires_at') is not None and datetime.now() > cached['expires_at']:
+            if cached is not None and cached.get('poster_url'):
+                if cached.get('expires_at') and datetime.now() > cached['expires_at']:
                     await self.poster_cache_col.delete_one({'_id': cached['_id']})
                     return None
                 return {
@@ -535,11 +784,9 @@ class PosterFetcher:
             return None
     
     async def _cache_poster(self, title: str, year: str, poster_data: Dict) -> bool:
-        """Cache poster - FIXED collection check"""
+        """Cache poster"""
         try:
             await self._ensure_collections()
-            
-            # ✅ FIXED: Use 'is not None'
             if self.poster_cache_col is None:
                 return False
             
@@ -564,106 +811,7 @@ class PosterFetcher:
             return False
     
     # ========================================================================
-    # ✅ API SOURCES
-    # ========================================================================
-    
-    async def _fetch_from_sources(self, title: str, year: str = "") -> Optional[Dict]:
-        """Fetch from TMDB/OMDB"""
-        clean_title = self._clean_title_for_api(title)
-        
-        # Try TMDB
-        tmdb = await self._fetch_tmdb_poster(clean_title, year)
-        if tmdb is not None:
-            self.stats['tmdb_hits'] += 1
-            return tmdb
-        
-        # Try OMDB
-        omdb = await self._fetch_omdb_poster(clean_title, year)
-        if omdb is not None:
-            self.stats['omdb_hits'] += 1
-            return omdb
-        
-        return None
-    
-    async def _fetch_tmdb_poster(self, title: str, year: str = "") -> Optional[Dict]:
-        """TMDB API"""
-        try:
-            now = time.time()
-            if now - self.tmdb_last_call < self.rate_limit_delay:
-                await asyncio.sleep(self.rate_limit_delay)
-            self.tmdb_last_call = now
-            
-            session = await self._get_session()
-            url = "https://api.themoviedb.org/3/search/movie"
-            params = {
-                'api_key': self.config.TMDB_API_KEY,
-                'query': title,
-                'include_adult': False
-            }
-            if year:
-                params['year'] = year
-            
-            async with session.get(url, params=params) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                if not data.get('results'):
-                    return None
-                
-                movie = data['results'][0]
-                if not movie.get('poster_path'):
-                    return None
-                
-                return {
-                    'poster_url': f"https://image.tmdb.org/t/p/w500{movie['poster_path']}",
-                    'source': PosterSource.TMDB,
-                    'title': movie.get('title', title),
-                    'year': movie.get('release_date', '')[:4] if movie.get('release_date') else year
-                }
-        except Exception as e:
-            logger.debug(f"TMDB error: {e}")
-            return None
-    
-    async def _fetch_omdb_poster(self, title: str, year: str = "") -> Optional[Dict]:
-        """OMDB API"""
-        try:
-            now = time.time()
-            if now - self.omdb_last_call < self.rate_limit_delay:
-                await asyncio.sleep(self.rate_limit_delay)
-            self.omdb_last_call = now
-            
-            session = await self._get_session()
-            params = {
-                'apikey': self.config.OMDB_API_KEY,
-                't': title,
-                'plot': 'short'
-            }
-            if year:
-                params['y'] = year
-            
-            async with session.get("http://www.omdbapi.com/", params=params) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                if data.get('Response') != 'True':
-                    return None
-                
-                poster = data.get('Poster')
-                if not poster or poster == 'N/A':
-                    return None
-                
-                return {
-                    'poster_url': poster,
-                    'source': PosterSource.OMDB,
-                    'title': data.get('Title', title),
-                    'year': data.get('Year', year)
-                }
-        except Exception as e:
-            logger.debug(f"OMDB error: {e}")
-            return None
-    
-    # ========================================================================
-    # ✅ UTILITY
+    # ✅ Utility Functions
     # ========================================================================
     
     def _normalize_title(self, title: str) -> str:
@@ -696,7 +844,7 @@ class PosterFetcher:
             await self.session.close()
     
     async def get_stats(self) -> Dict[str, Any]:
-        """Get statistics - FIXED collection checks"""
+        """Get statistics"""
         try:
             await self._ensure_collections()
             
@@ -713,7 +861,7 @@ class PosterFetcher:
             return {
                 'dual_priority_system': {
                     'home_mode': 'Sources → Thumbnail → Fallback',
-                    'search_mode': 'Thumbnail → Sources → Fallback',
+                    'search_mode': 'Thumbnail → 7 API Sources → Fallback',
                     'extraction_method': 'USER_SESSION',
                     'fallback_url': self.fallback_url
                 },
@@ -723,6 +871,11 @@ class PosterFetcher:
                     'extracted': f"{(self.stats['extracted_hits'] / total * 100):.1f}%",
                     'tmdb': f"{(self.stats['tmdb_hits'] / total * 100):.1f}%",
                     'omdb': f"{(self.stats['omdb_hits'] / total * 100):.1f}%",
+                    'imdb': f"{(self.stats['imdb_hits'] / total * 100):.1f}%",
+                    'letterboxd': f"{(self.stats['letterboxd_hits'] / total * 100):.1f}%",
+                    'wikipedia': f"{(self.stats['wikipedia_hits'] / total * 100):.1f}%",
+                    'youtube': f"{(self.stats['youtube_hits'] / total * 100):.1f}%",
+                    'google': f"{(self.stats['google_hits'] / total * 100):.1f}%",
                     'fallback': f"{(self.stats['fallback_hits'] / total * 100):.1f}%",
                     'success': f"{((total - self.stats['fallback_hits'] - self.stats['errors']) / total * 100):.1f}%"
                 },
