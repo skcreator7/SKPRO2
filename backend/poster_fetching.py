@@ -1092,4 +1092,3 @@ class PosterFetcher:
         if self.http_session and not self.http_session.closed:
             await self.http_session.close()
         logger.info("✅ PosterFetcher (with Thumbnail System) shutdown")
-[file content end]
