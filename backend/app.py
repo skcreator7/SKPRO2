@@ -482,6 +482,102 @@ is_indexing = False
 last_index_time = None
 indexing_task = None
 
+# Initialize bot handler at module level
+bot_handler = None
+
+# ============================================================================
+# ✅ DUAL SESSION INITIALIZATION - FIXED VERSION
+# ============================================================================
+
+@performance_monitor.measure("telegram_init")
+async def init_telegram_sessions():
+    """Initialize Telegram sessions - FIXED WITH GLOBAL DECLARATION AT TOP"""
+    # ✅ FIX: Global declarations MUST be at the TOP of function - BEFORE any use
+    global User, Bot, user_session_ready, bot_session_ready
+    
+    logger.info("=" * 50)
+    logger.info("🚀 TELEGRAM SESSION INITIALIZATION")
+    logger.info("=" * 50)
+    
+    if not PYROGRAM_AVAILABLE:
+        logger.error("❌ Pyrogram not installed!")
+        return False
+    
+    # Initialize USER Session
+    if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
+        logger.info("\n👤 Initializing USER Session...")
+        try:
+            User = Client(
+                "sk4film_user",
+                api_id=Config.API_ID,
+                api_hash=Config.API_HASH,
+                session_string=Config.USER_SESSION_STRING,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await User.start()
+            me = await User.get_me()
+            logger.info(f"✅ USER Session Ready: {me.first_name}")
+            
+            # Test channel access
+            try:
+                chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+                logger.info(f"✅ File Channel Access: {chat.title}")
+                user_session_ready = True
+            except Exception as e:
+                logger.error(f"❌ File channel access failed: {e}")
+                user_session_ready = False
+                
+        except Exception as e:
+            logger.error(f"❌ USER Session failed: {e}")
+            user_session_ready = False
+            if User is not None:
+                try:
+                    await User.stop()
+                except:
+                    pass
+            User = None
+    
+    # Initialize BOT Session
+    if Config.BOT_TOKEN:
+        logger.info("\n🤖 Initializing BOT Session...")
+        try:
+            Bot = Client(
+                "sk4film_bot",
+                api_id=Config.API_ID,
+                api_hash=Config.API_HASH,
+                bot_token=Config.BOT_TOKEN,
+                sleep_threshold=30,
+                in_memory=True,
+                no_updates=True
+            )
+            
+            await Bot.start()
+            bot_info = await Bot.get_me()
+            logger.info(f"✅ BOT Session Ready: @{bot_info.username}")
+            bot_session_ready = True
+                
+        except Exception as e:
+            logger.error(f"❌ BOT Session failed: {e}")
+            bot_session_ready = False
+            if Bot is not None:
+                try:
+                    await Bot.stop()
+                except:
+                    pass
+            Bot = None
+    
+    # Summary
+    logger.info("\n" + "=" * 50)
+    logger.info("📊 SESSION SUMMARY")
+    logger.info("=" * 50)
+    logger.info(f"USER Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
+    logger.info(f"BOT Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
+    
+    return user_session_ready or bot_session_ready
+
 # ============================================================================
 # ✅ BOT HANDLER MODULE - FIXED VERSION
 # ============================================================================
@@ -622,6 +718,9 @@ class BotHandler:
         
         self.initialized = False
         logger.info("✅ Bot Handler shutdown")
+
+# Initialize bot handler
+bot_handler = BotHandler()
 
 # ============================================================================
 # ✅ OPTIMIZED SYNC MANAGEMENT
@@ -2045,101 +2144,6 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
     return results
 
 # ============================================================================
-# ✅ DUAL SESSION INITIALIZATION - FIXED VERSION
-# ============================================================================
-
-@performance_monitor.measure("telegram_init")
-async def init_telegram_sessions():
-    """Initialize Telegram sessions - FIXED WITH GLOBAL DECLARATION AT TOP"""
-    # ✅ FIX: Global declarations MUST be at the TOP of function
-    global User, Bot, user_session_ready, bot_session_ready
-    
-    logger.info("=" * 50)
-    logger.info("🚀 TELEGRAM SESSION INITIALIZATION")
-    logger.info("=" * 50)
-    
-    if not PYROGRAM_AVAILABLE:
-        logger.error("❌ Pyrogram not installed!")
-        return False
-    
-    # Rest of your function remains same...
-    # Initialize USER Session
-    if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
-        logger.info("\n👤 Initializing USER Session...")
-        try:
-            User = Client(
-                "sk4film_user",
-                api_id=Config.API_ID,
-                api_hash=Config.API_HASH,
-                session_string=Config.USER_SESSION_STRING,
-                sleep_threshold=30,
-                in_memory=True,
-                no_updates=True
-            )
-            
-            await User.start()
-            me = await User.get_me()
-            logger.info(f"✅ USER Session Ready: {me.first_name}")
-            
-            # Test channel access
-            try:
-                chat = await User.get_chat(Config.FILE_CHANNEL_ID)
-                logger.info(f"✅ File Channel Access: {chat.title}")
-                user_session_ready = True
-            except Exception as e:
-                logger.error(f"❌ File channel access failed: {e}")
-                user_session_ready = False
-                
-        except Exception as e:
-            logger.error(f"❌ USER Session failed: {e}")
-            user_session_ready = False
-            if User is not None:
-                try:
-                    await User.stop()
-                except:
-                    pass
-            User = None
-    
-    # Initialize BOT Session
-    if Config.BOT_TOKEN:
-        logger.info("\n🤖 Initializing BOT Session...")
-        try:
-            Bot = Client(
-                "sk4film_bot",
-                api_id=Config.API_ID,
-                api_hash=Config.API_HASH,
-                bot_token=Config.BOT_TOKEN,
-                sleep_threshold=30,
-                in_memory=True,
-                no_updates=True
-            )
-            
-            await Bot.start()
-            bot_info = await Bot.get_me()
-            logger.info(f"✅ BOT Session Ready: @{bot_info.username}")
-            bot_session_ready = True
-                
-        except Exception as e:
-            logger.error(f"❌ BOT Session failed: {e}")
-            bot_session_ready = False
-            if Bot is not None:
-                try:
-                    await Bot.stop()
-                except:
-                    pass
-            Bot = None
-    
-    # Summary
-    logger.info("\n" + "=" * 50)
-    logger.info("📊 SESSION SUMMARY")
-    logger.info("=" * 50)
-    logger.info(f"USER Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
-    logger.info(f"BOT Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
-    logger.info(f"Bot Handler: {'✅ INITIALIZED' if bot_handler.initialized else '❌ NOT READY'}")
-    
-    return user_session_ready or bot_session_ready
-
-# ============================================================================
 # ✅ MONGODB INITIALIZATION
 # ============================================================================
 
@@ -2948,13 +2952,6 @@ async def shutdown():
         logger.info("✅ MongoDB connection closed")
     
     logger.info(f"👋 Shutdown complete. Uptime: {time.time() - app_start_time:.1f}s")
-
-# ============================================================================
-# ✅ BOT HANDLER INITIALIZATION
-# ============================================================================
-
-# ✅ Initialize bot handler at module level
-bot_handler = BotHandler()
 
 # ============================================================================
 # ✅ MAIN ENTRY POINT
