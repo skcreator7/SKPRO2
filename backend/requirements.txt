@@ -1,25 +1,61 @@
+# Telegram
 pyrogram==2.0.106
 TgCrypto==1.2.5
+
+# Web Framework
 Flask==3.0.3
 quart==0.19.4
 hypercorn==0.16.0
+uvicorn==0.24.0
+
+# HTTP and Networking
 aiohttp==3.10.5
+httpx==0.25.2
+
+# Database
 motor==3.3.2
 pymongo==4.6.1
-uvicorn
-dnspython==2.4.2
-cachetools==5.3.2
-brotli==1.1.0
 redis==5.0.1
 hiredis==2.3.2
+dnspython==2.4.2
+
+# Cache
+cachetools==5.3.2
+
+# Compression
+brotli==1.1.0
+
+# QR Code and Images
 qrcode[pil]==7.4.2
 Pillow==10.4.0
+
+# Data Validation
 pydantic==2.5.0
 pydantic-settings==2.1.0
-httpx==0.25.2
-black==23.11.0
-flake8==6.1.0
+
+# Performance
 uvloop==0.19.0
+
+# Date and Time
 python-dateutil==2.8.2
 pytz==2023.3
-supabase
+
+# Development Tools
+black==23.11.0
+flake8==6.1.0
+
+# Supabase (if needed)
+supabase==1.1.1
+
+# Additional Utilities
+requests==2.31.0
+python-multipart==0.0.6
+Jinja2==3.1.2
+Werkzeug==3.0.1
+click==8.1.7
+MarkupSafe==2.1.3
+itsdangerous==2.1.2
+blinker==1.7.0
+h11==0.14.0
+wsproto==1.2.0
+asgiref==3.7.2
