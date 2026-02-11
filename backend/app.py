@@ -1550,7 +1550,7 @@ async def initial_indexing_optimized():
         logger.error(f"❌ Initial indexing error: {e}")
 
 async def extract_thumbnails_for_existing_files():
-    """Extract thumbnails for existing files"""
+    """Extract thumbnails for existing files - FIXED"""
     if not poster_fetcher or files_col is None:
         logger.warning("⚠️ PosterFetcher or files collection not available")
         return
@@ -1558,6 +1558,7 @@ async def extract_thumbnails_for_existing_files():
     logger.info("🔄 Extracting thumbnails for existing files...")
     
     try:
+        # IMPORTANT: Limit the query to avoid overloading
         cursor = files_col.find({
             'is_video_file': True,
             'channel_id': Config.FILE_CHANNEL_ID
@@ -1568,7 +1569,7 @@ async def extract_thumbnails_for_existing_files():
             'message_id': 1,
             'real_message_id': 1,
             '_id': 1
-        }).limit(500)
+        }).limit(200)  # Reduced from 500 to 200 for performance
         
         files_to_process = []
         async for doc in cursor:
@@ -1586,7 +1587,8 @@ async def extract_thumbnails_for_existing_files():
             logger.info("✅ No files need thumbnail extraction")
             return
         
-        batch_size = 10
+        # Process in smaller batches
+        batch_size = 5  # Reduced from 10 to avoid rate limits
         total_batches = math.ceil(len(files_to_process) / batch_size)
         successful = 0
         
@@ -1600,12 +1602,15 @@ async def extract_thumbnails_for_existing_files():
             thumbnail_results = await poster_fetcher.get_thumbnails_batch(batch, mode="search")
             
             for i, file_info in enumerate(batch):
-                if i < len(thumbnail_results) and thumbnail_results[i].get('poster_url'):
-                    if thumbnail_results[i].get('source') not in ['fallback', 'error']:
+                if i < len(thumbnail_results):
+                    thumbnail_data = thumbnail_results[i]
+                    # Only count if it's not fallback
+                    if thumbnail_data.get('source') not in ['fallback', 'error']:
                         successful += 1
             
+            # Longer delay between batches to avoid rate limits
             if batch_num < total_batches - 1:
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
         
         logger.info(f"✅ Thumbnail extraction complete: {successful} successful")
         
