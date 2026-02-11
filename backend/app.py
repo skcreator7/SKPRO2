@@ -2048,10 +2048,10 @@ async def get_posters_for_movies_batch(movies: List[Dict]) -> List[Dict]:
 # ✅ DUAL SESSION INITIALIZATION - FIXED VERSION
 # ============================================================================
 
-@performance_monitor.measure("telegram_init")
+@@performance_monitor.measure("telegram_init")
 async def init_telegram_sessions():
     """Initialize Telegram sessions - FIXED WITH GLOBAL DECLARATION AT TOP"""
-    # ✅ FIX: Global declarations must be at the TOP of function
+    # ✅ FIX: Global declarations MUST be at the TOP of function
     global User, Bot, user_session_ready, bot_session_ready
     
     logger.info("=" * 50)
@@ -2062,6 +2062,7 @@ async def init_telegram_sessions():
         logger.error("❌ Pyrogram not installed!")
         return False
     
+    # Rest of your function remains same...
     # Initialize USER Session
     if Config.API_ID > 0 and Config.API_HASH and Config.USER_SESSION_STRING:
         logger.info("\n👤 Initializing USER Session...")
