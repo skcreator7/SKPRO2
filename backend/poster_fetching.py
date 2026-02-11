@@ -1,5 +1,3 @@
-[file name]: poster_fetching.py
-[file content begin]
 import asyncio
 import re
 import base64
