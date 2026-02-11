@@ -10,7 +10,7 @@ uvicorn==0.24.0
 
 # HTTP and Networking
 aiohttp==3.10.5
-httpx==0.25.2
+httpx==0.24.1
 
 # Database
 motor==3.3.2
