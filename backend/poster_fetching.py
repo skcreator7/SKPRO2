@@ -1,12 +1,10 @@
 # ============================================================================
-# poster_fetching.py - DUAL PRIORITY THUMBNAIL & POSTER SYSTEM - FIXED
+# poster_fetching.py - DUAL PRIORITY THUMBNAIL & POSTER SYSTEM - CHANNEL FIXED
 # ============================================================================
 # ✅ HOME MODE: Sources → Thumbnail → Fallback
 # ✅ SEARCH MODE: Thumbnail → Sources → Fallback
-# ✅ Extracted Thumbnails from Telegram
-# ✅ TMDB/OMDB API Posters
-# ✅ MongoDB Caching with TTL - FIXED COLLECTION CHECKS
-# ✅ Batch Processing Support
+# ✅ USER SESSION for Thumbnail Extraction (NOT Bot)
+# ✅ FIXED: CHANNEL_INVALID error resolved
 # ============================================================================
 
 import asyncio
@@ -34,26 +32,22 @@ class PosterSource:
 
 class PosterFetcher:
     """
-    Dual Priority Thumbnail & Poster System - FIXED VERSION
+    Dual Priority Thumbnail & Poster System - CHANNEL FIXED
     
     HOME MODE: Sources → Thumbnail → Fallback
-        - First check poster sources (TMDB/OMDB)
-        - Then check extracted thumbnails
-        - Finally use fallback image
-    
     SEARCH MODE: Thumbnail → Sources → Fallback
-        - First check extracted thumbnails
-        - Then check poster sources (TMDB/OMDB)
-        - Finally use fallback image
+    
+    🔥 FIX: Uses User session (not Bot) for thumbnail extraction
     """
     
-    def __init__(self, config, cache_manager=None, bot_handler=None, mongo_client=None):
+    def __init__(self, config, cache_manager=None, bot_handler=None, mongo_client=None, user_client=None):
         self.config = config
         self.cache_manager = cache_manager
-        self.bot_handler = bot_handler
+        self.bot_handler = bot_handler  # Keep for backward compatibility
+        self.user_client = user_client  # ✅ NEW: User client for thumbnail extraction
         self.mongo_client = mongo_client
         
-        # MongoDB collections - initialize as None
+        # MongoDB collections
         self.thumbnails_col = None
         self.poster_cache_col = None
         
@@ -67,7 +61,8 @@ class PosterFetcher:
             'fallback_hits': 0,
             'errors': 0,
             'home_mode_calls': 0,
-            'search_mode_calls': 0
+            'search_mode_calls': 0,
+            'channel_invalid_errors': 0  # ✅ Track this specific error
         }
         
         # HTTP session
@@ -90,9 +85,10 @@ class PosterFetcher:
         self._collections_initialized = False
         
         logger.info("🎬 PosterFetcher initialized with Dual Priority Mode")
+        logger.info("🔧 Thumbnail extraction will use USER session (not Bot)")
     
     async def _ensure_collections(self):
-        """Ensure MongoDB collections exist - FIXED"""
+        """Ensure MongoDB collections exist"""
         if self._collections_initialized:
             return True
             
@@ -105,7 +101,7 @@ class PosterFetcher:
             self.thumbnails_col = db.thumbnails
             self.poster_cache_col = db.poster_cache
             
-            # Create indexes - use try/except for each
+            # Create indexes
             try:
                 await self.thumbnails_col.create_index(
                     "normalized_title",
@@ -113,10 +109,8 @@ class PosterFetcher:
                     name="title_unique",
                     background=True
                 )
-                logger.debug("✅ Created thumbnails title index")
-            except Exception as e:
-                if "duplicate" not in str(e).lower():
-                    logger.warning(f"⚠️ Thumbnails index error: {e}")
+            except Exception:
+                pass  # Index may already exist
             
             try:
                 await self.thumbnails_col.create_index(
@@ -125,10 +119,8 @@ class PosterFetcher:
                     name="ttl_cleanup",
                     background=True
                 )
-                logger.debug("✅ Created thumbnails TTL index")
-            except Exception as e:
-                if "duplicate" not in str(e).lower():
-                    logger.warning(f"⚠️ Thumbnails TTL index error: {e}")
+            except Exception:
+                pass
             
             try:
                 await self.poster_cache_col.create_index(
@@ -137,10 +129,8 @@ class PosterFetcher:
                     name="cache_key_unique",
                     background=True
                 )
-                logger.debug("✅ Created poster cache key index")
-            except Exception as e:
-                if "duplicate" not in str(e).lower():
-                    logger.warning(f"⚠️ Poster cache index error: {e}")
+            except Exception:
+                pass
             
             try:
                 await self.poster_cache_col.create_index(
@@ -149,10 +139,8 @@ class PosterFetcher:
                     name="cache_ttl",
                     background=True
                 )
-                logger.debug("✅ Created poster cache TTL index")
-            except Exception as e:
-                if "duplicate" not in str(e).lower():
-                    logger.warning(f"⚠️ Poster cache TTL index error: {e}")
+            except Exception:
+                pass
             
             self._collections_initialized = True
             logger.info("✅ PosterFetcher collections initialized")
@@ -179,6 +167,226 @@ class PosterFetcher:
         if self.session and not self.session.closed:
             await self.session.close()
             logger.info("✅ PosterFetcher session closed")
+    
+    # ========================================================================
+    # ✅ FIXED: Thumbnail Extraction using USER SESSION
+    # ========================================================================
+    
+    async def _extract_thumbnail_from_user_client(self, channel_id: int, message_id: int) -> Optional[str]:
+        """
+        Extract thumbnail using USER session (not Bot)
+        
+        🔥 FIX: This resolves the CHANNEL_INVALID error because:
+        - Bot doesn't have access to file channel
+        - User session IS a member of the file channel
+        """
+        try:
+            # Import here to avoid circular imports
+            from pyrogram import Client
+            
+            # Get the global User client
+            from __main__ import User as user_client
+            
+            if user_client is None:
+                logger.error("❌ User client not available for thumbnail extraction")
+                return None
+            
+            if not hasattr(user_client, 'get_messages'):
+                logger.error("❌ User client has no get_messages method")
+                return None
+            
+            logger.debug(f"📸 Extracting thumbnail using USER session: {channel_id}/{message_id}")
+            
+            # Get message using USER client
+            message = await user_client.get_messages(channel_id, message_id)
+            if not message:
+                logger.debug(f"❌ Message not found: {message_id}")
+                return None
+            
+            thumbnail_file_id = None
+            
+            # Check for video with thumbnail
+            if message.video and hasattr(message.video, 'thumbnail') and message.video.thumbnail:
+                thumbnail_file_id = message.video.thumbnail.file_id
+                logger.debug(f"✅ Found thumbnail in video object")
+            
+            # Check for document (video file) with thumbnail
+            elif message.document and hasattr(message.document, 'thumbnail') and message.document.thumbnail:
+                # Only process video files
+                if message.document.mime_type and 'video' in message.document.mime_type:
+                    thumbnail_file_id = message.document.thumbnail.file_id
+                    logger.debug(f"✅ Found thumbnail in video document")
+                elif message.document.file_name and self._is_video_file(message.document.file_name):
+                    thumbnail_file_id = message.document.thumbnail.file_id
+                    logger.debug(f"✅ Found thumbnail in video file")
+            
+            if not thumbnail_file_id:
+                logger.debug(f"No thumbnail available for message {message_id}")
+                return None
+            
+            # Download thumbnail using USER client
+            logger.debug(f"⬇️ Downloading thumbnail for {message_id}...")
+            
+            download_path = await user_client.download_media(
+                thumbnail_file_id,
+                in_memory=True
+            )
+            
+            if not download_path:
+                logger.debug(f"❌ Download failed")
+                return None
+            
+            # Convert to base64
+            if isinstance(download_path, bytes):
+                thumbnail_bytes = download_path
+            else:
+                try:
+                    with open(download_path, 'rb') as f:
+                        thumbnail_bytes = f.read()
+                except Exception as e:
+                    logger.error(f"❌ File read error: {e}")
+                    return None
+            
+            base64_data = base64.b64encode(thumbnail_bytes).decode('utf-8')
+            
+            logger.info(f"✅ Thumbnail extracted via USER: {message_id}")
+            return f"data:image/jpeg;base64,{base64_data}"
+            
+        except Exception as e:
+            error_str = str(e).lower()
+            if 'channel_invalid' in error_str or 'channel' in error_str and 'invalid' in error_str:
+                self.stats['channel_invalid_errors'] += 1
+                logger.error(f"❌ CHANNEL_INVALID error (user session): {e}")
+            else:
+                logger.error(f"❌ Thumbnail extraction error: {e}")
+            return None
+    
+    def _is_video_file(self, filename):
+        """Check if file is video"""
+        if not filename:
+            return False
+        video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v']
+        return any(filename.lower().endswith(ext) for ext in video_extensions)
+    
+    # ========================================================================
+    # SEARCH MODE: Thumbnail → Sources → Fallback - ✅ FIXED
+    # ========================================================================
+    
+    async def get_thumbnail_for_movie_search(self, title: str, year: str = "", 
+                                           channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
+        """
+        SEARCH MODE: Thumbnail → Sources → Fallback - ✅ FIXED
+        
+        Priority Order:
+        1. Extracted Thumbnail (from Telegram video using USER session)
+        2. TMDB/OMDB Posters (API sources)
+        3. Fallback Image (always works)
+        
+        🔥 FIX: Uses User session for thumbnail extraction
+        """
+        self.stats['total_requests'] += 1
+        self.stats['search_mode_calls'] += 1
+        
+        start_time = time.time()
+        
+        try:
+            # Check cache first
+            cached = await self._get_cached_poster(title, year)
+            if cached is not None:
+                self.stats['cache_hits'] += 1
+                cached['source'] = PosterSource.CACHE
+                cached['priority_mode'] = 'search'
+                cached['response_time'] = time.time() - start_time
+                cached['has_thumbnail'] = True
+                cached['is_fallback'] = False
+                return cached
+            
+            # STEP 1: Try Extracted Thumbnail
+            logger.debug(f"[SEARCH-MODE] Fetching extracted thumbnail: {title[:30]}...")
+            
+            # First check database for existing thumbnail
+            thumbnail_data = await self._get_extracted_thumbnail(title)
+            if thumbnail_data and thumbnail_data.get('thumbnail_url'):
+                result = {
+                    'poster_url': thumbnail_data['thumbnail_url'],
+                    'source': PosterSource.EXTRACTED,
+                    'extracted': thumbnail_data.get('extracted', True),
+                    'priority_mode': 'search',
+                    'has_thumbnail': True,
+                    'is_fallback': False,
+                    'response_time': time.time() - start_time
+                }
+                
+                self.stats['extracted_hits'] += 1
+                logger.debug(f"✅ [SEARCH-MODE] Cached thumbnail found: {title[:30]}...")
+                return result
+            
+            # If not in database and we have channel_id/message_id, try to extract now using USER session
+            if channel_id and message_id:
+                logger.debug(f"[SEARCH-MODE] Attempting live thumbnail extraction: {channel_id}/{message_id}")
+                thumbnail_base64 = await self._extract_thumbnail_from_user_client(channel_id, message_id)
+                
+                if thumbnail_base64:
+                    # Store in database
+                    await self._store_extracted_thumbnail(title, thumbnail_base64, channel_id, message_id)
+                    
+                    result = {
+                        'poster_url': thumbnail_base64,
+                        'source': PosterSource.EXTRACTED,
+                        'extracted': True,
+                        'priority_mode': 'search',
+                        'has_thumbnail': True,
+                        'is_fallback': False,
+                        'response_time': time.time() - start_time
+                    }
+                    
+                    self.stats['extracted_hits'] += 1
+                    logger.info(f"✅ [SEARCH-MODE] Live thumbnail extracted via USER: {title[:30]}...")
+                    return result
+                else:
+                    logger.debug(f"[SEARCH-MODE] Live extraction failed for {title[:30]}...")
+            
+            # STEP 2: Try TMDB/OMDB Sources
+            logger.debug(f"[SEARCH-MODE] No thumbnail, trying poster sources: {title[:30]}...")
+            poster_data = await self._fetch_from_sources(title, year)
+            
+            if poster_data and poster_data.get('poster_url'):
+                await self._cache_poster(title, year, poster_data)
+                
+                poster_data['priority_mode'] = 'search'
+                poster_data['response_time'] = time.time() - start_time
+                poster_data['has_thumbnail'] = True
+                poster_data['is_fallback'] = False
+                
+                logger.info(f"✅ [SEARCH-MODE] Poster found from {poster_data['source']}: {title[:30]}...")
+                return poster_data
+            
+            # STEP 3: Fallback Image
+            logger.debug(f"[SEARCH-MODE] Using fallback image: {title[:30]}...")
+            self.stats['fallback_hits'] += 1
+            
+            return {
+                'poster_url': self.fallback_url,
+                'source': PosterSource.FALLBACK,
+                'priority_mode': 'search',
+                'has_thumbnail': True,
+                'is_fallback': True,
+                'response_time': time.time() - start_time
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ [SEARCH-MODE] Error for {title[:30]}...: {e}")
+            self.stats['errors'] += 1
+            
+            return {
+                'poster_url': self.fallback_url,
+                'source': PosterSource.ERROR,
+                'priority_mode': 'search',
+                'has_thumbnail': True,
+                'is_fallback': True,
+                'error': str(e),
+                'response_time': time.time() - start_time
+            }
     
     # ========================================================================
     # HOME MODE: Sources → Thumbnail → Fallback
@@ -211,11 +419,10 @@ class PosterFetcher:
                 return cached
             
             # STEP 1: Try TMDB/OMDB Sources
-            logger.debug(f"[HOME-MODE] Fetching poster from sources: {title}")
+            logger.debug(f"[HOME-MODE] Fetching poster from sources: {title[:30]}...")
             poster_data = await self._fetch_from_sources(title, year)
             
             if poster_data and poster_data.get('poster_url'):
-                # Cache the result
                 await self._cache_poster(title, year, poster_data)
                 
                 poster_data['priority_mode'] = 'home'
@@ -227,7 +434,7 @@ class PosterFetcher:
                 return poster_data
             
             # STEP 2: Try Extracted Thumbnail
-            logger.debug(f"[HOME-MODE] No poster, trying extracted thumbnail: {title}")
+            logger.debug(f"[HOME-MODE] No poster, trying extracted thumbnail: {title[:30]}...")
             thumbnail_data = await self._get_extracted_thumbnail(title)
             
             if thumbnail_data and thumbnail_data.get('thumbnail_url'):
@@ -245,7 +452,7 @@ class PosterFetcher:
                 logger.info(f"✅ [HOME-MODE] Extracted thumbnail found: {title[:30]}...")
                 return result
             
-            # STEP 3: Fallback Image (always works)
+            # STEP 3: Fallback Image
             logger.debug(f"[HOME-MODE] Using fallback image: {title[:30]}...")
             self.stats['fallback_hits'] += 1
             
@@ -259,7 +466,7 @@ class PosterFetcher:
             }
             
         except Exception as e:
-            logger.error(f"❌ [HOME-MODE] Error for {title}: {e}")
+            logger.error(f"❌ [HOME-MODE] Error for {title[:30]}...: {e}")
             self.stats['errors'] += 1
             
             return {
@@ -273,133 +480,12 @@ class PosterFetcher:
             }
     
     # ========================================================================
-    # SEARCH MODE: Thumbnail → Sources → Fallback
-    # ========================================================================
-    
-    async def get_thumbnail_for_movie_search(self, title: str, year: str = "", 
-                                           channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
-        """
-        SEARCH MODE: Thumbnail → Sources → Fallback - FIXED
-        
-        Priority Order:
-        1. Extracted Thumbnail (from Telegram video)
-        2. TMDB/OMDB Posters (API sources)
-        3. Fallback Image (always works)
-        """
-        self.stats['total_requests'] += 1
-        self.stats['search_mode_calls'] += 1
-        
-        start_time = time.time()
-        
-        try:
-            # Check cache first
-            cached = await self._get_cached_poster(title, year)
-            if cached is not None:
-                self.stats['cache_hits'] += 1
-                cached['source'] = PosterSource.CACHE
-                cached['priority_mode'] = 'search'
-                cached['response_time'] = time.time() - start_time
-                cached['has_thumbnail'] = True
-                cached['is_fallback'] = False
-                return cached
-            
-            # STEP 1: Try Extracted Thumbnail
-            logger.debug(f"[SEARCH-MODE] Fetching extracted thumbnail: {title}")
-            
-            # First check database for existing thumbnail
-            thumbnail_data = await self._get_extracted_thumbnail(title)
-            if thumbnail_data and thumbnail_data.get('thumbnail_url'):
-                result = {
-                    'poster_url': thumbnail_data['thumbnail_url'],
-                    'source': PosterSource.EXTRACTED,
-                    'extracted': thumbnail_data.get('extracted', True),
-                    'priority_mode': 'search',
-                    'has_thumbnail': True,
-                    'is_fallback': False,
-                    'response_time': time.time() - start_time
-                }
-                
-                self.stats['extracted_hits'] += 1
-                logger.debug(f"✅ [SEARCH-MODE] Cached thumbnail found: {title[:30]}...")
-                return result
-            
-            # If not in database and we have channel_id/message_id, try to extract now
-            if channel_id and message_id and self.bot_handler and self.bot_handler.initialized:
-                thumbnail_data = await self._extract_thumbnail_now(title, channel_id, message_id)
-                if thumbnail_data and thumbnail_data.get('thumbnail_url'):
-                    result = {
-                        'poster_url': thumbnail_data['thumbnail_url'],
-                        'source': PosterSource.EXTRACTED,
-                        'extracted': True,
-                        'priority_mode': 'search',
-                        'has_thumbnail': True,
-                        'is_fallback': False,
-                        'response_time': time.time() - start_time
-                    }
-                    
-                    # Cache it
-                    await self._cache_poster(title, year, result)
-                    
-                    self.stats['extracted_hits'] += 1
-                    logger.info(f"✅ [SEARCH-MODE] Live thumbnail extracted: {title[:30]}...")
-                    return result
-            
-            # STEP 2: Try TMDB/OMDB Sources
-            logger.debug(f"[SEARCH-MODE] No thumbnail, trying poster sources: {title}")
-            poster_data = await self._fetch_from_sources(title, year)
-            
-            if poster_data and poster_data.get('poster_url'):
-                await self._cache_poster(title, year, poster_data)
-                
-                poster_data['priority_mode'] = 'search'
-                poster_data['response_time'] = time.time() - start_time
-                poster_data['has_thumbnail'] = True
-                poster_data['is_fallback'] = False
-                
-                logger.info(f"✅ [SEARCH-MODE] Poster found from {poster_data['source']}: {title[:30]}...")
-                return poster_data
-            
-            # STEP 3: Fallback Image
-            logger.debug(f"[SEARCH-MODE] Using fallback image: {title[:30]}...")
-            self.stats['fallback_hits'] += 1
-            
-            return {
-                'poster_url': self.fallback_url,
-                'source': PosterSource.FALLBACK,
-                'priority_mode': 'search',
-                'has_thumbnail': True,
-                'is_fallback': True,
-                'response_time': time.time() - start_time
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ [SEARCH-MODE] Error for {title}: {e}")
-            self.stats['errors'] += 1
-            
-            return {
-                'poster_url': self.fallback_url,
-                'source': PosterSource.ERROR,
-                'priority_mode': 'search',
-                'has_thumbnail': True,
-                'is_fallback': True,
-                'error': str(e),
-                'response_time': time.time() - start_time
-            }
-    
-    # ========================================================================
     # BATCH PROCESSING
     # ========================================================================
     
     async def get_thumbnails_batch(self, movies: List[Dict], mode: str = "search") -> List[Dict]:
         """
-        Get thumbnails for multiple movies in batch - FIXED
-        
-        Args:
-            movies: List of movie dicts with 'title', optional 'year', 'channel_id', 'message_id'
-            mode: 'home' or 'search' - determines priority order
-        
-        Returns:
-            List of movie dicts with thumbnail data added
+        Get thumbnails for multiple movies in batch
         """
         results = []
         
@@ -407,7 +493,6 @@ class PosterFetcher:
             try:
                 title = movie.get('title', '')
                 if not title:
-                    # Skip movies without title
                     movie_with_thumbnail = movie.copy()
                     movie_with_thumbnail.update({
                         'poster_url': self.fallback_url,
@@ -433,11 +518,10 @@ class PosterFetcher:
                         title, year, channel_id, message_id
                     )
                 
-                # Merge with original movie data
                 movie_with_thumbnail = movie.copy()
                 movie_with_thumbnail.update({
                     'poster_url': thumbnail_data.get('poster_url', self.fallback_url),
-                    'thumbnail_url': thumbnail_data.get('poster_url', self.fallback_url),  # Alias
+                    'thumbnail_url': thumbnail_data.get('poster_url', self.fallback_url),
                     'source': thumbnail_data.get('source', PosterSource.FALLBACK),
                     'priority_mode': thumbnail_data.get('priority_mode', mode),
                     'has_thumbnail': thumbnail_data.get('has_thumbnail', True),
@@ -449,8 +533,7 @@ class PosterFetcher:
                 results.append(movie_with_thumbnail)
                 
             except Exception as e:
-                logger.error(f"❌ Batch processing error for {movie.get('title', 'Unknown')}: {e}")
-                # Add with fallback
+                logger.error(f"❌ Batch error: {e}")
                 movie_with_thumbnail = movie.copy()
                 movie_with_thumbnail.update({
                     'poster_url': self.fallback_url,
@@ -460,20 +543,18 @@ class PosterFetcher:
                     'has_thumbnail': True,
                     'is_fallback': True,
                     'extracted': False,
-                    'response_time': 0,
-                    'error': str(e)
+                    'response_time': 0
                 })
                 results.append(movie_with_thumbnail)
         
-        logger.debug(f"✅ Batch processed {len(results)} movies in {mode} mode")
         return results
     
     # ========================================================================
-    # EXTRACTED THUMBNAIL HANDLING - FIXED COLLECTION CHECKS
+    # EXTRACTED THUMBNAIL HANDLING
     # ========================================================================
     
     async def _get_extracted_thumbnail(self, title: str) -> Optional[Dict]:
-        """Get existing extracted thumbnail from database - FIXED"""
+        """Get existing extracted thumbnail from database"""
         try:
             await self._ensure_collections()
             
@@ -486,11 +567,9 @@ class PosterFetcher:
                 'normalized_title': normalized_title
             })
             
-            if thumbnail is not None and thumbnail.get('thumbnail_url'):
-                # Check if expired
+            if thumbnail and thumbnail.get('thumbnail_url'):
                 expires_at = thumbnail.get('expires_at')
                 if expires_at and datetime.now() > expires_at:
-                    # Expired, delete it
                     await self.thumbnails_col.delete_one({'_id': thumbnail['_id']})
                     return None
                 
@@ -507,40 +586,9 @@ class PosterFetcher:
             logger.error(f"❌ Error getting extracted thumbnail: {e}")
             return None
     
-    async def _extract_thumbnail_now(self, title: str, channel_id: int, message_id: int) -> Optional[Dict]:
-        """Extract thumbnail from Telegram message NOW - FIXED"""
-        try:
-            if self.bot_handler is None:
-                logger.warning("⚠️ Bot handler not available")
-                return None
-            
-            if not hasattr(self.bot_handler, 'initialized') or not self.bot_handler.initialized:
-                logger.warning("⚠️ Bot handler not initialized")
-                return None
-            
-            # Extract thumbnail using bot handler
-            thumbnail_base64 = await self.bot_handler.extract_thumbnail(channel_id, message_id)
-            
-            if thumbnail_base64:
-                # Store in database
-                await self._store_extracted_thumbnail(title, thumbnail_base64, channel_id, message_id)
-                
-                return {
-                    'thumbnail_url': thumbnail_base64,
-                    'extracted': True,
-                    'channel_id': channel_id,
-                    'message_id': message_id
-                }
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Error extracting thumbnail: {e}")
-            return None
-    
     async def _store_extracted_thumbnail(self, title: str, thumbnail_base64: str, 
                                        channel_id: int, message_id: int) -> bool:
-        """Store extracted thumbnail in database - FIXED"""
+        """Store extracted thumbnail in database"""
         try:
             await self._ensure_collections()
             
@@ -548,11 +596,8 @@ class PosterFetcher:
                 return False
             
             normalized_title = self._normalize_title(title)
-            
-            # Calculate expiry (30 days from now)
             expires_at = datetime.now() + timedelta(days=self.config.THUMBNAIL_TTL_DAYS)
             
-            # Upsert thumbnail
             await self.thumbnails_col.update_one(
                 {'normalized_title': normalized_title},
                 {'$set': {
@@ -582,8 +627,6 @@ class PosterFetcher:
     
     async def _fetch_from_sources(self, title: str, year: str = "") -> Optional[Dict]:
         """Fetch poster from TMDB or OMDB"""
-        
-        # Clean title for API
         clean_title = self._clean_title_for_api(title)
         
         # Try TMDB first
@@ -603,7 +646,6 @@ class PosterFetcher:
     async def _fetch_tmdb_poster(self, title: str, year: str = "") -> Optional[Dict]:
         """Fetch poster from TMDB API"""
         try:
-            # Rate limiting
             now = time.time()
             if now - self.tmdb_last_call < self.rate_limit_delay:
                 await asyncio.sleep(self.rate_limit_delay)
@@ -611,7 +653,6 @@ class PosterFetcher:
             
             session = await self._get_session()
             
-            # Search for movie
             search_url = "https://api.themoviedb.org/3/search/movie"
             params = {
                 'api_key': self.config.TMDB_API_KEY,
@@ -631,7 +672,6 @@ class PosterFetcher:
                 if not data.get('results'):
                     return None
                 
-                # Get first result
                 movie = data['results'][0]
                 poster_path = movie.get('poster_path')
                 
@@ -651,13 +691,12 @@ class PosterFetcher:
                 }
                 
         except Exception as e:
-            logger.debug(f"TMDB error for {title}: {e}")
+            logger.debug(f"TMDB error: {e}")
             return None
     
     async def _fetch_omdb_poster(self, title: str, year: str = "") -> Optional[Dict]:
         """Fetch poster from OMDB API"""
         try:
-            # Rate limiting
             now = time.time()
             if now - self.omdb_last_call < self.rate_limit_delay:
                 await asyncio.sleep(self.rate_limit_delay)
@@ -665,7 +704,6 @@ class PosterFetcher:
             
             session = await self._get_session()
             
-            # Search for movie
             params = {
                 'apikey': self.config.OMDB_API_KEY,
                 't': title,
@@ -686,7 +724,6 @@ class PosterFetcher:
                 
                 poster_url = data.get('Poster')
                 
-                # OMDB returns "N/A" if no poster
                 if not poster_url or poster_url == 'N/A':
                     return None
                 
@@ -701,15 +738,15 @@ class PosterFetcher:
                 }
                 
         except Exception as e:
-            logger.debug(f"OMDB error for {title}: {e}")
+            logger.debug(f"OMDB error: {e}")
             return None
     
     # ========================================================================
-    # CACHE MANAGEMENT - FIXED COLLECTION CHECKS
+    # CACHE MANAGEMENT
     # ========================================================================
     
     async def _get_cached_poster(self, title: str, year: str = "") -> Optional[Dict]:
-        """Get cached poster data - FIXED"""
+        """Get cached poster data"""
         try:
             await self._ensure_collections()
             
@@ -720,8 +757,7 @@ class PosterFetcher:
             
             cached = await self.poster_cache_col.find_one({'cache_key': cache_key})
             
-            if cached is not None and cached.get('poster_url'):
-                # Check if expired
+            if cached and cached.get('poster_url'):
                 expires_at = cached.get('expires_at')
                 if expires_at and datetime.now() > expires_at:
                     await self.poster_cache_col.delete_one({'_id': cached['_id']})
@@ -744,7 +780,7 @@ class PosterFetcher:
             return None
     
     async def _cache_poster(self, title: str, year: str, poster_data: Dict) -> bool:
-        """Cache poster data in MongoDB - FIXED"""
+        """Cache poster data in MongoDB"""
         try:
             await self._ensure_collections()
             
@@ -784,20 +820,11 @@ class PosterFetcher:
         if not title:
             return ""
         
-        # Convert to lowercase
         title = title.lower()
-        
-        # Remove year in parentheses
         title = re.sub(r'\s*\(\d{4}\)$', '', title)
         title = re.sub(r'\s+\d{4}$', '', title)
-        
-        # Remove quality tags
         title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264)\b', '', title)
-        
-        # Remove special characters
         title = re.sub(r'[^\w\s]', ' ', title)
-        
-        # Remove extra spaces
         title = re.sub(r'\s+', ' ', title)
         
         return title.strip()
@@ -807,14 +834,9 @@ class PosterFetcher:
         if not title:
             return ""
         
-        # Remove year in parentheses
         title = re.sub(r'\s*\(\d{4}\)$', '', title)
         title = re.sub(r'\s+\d{4}$', '', title)
-        
-        # Remove quality indicators
         title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264|bluray|webrip|hdtv)\b', '', title, flags=re.IGNORECASE)
-        
-        # Remove extra spaces
         title = re.sub(r'\s+', ' ', title)
         
         return title.strip()
@@ -827,28 +849,27 @@ class PosterFetcher:
         return f"poster:{normalized}"
     
     async def get_stats(self) -> Dict[str, Any]:
-        """Get comprehensive statistics - FIXED"""
+        """Get comprehensive statistics"""
         try:
             await self._ensure_collections()
             
-            # Count thumbnails in database
             thumbnail_count = 0
             if self.thumbnails_col is not None:
                 thumbnail_count = await self.thumbnails_col.count_documents({})
             
-            # Count cached posters
             cache_count = 0
             if self.poster_cache_col is not None:
                 cache_count = await self.poster_cache_col.count_documents({})
             
-            total_requests = self.stats['total_requests'] or 1  # Avoid division by zero
+            total_requests = self.stats['total_requests'] or 1
             
             return {
                 'dual_priority_system': {
                     'home_mode': 'Sources → Thumbnail → Fallback',
                     'search_mode': 'Thumbnail → Sources → Fallback',
                     'fallback_enabled': True,
-                    'fallback_url': self.fallback_url
+                    'fallback_url': self.fallback_url,
+                    'extraction_method': 'USER_SESSION'  # ✅ Indicate we're using user session
                 },
                 'requests': {
                     'total': self.stats['total_requests'],
@@ -859,7 +880,8 @@ class PosterFetcher:
                     'tmdb_hits': self.stats['tmdb_hits'],
                     'omdb_hits': self.stats['omdb_hits'],
                     'fallback_hits': self.stats['fallback_hits'],
-                    'errors': self.stats['errors']
+                    'errors': self.stats['errors'],
+                    'channel_invalid_errors': self.stats['channel_invalid_errors']  # ✅ Track this
                 },
                 'hit_rates': {
                     'cache': f"{(self.stats['cache_hits'] / total_requests * 100):.1f}%",
