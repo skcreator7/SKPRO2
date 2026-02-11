@@ -87,57 +87,7 @@ class PosterFetcher:
         ]
 
     # -------------------------------------------------
-    async def get_http_session(self):
-        async with self.lock:
-            if not self.http_session or self.http_session.closed:
-                self.http_session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10),
-                    headers={"User-Agent": "Mozilla/5.0"},
-                )
-                logger.info("✅ HTTP session created")
-            return self.http_session
-
-    # -------------------------------------------------
-    # REDIS CACHE
-    # -------------------------------------------------
-    async def redis_get(self, key: str):
-        if not self.redis:
-            return None
-        try:
-            data = await self.redis.get(key)
-            if data:
-                self.stats["cache_hits"] += 1
-                return json.loads(data)
-        except Exception:
-            pass
-        return None
-
-    async def redis_set(self, key: str, value: Dict[str, Any]):
-        if not self.redis:
-            return
-        try:
-            await self.redis.setex(key, CACHE_TTL, json.dumps(value))
-        except Exception:
-            pass
-
-    # -------------------------------------------------
-    # NORMALIZER (🔥 IMPORTANT)
-    # -------------------------------------------------
-    def normalize_poster(self, poster: Dict[str, Any], title: str) -> Dict[str, Any]:
-        return {
-            "poster_url": poster.get("poster_url", ""),
-            "source": poster.get("source", PosterSource.CUSTOM.value),
-            "title": poster.get("title", title),
-            "year": poster.get("year", ""),
-            "rating": poster.get("rating", "0.0"),
-            "has_thumbnail": poster.get("has_thumbnail", False),
-            "extracted": poster.get("extracted", False),
-            "stored_in_db": poster.get("stored_in_db", False),
-            "is_fallback": poster.get("is_fallback", False)
-        }
-
-    # -------------------------------------------------
-    # MOVIE ID AND TITLE NORMALIZATION
+    # IMPROVED TITLE NORMALIZATION - FIXED VERSION
     # -------------------------------------------------
     def _generate_movie_id(self, title: str) -> str:
         """
@@ -150,19 +100,16 @@ class PosterFetcher:
 
     def _normalize_title(self, title: str) -> str:
         """
-        Normalize title for "4 qualities → same thumbnail"
-        Removes quality indicators, years, languages, etc.
+        IMPROVED: Normalize title for "4 qualities → same thumbnail"
+        Less aggressive cleaning, keeps movie names intact
         """
         if not title:
             return ""
 
-        # Convert to lowercase
-        title = title.lower().strip()
-
-        # Remove @mentions and hashtags
-        title = re.sub(r'^[@#]\w+\s*', '', title)
-
-        # Remove common prefixes
+        # Convert to lowercase for comparison
+        title_lower = title.lower().strip()
+        
+        # 1. FIRST: Remove common file prefixes and suffixes
         prefixes = [
             r'^@ap\s+files\s+',
             r'^@cszmovies\s+',
@@ -172,79 +119,124 @@ class PosterFetcher:
             r'^film\s+',
             r'^full\s+movie\s+',
         ]
-
+        
         for prefix in prefixes:
-            title = re.sub(prefix, '', title, flags=re.IGNORECASE)
-
-        # Remove year patterns
-        title = re.sub(r'\s*[\(\[]?\d{4}[\)\]]?', '', title)
-
-        # Remove ALL quality indicators (4 qualities → same thumbnail)
+            title_lower = re.sub(prefix, '', title_lower, flags=re.IGNORECASE)
+        
+        # 2. Remove quality indicators (keep movie name)
         quality_patterns = [
-            # Resolutions
-            r'\b\d{3,4}p\b',
-            r'\b(?:hd|fhd|uhd|4k|2160p|1080p|720p|480p|360p)\b',
+            # Resolutions with optional spaces
+            r'\s*\d{3,4}p\b',
+            r'\s*(?:hd|fhd|uhd|4k|2160p|1080p|720p|480p|360p)\b',
             
-            # Codecs
-            r'\b(?:hevc|x265|x264|h264|h265|10bit|av1)\b',
+            # Codecs with optional spaces
+            r'\s*(?:hevc|x265|x264|h264|h265|10bit|av1|avc|aac|dd|dts|ac3)\b',
             
-            # Sources
-            r'\b(?:webrip|web-dl|webdl|bluray|dvdrip|hdtv|brrip|camrip|hdrip|tc|ts)\b',
-            r'\b(?:amzn|netflix|nf|zee5|hotstar|prime|disney\+?)\b',
+            # Sources with optional spaces
+            r'\s*(?:webrip|web-dl|webdl|bluray|dvdrip|hdtv|brrip|camrip|hdrip|tc|ts|hdtc|hdts|web)\b',
+            r'\s*(?:amzn|netflix|nf|zee5|hotstar|prime|disney\+?)\b',
             
-            # Audio
-            r'\b(?:dts|ac3|aac|dd5\.1|dd\+|ddp|atmos|dolby)\b',
+            # Audio quality
+            r'\s*(?:dd5\.1|dd\+|ddp|atmos|dolby|dual\s+audio|multi\s+audio)\b',
             
-            # Languages
-            r'\b(?:hindi|english|tamil|telugu|malayalam|kannada|bengali)\b',
-            r'\b(?:dual\s+audio|multi\s+audio|multi\s+language)\b',
+            # File info in brackets/parentheses
+            r'\s*\[.*?\]',
+            r'\s*\(.*?\)',
             
-            # Editions
-            r'\b(?:uncut|theatrical|director\'?s\s+cut|extended|unrated)\b',
+            # File parts
+            r'\s*\b(?:part\d+|cd\d+|vol\d+|org|uncut|theatrical|director\'?s\s+cut)\b',
             
-            # File info
-            r'\[.*?\]',
-            r'\(.*?\)',
-            r'\b(?:part\d+|cd\d+|vol\d+)\b',
+            # Ads info
+            r'\s*\b(?:no\s+ads|with\s+ads|ads\s+free)\b',
+            
+            # Languages (keep Hindi/English etc as they might be part of title)
+            # r'\s*\b(?:hindi|english|tamil|telugu|malayalam|kannada|bengali|marathi|gujarati|punjabi)\b',
         ]
-
+        
         for pattern in quality_patterns:
-            title = re.sub(pattern, '', title, flags=re.IGNORECASE)
-
-        # Clean up
-        title = re.sub(r'\s+', ' ', title).strip()
-
-        return title.strip()
+            title_lower = re.sub(pattern, '', title_lower, flags=re.IGNORECASE)
+        
+        # 3. Remove years but be careful (Hindi movies might have years in title)
+        # Only remove if at end or in parentheses
+        title_lower = re.sub(r'\s+\(\s*\d{4}\s*\)$', '', title_lower)  # (2024)
+        title_lower = re.sub(r'\s*\d{4}\s*$', '', title_lower)  # 2024 at end
+        
+        # 4. Clean up extra spaces
+        title_lower = re.sub(r'\s+', ' ', title_lower).strip()
+        
+        # 5. If title is too short after cleaning, use original
+        if len(title_lower) < 3:
+            # Try to extract just the movie name from original title
+            # Look for patterns like "Movie Name (2024) quality..."
+            movie_match = re.match(r'^([^\(\[]+?)\s*[\(\[]', title)
+            if movie_match:
+                return movie_match.group(1).strip().lower()
+            
+            # Fallback to original title (first 50 chars)
+            return title[:50].strip().lower()
+        
+        return title_lower
 
     def _clean_title_for_api(self, title: str) -> str:
-        """Clean title for API search"""
-        title = self._normalize_title(title)
+        """Clean title for API search - IMPROVED VERSION"""
+        # First normalize
+        clean_title = self._normalize_title(title)
         
-        # Remove numbers at end
-        title = re.sub(r'\s+\d+$', '', title)
+        # Remove common suffixes
+        suffixes = [
+            r'\s+full\s+movie$',
+            r'\s+complete$',
+            r'\s+hd$',
+            r'\s+download$',
+            r'\s+watch\s+online$',
+        ]
         
-        # Take first 3-4 words for better matching
-        words = title.split()
-        if len(words) > 5:
-            title = ' '.join(words[:4])
+        for suffix in suffixes:
+            clean_title = re.sub(suffix, '', clean_title, flags=re.IGNORECASE)
         
-        return title.strip()
+        # Remove extra punctuation
+        clean_title = re.sub(r'[^\w\s\-\(\)]', ' ', clean_title)
+        
+        # Remove extra spaces
+        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+        
+        # If title contains Hindi characters or special characters, encode properly
+        if any(ord(c) > 127 for c in clean_title):
+            # It might contain Hindi/Unicode characters
+            # Keep them as is for API search
+            pass
+        
+        # Take reasonable length (not too short)
+        if len(clean_title) < 10:
+            # If too short after cleaning, try extracting from original
+            # Look for title pattern: "Movie Name (2024)" or "Movie Name [2024]"
+            pattern = r'^([^\(\[]+?)\s*[\(\[]'
+            match = re.search(pattern, title)
+            if match:
+                clean_title = match.group(1).strip()
+        
+        # Ensure minimum length
+        if len(clean_title) < 3:
+            clean_title = title[:30].strip()
+        
+        return clean_title
 
     # -------------------------------------------------
-    # COMPLETE THUMBNAIL SYSTEM - PRIORITY BASED
+    # GET THUMBNAIL - IMPROVED WITH BETTER API QUERIES
     # -------------------------------------------------
     async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
         """
-        Get thumbnail with PRIORITY SYSTEM:
-        1. Extracted thumbnail (database se - SIRF YAHI STORE HOTA HAI)
-        2. Poster sources API Services (live fetch, NO STORE)
-        3. Empty string (no fallback)
+        IMPROVED: Get thumbnail with better title cleaning for API
         """
         self.stats['total_requests'] += 1
         
         try:
             # Generate movie ID
             movie_id = self._generate_movie_id(title)
+            
+            logger.debug(f"🔍 Looking for thumbnail: {title}")
+            logger.debug(f"   Normalized: {self._normalize_title(title)}")
+            logger.debug(f"   API Clean: {self._clean_title_for_api(title)}")
             
             # =============================================
             # PRIORITY 1: EXTRACTED THUMBNAIL (DATABASE)
@@ -291,13 +283,26 @@ class PosterFetcher:
             # =============================================
             # PRIORITY 2: API SERVICES (LIVE FETCH, NO STORE)
             # =============================================
-            logger.info(f"🔍 Live API search for: {title}")
+            # Clean title for API search (IMPROVED)
+            clean_title = self._clean_title_for_api(title)
+            
+            if len(clean_title) < 3:
+                # Title too short after cleaning
+                logger.warning(f"⚠️ Title too short for API: {title} -> {clean_title}")
+                # Try with original title (first part)
+                original_parts = title.split()
+                if len(original_parts) > 2:
+                    clean_title = ' '.join(original_parts[:3])
+                else:
+                    clean_title = title[:30]
+            
+            logger.info(f"🔍 Live API search for: {clean_title} (original: {title[:30]}...)")
             
             # Check temporary memory cache first
             api_cache_key = f"api_{movie_id}"
+            import time
             if api_cache_key in self.api_cache:
                 cached = self.api_cache[api_cache_key]
-                import time
                 if time.time() - cached['timestamp'] < self.api_cache_ttl:
                     self.stats['from_api_live'] += 1
                     logger.info(f"✅ API cache hit: {title}")
@@ -315,12 +320,11 @@ class PosterFetcher:
                         'is_fallback': False
                     }
             
-            # Live API fetch
-            api_thumbnail = await self._fetch_from_apis(title)
+            # Live API fetch with IMPROVED title
+            api_thumbnail = await self._fetch_from_apis(clean_title)
             
             if api_thumbnail and api_thumbnail.get('url'):
                 # Store in temporary memory cache (5 minutes only)
-                import time
                 self.api_cache[api_cache_key] = {
                     'url': api_thumbnail['url'],
                     'source': api_thumbnail['source'],
@@ -328,7 +332,7 @@ class PosterFetcher:
                 }
                 
                 self.stats['from_api_live'] += 1
-                logger.info(f"✅ Live API result: {title} ({api_thumbnail['source']})")
+                logger.info(f"✅ Live API result: {title} -> {clean_title} ({api_thumbnail['source']})")
                 
                 return {
                     'poster_url': api_thumbnail['url'],
@@ -347,7 +351,7 @@ class PosterFetcher:
             # =============================================
             # PRIORITY 3: EMPTY STRING (NO FALLBACK)
             # =============================================
-            logger.warning(f"⚠️ No thumbnail found, returning empty string: {title}")
+            logger.warning(f"⚠️ No thumbnail found for: {title} (API query: {clean_title})")
             
             self.stats['from_fallback'] += 1
             return {
@@ -380,15 +384,105 @@ class PosterFetcher:
             }
 
     # -------------------------------------------------
-    # EXTRACTED THUMBNAIL DATABASE OPERATIONS
+    # IMPROVED API FETCHING WITH MULTIPLE ATTEMPTS
+    # -------------------------------------------------
+    async def _fetch_from_apis(self, title: str) -> Optional[Dict]:
+        """Fetch from all API services in parallel - IMPROVED with multiple attempts"""
+        if not title or len(title) < 3:
+            return None
+        
+        # Try multiple variations of the title
+        title_variations = self._generate_title_variations(title)
+        
+        logger.debug(f"🔍 Trying API variations for: {title}")
+        logger.debug(f"   Variations: {title_variations}")
+        
+        # Create tasks for all API services and title variations
+        tasks = []
+        for api_service in self.api_services:
+            for title_var in title_variations[:3]:  # Try first 3 variations
+                task = asyncio.create_task(api_service(title_var))
+                tasks.append(task)
+        
+        # Wait for first successful result with timeout
+        try:
+            done, pending = await asyncio.wait(tasks, timeout=5.0, return_when=asyncio.FIRST_COMPLETED)
+            
+            # Cancel pending tasks
+            for task in pending:
+                task.cancel()
+            
+            # Check completed tasks
+            for task in done:
+                try:
+                    result = await task
+                    if result and result.get('url'):
+                        logger.debug(f"✅ API success with: {result.get('source')}")
+                        return result
+                except Exception as e:
+                    logger.debug(f"API task error: {e}")
+                    continue
+                    
+        except asyncio.TimeoutError:
+            logger.debug(f"⏱️ API timeout for: {title}")
+        
+        return None
+
+    def _generate_title_variations(self, title: str) -> List[str]:
+        """Generate multiple title variations for better API matching"""
+        variations = []
+        
+        # Original cleaned title
+        variations.append(title)
+        
+        # Remove any remaining years
+        title_no_year = re.sub(r'\s+\(\d{4}\)$', '', title)
+        title_no_year = re.sub(r'\s+\d{4}$', '', title_no_year)
+        if title_no_year != title:
+            variations.append(title_no_year)
+        
+        # Remove common words that might interfere
+        common_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
+        words = title.split()
+        filtered_words = [w for w in words if w.lower() not in common_words]
+        if len(filtered_words) > 1:
+            variations.append(' '.join(filtered_words))
+        
+        # Add Hindi/Indian movie specific variations
+        if any(word.lower() in ['hindi', 'tamil', 'telugu', 'malayalam', 'kannada', 'bengali'] for word in words):
+            # Remove language specifier for better matching
+            lang_pattern = r'\b(hindi|tamil|telugu|malayalam|kannada|bengali|english)\b'
+            title_no_lang = re.sub(lang_pattern, '', title, flags=re.IGNORECASE)
+            title_no_lang = re.sub(r'\s+', ' ', title_no_lang).strip()
+            if title_no_lang and len(title_no_lang) > 3:
+                variations.append(title_no_lang)
+        
+        # Remove special characters
+        title_clean = re.sub(r'[^\w\s\-]', ' ', title)
+        title_clean = re.sub(r'\s+', ' ', title_clean).strip()
+        if title_clean != title and len(title_clean) > 3:
+            variations.append(title_clean)
+        
+        # Ensure no duplicates
+        unique_variations = []
+        seen = set()
+        for var in variations:
+            if var and var not in seen:
+                seen.add(var)
+                unique_variations.append(var)
+        
+        return unique_variations[:5]  # Return max 5 variations
+
+    # -------------------------------------------------
+    # FIXED DATABASE COLLECTION CHECK
     # -------------------------------------------------
     async def _get_extracted_from_database(self, movie_id: str) -> Optional[Dict]:
         """
         Get ONLY extracted thumbnail from database
-        API results database mein nahi hote
+        FIXED: Proper collection check
         """
         try:
-            if not self.extracted_thumbnails_col:
+            if self.extracted_thumbnails_col is None:
                 return None
                 
             doc = await self.extracted_thumbnails_col.find_one({"movie_id": movie_id})
@@ -416,6 +510,113 @@ class PosterFetcher:
             logger.debug(f"Extracted DB fetch error: {e}")
             return None
 
+    # -------------------------------------------------
+    # FIXED GET_STATS METHOD
+    # -------------------------------------------------
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get system statistics - FIXED collection check"""
+        try:
+            total_extracted = 0
+            if self.extracted_thumbnails_col is not None:
+                total_extracted = await self.extracted_thumbnails_col.count_documents({})
+            
+            return {
+                'storage_policy': 'EXTRACTED ONLY - API results not stored',
+                'performance': {
+                    'total_requests': self.stats['total_requests'],
+                    'from_extracted_db': self.stats['from_extracted_db'],
+                    'from_telegram_live': self.stats['from_telegram_live'],
+                    'from_api_live': self.stats['from_api_live'],
+                    'from_fallback': self.stats['from_fallback']
+                },
+                'poster_stats': {
+                    'tmdb': self.stats['tmdb'],
+                    'imdb': self.stats['imdb'],
+                    'letterboxd': self.stats['letterboxd'],
+                    'justwatch': self.stats['justwatch'],
+                    'impawards': self.stats['impawards'],
+                    'omdb': self.stats['omdb'],
+                    'custom': self.stats['custom'],
+                    'telegram_extracted': self.stats['telegram_extracted'],
+                    'cache_hits': self.stats['cache_hits']
+                },
+                'database': {
+                    'extracted_thumbnails_count': total_extracted,
+                    'api_results_stored': 0,
+                    'extracted_storage_size_mb': total_extracted * 0.01
+                },
+                'features': {
+                    'ek_movie_ek_thumbnail': True,
+                    'multi_quality_same_thumbnail': True,
+                    'extracted_only_storage': True,
+                    'api_no_storage': True,
+                    'old_files_auto_migrate': True,
+                    'new_files_auto_extract': True,
+                    'priority_system': 'Extracted (DB) → API (Live) → Empty',
+                    'no_fallback_image': True,
+                    'improved_normalization': True,
+                    'title_variations': True
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Stats error: {e}")
+            return {
+                'status': 'error',
+                'error': str(e),
+                'stats_available': {
+                    'total_requests': self.stats['total_requests'],
+                    'from_api_live': self.stats['from_api_live'],
+                    'from_fallback': self.stats['from_fallback']
+                }
+            }
+
+    # -------------------------------------------------
+    # REST OF THE CODE (SAME AS BEFORE)
+    # -------------------------------------------------
+    async def get_http_session(self):
+        async with self.lock:
+            if not self.http_session or self.http_session.closed:
+                self.http_session = aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=10),
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                logger.info("✅ HTTP session created")
+            return self.http_session
+
+    async def redis_get(self, key: str):
+        if not self.redis:
+            return None
+        try:
+            data = await self.redis.get(key)
+            if data:
+                self.stats["cache_hits"] += 1
+                return json.loads(data)
+        except Exception:
+            pass
+        return None
+
+    async def redis_set(self, key: str, value: Dict[str, Any]):
+        if not self.redis:
+            return
+        try:
+            await self.redis.setex(key, CACHE_TTL, json.dumps(value))
+        except Exception:
+            pass
+
+    def normalize_poster(self, poster: Dict[str, Any], title: str) -> Dict[str, Any]:
+        return {
+            "poster_url": poster.get("poster_url", ""),
+            "source": poster.get("source", PosterSource.CUSTOM.value),
+            "title": poster.get("title", title),
+            "year": poster.get("year", ""),
+            "rating": poster.get("rating", "0.0"),
+            "has_thumbnail": poster.get("has_thumbnail", False),
+            "extracted": poster.get("extracted", False),
+            "stored_in_db": poster.get("stored_in_db", False),
+            "is_fallback": poster.get("is_fallback", False)
+        }
+
     async def _save_extracted_to_database(self, movie_id: str, thumbnail_url: str, 
                                         title: str, channel_id: int = None, message_id: int = None):
         """
@@ -423,7 +624,7 @@ class PosterFetcher:
         API results ismein save nahi hote
         """
         try:
-            if not self.extracted_thumbnails_col:
+            if self.extracted_thumbnails_col is None:
                 return
                 
             doc = {
@@ -454,9 +655,6 @@ class PosterFetcher:
         except Exception as e:
             logger.error(f"❌ Extracted DB save error: {e}")
 
-    # -------------------------------------------------
-    # TELEGRAM THUMBNAIL EXTRACTION
-    # -------------------------------------------------
     async def _extract_from_telegram(self, channel_id: int, message_id: int) -> Optional[str]:
         """Extract thumbnail from Telegram message"""
         try:
@@ -535,9 +733,6 @@ class PosterFetcher:
         except Exception:
             return None
 
-    # -------------------------------------------------
-    # BATCH OPERATIONS
-    # -------------------------------------------------
     async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
         """Get thumbnails for batch of movies"""
         try:
@@ -576,36 +771,7 @@ class PosterFetcher:
                 'is_fallback': True
             } for movie in movies]
 
-    # -------------------------------------------------
-    # API FETCHING METHODS (ORIGINAL POSTER FETCHING)
-    # -------------------------------------------------
-    async def _fetch_from_apis(self, title: str) -> Optional[Dict]:
-        """Fetch from all API services in parallel - NO DATABASE STORAGE"""
-        clean_title = self._clean_title_for_api(title)
-        
-        if not clean_title:
-            return None
-        
-        # Create tasks for all API services
-        tasks = []
-        for api_service in self.api_services:
-            task = asyncio.create_task(api_service(clean_title))
-            tasks.append(task)
-        
-        # Wait for first successful result
-        for task in tasks:
-            try:
-                result = await asyncio.wait_for(task, timeout=3.0)
-                if result and result.get('url'):
-                    return result
-            except (asyncio.TimeoutError, Exception):
-                continue
-        
-        return None
-
-    # -------------------------------------------------
-    # API SERVICE METHODS - LIVE FETCH ONLY, NO STORAGE
-    # -------------------------------------------------
+    # API SERVICE METHODS (SAME AS BEFORE)
     async def _fetch_from_tmdb(self, title: str) -> Optional[Dict]:
         """Fetch from TMDB - No storage"""
         try:
@@ -699,9 +865,12 @@ class PosterFetcher:
     async def _fetch_from_letterboxd(self, title: str) -> Optional[Dict]:
         """Fetch from Letterboxd - No storage"""
         try:
-            # Create slug
-            slug = re.sub(r'[^\w\s-]', '', title).strip().lower()
+            # Create slug - improved for Hindi/Indian movies
+            slug = re.sub(r'[^\w\s\-]', '', title).strip().lower()
             slug = re.sub(r'[-\s]+', '-', slug)
+            
+            # Remove year if present in slug
+            slug = re.sub(r'-\d{4}$', '', slug)
             
             session = await self.get_http_session()
             url = f"https://letterboxd.com/film/{slug}/"
@@ -805,9 +974,7 @@ class PosterFetcher:
         except Exception:
             return None
 
-    # -------------------------------------------------
-    # ORIGINAL POSTER FETCHING FUNCTIONS
-    # -------------------------------------------------
+    # ORIGINAL POSTER FETCHING METHODS (UNCHANGED)
     async def fetch_from_tmdb(self, title: str):
         """Original TMDB fetching method"""
         session = await self.get_http_session()
@@ -970,9 +1137,6 @@ class PosterFetcher:
             "rating": "0.0",
         }
 
-    # -------------------------------------------------
-    # MAIN POSTER FETCHING FUNCTION (ORIGINAL)
-    # -------------------------------------------------
     async def fetch_poster(self, title: str) -> Dict[str, Any]:
         """Main poster fetching function (original)"""
         key = f"poster:{title.lower().strip()}"
@@ -1012,64 +1176,10 @@ class PosterFetcher:
         await self.redis_set(key, normalized)
         return normalized
 
-    # -------------------------------------------------
-    # BATCH POSTER FETCHING
-    # -------------------------------------------------
     async def fetch_batch_posters(self, titles: List[str]) -> Dict[str, Dict]:
         """Fetch posters for multiple titles in batch"""
         posters = await asyncio.gather(*(self.fetch_poster(t) for t in titles))
         return dict(zip(titles, posters))
-
-    # -------------------------------------------------
-    # STATISTICS AND CLEANUP
-    # -------------------------------------------------
-    async def get_stats(self) -> Dict[str, Any]:
-        """Get system statistics"""
-        try:
-            total_extracted = 0
-            if self.extracted_thumbnails_col:
-                total_extracted = await self.extracted_thumbnails_col.count_documents({})
-            
-            return {
-                'storage_policy': 'EXTRACTED ONLY - API results not stored',
-                'performance': {
-                    'total_requests': self.stats['total_requests'],
-                    'from_extracted_db': self.stats['from_extracted_db'],
-                    'from_telegram_live': self.stats['from_telegram_live'],
-                    'from_api_live': self.stats['from_api_live'],
-                    'from_fallback': self.stats['from_fallback']
-                },
-                'poster_stats': {
-                    'tmdb': self.stats['tmdb'],
-                    'imdb': self.stats['imdb'],
-                    'letterboxd': self.stats['letterboxd'],
-                    'justwatch': self.stats['justwatch'],
-                    'impawards': self.stats['impawards'],
-                    'omdb': self.stats['omdb'],
-                    'custom': self.stats['custom'],
-                    'telegram_extracted': self.stats['telegram_extracted'],
-                    'cache_hits': self.stats['cache_hits']
-                },
-                'database': {
-                    'extracted_thumbnails_count': total_extracted,
-                    'api_results_stored': 0,  # API results database mein nahi hote
-                    'extracted_storage_size_mb': total_extracted * 0.01  # Approximate
-                },
-                'features': {
-                    'ek_movie_ek_thumbnail': True,
-                    'multi_quality_same_thumbnail': True,
-                    'extracted_only_storage': True,
-                    'api_no_storage': True,
-                    'old_files_auto_migrate': True,
-                    'new_files_auto_extract': True,
-                    'priority_system': 'Extracted (DB) → API (Live) → Empty',
-                    'no_fallback_image': True
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ Stats error: {e}")
-            return {'status': 'error'}
 
     async def cleanup_api_cache(self):
         """Cleanup temporary API cache"""
