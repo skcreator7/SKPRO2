@@ -7,10 +7,10 @@ import os
 import asyncio
 import hashlib
 import re
+import base64
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple, Union
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
-import aiohttp
 import logging
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 
@@ -32,14 +32,13 @@ class ThumbnailManager:
         self.download_path = Path(download_path)
         self.download_path.mkdir(parents=True, exist_ok=True)
         
-        # ✅ FIXED: Handle both database and client objects
+        # Handle both database and client objects
         if mongodb is not None:
             if hasattr(mongodb, 'sk4film'):  # It's a client
                 self.db = mongodb.sk4film
             elif hasattr(mongodb, 'thumbnails'):  # It's already a database
                 self.db = mongodb
             else:
-                # Try to create database
                 try:
                     self.db = mongodb.sk4film if hasattr(mongodb, 'sk4film') else mongodb
                 except:
@@ -76,8 +75,8 @@ class ThumbnailManager:
         logger.info("   • 4 Qualities → Same Thumbnail: ✅ ENABLED")
         logger.info("   • Existing Files Auto-Extract: ✅ ENABLED")
         logger.info("   • New Files Auto-Extract: ✅ ENABLED")
-        logger.info("   • Priority: Extracted → Poster → Empty: ✅ ENABLED")
-        logger.info("   • No Default/Fallback Image: ✅ ENABLED")
+        logger.info("   • SEARCH Priority: Extracted → Poster → Fallback: ✅ ENABLED")
+        logger.info("   • HOME Priority: Poster → Extracted → Fallback: ✅ ENABLED")
         logger.info("=" * 60)
     
     async def initialize(self):
@@ -96,31 +95,34 @@ class ThumbnailManager:
             if self.movie_collection:
                 await self.movie_collection.create_index("movie_id", unique=True)
                 await self.movie_collection.create_index("movie_name_normalized")
-                await self.movie_collection.create_index("file_ids")
                 
             logger.info("✅ Thumbnail indexes created successfully")
         except Exception as e:
             logger.error(f"Error creating indexes: {e}")
     
     def _extract_movie_id(self, file_name: str) -> str:
-        """
-        Extract UNIQUE MOVIE ID from filename
-        Same movie = Same ID across all qualities
-        """
+        """Extract UNIQUE MOVIE ID from filename"""
         if not file_name:
             return "unknown"
         
+        # Remove year in parentheses
         name = re.sub(r'\s*\(\d{4}\)', '', file_name)
+        # Remove standalone year
         name = re.sub(r'\s*\d{4}', '', name)
+        # Remove quality tags
         name = re.sub(r'\b(4K|2160p|1080p|720p|480p|360p|WEB-DL|WEBRip|BluRay|HDTV|HDRip|CAM|HDTC|TS|DVD|BRRip)\b.*$', '', name, flags=re.I)
+        # Remove codec info
         name = re.sub(r'\b(x264|x265|HEVC|AVC|DDP|AAC|AC3|MP3|5\.1|7\.1|2\.0|ESub|Sub)\b.*$', '', name, flags=re.I)
+        # Remove special characters
         name = re.sub(r'[^\w\s-]', ' ', name)
+        # Clean up spaces
         name = re.sub(r'\s+', ' ', name).strip().lower()
         
         if len(name) < 3:
             name = re.sub(r'[^\w\s-]', ' ', file_name[:50])
             name = re.sub(r'\s+', ' ', name).strip().lower()
         
+        # Create hash for consistent ID
         movie_hash = hashlib.md5(name.encode()).hexdigest()[:16]
         movie_id = f"{name[:30].replace(' ', '_')}_{movie_hash}"
         
@@ -137,10 +139,7 @@ class ThumbnailManager:
                            file_data: Dict[str, Any], 
                            message: Optional[Any] = None,
                            force_extract: bool = False) -> Optional[str]:
-        """
-        Get thumbnail for ANY quality of a movie
-        ONE THUMBNAIL PER MOVIE - shared across all 4 qualities
-        """
+        """Get thumbnail for ANY quality of a movie"""
         file_name = file_data.get('file_name', '')
         message_id = file_data.get('message_id')
         file_unique_id = file_data.get('file_unique_id')
@@ -155,7 +154,7 @@ class ThumbnailManager:
                 thumb_path = movie_thumb['thumbnail_path']
                 
                 if os.path.exists(thumb_path):
-                    logger.info(f"✅ SHARED THUMBNAIL: '{movie_name_clean[:30]}' → All qualities")
+                    logger.info(f"✅ SHARED THUMBNAIL: '{movie_name_clean[:30]}'")
                     return thumb_path
                 elif movie_thumb.get('thumbnail_bytes'):
                     os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
@@ -179,10 +178,10 @@ class ThumbnailManager:
                 
                 if thumb_path and os.path.exists(thumb_path):
                     await self._cache_movie_thumbnail(movie_id, movie_name_clean, thumb_path, file_data)
-                    logger.info(f"✅ EXTRACTED: '{movie_name_clean[:30]}' → Available for ALL 4 qualities")
+                    logger.info(f"✅ EXTRACTED: '{movie_name_clean[:30]}'")
                     return thumb_path
         
-        logger.info(f"❌ NO THUMBNAIL: '{movie_name_clean[:30]}' (no extractable source)")
+        logger.info(f"❌ NO THUMBNAIL: '{movie_name_clean[:30]}'")
         return None
     
     async def _extract_from_message(self, 
@@ -233,7 +232,7 @@ class ThumbnailManager:
                                     movie_name: str, 
                                     thumb_path: str, 
                                     source_file: Dict):
-        """Cache thumbnail by MOVIE ID (not by file)"""
+        """Cache thumbnail by MOVIE ID"""
         if not self.thumb_collection:
             return
             
@@ -264,15 +263,15 @@ class ThumbnailManager:
             )
             
             if result.upserted_id:
-                logger.info(f"💾 CACHED: New thumbnail for movie '{movie_name[:30]}'")
+                logger.info(f"💾 CACHED: New thumbnail for '{movie_name[:30]}'")
             else:
-                logger.info(f"💾 UPDATED: Thumbnail for movie '{movie_name[:30]}'")
+                logger.info(f"💾 UPDATED: Thumbnail for '{movie_name[:30]}'")
             
         except Exception as e:
             logger.error(f"Error caching thumbnail: {e}")
     
     async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
-        """Get thumbnail for a movie (API compatible)"""
+        """Get thumbnail for a movie - RETURNS EXTRACTED THUMBNAIL ONLY"""
         movie_id = self._extract_movie_id(title)
         
         thumb_path = None
@@ -283,7 +282,6 @@ class ThumbnailManager:
                     thumb_path = movie_thumb['thumbnail_path']
         
         if thumb_path:
-            # Convert to base64 for API response
             try:
                 with open(thumb_path, 'rb') as f:
                     img_data = f.read()
@@ -295,16 +293,18 @@ class ThumbnailManager:
                         'source': 'extracted',
                         'has_thumbnail': True,
                         'extracted': True,
-                        'movie_id': movie_id
+                        'movie_id': movie_id,
+                        'is_extracted': True
                     }
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Error reading thumbnail: {e}")
         
         return {
             'thumbnail_url': '',
             'source': 'none',
             'has_thumbnail': False,
-            'extracted': False
+            'extracted': False,
+            'is_extracted': False
         }
     
     async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
@@ -332,140 +332,28 @@ class ThumbnailManager:
             },
             'success_rate': '95%',
             'target': '99% success rate',
-            'one_movie_one_thumbnail': True
+            'one_movie_one_thumbnail': True,
+            'priority': 'Extracted First for SEARCH, Poster First for HOME'
         }
-    
-    async def extract_all_missing(self, files: List[Dict]) -> Dict[str, int]:
-        """Extract thumbnails for UNIQUE MOVIES only"""
-        logger.info("=" * 60)
-        logger.info("🎬 STARTING BATCH THUMBNAIL EXTRACTION")
-        logger.info(f"📊 Total files in DB: {len(files)}")
-        logger.info("=" * 60)
-        
-        movie_groups = {}
-        for file in files:
-            movie_id = self._extract_movie_id(file.get('file_name', ''))
-            if movie_id not in movie_groups:
-                movie_groups[movie_id] = {
-                    "movie_name": self._get_movie_name_clean(file.get('file_name', '')),
-                    "files": [],
-                    "has_thumbnail": False
-                }
-            movie_groups[movie_id]["files"].append(file)
-        
-        unique_movies = len(movie_groups)
-        logger.info(f"🎬 Unique movies found: {unique_movies}")
-        logger.info(f"📁 Total files: {len(files)}")
-        logger.info(f"🔄 Ratio: {len(files)} files → {unique_movies} thumbnails")
-        logger.info("=" * 60)
-        
-        movies_with_thumb = 0
-        movies_without_thumb = 0
-        
-        if self.thumb_collection:
-            for movie_id, movie_data in movie_groups.items():
-                cached = await self.thumb_collection.find_one({"movie_id": movie_id})
-                if cached and cached.get('thumbnail_path') and os.path.exists(cached.get('thumbnail_path', '')):
-                    movie_data["has_thumbnail"] = True
-                    movies_with_thumb += 1
-                else:
-                    movies_without_thumb += 1
-        
-        logger.info(f"✅ Movies WITH thumbnails: {movies_with_thumb}")
-        logger.info(f"❌ Movies WITHOUT thumbnails: {movies_without_thumb}")
-        logger.info("=" * 60)
-        
-        success = 0
-        failed = 0
-        
-        for movie_id, movie_data in movie_groups.items():
-            if not movie_data["has_thumbnail"] and movie_data["files"]:
-                first_file = movie_data["files"][0]
-                
-                try:
-                    if self.user and self.file_channel and first_file.get('message_id'):
-                        message = await self.user.get_messages(
-                            self.file_channel,
-                            first_file['message_id']
-                        )
-                        
-                        thumb_path = await self._extract_from_message(
-                            message, 
-                            movie_id, 
-                            movie_data["movie_name"]
-                        )
-                        
-                        if thumb_path:
-                            await self._cache_movie_thumbnail(
-                                movie_id, 
-                                movie_data["movie_name"], 
-                                thumb_path, 
-                                first_file
-                            )
-                            success += 1
-                            logger.info(f"✅ EXTRACTED [{success}/{movies_without_thumb}]: '{movie_data['movie_name'][:30]}'")
-                        else:
-                            failed += 1
-                            logger.info(f"❌ FAILED [{failed}]: '{movie_data['movie_name'][:30]}'")
-                    
-                    await asyncio.sleep(0.5)
-                    
-                except Exception as e:
-                    logger.error(f"Error extracting for {movie_data['movie_name'][:30]}: {e}")
-                    failed += 1
-        
-        logger.info("=" * 60)
-        logger.info("📊 THUMBNAIL EXTRACTION COMPLETE")
-        logger.info("=" * 60)
-        logger.info(f"🎬 Total unique movies: {unique_movies}")
-        logger.info(f"✅ Successfully extracted: {success}")
-        logger.info(f"❌ Failed to extract: {failed}")
-        logger.info(f"🔄 One thumbnail per movie: ✅ ACTIVE")
-        logger.info("=" * 60)
-        
-        return {
-            "success": success, 
-            "failed": failed,
-            "unique_movies": unique_movies,
-            "movies_with_thumb_before": movies_with_thumb,
-            "movies_with_thumb_after": movies_with_thumb + success,
-            "files_updated": success * (len(movie_data['files']) if movie_data else 0)
-        }
-    
-    async def get_movie_thumbnail(self, movie_name: str) -> Optional[str]:
-        """Get thumbnail by movie name (for search results)"""
-        movie_id = self._extract_movie_id(movie_name)
-        
-        if self.thumb_collection:
-            cached = await self.thumb_collection.find_one({"movie_id": movie_id})
-            if cached and cached.get('thumbnail_path'):
-                if os.path.exists(cached['thumbnail_path']):
-                    return cached['thumbnail_path']
-                elif cached.get('thumbnail_bytes'):
-                    os.makedirs(os.path.dirname(cached['thumbnail_path']), exist_ok=True)
-                    with open(cached['thumbnail_path'], 'wb') as f:
-                        f.write(cached['thumbnail_bytes'])
-                    return cached['thumbnail_path']
-        
-        return None
     
     async def shutdown(self):
         """Clean up resources"""
         logger.info("👋 ThumbnailManager closed")
 
+
 class FallbackThumbnailManager:
-    """Fallback when real ThumbnailManager fails to import"""
+    """Fallback when real ThumbnailManager fails"""
     
     def __init__(self, *args, **kwargs):
         logger.warning("⚠️ Using FALLBACK Thumbnail Manager")
-        self.thumbnails_col = None
+        self.thumb_collection = None
         self.db = None
     
     async def initialize(self):
         logger.info("✅ Fallback ThumbnailManager initialized")
         return True
     
-    async def get_thumbnail(self, *args, **kwargs) -> None:
+    async def get_thumbnail(self, *args, **kwargs) -> Optional[str]:
         return None
     
     async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
@@ -473,7 +361,8 @@ class FallbackThumbnailManager:
             'thumbnail_url': '',
             'source': 'fallback',
             'has_thumbnail': False,
-            'extracted': False
+            'extracted': False,
+            'is_extracted': False
         }
     
     async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
@@ -482,7 +371,8 @@ class FallbackThumbnailManager:
             'thumbnail_url': '',
             'source': 'fallback',
             'has_thumbnail': False,
-            'extracted': False
+            'extracted': False,
+            'is_extracted': False
         } for movie in movies]
     
     async def get_stats(self) -> Dict[str, Any]:
@@ -490,14 +380,9 @@ class FallbackThumbnailManager:
             'total_thumbnails': 0,
             'performance_stats': {},
             'success_rate': '0%',
-            'target': '99% success rate (fallback)'
+            'target': '99% success rate (fallback)',
+            'one_movie_one_thumbnail': False
         }
-    
-    async def extract_all_missing(self, *args, **kwargs) -> Dict:
-        return {"success": 0, "failed": 0, "unique_movies": 0, "files_updated": 0}
-    
-    async def get_movie_thumbnail(self, *args, **kwargs) -> None:
-        return None
     
     async def shutdown(self):
         pass
