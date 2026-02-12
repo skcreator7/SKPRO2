@@ -2106,6 +2106,7 @@ async def start_telegram_bot():
 
 @performance_monitor.measure("system_init")
 async def init_system():
+    global thumbnail_manager, telegram_bot, cache_manager, verification_system, premium_system, poster_fetcher  # ✅ FIXED: All globals at top
     start_time = time.time()
     
     try:
@@ -2161,34 +2162,33 @@ async def init_system():
             logger.info("✅ Poster Fetcher initialized")
         
         # ✅ FIXED: Initialize Thumbnail Manager with correct parameters and error handling
-global thumbnail_manager
-try:
-    if THUMBNAIL_MANAGER_AVAILABLE:
-        from thumbnail_manager import ThumbnailManager
-        thumbnail_manager = ThumbnailManager(
-            download_path="downloads/thumbnails",
-            mongodb=db,  # Pass the database object
-            bot_client=bot_handler.bot if bot_handler and bot_handler.initialized else None,
-            user_client=User if user_session_ready else None,
-            file_channel_id=Config.FILE_CHANNEL_ID
-        )
-        await thumbnail_manager.initialize()
-        logger.info("✅ Thumbnail Manager initialized successfully")
-    else:
-        logger.warning("⚠️ Thumbnail Manager not available, using fallback")
-        from thumbnail_manager import FallbackThumbnailManager
-        thumbnail_manager = FallbackThumbnailManager(
-            download_path="downloads/thumbnails",
-            mongodb=db,
-            bot_client=bot_handler.bot if bot_handler and bot_handler.initialized else None,
-            user_client=User if user_session_ready else None,
-            file_channel_id=Config.FILE_CHANNEL_ID
-        )
-        await thumbnail_manager.initialize()
-except Exception as e:
-    logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
-    logger.warning("⚠️ Continuing without Thumbnail Manager")
-    thumbnail_manager = None
+        try:
+            if THUMBNAIL_MANAGER_AVAILABLE:
+                from thumbnail_manager import ThumbnailManager
+                thumbnail_manager = ThumbnailManager(
+                    download_path="downloads/thumbnails",
+                    mongodb=db,  # Pass the database object
+                    bot_client=bot_handler.bot if bot_handler and bot_handler.initialized else None,
+                    user_client=User if user_session_ready else None,
+                    file_channel_id=Config.FILE_CHANNEL_ID
+                )
+                await thumbnail_manager.initialize()
+                logger.info("✅ Thumbnail Manager initialized successfully")
+            else:
+                logger.warning("⚠️ Thumbnail Manager not available, using fallback")
+                from thumbnail_manager import FallbackThumbnailManager
+                thumbnail_manager = FallbackThumbnailManager(
+                    download_path="downloads/thumbnails",
+                    mongodb=db,
+                    bot_client=bot_handler.bot if bot_handler and bot_handler.initialized else None,
+                    user_client=User if user_session_ready else None,
+                    file_channel_id=Config.FILE_CHANNEL_ID
+                )
+                await thumbnail_manager.initialize()
+        except Exception as e:
+            logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
+            logger.warning("⚠️ Continuing without Thumbnail Manager")
+            thumbnail_manager = None
         
         # Initialize Telegram Sessions
         if PYROGRAM_AVAILABLE:
@@ -2226,7 +2226,7 @@ except Exception as e:
         import traceback
         traceback.print_exc()
         return False
-
+        
 # ============================================================================
 # ✅ API ROUTES
 # ============================================================================
