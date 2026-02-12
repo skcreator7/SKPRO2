@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w780"
-CUSTOM_POSTER_URL = "https://iili.io/fAeIwv9.th.png"
+CUSTOM_POSTER_URL = ""  # Empty = No fallback
 CACHE_TTL = 3600  # 1 hour
 
 
@@ -23,6 +23,7 @@ class PosterSource(Enum):
     JUSTWATCH = "justwatch"
     IMPAWARDS = "impawards"
     CUSTOM = "custom"
+    NONE = "none"
 
 
 class PosterFetcher:
@@ -30,8 +31,8 @@ class PosterFetcher:
         self.config = config
         self.redis = redis
 
-        self.tmdb_keys = getattr(config, "TMDB_KEYS", [])
-        self.omdb_keys = getattr(config, "OMDB_KEYS", [])
+        self.tmdb_keys = [getattr(config, "TMDB_API_KEY", "")]
+        self.omdb_keys = [getattr(config, "OMDB_API_KEY", "")]
 
         self.poster_cache: Dict[str, tuple] = {}
         self.http_session: Optional[aiohttp.ClientSession] = None
@@ -48,20 +49,16 @@ class PosterFetcher:
             "cache_hits": 0,
         }
 
-    # -------------------------------------------------
     async def get_http_session(self):
         async with self.lock:
             if not self.http_session or self.http_session.closed:
                 self.http_session = aiohttp.ClientSession(
                     timeout=aiohttp.ClientTimeout(total=10),
-                    headers={"User-Agent": "Mozilla/5.0"},
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
                 )
-                logger.info("âœ… HTTP session created")
+                logger.info("✅ HTTP session created")
             return self.http_session
 
-    # -------------------------------------------------
-    # REDIS CACHE
-    # -------------------------------------------------
     async def redis_get(self, key: str):
         if not self.redis:
             return None
@@ -82,24 +79,20 @@ class PosterFetcher:
         except Exception:
             pass
 
-    # -------------------------------------------------
-    # NORMALIZER (ðŸ”¥ IMPORTANT)
-    # -------------------------------------------------
     def normalize_poster(self, poster: Dict[str, Any], title: str) -> Dict[str, Any]:
         return {
-            "poster_url": poster.get("poster_url", CUSTOM_POSTER_URL),
-            "source": poster.get("source", PosterSource.CUSTOM.value),
+            "poster_url": poster.get("poster_url", ""),
+            "source": poster.get("source", PosterSource.NONE.value),
             "title": poster.get("title", title),
             "year": poster.get("year", ""),
             "rating": poster.get("rating", "0.0"),
         }
 
-    # -------------------------------------------------
-    # TMDB (TOP PRIORITY)
-    # -------------------------------------------------
     async def fetch_from_tmdb(self, title: str):
         session = await self.get_http_session()
         for key in self.tmdb_keys:
+            if not key:
+                continue
             try:
                 async with session.get(
                     "https://api.themoviedb.org/3/search/movie",
@@ -124,20 +117,25 @@ class PosterFetcher:
                         "title": m.get("title", title),
                     }
             except Exception as e:
-                logger.error(f"TMDB error: {e}")
+                logger.debug(f"TMDB error: {e}")
         return None
 
-    # -------------------------------------------------
     async def fetch_from_omdb(self, title: str):
         session = await self.get_http_session()
         for key in self.omdb_keys:
+            if not key:
+                continue
             try:
                 async with session.get(
                     f"https://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={key}"
                 ) as r:
+                    if r.status != 200:
+                        continue
                     data = await r.json()
+                    if data.get("Response") != "True":
+                        continue
                     poster = data.get("Poster")
-                    if poster and poster.startswith("http"):
+                    if poster and poster.startswith("http") and poster != "N/A":
                         self.stats["omdb"] += 1
                         return {
                             "poster_url": poster,
@@ -150,7 +148,6 @@ class PosterFetcher:
                 pass
         return None
 
-    # -------------------------------------------------
     async def fetch_from_imdb(self, title: str):
         session = await self.get_http_session()
         try:
@@ -159,19 +156,20 @@ class PosterFetcher:
                 return None
             url = f"https://v2.sg.media-imdb.com/suggestion/{clean[0].lower()}/{urllib.parse.quote(clean.replace(' ', '_'))}.json"
             async with session.get(url) as r:
+                if r.status != 200:
+                    return None
                 data = await r.json()
                 for item in data.get("d", []):
                     img = item.get("i")
-                    poster = (
-                        img.get("imageUrl")
-                        if isinstance(img, dict)
-                        else img[0]
-                        if isinstance(img, list)
-                        else img
-                        if isinstance(img, str)
-                        else ""
-                    )
-                    if poster.startswith("http"):
+                    poster = None
+                    if isinstance(img, dict):
+                        poster = img.get("imageUrl")
+                    elif isinstance(img, list) and img:
+                        poster = img[0]
+                    elif isinstance(img, str):
+                        poster = img
+                    
+                    if poster and poster.startswith("http"):
                         self.stats["imdb"] += 1
                         return {
                             "poster_url": poster,
@@ -184,12 +182,13 @@ class PosterFetcher:
             pass
         return None
 
-    # -------------------------------------------------
     async def fetch_from_letterboxd(self, title: str):
         session = await self.get_http_session()
         slug = re.sub(r"[^\w\s]", "", title).lower().replace(" ", "-")
         try:
             async with session.get(f"https://letterboxd.com/film/{slug}/") as r:
+                if r.status != 200:
+                    return None
                 html = await r.text()
                 m = re.search(r'property="og:image" content="([^"]+)"', html)
                 if m:
@@ -199,17 +198,19 @@ class PosterFetcher:
                         "source": PosterSource.LETTERBOXD.value,
                         "title": title,
                         "rating": "0.0",
+                        "year": ""
                     }
         except Exception:
             pass
         return None
 
-    # -------------------------------------------------
     async def fetch_from_justwatch(self, title: str):
         session = await self.get_http_session()
         slug = re.sub(r"[^\w\s]", "", title).lower().replace(" ", "-")
         try:
             async with session.get(f"https://www.justwatch.com/in/movie/{slug}") as r:
+                if r.status != 200:
+                    return None
                 html = await r.text()
                 m = re.search(r'property="og:image" content="([^"]+)"', html)
                 if m:
@@ -219,12 +220,12 @@ class PosterFetcher:
                         "source": PosterSource.JUSTWATCH.value,
                         "title": title,
                         "rating": "0.0",
+                        "year": ""
                     }
         except Exception:
             pass
         return None
 
-    # -------------------------------------------------
     async def fetch_from_impawards(self, title: str):
         session = await self.get_http_session()
         year = re.search(r"\b(19|20)\d{2}\b", title)
@@ -247,19 +248,8 @@ class PosterFetcher:
             pass
         return None
 
-    # -------------------------------------------------
-    async def create_custom_poster(self, title: str):
-        self.stats["custom"] += 1
-        return {
-            "poster_url": CUSTOM_POSTER_URL,
-            "source": PosterSource.CUSTOM.value,
-            "title": title,
-            "year": "",
-            "rating": "0.0",
-        }
-
-    # -------------------------------------------------
     async def fetch_poster(self, title: str) -> Dict[str, Any]:
+        """Get poster for movie - RETURNS POSTER ONLY, NO FALLBACK"""
         key = f"poster:{title.lower().strip()}"
 
         cached = await self.redis_get(key)
@@ -290,13 +280,28 @@ class PosterFetcher:
                 await self.redis_set(key, normalized)
                 return normalized
 
-        custom = await self.create_custom_poster(title)
-        normalized = self.normalize_poster(custom, title)
-        self.poster_cache[key] = (normalized, datetime.now())
-        await self.redis_set(key, normalized)
-        return normalized
+        # Return empty poster (NO FALLBACK)
+        empty_poster = {
+            "poster_url": "",
+            "source": PosterSource.NONE.value,
+            "title": title,
+            "year": "",
+            "rating": "0.0",
+        }
+        self.poster_cache[key] = (empty_poster, datetime.now())
+        await self.redis_set(key, empty_poster)
+        return empty_poster
 
-    # -------------------------------------------------
     async def fetch_batch_posters(self, titles: List[str]) -> Dict[str, Dict]:
         posters = await asyncio.gather(*(self.fetch_poster(t) for t in titles))
         return dict(zip(titles, posters))
+    
+    async def close(self):
+        """Close HTTP session"""
+        if self.http_session and not self.http_session.closed:
+            await self.http_session.close()
+            logger.info("✅ HTTP session closed")
+    
+    def get_stats(self):
+        """Get poster fetcher statistics"""
+        return self.stats
