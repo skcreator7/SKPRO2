@@ -32,28 +32,50 @@ class ThumbnailManager:
         self.download_path = Path(download_path)
         self.download_path.mkdir(parents=True, exist_ok=True)
         
-        # Handle both database and client objects
+        # ✅ FIXED: Handle database/client properly without truth value testing
+        self.db = None
         if mongodb is not None:
-            if hasattr(mongodb, 'sk4film'):  # It's a client
-                self.db = mongodb.sk4film
-            elif hasattr(mongodb, 'thumbnails'):  # It's already a database
-                self.db = mongodb
-            else:
-                try:
-                    self.db = mongodb.sk4film if hasattr(mongodb, 'sk4film') else mongodb
-                except:
-                    self.db = None
-                    logger.warning("⚠️ Could not determine database object")
+            try:
+                # Check if it's a client (has sk4film attribute)
+                if hasattr(mongodb, 'sk4film'):
+                    self.db = mongodb.sk4film
+                    logger.info("✅ Using MongoDB database from client")
+                # Check if it's already a database
+                elif hasattr(mongodb, 'list_collection_names'):
+                    self.db = mongodb
+                    logger.info("✅ Using MongoDB database directly")
+                else:
+                    # Try to get database
+                    try:
+                        self.db = mongodb.sk4film
+                        logger.info("✅ Using MongoDB database via attribute")
+                    except:
+                        self.db = None
+                        logger.warning("⚠️ Could not determine database object")
+            except Exception as e:
+                logger.error(f"❌ Error setting up database: {e}")
+                self.db = None
         else:
+            logger.warning("⚠️ No MongoDB connection provided")
             self.db = None
         
         self.bot = bot_client
         self.user = user_client
         self.file_channel = file_channel_id
         
-        # Set collections
-        self.thumb_collection = self.db.thumbnails if self.db else None
-        self.movie_collection = self.db.movies if self.db else None
+        # ✅ FIXED: Set collections with None check - NO TRUTH VALUE TESTING
+        self.thumb_collection = None
+        self.movie_collection = None
+        
+        if self.db is not None:
+            try:
+                self.thumb_collection = self.db.thumbnails
+                self.movie_collection = self.db.movies
+                logger.info("✅ Thumbnail collections initialized")
+            except Exception as e:
+                logger.error(f"❌ Error setting up collections: {e}")
+                self.thumb_collection = None
+                self.movie_collection = None
         
         # Statistics tracking
         self.stats = {
@@ -64,7 +86,7 @@ class ThumbnailManager:
             "files_with_thumbnails": 0
         }
         
-        # Create indexes
+        # Create indexes asynchronously
         if self.thumb_collection is not None:
             asyncio.create_task(self._create_indexes())
             
@@ -86,19 +108,28 @@ class ThumbnailManager:
     
     async def _create_indexes(self):
         """Create optimized indexes for fast lookups"""
+        # ✅ FIXED: Check collection with is None, not truth value
+        if self.thumb_collection is None:
+            logger.warning("⚠️ Thumbnail collection not available, skipping indexes")
+            return
+        
         try:
-            if self.thumb_collection:
-                await self.thumb_collection.create_index("movie_id", unique=True)
-                await self.thumb_collection.create_index("movie_name_normalized")
-                await self.thumb_collection.create_index("thumbnail_path")
-            
-            if self.movie_collection:
-                await self.movie_collection.create_index("movie_id", unique=True)
-                await self.movie_collection.create_index("movie_name_normalized")
-                
+            # Check if collection exists and create indexes
+            await self.thumb_collection.create_index("movie_id", unique=True, background=True)
+            await self.thumb_collection.create_index("movie_name_normalized", background=True)
+            await self.thumb_collection.create_index("thumbnail_path", background=True)
             logger.info("✅ Thumbnail indexes created successfully")
         except Exception as e:
-            logger.error(f"Error creating indexes: {e}")
+            logger.error(f"❌ Error creating indexes: {e}")
+        
+        # Movie collection indexes
+        if self.movie_collection is not None:
+            try:
+                await self.movie_collection.create_index("movie_id", unique=True, background=True)
+                await self.movie_collection.create_index("movie_name_normalized", background=True)
+                logger.info("✅ Movie indexes created successfully")
+            except Exception as e:
+                logger.error(f"❌ Error creating movie indexes: {e}")
     
     def _extract_movie_id(self, file_name: str) -> str:
         """Extract UNIQUE MOVIE ID from filename"""
@@ -142,26 +173,29 @@ class ThumbnailManager:
         """Get thumbnail for ANY quality of a movie"""
         file_name = file_data.get('file_name', '')
         message_id = file_data.get('message_id')
-        file_unique_id = file_data.get('file_unique_id')
         
         movie_id = self._extract_movie_id(file_name)
         movie_name_clean = self._get_movie_name_clean(file_name)
         
+        # ✅ FIXED: Check with is None
         if not force_extract and self.thumb_collection is not None:
-            movie_thumb = await self.thumb_collection.find_one({"movie_id": movie_id})
-            
-            if movie_thumb and movie_thumb.get('thumbnail_path'):
-                thumb_path = movie_thumb['thumbnail_path']
+            try:
+                movie_thumb = await self.thumb_collection.find_one({"movie_id": movie_id})
                 
-                if os.path.exists(thumb_path):
-                    logger.info(f"✅ SHARED THUMBNAIL: '{movie_name_clean[:30]}'")
-                    return thumb_path
-                elif movie_thumb.get('thumbnail_bytes'):
-                    os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
-                    with open(thumb_path, 'wb') as f:
-                        f.write(movie_thumb['thumbnail_bytes'])
-                    logger.info(f"✅ RESTORED THUMBNAIL: '{movie_name_clean[:30]}'")
-                    return thumb_path
+                if movie_thumb and movie_thumb.get('thumbnail_path'):
+                    thumb_path = movie_thumb['thumbnail_path']
+                    
+                    if os.path.exists(thumb_path):
+                        logger.info(f"✅ SHARED THUMBNAIL: '{movie_name_clean[:30]}'")
+                        return thumb_path
+                    elif movie_thumb.get('thumbnail_bytes'):
+                        os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
+                        with open(thumb_path, 'wb') as f:
+                            f.write(movie_thumb['thumbnail_bytes'])
+                        logger.info(f"✅ RESTORED THUMBNAIL: '{movie_name_clean[:30]}'")
+                        return thumb_path
+            except Exception as e:
+                logger.error(f"❌ Error finding thumbnail: {e}")
         
         if message or (self.user and self.file_channel and message_id):
             logger.info(f"🎬 EXTRACTING: First time thumbnail for '{movie_name_clean[:30]}'")
@@ -171,7 +205,7 @@ class ThumbnailManager:
                 try:
                     msg = await self.user.get_messages(self.file_channel, message_id)
                 except Exception as e:
-                    logger.error(f"Error getting message: {e}")
+                    logger.error(f"❌ Error getting message: {e}")
             
             if msg:
                 thumb_path = await self._extract_from_message(msg, movie_id, movie_name_clean)
@@ -196,35 +230,29 @@ class ThumbnailManager:
             if message.media:
                 if message.video and message.video.thumbs:
                     if self.bot:
-                        await self.bot.download_media(
-                            message.video.thumbs[0].file_id,
-                            file_name=str(thumb_path)
-                        )
+                        file_id = message.video.thumbs[0].file_id
+                        await self.bot.download_media(file_id, file_name=str(thumb_path))
                         if thumb_path.exists():
                             return str(thumb_path)
                 
                 elif message.document and message.document.thumbs:
                     if self.bot:
-                        await self.bot.download_media(
-                            message.document.thumbs[0].file_id,
-                            file_name=str(thumb_path)
-                        )
+                        file_id = message.document.thumbs[0].file_id
+                        await self.bot.download_media(file_id, file_name=str(thumb_path))
                         if thumb_path.exists():
                             return str(thumb_path)
                 
                 elif message.photo:
                     if self.bot:
-                        await self.bot.download_media(
-                            message.photo.file_id,
-                            file_name=str(thumb_path)
-                        )
+                        file_id = message.photo.file_id
+                        await self.bot.download_media(file_id, file_name=str(thumb_path))
                         if thumb_path.exists():
                             return str(thumb_path)
             
             return None
             
         except Exception as e:
-            logger.error(f"Error extracting thumbnail: {e}")
+            logger.error(f"❌ Error extracting thumbnail: {e}")
             return None
     
     async def _cache_movie_thumbnail(self, 
@@ -233,7 +261,9 @@ class ThumbnailManager:
                                     thumb_path: str, 
                                     source_file: Dict):
         """Cache thumbnail by MOVIE ID"""
-        if not self.thumb_collection:
+        # ✅ FIXED: Check with is None
+        if self.thumb_collection is None:
+            logger.warning("⚠️ Thumbnail collection not available, skipping cache")
             return
             
         try:
@@ -244,7 +274,7 @@ class ThumbnailManager:
                 "movie_id": movie_id,
                 "movie_name": movie_name,
                 "movie_name_normalized": movie_name.lower(),
-                "thumbnail_path": thumb_path,
+                "thumbnail_path": str(thumb_path),
                 "thumbnail_bytes": thumb_bytes,
                 "extracted_from": {
                     "message_id": source_file.get('message_id'),
@@ -268,18 +298,22 @@ class ThumbnailManager:
                 logger.info(f"💾 UPDATED: Thumbnail for '{movie_name[:30]}'")
             
         except Exception as e:
-            logger.error(f"Error caching thumbnail: {e}")
+            logger.error(f"❌ Error caching thumbnail: {e}")
     
     async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
         """Get thumbnail for a movie - RETURNS EXTRACTED THUMBNAIL ONLY"""
         movie_id = self._extract_movie_id(title)
         
         thumb_path = None
-        if self.thumb_collection:
-            movie_thumb = await self.thumb_collection.find_one({"movie_id": movie_id})
-            if movie_thumb and movie_thumb.get('thumbnail_path'):
-                if os.path.exists(movie_thumb['thumbnail_path']):
-                    thumb_path = movie_thumb['thumbnail_path']
+        # ✅ FIXED: Check with is None
+        if self.thumb_collection is not None:
+            try:
+                movie_thumb = await self.thumb_collection.find_one({"movie_id": movie_id})
+                if movie_thumb and movie_thumb.get('thumbnail_path'):
+                    if os.path.exists(movie_thumb['thumbnail_path']):
+                        thumb_path = movie_thumb['thumbnail_path']
+            except Exception as e:
+                logger.error(f"❌ Error finding thumbnail: {e}")
         
         if thumb_path:
             try:
@@ -297,7 +331,7 @@ class ThumbnailManager:
                         'is_extracted': True
                     }
             except Exception as e:
-                logger.error(f"Error reading thumbnail: {e}")
+                logger.error(f"❌ Error reading thumbnail: {e}")
         
         return {
             'thumbnail_url': '',
@@ -321,8 +355,12 @@ class ThumbnailManager:
     async def get_stats(self) -> Dict[str, Any]:
         """Get thumbnail manager statistics"""
         total_thumbnails = 0
-        if self.thumb_collection:
-            total_thumbnails = await self.thumb_collection.count_documents({})
+        # ✅ FIXED: Check with is None
+        if self.thumb_collection is not None:
+            try:
+                total_thumbnails = await self.thumb_collection.count_documents({})
+            except Exception as e:
+                logger.error(f"❌ Error counting thumbnails: {e}")
         
         return {
             'total_thumbnails': total_thumbnails,
@@ -333,7 +371,9 @@ class ThumbnailManager:
             'success_rate': '95%',
             'target': '99% success rate',
             'one_movie_one_thumbnail': True,
-            'priority': 'Extracted First for SEARCH, Poster First for HOME'
+            'priority': 'Extracted First for SEARCH, Poster First for HOME',
+            'database_connected': self.db is not None,
+            'collection_ready': self.thumb_collection is not None
         }
     
     async def shutdown(self):
@@ -344,10 +384,15 @@ class ThumbnailManager:
 class FallbackThumbnailManager:
     """Fallback when real ThumbnailManager fails"""
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, download_path="downloads/thumbnails", mongodb=None, bot_client=None, user_client=None, file_channel_id=None):
         logger.warning("⚠️ Using FALLBACK Thumbnail Manager")
-        self.thumb_collection = None
+        self.download_path = download_path
         self.db = None
+        self.thumb_collection = None
+        self.movie_collection = None
+        self.bot = bot_client
+        self.user = user_client
+        self.file_channel = file_channel_id
     
     async def initialize(self):
         logger.info("✅ Fallback ThumbnailManager initialized")
@@ -381,8 +426,10 @@ class FallbackThumbnailManager:
             'performance_stats': {},
             'success_rate': '0%',
             'target': '99% success rate (fallback)',
-            'one_movie_one_thumbnail': False
+            'one_movie_one_thumbnail': False,
+            'database_connected': False,
+            'collection_ready': False
         }
     
     async def shutdown(self):
-        pass
+        logger.info("👋 Fallback ThumbnailManager closed")
