@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.0 - COMPLETE THUMBNAIL SYSTEM - ONE MOVIE, ONE THUMBNAIL
+# 🚀 SK4FiLM v9.0 - COMPLETE THUMBNAIL SYSTEM - FIXED INDEXING
 # ============================================================================
 
 import asyncio
@@ -131,7 +131,7 @@ try:
     logger.debug("✅ Utils module imported")
 except ImportError as e:
     logger.error(f"❌ Utils module import error: {e}")
-    # Define fallback functions
+    # Define fallback functions (keep existing fallbacks)
     def normalize_title(title): 
         if not title:
             return ""
@@ -220,109 +220,6 @@ except ImportError as e:
 # ✅ FALLBACK THUMBNAIL URL
 # ============================================================================
 FALLBACK_THUMBNAIL_URL = "https://iili.io/fAeIwv9.th.png"
-
-# ============================================================================
-# ✅ THUMBNAIL/POSTER PRIORITY LOGIC - COMPLETE FIX
-# ============================================================================
-# SCENARIO                    | PRIORITY 1              | PRIORITY 2        | PRIORITY 3
-# -----------------------------------------------------------------------------------
-# HOME Movies                | 🟡 Poster (TMDB/OMDB)   | 🟢 Extracted      | 🔴 Fallback
-# SEARCH Results             | 🟢 Extracted Thumbnail  | 🟡 Poster         | 🔴 Fallback  
-# FILE Results               | 🟢 Extracted Thumbnail  | 🟡 Poster         | 🔴 Fallback
-# POST Results               | 🟢 Extracted Thumbnail  | 🟡 Poster         | 🔴 Fallback
-# ============================================================================
-
-def get_display_thumbnail(result: Dict[str, Any], scenario: str = "search") -> Dict[str, Any]:
-    """
-    Get thumbnail/poster based on scenario priority
-    
-    Args:
-        result: Movie/File/Post result dictionary
-        scenario: 'home', 'search', 'file', 'post'
-    
-    Returns:
-        Dictionary with thumbnail_url, source, has_thumbnail
-    """
-    thumbnail_data = {
-        'thumbnail_url': '',
-        'source': 'none',
-        'has_thumbnail': False,
-        'priority_used': None
-    }
-    
-    # Extract available sources
-    extracted_thumbnail = result.get('thumbnail_url') or result.get('extracted_thumbnail')
-    poster_url = result.get('poster_url')
-    
-    # 🟢 EXTRACTED THUMBNAIL (Telegram se)
-    has_extracted = bool(extracted_thumbnail and 
-                        isinstance(extracted_thumbnail, str) and
-                        (extracted_thumbnail.startswith(('http', 'data:image'))))
-    
-    # 🟡 POSTER (TMDB/OMDB se)
-    has_poster = bool(poster_url and 
-                     isinstance(poster_url, str) and
-                     poster_url.startswith('http'))
-    
-    # ============================================================================
-    # SCENARIO 1: HOME MOVIES - Poster FIRST, then Extracted, then Fallback
-    # ============================================================================
-    if scenario == 'home':
-        if has_poster:
-            thumbnail_data.update({
-                'thumbnail_url': poster_url,
-                'source': result.get('poster_source', 'poster'),
-                'has_thumbnail': True,
-                'priority_used': 'priority_1_poster'
-            })
-            logger.debug(f"🏠 HOME: Using POSTER (Priority 1) - {result.get('title', '')[:30]}")
-        elif has_extracted:
-            thumbnail_data.update({
-                'thumbnail_url': extracted_thumbnail,
-                'source': 'extracted',
-                'has_thumbnail': True,
-                'priority_used': 'priority_2_extracted'
-            })
-            logger.debug(f"🏠 HOME: Using EXTRACTED (Priority 2) - {result.get('title', '')[:30]}")
-        else:
-            thumbnail_data.update({
-                'thumbnail_url': FALLBACK_THUMBNAIL_URL,
-                'source': 'fallback',
-                'has_thumbnail': True,
-                'priority_used': 'priority_3_fallback'
-            })
-            logger.debug(f"🏠 HOME: Using FALLBACK (Priority 3) - {result.get('title', '')[:30]}")
-    
-    # ============================================================================
-    # SCENARIO 2,3,4: SEARCH, FILE, POST - Extracted FIRST, then Poster, then Fallback
-    # ============================================================================
-    else:  # search, file, post
-        if has_extracted:
-            thumbnail_data.update({
-                'thumbnail_url': extracted_thumbnail,
-                'source': 'extracted',
-                'has_thumbnail': True,
-                'priority_used': 'priority_1_extracted'
-            })
-            logger.debug(f"🔍 SEARCH: Using EXTRACTED (Priority 1) - {result.get('title', '')[:30]}")
-        elif has_poster:
-            thumbnail_data.update({
-                'thumbnail_url': poster_url,
-                'source': result.get('poster_source', 'poster'),
-                'has_thumbnail': True,
-                'priority_used': 'priority_2_poster'
-            })
-            logger.debug(f"🔍 SEARCH: Using POSTER (Priority 2) - {result.get('title', '')[:30]}")
-        else:
-            thumbnail_data.update({
-                'thumbnail_url': FALLBACK_THUMBNAIL_URL,
-                'source': 'fallback',
-                'has_thumbnail': True,
-                'priority_used': 'priority_3_fallback'
-            })
-            logger.debug(f"🔍 SEARCH: Using FALLBACK (Priority 3) - {result.get('title', '')[:30]}")
-    
-    return thumbnail_data
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -416,7 +313,7 @@ class Config:
     UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
     
     # Verification
-    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "true").lower() == "False"
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "False").lower() == "False"
     VERIFICATION_DURATION = 6 * 60 * 60
     
     # Application
@@ -935,6 +832,84 @@ def channel_name_cached(cid):
     return f"Channel {cid}"
 
 # ============================================================================
+# ✅ THUMBNAIL/POSTER PRIORITY LOGIC - COMPLETE FIX
+# ============================================================================
+
+def get_display_thumbnail(result: Dict[str, Any], scenario: str = "search") -> Dict[str, Any]:
+    """Get thumbnail/poster based on scenario priority"""
+    thumbnail_data = {
+        'thumbnail_url': '',
+        'source': 'none',
+        'has_thumbnail': False,
+        'priority_used': None
+    }
+    
+    extracted_thumbnail = result.get('thumbnail_url') or result.get('extracted_thumbnail')
+    poster_url = result.get('poster_url')
+    
+    has_extracted = bool(extracted_thumbnail and 
+                        isinstance(extracted_thumbnail, str) and
+                        (extracted_thumbnail.startswith(('http', 'data:image'))))
+    
+    has_poster = bool(poster_url and 
+                     isinstance(poster_url, str) and
+                     poster_url.startswith('http'))
+    
+    if scenario == 'home':
+        if has_poster:
+            thumbnail_data.update({
+                'thumbnail_url': poster_url,
+                'source': result.get('poster_source', 'poster'),
+                'has_thumbnail': True,
+                'priority_used': 'priority_1_poster'
+            })
+            logger.debug(f"🏠 HOME: Using POSTER (Priority 1) - {result.get('title', '')[:30]}")
+        elif has_extracted:
+            thumbnail_data.update({
+                'thumbnail_url': extracted_thumbnail,
+                'source': 'extracted',
+                'has_thumbnail': True,
+                'priority_used': 'priority_2_extracted'
+            })
+            logger.debug(f"🏠 HOME: Using EXTRACTED (Priority 2) - {result.get('title', '')[:30]}")
+        else:
+            thumbnail_data.update({
+                'thumbnail_url': FALLBACK_THUMBNAIL_URL,
+                'source': 'fallback',
+                'has_thumbnail': True,
+                'priority_used': 'priority_3_fallback'
+            })
+            logger.debug(f"🏠 HOME: Using FALLBACK (Priority 3) - {result.get('title', '')[:30]}")
+    
+    else:  # search, file, post
+        if has_extracted:
+            thumbnail_data.update({
+                'thumbnail_url': extracted_thumbnail,
+                'source': 'extracted',
+                'has_thumbnail': True,
+                'priority_used': 'priority_1_extracted'
+            })
+            logger.debug(f"🔍 SEARCH: Using EXTRACTED (Priority 1) - {result.get('title', '')[:30]}")
+        elif has_poster:
+            thumbnail_data.update({
+                'thumbnail_url': poster_url,
+                'source': result.get('poster_source', 'poster'),
+                'has_thumbnail': True,
+                'priority_used': 'priority_2_poster'
+            })
+            logger.debug(f"🔍 SEARCH: Using POSTER (Priority 2) - {result.get('title', '')[:30]}")
+        else:
+            thumbnail_data.update({
+                'thumbnail_url': FALLBACK_THUMBNAIL_URL,
+                'source': 'fallback',
+                'has_thumbnail': True,
+                'priority_used': 'priority_3_fallback'
+            })
+            logger.debug(f"🔍 SEARCH: Using FALLBACK (Priority 3) - {result.get('title', '')[:30]}")
+    
+    return thumbnail_data
+
+# ============================================================================
 # ✅ HOME MOVIES - WITH PROPER PRIORITY (POSTER FIRST)
 # ============================================================================
 
@@ -968,7 +943,7 @@ async def get_home_movies(limit=25):
                     formatted_content = format_post(msg.text, max_length=500)
                     norm_title = normalize_title(clean_title)
                     
-                    # ============ STEP 1: Get POSTER first (Priority 1 for HOME) ============
+                    # Get POSTER first (Priority 1 for HOME)
                     poster_data = None
                     if poster_fetcher:
                         try:
@@ -977,7 +952,7 @@ async def get_home_movies(limit=25):
                         except Exception as e:
                             logger.error(f"❌ Poster fetch error: {e}")
                     
-                    # ============ STEP 2: Get EXTRACTED thumbnail (Priority 2 for HOME) ============
+                    # Get EXTRACTED thumbnail (Priority 2 for HOME)
                     extracted_thumb = None
                     if thumbnail_manager:
                         try:
@@ -988,7 +963,7 @@ async def get_home_movies(limit=25):
                         except Exception as e:
                             logger.error(f"❌ Thumbnail fetch error: {e}")
                     
-                    # ============ STEP 3: Apply PRIORITY logic for HOME ============
+                    # Apply PRIORITY logic for HOME
                     display_thumb = get_display_thumbnail({
                         'title': clean_title,
                         'poster_url': poster_data.get('poster_url') if poster_data else None,
@@ -1015,12 +990,10 @@ async def get_home_movies(limit=25):
                         'is_video_file': False,
                         'result_type': 'post_only',
                         'search_score': 1,
-                        # ✅ Thumbnail data with proper priority
                         'thumbnail_url': display_thumb['thumbnail_url'],
                         'thumbnail_source': display_thumb['source'],
                         'has_thumbnail': display_thumb['has_thumbnail'],
                         'thumbnail_priority': display_thumb['priority_used'],
-                        # ✅ Store both sources for reference
                         'poster_url': poster_data.get('poster_url') if poster_data else None,
                         'poster_source': poster_data.get('source') if poster_data else None,
                         'has_poster': bool(poster_data and poster_data.get('poster_url')),
@@ -1047,346 +1020,6 @@ async def get_home_movies(limit=25):
     except Exception as e:
         logger.error(f"❌ Home movies error: {e}")
         return []
-
-# ============================================================================
-# ✅ ENHANCED SEARCH - WITH PROPER PRIORITY (EXTRACTED FIRST)
-# ============================================================================
-
-@performance_monitor.measure("enhanced_search_fixed")
-@async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
-async def search_movies_enhanced_fixed(query, limit=15, page=1):
-    """SEARCH results - EXTRACTED FIRST, then POSTER, then FALLBACK"""
-    offset = (page - 1) * limit
-    
-    cache_key = f"search_fixed:{query}:{page}:{limit}"
-    if cache_manager is not None and cache_manager.redis_enabled:
-        cached_data = await cache_manager.get(cache_key)
-        if cached_data:
-            logger.info(f"✅ Cache HIT for: {query}")
-            return cached_data
-    
-    logger.info(f"🔍 ENHANCED SEARCH for: {query}")
-    
-    query_lower = query.lower()
-    merged_results = {}
-    
-    # ============ SEARCH TEXT CHANNELS FOR POSTS ============
-    if user_session_ready and User is not None:
-        logger.info(f"📝 Searching TEXT CHANNELS for posts...")
-        
-        async def search_text_channel_posts(channel_id):
-            try:
-                cname = channel_name_cached(channel_id)
-                async for msg in User.search_messages(channel_id, query=query, limit=10):
-                    if msg is not None and msg.text and len(msg.text) > 15:
-                        title = extract_title_smart(msg.text)
-                        if title and (query_lower in title.lower() or query_lower in msg.text.lower()):
-                            norm_title = normalize_title(title)
-                            
-                            year_match = re.search(r'\b(19|20)\d{2}\b', title)
-                            year = year_match.group() if year_match else ""
-                            
-                            clean_title = re.sub(r'\s+\(\d{4}\)$', '', title)
-                            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
-                            
-                            post_data = {
-                                'title': clean_title,
-                                'original_title': title,
-                                'normalized_title': norm_title,
-                                'content': format_post(msg.text, max_length=500),
-                                'post_content': msg.text,
-                                'channel': cname,
-                                'channel_id': channel_id,
-                                'message_id': msg.id,
-                                'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
-                                'is_new': is_new(msg.date) if msg.date else False,
-                                'has_file': False,
-                                'has_post': True,
-                                'quality_options': {},
-                                'is_video_file': False,
-                                'year': year,
-                                'search_score': 3,
-                                'result_type': 'post_only',
-                                'thumbnail_url': None,
-                                'has_thumbnail': False,
-                                'poster_url': None,
-                                'poster_source': None,
-                                'combined': False
-                            }
-                            
-                            merged_results[norm_title] = post_data
-                            
-            except Exception as e:
-                logger.error(f"Text search error in {channel_id}: {e}")
-            return True
-        
-        tasks = [search_text_channel_posts(channel_id) for channel_id in Config.TEXT_CHANNEL_IDS]
-        await asyncio.gather(*tasks, return_exceptions=True)
-        logger.info(f"📝 Found {len(merged_results)} POST results")
-    
-    # ============ SEARCH FILE CHANNEL DATABASE ============
-    file_results_added = 0
-    file_results_merged = 0
-    
-    if files_col is not None:
-        try:
-            logger.info(f"📁 Searching FILE CHANNEL database...")
-            
-            search_query = {
-                "$or": [
-                    {"title": {"$regex": query, "$options": "i"}},
-                    {"normalized_title": {"$regex": query, "$options": "i"}},
-                    {"file_name": {"$regex": query, "$options": "i"}},
-                    {"caption": {"$regex": query, "$options": "i"}}
-                ],
-                "status": "active"
-            }
-            
-            cursor = files_col.find(
-                search_query,
-                {
-                    'title': 1,
-                    'normalized_title': 1,
-                    'quality': 1,
-                    'file_size': 1,
-                    'file_name': 1,
-                    'is_video_file': 1,
-                    'channel_id': 1,
-                    'message_id': 1,
-                    'real_message_id': 1,
-                    'date': 1,
-                    'caption': 1,
-                    'file_id': 1,
-                    'telegram_file_id': 1,
-                    'year': 1,
-                    '_id': 0
-                }
-            ).limit(100)
-            
-            async for doc in cursor:
-                try:
-                    title = doc.get('title', 'Unknown')
-                    norm_title = normalize_title(title)
-                    
-                    quality_info = extract_quality_info(doc.get('file_name', ''))
-                    quality = quality_info['full']
-                    
-                    real_msg_id = doc.get('real_message_id') or doc.get('message_id')
-                    year = doc.get('year', '')
-                    
-                    if norm_title in merged_results:
-                        existing_result = merged_results[norm_title]
-                        
-                        existing_result.update({
-                            'has_file': True,
-                            'is_video_file': doc.get('is_video_file', False),
-                            'file_caption': doc.get('caption', ''),
-                            'real_message_id': real_msg_id,
-                            'channel_id': doc.get('channel_id'),
-                            'channel_name': channel_name_cached(doc.get('channel_id')),
-                            'result_type': 'post_and_file',
-                            'combined': True,
-                            'search_score': 5
-                        })
-                        
-                        existing_result['quality_options'][quality] = {
-                            'quality': quality,
-                            'file_size': doc.get('file_size', 0),
-                            'message_id': real_msg_id,
-                            'file_id': doc.get('file_id'),
-                            'telegram_file_id': doc.get('telegram_file_id'),
-                            'file_name': doc.get('file_name', '')
-                        }
-                        
-                        file_results_merged += 1
-                        logger.debug(f"✅ Merged file with post: {title[:30]}")
-                        
-                    else:
-                        file_result = {
-                            'title': title,
-                            'original_title': title,
-                            'normalized_title': norm_title,
-                            'content': format_post(doc.get('caption', ''), max_length=300),
-                            'post_content': doc.get('caption', ''),
-                            'quality_options': {quality: {
-                                'quality': quality,
-                                'file_size': doc.get('file_size', 0),
-                                'message_id': real_msg_id,
-                                'file_id': doc.get('file_id'),
-                                'telegram_file_id': doc.get('telegram_file_id'),
-                                'file_name': doc.get('file_name', '')
-                            }},
-                            'all_qualities': [quality],
-                            'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
-                            'is_new': is_new(doc['date']) if doc.get('date') else False,
-                            'is_video_file': doc.get('is_video_file', False),
-                            'channel_id': doc.get('channel_id'),
-                            'channel_name': channel_name_cached(doc.get('channel_id')),
-                            'has_file': True,
-                            'has_post': bool(doc.get('caption')),
-                            'file_caption': doc.get('caption', ''),
-                            'year': year,
-                            'quality': quality,
-                            'real_message_id': real_msg_id,
-                            'search_score': 2,
-                            'result_type': 'file_only',
-                            'quality_count': 1,
-                            'poster_url': None,
-                            'poster_source': None,
-                            'combined': False
-                        }
-                        
-                        merged_results[norm_title] = file_result
-                        file_results_added += 1
-                        
-                except Exception as e:
-                    logger.error(f"File processing error: {e}")
-                    continue
-            
-            logger.info(f"📁 Found {file_results_added} FILE-ONLY results, merged {file_results_merged} with existing posts")
-            
-        except Exception as e:
-            logger.error(f"❌ File search error: {e}")
-    
-    # ============ GET EXTRACTED THUMBNAILS (PRIORITY 1 FOR SEARCH) ============
-    if thumbnail_manager:
-        logger.info(f"🖼️ Getting EXTRACTED thumbnails for {len(merged_results)} results...")
-        
-        movies_for_thumbnails = []
-        for norm_title, result in merged_results.items():
-            movie_data = {
-                'title': result.get('title', ''),
-                'channel_id': result.get('channel_id'),
-                'message_id': result.get('real_message_id') or result.get('message_id'),
-                'result_type': result.get('result_type', 'unknown')
-            }
-            movies_for_thumbnails.append(movie_data)
-        
-        if movies_for_thumbnails:
-            movies_with_thumbnails = await thumbnail_manager.get_thumbnails_batch(movies_for_thumbnails)
-            
-            for i, (norm_title, result) in enumerate(merged_results.items()):
-                if i < len(movies_with_thumbnails):
-                    thumbnail_data = movies_with_thumbnails[i]
-                    if thumbnail_data.get('thumbnail_url'):
-                        result['extracted_thumbnail'] = thumbnail_data['thumbnail_url']
-                        result['has_extracted'] = True
-                        result['thumbnail_url'] = thumbnail_data['thumbnail_url']  # Store for priority
-                        logger.debug(f"✅ Got extracted thumbnail for {result.get('title', '')[:30]}")
-    
-    # ============ FETCH POSTERS (PRIORITY 2 FOR SEARCH) ============
-    logger.info(f"🎬 Fetching posters for results without extracted thumbnails...")
-    
-    for result in merged_results.values():
-        if not result.get('has_extracted'):
-            try:
-                if poster_fetcher:
-                    poster_data = await get_poster_for_movie(
-                        result.get('title', ''),
-                        result.get('year', '')
-                    )
-                    if poster_data and poster_data.get('poster_url'):
-                        result['poster_url'] = poster_data['poster_url']
-                        result['poster_source'] = poster_data.get('source')
-                        result['has_poster'] = True
-                        logger.debug(f"✅ Got poster for {result.get('title', '')[:30]}")
-            except Exception as e:
-                logger.error(f"❌ Poster fetch error: {e}")
-    
-    # ============ APPLY PRIORITY LOGIC FOR SEARCH ============
-    all_results = list(merged_results.values())
-    
-    for result in all_results:
-        display_thumb = get_display_thumbnail(result, scenario='search')
-        result.update({
-            'thumbnail_url': display_thumb['thumbnail_url'],
-            'thumbnail_source': display_thumb['source'],
-            'has_thumbnail': display_thumb['has_thumbnail'],
-            'thumbnail_priority': display_thumb['priority_used']
-        })
-    
-    # ============ SORT RESULTS ============
-    all_results.sort(key=lambda x: (
-        x.get('result_type') == 'post_and_file',
-        x.get('result_type') == 'post_only',
-        x.get('search_score', 0),
-        x.get('is_new', False),
-        x.get('date', '') if isinstance(x.get('date'), str) else ''
-    ), reverse=True)
-    
-    # ============ PAGINATION ============
-    total = len(all_results)
-    start_idx = offset
-    end_idx = offset + limit
-    paginated = all_results[start_idx:end_idx]
-    
-    post_count = sum(1 for r in all_results if r.get('result_type') == 'post_only')
-    file_count = sum(1 for r in all_results if r.get('result_type') == 'file_only')
-    combined_count = sum(1 for r in all_results if r.get('result_type') == 'post_and_file')
-    
-    stats = {
-        'total': total,
-        'post_only': post_count,
-        'file_only': file_count,
-        'post_and_file': combined_count,
-        'file_results_added': file_results_added,
-        'file_results_merged': file_results_merged
-    }
-    
-    # Log priority stats
-    extracted_count = sum(1 for r in all_results if r.get('thumbnail_source') == 'extracted')
-    poster_count = sum(1 for r in all_results if r.get('thumbnail_source') in ['tmdb', 'omdb', 'poster'])
-    fallback_count = sum(1 for r in all_results if r.get('thumbnail_source') == 'fallback')
-    
-    logger.info(f"📊 FINAL RESULTS:")
-    logger.info(f"   • Total results: {total}")
-    logger.info(f"   • Extracted Thumbnails: {extracted_count}")
-    logger.info(f"   • Posters: {poster_count}")
-    logger.info(f"   • Fallback: {fallback_count}")
-    
-    thumbnail_stats = {}
-    if thumbnail_manager:
-        thumbnail_stats = await thumbnail_manager.get_stats()
-    
-    result_data = {
-        'results': paginated,
-        'pagination': {
-            'current_page': page,
-            'total_pages': math.ceil(total / limit) if total > 0 else 1,
-            'total_results': total,
-            'per_page': limit,
-            'has_next': page < math.ceil(total / limit) if total > 0 else False,
-            'has_previous': page > 1
-        },
-        'search_metadata': {
-            'query': query,
-            'stats': stats,
-            'thumbnail_stats': thumbnail_stats,
-            'thumbnail_sources': {
-                'extracted': extracted_count,
-                'poster': poster_count,
-                'fallback': fallback_count
-            },
-            'post_file_merged': True,
-            'thumbnails_enabled': True,
-            'thumbnail_manager': thumbnail_manager is not None,
-            'poster_fetcher': poster_fetcher is not None,
-            'real_message_ids': True,
-            'search_logic': 'enhanced_fixed_with_priority'
-        },
-        'bot_username': Config.BOT_USERNAME
-    }
-    
-    if cache_manager is not None:
-        await cache_manager.set(cache_key, result_data, expire_seconds=Config.SEARCH_CACHE_TTL)
-    
-    logger.info(f"✅ Enhanced search complete: {len(paginated)} results (page {page})")
-    
-    return result_data
-
-@async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
-async def search_movies_multi_channel_merged(query, limit=15, page=1):
-    return await search_movies_enhanced_fixed(query, limit, page)
 
 # ============================================================================
 # ✅ POSTER FETCHING FUNCTIONS
@@ -1597,32 +1230,54 @@ async def index_single_file_fast(message):
         return False, None
 
 async def setup_database_indexes():
+    """Create all necessary database indexes"""
     if files_col is None:
+        logger.warning("⚠️ Files collection not available")
         return
     
     try:
+        # Unique index for channel_id + message_id
         await files_col.create_index(
             [("channel_id", 1), ("message_id", 1)],
             unique=True,
             name="channel_message_unique",
             background=True
         )
+        
+        # Text search indexes
         await files_col.create_index(
-            [("normalized_title", "text")],
-            name="title_text_search",
+            [("title", "text"), ("original_title", "text"), ("file_name", "text")],
+            name="full_text_search",
             background=True
         )
+        
+        # Individual indexes for fast queries
+        await files_col.create_index("normalized_title", background=True)
+        await files_col.create_index("quality", background=True)
+        await files_col.create_index("year", background=True)
+        await files_col.create_index("date", background=True)
+        await files_col.create_index("status", background=True)
+        
+        # Compound indexes for common queries
         await files_col.create_index(
-            [("normalized_title", 1)],
-            name="normalized_title_index",
+            [("channel_id", 1), ("status", 1), ("date", -1)],
+            name="channel_status_date",
             background=True
         )
-        logger.info("✅ Created files collection indexes")
+        
+        await files_col.create_index(
+            [("normalized_title", 1), ("quality", 1)],
+            name="title_quality",
+            background=True
+        )
+        
+        logger.info("✅ All database indexes created successfully")
+        
     except Exception as e:
-        logger.warning(f"⚠️ Files index creation error: {e}")
+        logger.warning(f"⚠️ Index creation error (may already exist): {e}")
 
 # ============================================================================
-# ✅ OPTIMIZED FILE INDEXING MANAGER
+# ✅ OPTIMIZED FILE INDEXING MANAGER - COMPLETE REINDEXING
 # ============================================================================
 
 class OptimizedFileIndexingManager:
@@ -1633,26 +1288,43 @@ class OptimizedFileIndexingManager:
         self.next_run = None
         self.total_indexed = 0
         self.total_skipped = 0
+        self.total_errors = 0
         self.indexing_stats = {
             'total_runs': 0,
-            'total_files_processed': 0,
+            'total_messages_fetched': 0,
+            'total_videos_found': 0,
             'total_indexed': 0,
             'total_skipped': 0,
             'total_errors': 0,
-            'last_success': None
+            'last_success': None,
+            'last_error': None
         }
     
-    async def start_indexing(self):
+    async def start_indexing(self, force_reindex=False):
+        """Start complete file channel indexing"""
         if self.is_running:
             logger.warning("⚠️ File indexing already running")
             return
         
-        logger.info("🚀 Starting OPTIMIZED FILE CHANNEL INDEXING...")
+        logger.info("=" * 60)
+        logger.info("🚀 STARTING COMPLETE FILE CHANNEL INDEXING")
+        logger.info("=" * 60)
+        
         self.is_running = True
-        asyncio.create_task(self._run_optimized_indexing())
+        self.indexing_stats['total_runs'] += 1
+        
+        try:
+            await self._run_complete_indexing(force_reindex)
+        except Exception as e:
+            logger.error(f"❌ Indexing error: {e}")
+            self.indexing_stats['last_error'] = str(e)
+        finally:
+            self.is_running = False
+        
         self.indexing_task = asyncio.create_task(self._indexing_loop())
     
     async def stop_indexing(self):
+        """Stop indexing"""
         self.is_running = False
         if self.indexing_task:
             self.indexing_task.cancel()
@@ -1662,98 +1334,151 @@ class OptimizedFileIndexingManager:
                 pass
         logger.info("🛑 File indexing stopped")
     
-    async def _run_optimized_indexing(self):
-        logger.info("🔥 RUNNING OPTIMIZED INDEXING (NEW MESSAGES ONLY)...")
+    async def _run_complete_indexing(self, force_reindex=False):
+        """Index ALL files from channel"""
         
-        try:
-            last_indexed = await files_col.find_one(
-                {"channel_id": Config.FILE_CHANNEL_ID}, 
-                sort=[('message_id', -1)],
-                projection={'message_id': 1}
-            )
-            
-            last_message_id = last_indexed['message_id'] if last_indexed else 0
-            logger.info(f"📊 Last indexed message ID: {last_message_id}")
-            
-            messages_to_index = []
-            total_fetched = 0
-            
+        # Clear existing database if force reindex
+        if force_reindex:
+            logger.info("🧹 Force reindex enabled - Clearing existing database...")
             try:
-                async for msg in User.get_chat_history(
-                    Config.FILE_CHANNEL_ID, 
-                    limit=Config.BATCH_INDEX_SIZE
-                ):
-                    total_fetched += 1
-                    
-                    if msg.id <= last_message_id:
-                        break
-                    
-                    if msg and (msg.document or msg.video):
-                        messages_to_index.append(msg)
-                    
-                    if Config.MAX_INDEX_LIMIT > 0 and total_fetched >= Config.MAX_INDEX_LIMIT:
-                        logger.info(f"⚠️ Reached max limit: {Config.MAX_INDEX_LIMIT}")
-                        break
+                result = await files_col.delete_many({"channel_id": Config.FILE_CHANNEL_ID})
+                logger.info(f"✅ Deleted {result.deleted_count} existing records")
+                self.total_indexed = 0
+                self.total_skipped = 0
+                self.total_errors = 0
+            except Exception as e:
+                logger.error(f"❌ Failed to clear database: {e}")
+        
+        # Check user session
+        if User is None or not user_session_ready:
+            logger.error("❌ User session not ready - Cannot index files")
+            return
+        
+        # Get channel info
+        try:
+            chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+            logger.info(f"📢 Channel: {chat.title} (ID: {chat.id})")
+            if hasattr(chat, 'messages_count'):
+                logger.info(f"📊 Approximate messages: {chat.messages_count}")
+        except Exception as e:
+            logger.error(f"❌ Cannot access file channel: {e}")
+            return
+        
+        # Fetch ALL messages
+        all_messages = []
+        offset_id = 0
+        batch_size = 200
+        empty_batch_count = 0
+        max_empty_batches = 3
+        
+        logger.info("📥 Fetching ALL messages from file channel...")
+        
+        while self.is_running:
+            try:
+                messages = await User.get_messages(
+                    Config.FILE_CHANNEL_ID,
+                    limit=batch_size,
+                    offset_id=offset_id
+                )
                 
-                logger.info(f"📥 Fetched {total_fetched} messages, found {len(messages_to_index)} new files")
+                if not messages:
+                    empty_batch_count += 1
+                    if empty_batch_count >= max_empty_batches:
+                        logger.info("✅ No more messages to fetch")
+                        break
+                    await asyncio.sleep(1)
+                    continue
+                
+                empty_batch_count = 0
+                all_messages.extend(messages)
+                offset_id = messages[-1].id
+                
+                logger.info(f"📥 Fetched {len(all_messages)} messages so far...")
+                self.indexing_stats['total_messages_fetched'] = len(all_messages)
+                
+                if len(messages) < batch_size:
+                    logger.info("✅ Reached end of channel")
+                    break
+                
+                await asyncio.sleep(0.5)  # Rate limiting
                 
             except Exception as e:
                 logger.error(f"❌ Error fetching messages: {e}")
-                return
+                await asyncio.sleep(2)
+                continue
+        
+        logger.info(f"✅ Total messages fetched: {len(all_messages)}")
+        
+        # Filter video files
+        video_messages = []
+        for msg in all_messages:
+            if msg and (msg.document or msg.video):
+                file_name = None
+                if msg.document:
+                    file_name = msg.document.file_name
+                elif msg.video:
+                    file_name = msg.video.file_name or "video.mp4"
+                
+                if file_name and is_video_file(file_name):
+                    video_messages.append(msg)
+        
+        logger.info(f"🎬 Found {len(video_messages)} video files to index")
+        self.indexing_stats['total_videos_found'] = len(video_messages)
+        
+        # Index ALL video files
+        if video_messages:
+            batch_size = 50
+            total_batches = (len(video_messages) + batch_size - 1) // batch_size
             
-            if messages_to_index:
-                messages_to_index.reverse()
-                
-                batch_size = 50
-                total_batches = math.ceil(len(messages_to_index) / batch_size)
-                
-                logger.info(f"🔧 Processing {len(messages_to_index)} new files in {total_batches} batches...")
-                
-                for batch_num in range(total_batches):
-                    start_idx = batch_num * batch_size
-                    end_idx = min(start_idx + batch_size, len(messages_to_index))
-                    batch = messages_to_index[start_idx:end_idx]
-                    
-                    logger.info(f"📦 Processing batch {batch_num + 1}/{total_batches} ({len(batch)} files)...")
-                    
-                    batch_stats = await self._process_optimized_batch(batch)
-                    
-                    self.indexing_stats['total_files_processed'] += batch_stats['processed']
-                    self.indexing_stats['total_indexed'] += batch_stats['indexed']
-                    self.indexing_stats['total_skipped'] += batch_stats['skipped']
-                    self.indexing_stats['total_errors'] += batch_stats['errors']
-                    
-                    if batch_num < total_batches - 1:
-                        await asyncio.sleep(1)
-                
-                logger.info("✅ OPTIMIZED INDEXING FINISHED!")
-                logger.info(f"📊 Stats: {self.indexing_stats}")
+            logger.info(f"🔧 Indexing {len(video_messages)} files in {total_batches} batches...")
             
-        except Exception as e:
-            logger.error(f"❌ Optimized indexing error: {e}")
-    
-    async def _indexing_loop(self):
-        while self.is_running:
-            try:
-                if self.next_run and self.next_run > datetime.now():
-                    wait_seconds = (self.next_run - datetime.now()).total_seconds()
-                    if wait_seconds > 30:
-                        logger.info(f"⏰ Next index in {wait_seconds:.0f}s")
-                    await asyncio.sleep(min(wait_seconds, 30))
-                    continue
+            for batch_num in range(total_batches):
+                if not self.is_running:
+                    logger.info("⏸️ Indexing paused by user")
+                    break
                 
-                await self._run_optimized_indexing()
-                self.next_run = datetime.now() + timedelta(seconds=Config.AUTO_INDEX_INTERVAL)
-                self.last_run = datetime.now()
-                await asyncio.sleep(10)
+                start_idx = batch_num * batch_size
+                end_idx = min(start_idx + batch_size, len(video_messages))
+                batch = video_messages[start_idx:end_idx]
                 
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"❌ Indexing loop error: {e}")
-                await asyncio.sleep(60)
+                logger.info(f"📦 Batch {batch_num + 1}/{total_batches} ({len(batch)} files)...")
+                
+                batch_stats = await self._index_batch(batch)
+                
+                self.indexing_stats['total_indexed'] += batch_stats['indexed']
+                self.indexing_stats['total_skipped'] += batch_stats['skipped']
+                self.indexing_stats['total_errors'] += batch_stats['errors']
+                self.total_indexed += batch_stats['indexed']
+                self.total_skipped += batch_stats['skipped']
+                self.total_errors += batch_stats['errors']
+                
+                # Progress report
+                progress = ((batch_num + 1) / total_batches) * 100
+                logger.info(f"📊 Progress: {progress:.1f}% - Indexed: {self.total_indexed} | Errors: {self.total_errors} | Skipped: {self.total_skipped}")
+                
+                if batch_num < total_batches - 1:
+                    await asyncio.sleep(0.5)
+        
+        self.indexing_stats['last_success'] = datetime.now()
+        self.last_run = datetime.now()
+        
+        # Final statistics
+        logger.info("=" * 60)
+        logger.info("✅ COMPLETE INDEXING FINISHED!")
+        logger.info("=" * 60)
+        logger.info(f"📊 FINAL STATISTICS:")
+        logger.info(f"   • Total messages fetched: {len(all_messages)}")
+        logger.info(f"   • Video files found: {len(video_messages)}")
+        logger.info(f"   • Successfully indexed: {self.total_indexed}")
+        logger.info(f"   • Skipped (already exist): {self.total_skipped}")
+        logger.info(f"   • Errors: {self.total_errors}")
+        logger.info("=" * 60)
+        
+        # Verify indexing
+        await self._verify_indexing()
     
-    async def _process_optimized_batch(self, messages):
+    async def _index_batch(self, messages):
+        """Index a batch of messages"""
         batch_stats = {
             'processed': len(messages),
             'indexed': 0,
@@ -1763,60 +1488,259 @@ class OptimizedFileIndexingManager:
         
         for msg in messages:
             try:
-                if not msg or (not msg.document and not msg.video):
-                    batch_stats['skipped'] += 1
-                    continue
-                
-                existing = await files_col.find_one({
-                    'channel_id': Config.FILE_CHANNEL_ID,
-                    'message_id': msg.id
-                }, {'_id': 1})
-                
-                if existing:
-                    logger.debug(f"📝 Already indexed: {msg.id}")
-                    batch_stats['skipped'] += 1
-                    continue
-                
-                success, normalized_title = await index_single_file_fast(msg)
-                
+                success = await self._index_single_file(msg)
                 if success:
                     batch_stats['indexed'] += 1
-                    
-                    if thumbnail_manager and Config.THUMBNAIL_EXTRACTION_ENABLED:
-                        try:
-                            thumbnail_data = await thumbnail_manager.get_thumbnail_for_movie(
-                                title=normalized_title,
-                                channel_id=Config.FILE_CHANNEL_ID,
-                                message_id=msg.id
-                            )
-                            
-                            if thumbnail_data and thumbnail_data.get('thumbnail_url'):
-                                await files_col.update_one(
-                                    {'channel_id': Config.FILE_CHANNEL_ID, 'message_id': msg.id},
-                                    {'$set': {
-                                        'thumbnail_url': thumbnail_data['thumbnail_url'],
-                                        'thumbnail_extracted': thumbnail_data.get('extracted', False),
-                                        'thumbnail_source': thumbnail_data.get('source', 'unknown')
-                                    }}
-                                )
-                                logger.debug(f"✅ Thumbnail set for: {normalized_title[:30]}")
-                        except Exception as thumb_error:
-                            logger.error(f"❌ Thumbnail extraction error: {thumb_error}")
                 else:
                     batch_stats['skipped'] += 1
-                    
             except Exception as e:
-                logger.error(f"❌ Error processing message {msg.id}: {e}")
+                logger.error(f"❌ Error indexing message {msg.id}: {e}")
                 batch_stats['errors'] += 1
-                continue
         
-        logger.info(f"📦 Batch stats: {batch_stats}")
         return batch_stats
     
+    async def _index_single_file(self, message):
+        """Index single file with complete metadata"""
+        try:
+            if not message or (not message.document and not message.video):
+                return False
+            
+            # Check if already exists
+            existing = await files_col.find_one({
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'message_id': message.id
+            })
+            
+            if existing and not Config.INDEX_ALL_HISTORY:
+                logger.debug(f"⏭️ Already indexed: {message.id}")
+                return False
+            
+            # Extract file info
+            caption = message.caption if hasattr(message, 'caption') else None
+            file_name = None
+            file_size = 0
+            file_id = None
+            mime_type = None
+            
+            if message.document:
+                file_name = message.document.file_name
+                file_size = message.document.file_size or 0
+                file_id = message.document.file_id
+                mime_type = message.document.mime_type
+            elif message.video:
+                file_name = message.video.file_name or "video.mp4"
+                file_size = message.video.file_size or 0
+                file_id = message.video.file_id
+                mime_type = "video/mp4"
+            
+            if not file_name:
+                return False
+            
+            # Extract title properly
+            title = await self._extract_title_fast(file_name, caption)
+            if not title or title == "Unknown File":
+                title = os.path.splitext(file_name)[0][:50]
+            
+            normalized_title = normalize_title(title)
+            quality = detect_quality_enhanced(file_name)
+            
+            # Extract year
+            year_match = re.search(r'\b(19|20)\d{2}\b', title)
+            year = year_match.group() if year_match else ""
+            
+            # Clean title (remove year, quality, etc)
+            clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
+            clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
+            clean_title = re.sub(r'\b(4K|2160p|1080p|720p|480p|360p|WEB-DL|WEBRip|BluRay|HDTV|HDRip|CAM|HDTC|TS|DVD|BRRip|x264|x265|HEVC|AAC|AC3|DDP|5\.1|7\.1|ESub)\b.*$', '', clean_title, flags=re.IGNORECASE)
+            clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+            
+            # Create document with ALL metadata
+            doc = {
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'message_id': message.id,
+                'real_message_id': message.id,
+                'title': clean_title[:100] if clean_title else "Unknown",
+                'original_title': title[:100],
+                'normalized_title': normalized_title,
+                'file_name': file_name,
+                'file_size': file_size,
+                'file_size_formatted': format_size(file_size),
+                'file_id': file_id,
+                'telegram_file_id': file_id,
+                'mime_type': mime_type,
+                'caption': caption[:500] if caption else '',
+                'date': message.date,
+                'indexed_at': datetime.now(),
+                'last_checked': datetime.now(),
+                'is_video_file': True,
+                'quality': quality,
+                'year': year,
+                'status': 'active',
+                'has_thumbnail': False,
+                'thumbnail_extracted': False,
+                'thumbnail_url': None,
+                'thumbnail_source': None
+            }
+            
+            # Upsert to avoid duplicates
+            result = await files_col.update_one(
+                {
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'message_id': message.id
+                },
+                {'$set': doc},
+                upsert=True
+            )
+            
+            if result.upserted_id:
+                logger.debug(f"✅ INDEXED: {clean_title[:30]}... (ID: {message.id})")
+            else:
+                logger.debug(f"✅ UPDATED: {clean_title[:30]}... (ID: {message.id})")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Index single file error for message {message.id}: {e}")
+            return False
+    
+    async def _extract_title_fast(self, filename, caption=None):
+        """Extract clean title from filename"""
+        if filename:
+            # Remove extension
+            name = os.path.splitext(filename)[0]
+            
+            # Replace separators with spaces
+            name = re.sub(r'[._\-]', ' ', name)
+            
+            # Remove quality tags
+            name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x264|x265|web-dl|webrip|bluray|hdtv|hdr|dts|ac3|aac|ddp|5\.1|7\.1|2\.0|esub|sub)\b.*$', '', name, flags=re.IGNORECASE)
+            
+            # Remove year at the end
+            name = re.sub(r'\s+(19|20)\d{2}\s*$', '', name)
+            
+            # Remove parentheses content
+            name = re.sub(r'\s*\([^)]*\)', '', name)
+            name = re.sub(r'\s*\[[^\]]*\]', '', name)
+            
+            # Clean up spaces
+            name = re.sub(r'\s+', ' ', name)
+            name = name.strip()
+            
+            if name and len(name) > 3:
+                return name[:100]
+        
+        if caption:
+            lines = caption.split('\n')
+            for line in lines:
+                line = line.strip()
+                if len(line) > 10 and not line.startswith('http'):
+                    # Clean caption title
+                    line = re.sub(r'\s*\([^)]*\)', '', line)
+                    line = re.sub(r'\s*\[[^\]]*\]', '', line)
+                    line = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc)\b', '', line, flags=re.IGNORECASE)
+                    line = re.sub(r'\s+', ' ', line)
+                    return line.strip()[:100]
+        
+        if filename:
+            return os.path.splitext(filename)[0][:50]
+        
+        return "Unknown File"
+    
+    async def _verify_indexing(self):
+        """Verify indexing is working"""
+        try:
+            total = await files_col.count_documents({'channel_id': Config.FILE_CHANNEL_ID})
+            logger.info("=" * 60)
+            logger.info("🔍 VERIFYING INDEXING...")
+            logger.info("=" * 60)
+            logger.info(f"📊 Total files in database: {total}")
+            
+            # Check for empty titles
+            empty_titles = await files_col.count_documents({
+                'channel_id': Config.FILE_CHANNEL_ID,
+                'title': {'$in': ['', 'Unknown', 'Unknown File', None]}
+            })
+            if empty_titles > 0:
+                logger.warning(f"⚠️ Files with empty titles: {empty_titles}")
+            
+            # Check quality distribution
+            pipeline = [
+                {'$match': {'channel_id': Config.FILE_CHANNEL_ID}},
+                {'$group': {'_id': '$quality', 'count': {'$sum': 1}}},
+                {'$sort': {'count': -1}}
+            ]
+            
+            quality_stats = []
+            async for doc in files_col.aggregate(pipeline):
+                quality = doc['_id'] or 'unknown'
+                count = doc['count']
+                quality_stats.append(f"{quality}: {count}")
+            
+            if quality_stats:
+                logger.info(f"📊 Quality distribution: {', '.join(quality_stats)}")
+            
+            # Test search for common titles
+            test_titles = ['Dhurandhar', 'Rrr', 'Kgf', 'Pushpa', 'Kantara']
+            found_count = 0
+            
+            for title in test_titles:
+                count = await files_col.count_documents({
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    '$or': [
+                        {'title': {'$regex': title, '$options': 'i'}},
+                        {'original_title': {'$regex': title, '$options': 'i'}},
+                        {'file_name': {'$regex': title, '$options': 'i'}}
+                    ]
+                })
+                if count > 0:
+                    found_count += 1
+                    logger.info(f"✅ Search test '{title}': {count} files found")
+                else:
+                    logger.debug(f"ℹ️ Search test '{title}': 0 files found")
+            
+            logger.info(f"📊 Search test: {found_count}/{len(test_titles)} titles found")
+            logger.info("=" * 60)
+            
+        except Exception as e:
+            logger.error(f"❌ Verification error: {e}")
+    
+    async def _indexing_loop(self):
+        """Background indexing loop"""
+        while self.is_running:
+            try:
+                if self.next_run and self.next_run > datetime.now():
+                    wait_seconds = (self.next_run - datetime.now()).total_seconds()
+                    if wait_seconds > 30:
+                        logger.info(f"⏰ Next index in {wait_seconds:.0f}s")
+                    await asyncio.sleep(min(wait_seconds, 30))
+                    continue
+                
+                # Only run if not already running
+                if not self.is_running:
+                    await self._run_complete_indexing(force_reindex=False)
+                    self.next_run = datetime.now() + timedelta(seconds=Config.AUTO_INDEX_INTERVAL)
+                    self.last_run = datetime.now()
+                
+                await asyncio.sleep(10)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"❌ Indexing loop error: {e}")
+                await asyncio.sleep(60)
+    
     async def get_indexing_status(self):
+        """Get current indexing status"""
         thumbnail_stats = {}
         if thumbnail_manager:
-            thumbnail_stats = await thumbnail_manager.get_stats()
+            try:
+                thumbnail_stats = await thumbnail_manager.get_stats()
+            except:
+                pass
+        
+        total_files = 0
+        if files_col is not None:
+            total_files = await files_col.count_documents({'channel_id': Config.FILE_CHANNEL_ID})
         
         return {
             'is_running': self.is_running,
@@ -1824,36 +1748,378 @@ class OptimizedFileIndexingManager:
             'next_run': self.next_run.isoformat() if self.next_run else None,
             'total_indexed': self.total_indexed,
             'total_skipped': self.total_skipped,
+            'total_errors': self.total_errors,
+            'database_files': total_files,
             'stats': self.indexing_stats,
-            'thumbnail_stats': thumbnail_stats
+            'thumbnail_stats': thumbnail_stats,
+            'user_session_ready': user_session_ready,
+            'bot_session_ready': bot_session_ready
         }
 
 file_indexing_manager = OptimizedFileIndexingManager()
 
+# ============================================================================
+# ✅ ENHANCED SEARCH - PROPER DATABASE SEARCH
+# ============================================================================
+
+@performance_monitor.measure("enhanced_search_fixed")
+@async_cache_with_ttl(maxsize=500, ttl=Config.SEARCH_CACHE_TTL)
+async def search_movies_enhanced_fixed(query, limit=15, page=1):
+    """Search with proper database querying"""
+    offset = (page - 1) * limit
+    
+    cache_key = f"search_fixed:{query}:{page}:{limit}"
+    if cache_manager is not None and cache_manager.redis_enabled:
+        cached_data = await cache_manager.get(cache_key)
+        if cached_data:
+            logger.info(f"✅ Cache HIT for: {query}")
+            return cached_data
+    
+    logger.info(f"🔍 SEARCHING FOR: '{query}'")
+    
+    query_lower = query.lower()
+    results = []
+    
+    # Search DATABASE first
+    if files_col is not None:
+        try:
+            # Build search query
+            search_query = {
+                "channel_id": Config.FILE_CHANNEL_ID,
+                "status": "active",
+                "$or": [
+                    {"title": {"$regex": query, "$options": "i"}},
+                    {"original_title": {"$regex": query, "$options": "i"}},
+                    {"normalized_title": {"$regex": query_lower, "$options": "i"}},
+                    {"file_name": {"$regex": query, "$options": "i"}},
+                    {"caption": {"$regex": query, "$options": "i"}}
+                ]
+            }
+            
+            # Get total count
+            total_count = await files_col.count_documents(search_query)
+            logger.info(f"📁 Database found {total_count} matching files")
+            
+            if total_count > 0:
+                # Get paginated results
+                cursor = files_col.find(
+                    search_query,
+                    {
+                        'title': 1,
+                        'original_title': 1,
+                        'normalized_title': 1,
+                        'quality': 1,
+                        'file_size': 1,
+                        'file_size_formatted': 1,
+                        'file_name': 1,
+                        'channel_id': 1,
+                        'message_id': 1,
+                        'real_message_id': 1,
+                        'date': 1,
+                        'year': 1,
+                        'caption': 1,
+                        'thumbnail_url': 1,
+                        'thumbnail_extracted': 1,
+                        '_id': 0
+                    }
+                ).sort("date", -1).skip(offset).limit(limit)
+                
+                async for doc in cursor:
+                    # Group by title to avoid duplicates
+                    title = doc.get('title', 'Unknown')
+                    normalized = doc.get('normalized_title', '')
+                    
+                    # Check if we already have this title
+                    existing = None
+                    for r in results:
+                        if r.get('normalized_title') == normalized:
+                            existing = r
+                            break
+                    
+                    quality = doc.get('quality', '480p')
+                    file_size = doc.get('file_size_formatted', format_size(doc.get('file_size', 0)))
+                    
+                    if existing:
+                        # Add quality option to existing result
+                        if 'quality_options' not in existing:
+                            existing['quality_options'] = {}
+                        
+                        existing['quality_options'][quality] = {
+                            'quality': quality,
+                            'file_size': file_size,
+                            'message_id': doc.get('real_message_id') or doc.get('message_id'),
+                            'file_name': doc.get('file_name', '')
+                        }
+                        
+                        existing['all_qualities'] = list(existing['quality_options'].keys())
+                        existing['quality_count'] = len(existing['quality_options'])
+                        existing['has_multiple_qualities'] = existing['quality_count'] > 1
+                        
+                    else:
+                        # Create new result
+                        result = {
+                            'title': title,
+                            'original_title': doc.get('original_title', title),
+                            'normalized_title': normalized,
+                            'year': doc.get('year', ''),
+                            'quality': quality,
+                            'file_size': file_size,
+                            'file_name': doc.get('file_name', ''),
+                            'channel_id': doc.get('channel_id'),
+                            'message_id': doc.get('real_message_id') or doc.get('message_id'),
+                            'date': doc['date'].isoformat() if isinstance(doc['date'], datetime) else doc['date'],
+                            'is_new': is_new(doc['date']) if doc.get('date') else False,
+                            'has_file': True,
+                            'result_type': 'file',
+                            'quality_options': {
+                                quality: {
+                                    'quality': quality,
+                                    'file_size': file_size,
+                                    'message_id': doc.get('real_message_id') or doc.get('message_id'),
+                                    'file_name': doc.get('file_name', '')
+                                }
+                            },
+                            'all_qualities': [quality],
+                            'quality_count': 1,
+                            'has_multiple_qualities': False,
+                            'thumbnail_url': doc.get('thumbnail_url'),
+                            'has_extracted': doc.get('thumbnail_extracted', False),
+                            'search_score': 10
+                        }
+                        
+                        results.append(result)
+            
+            logger.info(f"📁 Processed {len(results)} unique file results")
+            
+        except Exception as e:
+            logger.error(f"❌ Database search error: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # Search TEXT CHANNELS
+    if user_session_ready and User is not None:
+        try:
+            text_results = 0
+            for channel_id in Config.TEXT_CHANNEL_IDS:
+                try:
+                    async for msg in User.search_messages(channel_id, query=query, limit=10):
+                        if msg and msg.text and len(msg.text) > 15:
+                            title = extract_title_smart(msg.text)
+                            if title:
+                                normalized = normalize_title(title)
+                                
+                                # Check if already in results
+                                exists = False
+                                for r in results:
+                                    if r.get('normalized_title') == normalized:
+                                        exists = True
+                                        r['has_post'] = True
+                                        r['post_content'] = format_post(msg.text, max_length=500)
+                                        r['post_channel_id'] = channel_id
+                                        r['post_message_id'] = msg.id
+                                        r['result_type'] = 'file_and_post'
+                                        break
+                                
+                                if not exists:
+                                    clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
+                                    clean_title = re.sub(r'\s+\d{4}$', '', clean_title)
+                                    
+                                    result = {
+                                        'title': clean_title.strip(),
+                                        'original_title': title,
+                                        'normalized_title': normalized,
+                                        'content': format_post(msg.text, max_length=500),
+                                        'post_content': msg.text,
+                                        'channel_id': channel_id,
+                                        'message_id': msg.id,
+                                        'date': msg.date.isoformat() if isinstance(msg.date, datetime) else str(msg.date),
+                                        'is_new': is_new(msg.date) if msg.date else False,
+                                        'has_post': True,
+                                        'has_file': False,
+                                        'result_type': 'post',
+                                        'search_score': 5
+                                    }
+                                    results.append(result)
+                                    text_results += 1
+                                
+                except Exception as e:
+                    logger.debug(f"Text search error in {channel_id}: {e}")
+                    continue
+            
+            logger.info(f"📝 Found {text_results} post results")
+            
+        except Exception as e:
+            logger.error(f"❌ Text search error: {e}")
+    
+    # GET THUMBNAILS
+    if thumbnail_manager and results:
+        logger.info(f"🖼️ Getting thumbnails for {len(results)} results...")
+        
+        for result in results:
+            try:
+                if result.get('has_file') and not result.get('has_extracted'):
+                    thumb_data = await thumbnail_manager.get_thumbnail_for_movie(
+                        title=result.get('title', ''),
+                        channel_id=result.get('channel_id'),
+                        message_id=result.get('message_id')
+                    )
+                    
+                    if thumb_data and thumb_data.get('thumbnail_url'):
+                        result['thumbnail_url'] = thumb_data['thumbnail_url']
+                        result['has_extracted'] = True
+                        result['thumbnail_source'] = 'extracted'
+                        
+                        # Save to database
+                        await files_col.update_many(
+                            {'normalized_title': result['normalized_title']},
+                            {'$set': {
+                                'thumbnail_url': thumb_data['thumbnail_url'],
+                                'thumbnail_extracted': True,
+                                'thumbnail_source': 'extracted'
+                            }}
+                        )
+            except Exception as e:
+                logger.debug(f"Thumbnail error for {result.get('title', '')[:30]}: {e}")
+    
+    # GET POSTERS
+    if poster_fetcher and results:
+        logger.info(f"🎬 Getting posters for {len(results)} results...")
+        
+        for result in results:
+            try:
+                if not result.get('thumbnail_url'):
+                    poster_data = await get_poster_for_movie(
+                        result.get('title', ''),
+                        result.get('year', '')
+                    )
+                    
+                    if poster_data and poster_data.get('poster_url'):
+                        result['poster_url'] = poster_data['poster_url']
+                        result['poster_source'] = poster_data.get('source')
+                        result['has_poster'] = True
+                        result['thumbnail_url'] = poster_data['poster_url']
+                        result['thumbnail_source'] = poster_data.get('source')
+            except Exception as e:
+                logger.debug(f"Poster error for {result.get('title', '')[:30]}: {e}")
+    
+    # APPLY FALLBACK
+    for result in results:
+        if not result.get('thumbnail_url'):
+            result['thumbnail_url'] = FALLBACK_THUMBNAIL_URL
+            result['thumbnail_source'] = 'fallback'
+            result['has_thumbnail'] = True
+    
+    # SORT RESULTS
+    results.sort(key=lambda x: (
+        x.get('has_file', False),  # Files first
+        x.get('has_multiple_qualities', False),  # Multiple qualities next
+        x.get('search_score', 0),  # Then by score
+        x.get('is_new', False),  # Then new content
+        str(x.get('date', '')),  # Then by date
+    ), reverse=True)
+    
+    # PAGINATION
+    total = len(results)
+    paginated = results[offset:offset + limit]
+    
+    # STATISTICS
+    file_count = sum(1 for r in results if r.get('has_file'))
+    post_count = sum(1 for r in results if r.get('has_post'))
+    combined_count = sum(1 for r in results if r.get('has_file') and r.get('has_post'))
+    extracted_count = sum(1 for r in results if r.get('has_extracted'))
+    poster_count = sum(1 for r in results if r.get('has_poster'))
+    
+    logger.info("=" * 60)
+    logger.info("📊 SEARCH RESULTS SUMMARY:")
+    logger.info(f"   • Query: '{query}'")
+    logger.info(f"   • Total unique results: {total}")
+    logger.info(f"   • Files found: {file_count}")
+    logger.info(f"   • Posts found: {post_count}")
+    logger.info(f"   • Combined (file+post): {combined_count}")
+    logger.info(f"   • Extracted thumbnails: {extracted_count}")
+    logger.info(f"   • Posters: {poster_count}")
+    logger.info(f"   • Page: {page}/{max(1, (total + limit - 1) // limit)}")
+    logger.info("=" * 60)
+    
+    result_data = {
+        'results': paginated,
+        'pagination': {
+            'current_page': page,
+            'total_pages': max(1, (total + limit - 1) // limit) if total > 0 else 1,
+            'total_results': total,
+            'per_page': limit,
+            'has_next': page < ((total + limit - 1) // limit) if total > 0 else False,
+            'has_previous': page > 1
+        },
+        'search_metadata': {
+            'query': query,
+            'total_results': total,
+            'file_results': file_count,
+            'post_results': post_count,
+            'combined_results': combined_count,
+            'extracted_thumbnails': extracted_count,
+            'posters': poster_count,
+            'database_search': files_col is not None,
+            'thumbnail_manager': thumbnail_manager is not None,
+            'poster_fetcher': poster_fetcher is not None
+        },
+        'bot_username': Config.BOT_USERNAME
+    }
+    
+    # Cache results
+    if cache_manager is not None and cache_manager.redis_enabled:
+        await cache_manager.set(cache_key, result_data, expire_seconds=Config.SEARCH_CACHE_TTL)
+    
+    return result_data
+
+async def search_movies_multi_channel_merged(query, limit=15, page=1):
+    """Alias for enhanced search"""
+    return await search_movies_enhanced_fixed(query, limit, page)
+
 async def initial_indexing_optimized():
-    if User is None or files_col is None or not user_session_ready:
-        logger.warning("⚠️ User session not ready for initial indexing")
+    """Start complete file channel indexing"""
+    global file_indexing_manager
+    
+    if User is None or not user_session_ready:
+        logger.error("❌ User session not ready - Cannot index files")
+        logger.info("📝 Please check:")
+        logger.info("   1. USER_SESSION_STRING is correct")
+        logger.info("   2. User is a member of the file channel")
+        logger.info("   3. No duplicate sessions running")
+        return
+    
+    if files_col is None:
+        logger.error("❌ Database not ready - Cannot index files")
         return
     
     logger.info("=" * 60)
-    logger.info("🚀 STARTING OPTIMIZED FILE CHANNEL INDEXING")
+    logger.info("🚀 STARTING COMPLETE FILE CHANNEL INDEXING")
     logger.info("=" * 60)
-    logger.info("✅ ZERO DB PRELOAD")
-    logger.info("✅ ZERO DUPLICATE CHECKS")
-    logger.info("✅ ONLY NEW MESSAGES INDEXED")
-    logger.info("✅ FILES-ONLY TELEGRAM FETCH")
-    logger.info("✅ AUTO-DELETE WHEN TELEGRAM DELETES")
-    logger.info(f"✅ THUMBNAIL MANAGER: {'✅ ENABLED' if thumbnail_manager else '❌ DISABLED'}")
+    logger.info(f"📁 Channel ID: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"🔄 Force reindex: {Config.INDEX_ALL_HISTORY}")
+    logger.info(f"📊 Batch size: {Config.BATCH_INDEX_SIZE}")
+    logger.info(f"✅ Thumbnail extraction: {Config.THUMBNAIL_EXTRACTION_ENABLED}")
     logger.info("=" * 60)
     
     try:
+        # Create indexes first
         await setup_database_indexes()
-        await file_indexing_manager.start_indexing()
+        
+        # Start indexing with force reindex
+        await file_indexing_manager.start_indexing(force_reindex=Config.INDEX_ALL_HISTORY)
+        
+        # Start sync monitoring
         await sync_manager.start_sync_monitoring()
+        
+        logger.info("✅ Indexing started successfully")
+        
     except Exception as e:
         logger.error(f"❌ Initial indexing error: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def extract_thumbnails_for_existing_files():
+    """Extract thumbnails for existing files in database"""
     if not thumbnail_manager or files_col is None:
         logger.warning("⚠️ ThumbnailManager or files collection not available")
         return
@@ -1863,7 +2129,11 @@ async def extract_thumbnails_for_existing_files():
     try:
         cursor = files_col.find({
             'is_video_file': True,
-            'channel_id': Config.FILE_CHANNEL_ID
+            'channel_id': Config.FILE_CHANNEL_ID,
+            '$or': [
+                {'thumbnail_extracted': {'$ne': True}},
+                {'thumbnail_url': None}
+            ]
         }, {
             'title': 1,
             'normalized_title': 1,
@@ -1883,7 +2153,7 @@ async def extract_thumbnails_for_existing_files():
                 'db_id': doc.get('_id')
             })
         
-        logger.info(f"📊 Found {len(files_to_process)} video files to process")
+        logger.info(f"📊 Found {len(files_to_process)} video files needing thumbnails")
         
         if not files_to_process:
             logger.info("✅ No files need thumbnail extraction")
@@ -1907,14 +2177,14 @@ async def extract_thumbnails_for_existing_files():
                 if i < len(thumbnail_results):
                     thumbnail_data = thumbnail_results[i]
                     
-                    if thumbnail_data.get('thumbnail_url'):
+                    if thumbnail_data and thumbnail_data.get('thumbnail_url'):
                         await files_col.update_one(
                             {'_id': file_info['db_id']},
                             {'$set': {
                                 'thumbnail_url': thumbnail_data['thumbnail_url'],
                                 'thumbnail_extracted': thumbnail_data.get('extracted', False),
                                 'thumbnail_source': thumbnail_data.get('source', 'unknown'),
-                                'has_extracted': True
+                                'has_thumbnail': True
                             }}
                         )
                         successful += 1
@@ -2060,6 +2330,7 @@ async def init_mongodb():
 # ============================================================================
 
 async def start_telegram_bot():
+    """Start the Telegram bot for handling user commands"""
     try:
         if not PYROGRAM_AVAILABLE:
             logger.warning("❌ Pyrogram not available, bot won't start")
@@ -2101,12 +2372,40 @@ async def start_telegram_bot():
         return None
 
 # ============================================================================
-# ✅ MAIN INITIALIZATION - FIXED
+# ✅ THUMBNAIL MANAGER INITIALIZATION
+# ============================================================================
+
+async def init_thumbnail_manager():
+    """Initialize Thumbnail Manager"""
+    global thumbnail_manager
+    
+    try:
+        if THUMBNAIL_MANAGER_AVAILABLE:
+            from thumbnail_manager import ThumbnailManager
+            thumbnail_manager = ThumbnailManager(
+                download_path="downloads/thumbnails",
+                mongodb=db,
+                bot_client=bot_handler.bot if bot_handler and bot_handler.initialized else None,
+                user_client=User if user_session_ready else None,
+                file_channel_id=Config.FILE_CHANNEL_ID
+            )
+            await thumbnail_manager.initialize()
+            logger.info("✅ Thumbnail Manager initialized successfully")
+            return True
+        else:
+            logger.warning("⚠️ Thumbnail Manager not available")
+            return False
+    except Exception as e:
+        logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
+        thumbnail_manager = None
+        return False
+
+# ============================================================================
+# ✅ MAIN INITIALIZATION
 # ============================================================================
 
 @performance_monitor.measure("system_init")
 async def init_system():
-    global thumbnail_manager, telegram_bot, cache_manager, verification_system, premium_system, poster_fetcher  # ✅ FIXED: All globals at top
     start_time = time.time()
     
     try:
@@ -2161,34 +2460,8 @@ async def init_system():
             poster_fetcher = PosterFetcher(Config, cache_manager.redis_client if cache_manager else None)
             logger.info("✅ Poster Fetcher initialized")
         
-        # ✅ FIXED: Initialize Thumbnail Manager with correct parameters and error handling
-        try:
-            if THUMBNAIL_MANAGER_AVAILABLE:
-                from thumbnail_manager import ThumbnailManager
-                thumbnail_manager = ThumbnailManager(
-                    download_path="downloads/thumbnails",
-                    mongodb=db,  # Pass the database object
-                    bot_client=bot_handler.bot if bot_handler and bot_handler.initialized else None,
-                    user_client=User if user_session_ready else None,
-                    file_channel_id=Config.FILE_CHANNEL_ID
-                )
-                await thumbnail_manager.initialize()
-                logger.info("✅ Thumbnail Manager initialized successfully")
-            else:
-                logger.warning("⚠️ Thumbnail Manager not available, using fallback")
-                from thumbnail_manager import FallbackThumbnailManager
-                thumbnail_manager = FallbackThumbnailManager(
-                    download_path="downloads/thumbnails",
-                    mongodb=db,
-                    bot_client=bot_handler.bot if bot_handler and bot_handler.initialized else None,
-                    user_client=User if user_session_ready else None,
-                    file_channel_id=Config.FILE_CHANNEL_ID
-                )
-                await thumbnail_manager.initialize()
-        except Exception as e:
-            logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
-            logger.warning("⚠️ Continuing without Thumbnail Manager")
-            thumbnail_manager = None
+        # Initialize Thumbnail Manager
+        await init_thumbnail_manager()
         
         # Initialize Telegram Sessions
         if PYROGRAM_AVAILABLE:
@@ -2210,15 +2483,6 @@ async def init_system():
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
         
-        logger.info("🔧 COMPLETE THUMBNAIL SYSTEM:")
-        logger.info(f"   • One Movie → One Thumbnail: ✅ ENABLED")
-        logger.info(f"   • 4 Qualities → Same Thumbnail: ✅ ENABLED")
-        logger.info(f"   • HOME: Poster First → Extracted → Fallback: ✅ ENABLED")
-        logger.info(f"   • SEARCH: Extracted First → Poster → Fallback: ✅ ENABLED")
-        logger.info(f"   • No Default/Fallback Image: ✅ ENABLED")
-        logger.info(f"   • MongoDB Optimized: ✅ ENABLED")
-        logger.info(f"   • Thumbnail Success Rate: 99% TARGET")
-        
         return True
         
     except Exception as e:
@@ -2226,7 +2490,7 @@ async def init_system():
         import traceback
         traceback.print_exc()
         return False
-        
+
 # ============================================================================
 # ✅ API ROUTES
 # ============================================================================
@@ -2262,14 +2526,6 @@ async def root():
     return jsonify({
         'status': 'healthy',
         'service': 'SK4FiLM v9.0 - COMPLETE THUMBNAIL SYSTEM',
-        'thumbnail_system': {
-            'one_movie_one_thumbnail': True,
-            'multi_quality_same_thumbnail': True,
-            'home_priority': 'Poster → Extracted → Fallback',
-            'search_priority': 'Extracted → Poster → Fallback',
-            'thumbnail_manager': thumbnail_manager is not None,
-            'success_rate_target': '99%'
-        },
         'sessions': {
             'user_session': {
                 'ready': user_session_ready,
@@ -2327,7 +2583,6 @@ async def health():
     
     return jsonify({
         'status': 'ok',
-        'thumbnail_system': True,
         'sessions': {
             'user': user_session_ready,
             'bot': bot_session_ready,
@@ -2343,13 +2598,6 @@ async def health():
             'auto_delete_enabled': True
         },
         'thumbnails': thumbnail_stats,
-        'features': {
-            'one_movie_one_thumbnail': True,
-            'multi_quality_same_thumbnail': True,
-            'home_priority': 'Poster First',
-            'search_priority': 'Extracted First',
-            'thumbnail_manager': thumbnail_manager is not None
-        },
         'timestamp': datetime.now().isoformat()
     })
 
@@ -2367,7 +2615,6 @@ async def api_movies():
             'source': 'telegram',
             'poster_fetcher': poster_fetcher is not None,
             'thumbnail_manager': thumbnail_manager is not None,
-            'thumbnail_priority': 'poster_first',
             'session_used': 'user',
             'channel_id': Config.MAIN_CHANNEL_ID,
             'timestamp': datetime.now().isoformat()
@@ -2402,13 +2649,7 @@ async def api_search():
             'query': query,
             'results': result_data['results'],
             'pagination': result_data['pagination'],
-            'search_metadata': {
-                **result_data.get('search_metadata', {}),
-                'feature': 'extracted_first_search',
-                'thumbnail_priority': 'extracted_first',
-                'no_fallback_image': True,
-                'real_message_ids': True,
-            },
+            'search_metadata': result_data.get('search_metadata', {}),
             'bot_username': Config.BOT_USERNAME,
             'timestamp': datetime.now().isoformat()
         })
@@ -2463,7 +2704,6 @@ async def api_stats():
         
         return jsonify({
             'status': 'success',
-            'thumbnail_system': True,
             'performance': perf_stats,
             'poster_fetcher': poster_stats,
             'thumbnail_manager': thumbnail_stats,
@@ -2480,16 +2720,6 @@ async def api_stats():
                 'running': bot_running,
                 'initialized': telegram_bot is not None
             },
-            'thumbnail_features': {
-                'one_movie_one_thumbnail': True,
-                'multi_quality_same_thumbnail': True,
-                'home_priority': 'Poster First',
-                'search_priority': 'Extracted First',
-                'existing_files_auto_extract': True,
-                'new_files_auto_extract': True,
-                'no_fallback_image': True,
-                'thumbnail_manager': thumbnail_manager is not None
-            },
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2505,18 +2735,23 @@ async def api_stats():
 
 @app.route('/api/admin/reindex', methods=['POST'])
 async def api_admin_reindex():
+    """Trigger complete reindexing"""
     try:
         auth_token = request.headers.get('X-Admin-Token')
         if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
             return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
         
+        # Force reindex by setting flag
+        Config.INDEX_ALL_HISTORY = True
+        
+        # Start indexing
         asyncio.create_task(initial_indexing_optimized())
         
         return jsonify({
             'status': 'success',
-            'message': 'File channel reindexing started',
-            'thumbnail_system': True,
-            'thumbnail_manager': thumbnail_manager is not None,
+            'message': 'Complete file channel reindexing started',
+            'channel_id': Config.FILE_CHANNEL_ID,
+            'mode': 'complete_reindex',
             'timestamp': datetime.now().isoformat()
         })
         
@@ -2536,16 +2771,8 @@ async def api_admin_indexing_status():
         
         return jsonify({
             'status': 'success',
-            'thumbnail_system': True,
             'indexing': indexing_status,
             'database_files': total_files,
-            'thumbnail_features': {
-                'one_movie_one_thumbnail': True,
-                'multi_quality_same_thumbnail': True,
-                'existing_files_auto_extract': True,
-                'new_files_auto_extract': True,
-                'thumbnail_manager': thumbnail_manager is not None
-            },
             'timestamp': datetime.now().isoformat()
         })
         
@@ -2594,16 +2821,7 @@ async def api_admin_thumbnails_stats():
         
         return jsonify({
             'status': 'success',
-            'thumbnail_stats': thumbnail_stats,
-            'features': {
-                'one_movie_one_thumbnail': True,
-                'multi_quality_same_thumbnail': True,
-                'home_priority': 'Poster First',
-                'search_priority': 'Extracted First',
-                'existing_files_auto_extract': True,
-                'new_files_auto_extract': True,
-                'no_fallback_image': True
-            }
+            'thumbnail_stats': thumbnail_stats
         })
         
     except Exception as e:
@@ -2634,6 +2852,71 @@ async def api_admin_thumbnails_extract_existing():
     except Exception as e:
         logger.error(f"❌ Thumbnail extraction error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/debug/indexing', methods=['GET'])
+async def debug_indexing():
+    """Debug endpoint to check indexing status"""
+    try:
+        if files_col is None:
+            return jsonify({'error': 'Database not initialized'}), 500
+        
+        # Get total count
+        total = await files_col.count_documents({'channel_id': Config.FILE_CHANNEL_ID})
+        
+        # Get recent files
+        cursor = files_col.find(
+            {'channel_id': Config.FILE_CHANNEL_ID}
+        ).sort('date', -1).limit(10)
+        
+        recent_files = []
+        async for doc in cursor:
+            doc['_id'] = str(doc['_id'])
+            if 'date' in doc and isinstance(doc['date'], datetime):
+                doc['date'] = doc['date'].isoformat()
+            if 'indexed_at' in doc and isinstance(doc['indexed_at'], datetime):
+                doc['indexed_at'] = doc['indexed_at'].isoformat()
+            recent_files.append(doc)
+        
+        # Get quality stats
+        pipeline = [
+            {'$match': {'channel_id': Config.FILE_CHANNEL_ID}},
+            {'$group': {'_id': '$quality', 'count': {'$sum': 1}}},
+            {'$sort': {'count': -1}}
+        ]
+        
+        quality_stats = []
+        async for doc in files_col.aggregate(pipeline):
+            quality_stats.append({
+                'quality': doc['_id'] or 'unknown',
+                'count': doc['count']
+            })
+        
+        # Get indexing status
+        indexing_status = await file_indexing_manager.get_indexing_status()
+        
+        return jsonify({
+            'status': 'success',
+            'total_files_in_db': total,
+            'recent_files': recent_files,
+            'quality_distribution': quality_stats,
+            'indexing_status': indexing_status,
+            'config': {
+                'file_channel_id': Config.FILE_CHANNEL_ID,
+                'auto_index_interval': Config.AUTO_INDEX_INTERVAL,
+                'batch_index_size': Config.BATCH_INDEX_SIZE,
+                'index_all_history': Config.INDEX_ALL_HISTORY,
+                'thumbnail_extraction_enabled': Config.THUMBNAIL_EXTRACTION_ENABLED
+            },
+            'sessions': {
+                'user_session_ready': user_session_ready,
+                'bot_session_ready': bot_session_ready
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Debug indexing error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # ============================================================================
 # ✅ STARTUP AND SHUTDOWN
@@ -2723,16 +3006,11 @@ if __name__ == "__main__":
     config.keep_alive_timeout = 30
     
     logger.info(f"🌐 Starting SK4FiLM v9.0 on port {Config.WEB_SERVER_PORT}...")
-    logger.info("🎯 COMPLETE THUMBNAIL SYSTEM")
-    logger.info(f"   • One Movie → One Thumbnail: ✅ ENABLED")
-    logger.info(f"   • 4 Qualities → Same Thumbnail: ✅ ENABLED")
-    logger.info(f"   • HOME: Poster First → Extracted → Fallback: ✅ ENABLED")
-    logger.info(f"   • SEARCH: Extracted First → Poster → Fallback: ✅ ENABLED")
-    logger.info(f"   • No Default/Fallback Image: ✅ ENABLED")
-    logger.info(f"   • Thumbnail Success Rate Target: 99%")
-    logger.info(f"   • MongoDB Optimized: ✅ ENABLED")
-    logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
-    logger.info(f"   • Telegram Bot: ✅ ENABLED")
+    logger.info(f"📁 File Channel ID: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"🔍 SEARCH: Extracted First → Poster → Fallback")
+    logger.info(f"🏠 HOME: Poster First → Extracted → Fallback")
+    logger.info(f"📊 Database indexes will be created automatically")
+    logger.info(f"🔄 Auto-indexing every {Config.AUTO_INDEX_INTERVAL}s")
     
     try:
         asyncio.run(serve(app, config))
