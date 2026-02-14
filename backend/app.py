@@ -1197,7 +1197,7 @@ def has_telegram_thumbnail(message):
         return False
 
 # ============================================================================
-# ✅ OPTIMIZED FILE INDEXING MANAGER - STORE ALL MOVIES, THUMBNAILS ONLY IF AVAILABLE
+# ✅ FIXED: OPTIMIZED FILE INDEXING MANAGER - CORRECT PYROGRAM SYNTAX
 # ============================================================================
 
 class OptimizedFileIndexingManager:
@@ -1224,7 +1224,7 @@ class OptimizedFileIndexingManager:
         }
     
     async def start_indexing(self, force_reindex=False):
-        """Start optimized file channel indexing - Store ALL movies, thumbnails only if available"""
+        """Start optimized file channel indexing - Store ALL movies"""
         if self.is_running:
             logger.warning("⚠️ File indexing already running")
             return
@@ -1297,41 +1297,50 @@ class OptimizedFileIndexingManager:
         # Dictionary to group by movie
         movies_dict = {}  # normalized_title -> movie_data
         all_messages = []
+        
+        # ✅ FIXED: Correct Pyrogram syntax for getting messages
         offset_id = 0
-        batch_size = 200
-        empty_batch_count = 0
-        max_empty_batches = 3
+        limit = 200
+        total_fetched = 0
+        empty_count = 0
+        max_empty = 3
         
         logger.info("📥 Fetching ALL messages from file channel...")
         
         while self.is_running:
             try:
-                messages = await client.get_messages(
+                # ✅ CORRECT SYNTAX: get_chat_history with limit
+                messages = []
+                async for msg in client.get_chat_history(
                     Config.FILE_CHANNEL_ID,
-                    limit=batch_size,
+                    limit=limit,
                     offset_id=offset_id
-                )
+                ):
+                    messages.append(msg)
+                    if len(messages) >= limit:
+                        break
                 
                 if not messages:
-                    empty_batch_count += 1
-                    if empty_batch_count >= max_empty_batches:
+                    empty_count += 1
+                    if empty_count >= max_empty:
                         logger.info("✅ No more messages to fetch")
                         break
                     await asyncio.sleep(1)
                     continue
                 
-                empty_batch_count = 0
+                empty_count = 0
                 all_messages.extend(messages)
-                offset_id = messages[-1].id
+                offset_id = messages[-1].id  # ✅ Correct: use message.id
+                total_fetched = len(all_messages)
                 
-                logger.info(f"📥 Fetched {len(all_messages)} messages so far...")
-                self.indexing_stats['total_messages_fetched'] = len(all_messages)
+                logger.info(f"📥 Fetched {total_fetched} messages so far...")
+                self.indexing_stats['total_messages_fetched'] = total_fetched
                 
-                if len(messages) < batch_size:
+                if len(messages) < limit:
                     logger.info("✅ Reached end of channel")
                     break
                 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.5)  # Rate limiting
                 
             except Exception as e:
                 logger.error(f"❌ Error fetching messages: {e}")
@@ -1433,7 +1442,7 @@ class OptimizedFileIndexingManager:
         logger.info(f"   • Files WITH thumbnails: {thumbnail_count}")
         logger.info(f"   • Files WITHOUT thumbnails: {no_thumbnail_count}")
         logger.info(f"   • Unique movies: {len(movies_dict)}")
-        logger.info(f"   • Avg files per movie: {video_count/len(movies_dict):.1f}")
+        logger.info(f"   • Avg files per movie: {video_count/len(movies_dict):.1f}" if movies_dict else "0")
         logger.info("=" * 60)
         
         # Save ALL movies to database
@@ -1466,18 +1475,24 @@ class OptimizedFileIndexingManager:
                 'has_poster': False
             }
             
-            # Use upsert to avoid duplicates
-            await files_col.update_one(
-                {'normalized_title': normalized, 'channel_id': Config.FILE_CHANNEL_ID},
-                {'$set': movie_doc},
-                upsert=True
-            )
-            
-            movies_saved += 1
-            total_qualities += len(movie['qualities'])
-            
-            if movie['has_any_thumbnail']:
-                movies_with_thumbnails += 1
+            # Use update_one with upsert to avoid duplicate key errors
+            try:
+                await files_col.update_one(
+                    {'normalized_title': normalized, 'channel_id': Config.FILE_CHANNEL_ID},
+                    {'$set': movie_doc},
+                    upsert=True
+                )
+                movies_saved += 1
+                total_qualities += len(movie['qualities'])
+                
+                if movie['has_any_thumbnail']:
+                    movies_with_thumbnails += 1
+                    
+            except Exception as e:
+                if "duplicate key" in str(e).lower():
+                    logger.debug(f"⚠️ Duplicate movie skipped: {movie['title']}")
+                else:
+                    logger.error(f"❌ Error saving movie {movie['title']}: {e}")
         
         self.total_indexed = movies_saved
         self.indexing_stats['total_movies'] = movies_saved
@@ -1502,6 +1517,144 @@ class OptimizedFileIndexingManager:
         
         # Verify indexing
         await self._verify_indexing()
+    
+    async def _index_new_files(self):
+        """Index only new files (after last indexed message)"""
+        try:
+            # Find the latest message_id in database
+            latest = await files_col.find_one(
+                {'channel_id': Config.FILE_CHANNEL_ID},
+                sort=[('message_id', -1)]
+            )
+            last_message_id = latest.get('message_id', 0) if latest else 0
+            
+            logger.info(f"🔍 Checking for new files after message ID: {last_message_id}")
+            
+            # Use appropriate client
+            client = User if user_session_ready else Bot
+            if not client:
+                return
+            
+            # ✅ FIXED: Correct syntax for getting new messages
+            messages = []
+            async for msg in client.get_chat_history(
+                Config.FILE_CHANNEL_ID,
+                limit=100
+            ):
+                if msg.id > last_message_id:
+                    messages.append(msg)
+                else:
+                    break
+            
+            if not messages:
+                logger.info("✅ No new files found")
+                return
+            
+            logger.info(f"📥 Found {len(messages)} new messages")
+            
+            # Process new messages (oldest first)
+            for msg in reversed(messages):
+                if not msg or (not msg.document and not msg.video):
+                    continue
+                
+                file_name = None
+                if msg.document:
+                    file_name = msg.document.file_name
+                elif msg.video:
+                    file_name = msg.video.file_name or "video.mp4"
+                
+                if not file_name or not is_video_file(file_name):
+                    continue
+                
+                await self._process_single_message(msg)
+                await asyncio.sleep(0.5)  # Rate limiting
+            
+        except Exception as e:
+            logger.error(f"❌ Error indexing new files: {e}")
+    
+    async def _process_single_message(self, msg):
+        """Process a single message for indexing"""
+        try:
+            file_name = None
+            if msg.document:
+                file_name = msg.document.file_name
+            elif msg.video:
+                file_name = msg.video.file_name or "video.mp4"
+            
+            has_thumb = has_telegram_thumbnail(msg)
+            clean_title = extract_clean_title(file_name)
+            normalized = normalize_title(clean_title)
+            quality = detect_quality_enhanced(file_name)
+            year = extract_year(file_name)
+            
+            file_entry = {
+                'file_name': file_name,
+                'file_size': msg.document.file_size if msg.document else msg.video.file_size,
+                'file_size_formatted': format_size(msg.document.file_size if msg.document else msg.video.file_size),
+                'message_id': msg.id,
+                'file_id': msg.document.file_id if msg.document else msg.video.file_id,
+                'quality': quality,
+                'has_thumbnail_in_telegram': has_thumb,
+                'thumbnail_extracted': False,
+                'thumbnail_url': None,
+                'date': msg.date
+            }
+            
+            # Check if movie exists
+            existing = await files_col.find_one({
+                'normalized_title': normalized,
+                'channel_id': Config.FILE_CHANNEL_ID
+            })
+            
+            if existing:
+                # Update existing movie
+                update = {
+                    f'qualities.{quality}': file_entry,
+                    '$addToSet': {'available_qualities': quality}
+                }
+                
+                if has_thumb:
+                    update['$addToSet'] = {'qualities_with_thumbnails': quality}
+                    update['$inc'] = {'files_with_thumbnails': 1}
+                    update['$set'] = {'has_any_thumbnail': True}
+                else:
+                    update['$addToSet'] = {'qualities_without_thumbnails': quality}
+                    update['$inc'] = {'files_without_thumbnails': 1}
+                
+                update['$inc'] = {'total_qualities': 1}
+                
+                await files_col.update_one(
+                    {'_id': existing['_id']},
+                    update
+                )
+                
+                logger.info(f"✅ Updated movie: {clean_title} - Added {quality}")
+                
+            else:
+                # Create new movie
+                movie_doc = {
+                    'title': clean_title,
+                    'original_title': clean_title,
+                    'normalized_title': normalized,
+                    'year': year,
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'qualities': {quality: file_entry},
+                    'available_qualities': [quality],
+                    'qualities_with_thumbnails': [quality] if has_thumb else [],
+                    'qualities_without_thumbnails': [] if has_thumb else [quality],
+                    'total_qualities': 1,
+                    'files_with_thumbnails': 1 if has_thumb else 0,
+                    'files_without_thumbnails': 0 if has_thumb else 1,
+                    'has_any_thumbnail': has_thumb,
+                    'thumbnail_extraction_pending': has_thumb,
+                    'indexed_at': datetime.now()
+                }
+                
+                await files_col.insert_one(movie_doc)
+                logger.info(f"✅ New movie: {clean_title} - {quality}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error processing message {msg.id}: {e}")
     
     async def _extract_thumbnails_background(self):
         """Background mein dheere dheere saare thumbnails extract karo"""
@@ -1617,43 +1770,7 @@ class OptimizedFileIndexingManager:
             )
         
         return result
-    
-    async def _verify_indexing(self):
-        """Verify indexing is working"""
-        try:
-            total_movies = await files_col.count_documents({'channel_id': Config.FILE_CHANNEL_ID})
             
-            # Count total qualities
-            pipeline = [
-                {'$match': {'channel_id': Config.FILE_CHANNEL_ID}},
-                {'$group': {
-                    '_id': None,
-                    'total_qualities': {'$sum': '$total_qualities'},
-                    'qualities_with_thumbnails': {'$sum': '$files_with_thumbnails'},
-                    'qualities_without_thumbnails': {'$sum': '$files_without_thumbnails'}
-                }}
-            ]
-            result = await files_col.aggregate(pipeline).to_list(1)
-            
-            if result:
-                stats = result[0]
-                total_qualities = stats['total_qualities']
-                with_thumbnails = stats['qualities_with_thumbnails']
-                without_thumbnails = stats['qualities_without_thumbnails']
-                
-                logger.info("=" * 60)
-                logger.info("🔍 VERIFYING INDEXING...")
-                logger.info("=" * 60)
-                logger.info(f"📊 Movies in database: {total_movies}")
-                logger.info(f"📊 Total qualities: {total_qualities}")
-                logger.info(f"📊 Qualities with thumbnails: {with_thumbnails}")
-                logger.info(f"📊 Qualities without thumbnails: {without_thumbnails}")
-                logger.info(f"📊 Thumbnail coverage: {(with_thumbnails/total_qualities*100):.1f}%" if total_qualities > 0 else "0%")
-                logger.info("=" * 60)
-            
-        except Exception as e:
-            logger.error(f"❌ Verification error: {e}")
-    
     async def _indexing_loop(self):
         """Background indexing loop for new files"""
         while self.is_running:
