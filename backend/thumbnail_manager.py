@@ -1,435 +1,681 @@
-"""
-thumbnail_manager.py - COMPLETE THUMBNAIL SYSTEM
-One Movie → One Thumbnail → All 4 Qualities
-"""
+# ============================================================================
+# 🚀 thumbnail_manager.py - COMPLETE THUMBNAIL MANAGEMENT SYSTEM
+# ============================================================================
 
 import os
 import asyncio
-import hashlib
-import re
-import base64
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Union
-from datetime import datetime
 import logging
-from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
+import base64
+import json
+import time
+import hashlib
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional, Tuple, Union
+from pathlib import Path
+import aiofiles
+import aiohttp
+from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 
+# ============================================================================
+# ✅ FALLBACK THUMBNAIL URL
+# ============================================================================
+FALLBACK_THUMBNAIL_URL = "https://iili.io/fAeIwv9.th.png"
+
+# ============================================================================
+# ✅ THUMBNAIL MANAGER - COMPLETE
+# ============================================================================
+
 class ThumbnailManager:
     """
-    ONE MOVIE → ONE THUMBNAIL → ALL 4 QUALITIES
-    Extracts thumbnail once per movie, shares across all qualities
+    Complete Thumbnail Manager - Stores thumbnails ONLY when successfully extracted
     """
     
-    def __init__(self, 
-                 download_path: str = "downloads/thumbnails",
-                 mongodb: Optional[Union[AsyncIOMotorDatabase, AsyncIOMotorClient]] = None,
-                 bot_client=None,
-                 user_client=None,
-                 file_channel_id: Union[int, str] = None):
-        
+    def __init__(
+        self,
+        download_path: str = "downloads/thumbnails",
+        mongodb=None,
+        bot_client=None,
+        user_client=None,
+        file_channel_id: int = None,
+        redis_client=None
+    ):
         self.download_path = Path(download_path)
         self.download_path.mkdir(parents=True, exist_ok=True)
         
-        # ✅ FIXED: Handle database/client properly without truth value testing
-        self.db = None
-        if mongodb is not None:
-            try:
-                # Check if it's a client (has sk4film attribute)
-                if hasattr(mongodb, 'sk4film'):
-                    self.db = mongodb.sk4film
-                    logger.info("✅ Using MongoDB database from client")
-                # Check if it's already a database
-                elif hasattr(mongodb, 'list_collection_names'):
-                    self.db = mongodb
-                    logger.info("✅ Using MongoDB database directly")
-                else:
-                    # Try to get database
-                    try:
-                        self.db = mongodb.sk4film
-                        logger.info("✅ Using MongoDB database via attribute")
-                    except:
-                        self.db = None
-                        logger.warning("⚠️ Could not determine database object")
-            except Exception as e:
-                logger.error(f"❌ Error setting up database: {e}")
-                self.db = None
-        else:
-            logger.warning("⚠️ No MongoDB connection provided")
-            self.db = None
+        # MongoDB
+        self.mongodb = mongodb
+        self.thumbnails_col = None
+        self.stats_col = None
         
-        self.bot = bot_client
-        self.user = user_client
-        self.file_channel = file_channel_id
+        # Telegram clients
+        self.bot_client = bot_client
+        self.user_client = user_client
+        self.file_channel_id = file_channel_id
         
-        # ✅ FIXED: Set collections with None check - NO TRUTH VALUE TESTING
-        self.thumb_collection = None
-        self.movie_collection = None
+        # Redis cache
+        self.redis = redis_client
         
-        if self.db is not None:
-            try:
-                self.thumb_collection = self.db.thumbnails
-                self.movie_collection = self.db.movies
-                logger.info("✅ Thumbnail collections initialized")
-            except Exception as e:
-                logger.error(f"❌ Error setting up collections: {e}")
-                self.thumb_collection = None
-                self.movie_collection = None
-        
-        # Statistics tracking
+        # Stats
         self.stats = {
-            "total_movies": 0,
-            "movies_with_thumbnails": 0,
-            "movies_without_thumbnails": 0,
-            "total_files": 0,
-            "files_with_thumbnails": 0
+            'total_requests': 0,
+            'cache_hits': 0,
+            'extraction_attempts': 0,
+            'extraction_success': 0,
+            'extraction_failed': 0,
+            'db_hits': 0,
+            'errors': 0
         }
         
-        # Create indexes asynchronously
-        if self.thumb_collection is not None:
-            asyncio.create_task(self._create_indexes())
-            
-        logger.info("=" * 60)
-        logger.info("🚀 THUMBNAIL MANAGER: ONE MOVIE → ONE THUMBNAIL")
-        logger.info("=" * 60)
-        logger.info("   • One Movie → One Thumbnail: ✅ ENABLED")
-        logger.info("   • 4 Qualities → Same Thumbnail: ✅ ENABLED")
-        logger.info("   • Existing Files Auto-Extract: ✅ ENABLED")
-        logger.info("   • New Files Auto-Extract: ✅ ENABLED")
-        logger.info("   • SEARCH Priority: Extracted → Poster → Fallback: ✅ ENABLED")
-        logger.info("   • HOME Priority: Poster → Extracted → Fallback: ✅ ENABLED")
-        logger.info("=" * 60)
-    
+        # Background tasks
+        self.cleanup_task = None
+        self.is_running = False
+        
     async def initialize(self):
-        """Initialize thumbnail manager"""
-        logger.info("✅ ThumbnailManager initialized successfully")
-        return True
+        """Initialize Thumbnail Manager"""
+        try:
+            if self.mongodb is not None:
+                # Get database
+                if hasattr(self.mongodb, 'sk4film'):
+                    db = self.mongodb.sk4film
+                else:
+                    db = self.mongodb
+                
+                # Create collections
+                self.thumbnails_col = db.thumbnails
+                self.stats_col = db.thumbnail_stats
+                
+                # Create indexes
+                await self._create_indexes()
+                
+                logger.info("✅ Using MongoDB database from client")
+                logger.info("✅ Thumbnail collections initialized")
+            else:
+                logger.warning("⚠️ MongoDB not provided - using file-based storage only")
+            
+            # Start cleanup task
+            self.is_running = True
+            self.cleanup_task = asyncio.create_task(self._cleanup_old_thumbnails())
+            
+            logger.info("=" * 60)
+            logger.info("🚀 THUMBNAIL MANAGER: ONE MOVIE → ONE THUMBNAIL")
+            logger.info("=" * 60)
+            logger.info("    • One Movie → One Thumbnail: ✅ ENABLED")
+            logger.info("    • 4 Qualities → Same Thumbnail: ✅ ENABLED")
+            logger.info("    • Existing Files Auto-Extract: ✅ ENABLED")
+            logger.info("    • New Files Auto-Extract: ✅ ENABLED")
+            logger.info("    • SEARCH Priority: Extracted → Poster → Fallback: ✅ ENABLED")
+            logger.info("    • HOME Priority: Poster → Extracted → Fallback: ✅ ENABLED")
+            logger.info("=" * 60)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ ThumbnailManager initialization error: {e}")
+            return False
     
     async def _create_indexes(self):
-        """Create optimized indexes for fast lookups"""
-        # ✅ FIXED: Check collection with is None, not truth value
-        if self.thumb_collection is None:
-            logger.warning("⚠️ Thumbnail collection not available, skipping indexes")
+        """Create MongoDB indexes"""
+        if self.thumbnails_col is None:
             return
         
         try:
-            # Check if collection exists and create indexes
-            await self.thumb_collection.create_index("movie_id", unique=True, background=True)
-            await self.thumb_collection.create_index("movie_name_normalized", background=True)
-            await self.thumb_collection.create_index("thumbnail_path", background=True)
-            logger.info("✅ Thumbnail indexes created successfully")
-        except Exception as e:
-            logger.error(f"❌ Error creating indexes: {e}")
-        
-        # Movie collection indexes
-        if self.movie_collection is not None:
-            try:
-                await self.movie_collection.create_index("movie_id", unique=True, background=True)
-                await self.movie_collection.create_index("movie_name_normalized", background=True)
-                logger.info("✅ Movie indexes created successfully")
-            except Exception as e:
-                logger.error(f"❌ Error creating movie indexes: {e}")
-    
-    def _extract_movie_id(self, file_name: str) -> str:
-        """Extract UNIQUE MOVIE ID from filename"""
-        if not file_name:
-            return "unknown"
-        
-        # Remove year in parentheses
-        name = re.sub(r'\s*\(\d{4}\)', '', file_name)
-        # Remove standalone year
-        name = re.sub(r'\s*\d{4}', '', name)
-        # Remove quality tags
-        name = re.sub(r'\b(4K|2160p|1080p|720p|480p|360p|WEB-DL|WEBRip|BluRay|HDTV|HDRip|CAM|HDTC|TS|DVD|BRRip)\b.*$', '', name, flags=re.I)
-        # Remove codec info
-        name = re.sub(r'\b(x264|x265|HEVC|AVC|DDP|AAC|AC3|MP3|5\.1|7\.1|2\.0|ESub|Sub)\b.*$', '', name, flags=re.I)
-        # Remove special characters
-        name = re.sub(r'[^\w\s-]', ' ', name)
-        # Clean up spaces
-        name = re.sub(r'\s+', ' ', name).strip().lower()
-        
-        if len(name) < 3:
-            name = re.sub(r'[^\w\s-]', ' ', file_name[:50])
-            name = re.sub(r'\s+', ' ', name).strip().lower()
-        
-        # Create hash for consistent ID
-        movie_hash = hashlib.md5(name.encode()).hexdigest()[:16]
-        movie_id = f"{name[:30].replace(' ', '_')}_{movie_hash}"
-        
-        return movie_id
-    
-    def _get_movie_name_clean(self, file_name: str) -> str:
-        """Get clean movie name for display"""
-        name = self._extract_movie_id(file_name)
-        if '_' in name:
-            name = name.split('_')[0]
-        return name.replace('_', ' ').title()
-    
-    async def get_thumbnail(self, 
-                           file_data: Dict[str, Any], 
-                           message: Optional[Any] = None,
-                           force_extract: bool = False) -> Optional[str]:
-        """Get thumbnail for ANY quality of a movie"""
-        file_name = file_data.get('file_name', '')
-        message_id = file_data.get('message_id')
-        
-        movie_id = self._extract_movie_id(file_name)
-        movie_name_clean = self._get_movie_name_clean(file_name)
-        
-        # ✅ FIXED: Check with is None
-        if not force_extract and self.thumb_collection is not None:
-            try:
-                movie_thumb = await self.thumb_collection.find_one({"movie_id": movie_id})
-                
-                if movie_thumb and movie_thumb.get('thumbnail_path'):
-                    thumb_path = movie_thumb['thumbnail_path']
-                    
-                    if os.path.exists(thumb_path):
-                        logger.info(f"✅ SHARED THUMBNAIL: '{movie_name_clean[:30]}'")
-                        return thumb_path
-                    elif movie_thumb.get('thumbnail_bytes'):
-                        os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
-                        with open(thumb_path, 'wb') as f:
-                            f.write(movie_thumb['thumbnail_bytes'])
-                        logger.info(f"✅ RESTORED THUMBNAIL: '{movie_name_clean[:30]}'")
-                        return thumb_path
-            except Exception as e:
-                logger.error(f"❌ Error finding thumbnail: {e}")
-        
-        if message or (self.user and self.file_channel and message_id):
-            logger.info(f"🎬 EXTRACTING: First time thumbnail for '{movie_name_clean[:30]}'")
-            
-            msg = message
-            if not msg and self.user and self.file_channel and message_id:
-                try:
-                    msg = await self.user.get_messages(self.file_channel, message_id)
-                except Exception as e:
-                    logger.error(f"❌ Error getting message: {e}")
-            
-            if msg:
-                thumb_path = await self._extract_from_message(msg, movie_id, movie_name_clean)
-                
-                if thumb_path and os.path.exists(thumb_path):
-                    await self._cache_movie_thumbnail(movie_id, movie_name_clean, thumb_path, file_data)
-                    logger.info(f"✅ EXTRACTED: '{movie_name_clean[:30]}'")
-                    return thumb_path
-        
-        logger.info(f"❌ NO THUMBNAIL: '{movie_name_clean[:30]}'")
-        return None
-    
-    async def _extract_from_message(self, 
-                                   message: Any, 
-                                   movie_id: str,
-                                   movie_name: str) -> Optional[str]:
-        """Extract thumbnail from Telegram message"""
-        try:
-            clean_name = re.sub(r'[^\w\-_]', '_', movie_name[:30])
-            thumb_path = self.download_path / f"movie_{clean_name}_{movie_id[-8:]}.jpg"
-            
-            if message.media:
-                if message.video and message.video.thumbs:
-                    if self.bot:
-                        file_id = message.video.thumbs[0].file_id
-                        await self.bot.download_media(file_id, file_name=str(thumb_path))
-                        if thumb_path.exists():
-                            return str(thumb_path)
-                
-                elif message.document and message.document.thumbs:
-                    if self.bot:
-                        file_id = message.document.thumbs[0].file_id
-                        await self.bot.download_media(file_id, file_name=str(thumb_path))
-                        if thumb_path.exists():
-                            return str(thumb_path)
-                
-                elif message.photo:
-                    if self.bot:
-                        file_id = message.photo.file_id
-                        await self.bot.download_media(file_id, file_name=str(thumb_path))
-                        if thumb_path.exists():
-                            return str(thumb_path)
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ Error extracting thumbnail: {e}")
-            return None
-    
-    async def _cache_movie_thumbnail(self, 
-                                    movie_id: str, 
-                                    movie_name: str, 
-                                    thumb_path: str, 
-                                    source_file: Dict):
-        """Cache thumbnail by MOVIE ID"""
-        # ✅ FIXED: Check with is None
-        if self.thumb_collection is None:
-            logger.warning("⚠️ Thumbnail collection not available, skipping cache")
-            return
-            
-        try:
-            with open(thumb_path, 'rb') as f:
-                thumb_bytes = f.read()
-            
-            thumb_doc = {
-                "movie_id": movie_id,
-                "movie_name": movie_name,
-                "movie_name_normalized": movie_name.lower(),
-                "thumbnail_path": str(thumb_path),
-                "thumbnail_bytes": thumb_bytes,
-                "extracted_from": {
-                    "message_id": source_file.get('message_id'),
-                    "file_name": source_file.get('file_name'),
-                    "file_unique_id": source_file.get('file_unique_id')
-                },
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
-                "times_shared": 0
-            }
-            
-            result = await self.thumb_collection.update_one(
-                {"movie_id": movie_id},
-                {"$set": thumb_doc, "$inc": {"times_shared": 1}},
-                upsert=True
+            # Unique index for normalized_title
+            await self.thumbnails_col.create_index(
+                "normalized_title",
+                unique=True,
+                name="normalized_title_unique",
+                background=True
             )
             
-            if result.upserted_id:
-                logger.info(f"💾 CACHED: New thumbnail for '{movie_name[:30]}'")
-            else:
-                logger.info(f"💾 UPDATED: Thumbnail for '{movie_name[:30]}'")
+            # Index for expiry
+            await self.thumbnails_col.create_index(
+                "expires_at",
+                expireAfterSeconds=0,
+                name="ttl_index",
+                background=True
+            )
+            
+            # Index for extraction status
+            await self.thumbnails_col.create_index(
+                "extraction_status",
+                background=True
+            )
+            
+            # Index for file channel
+            await self.thumbnails_col.create_index(
+                [("channel_id", 1), ("message_id", 1)],
+                name="channel_message",
+                background=True
+            )
+            
+            logger.info("✅ Thumbnail indexes created successfully")
             
         except Exception as e:
-            logger.error(f"❌ Error caching thumbnail: {e}")
+            logger.warning(f"⚠️ Thumbnail index creation error: {e}")
     
-    async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
-        """Get thumbnail for a movie - RETURNS EXTRACTED THUMBNAIL ONLY"""
-        movie_id = self._extract_movie_id(title)
-        
-        thumb_path = None
-        # ✅ FIXED: Check with is None
-        if self.thumb_collection is not None:
-            try:
-                movie_thumb = await self.thumb_collection.find_one({"movie_id": movie_id})
-                if movie_thumb and movie_thumb.get('thumbnail_path'):
-                    if os.path.exists(movie_thumb['thumbnail_path']):
-                        thumb_path = movie_thumb['thumbnail_path']
-            except Exception as e:
-                logger.error(f"❌ Error finding thumbnail: {e}")
-        
-        if thumb_path:
-            try:
-                with open(thumb_path, 'rb') as f:
-                    img_data = f.read()
-                    base64_data = base64.b64encode(img_data).decode('utf-8')
-                    thumbnail_url = f"data:image/jpeg;base64,{base64_data}"
-                    
-                    return {
-                        'thumbnail_url': thumbnail_url,
-                        'source': 'extracted',
-                        'has_thumbnail': True,
-                        'extracted': True,
-                        'movie_id': movie_id,
-                        'is_extracted': True
-                    }
-            except Exception as e:
-                logger.error(f"❌ Error reading thumbnail: {e}")
-        
-        return {
-            'thumbnail_url': '',
-            'source': 'none',
-            'has_thumbnail': False,
-            'extracted': False,
-            'is_extracted': False
+    async def get_thumbnail_for_movie(
+        self,
+        title: str,
+        channel_id: int = None,
+        message_id: int = None,
+        quality: str = None
+    ) -> Dict[str, Any]:
+        """
+        Get thumbnail for a movie - ONLY if successfully extracted
+        Returns: {
+            'thumbnail_url': 'data:image... or None',
+            'source': 'extracted' or 'none',
+            'extracted': bool,
+            'quality': str
         }
+        """
+        self.stats['total_requests'] += 1
+        normalized = self._normalize_title(title)
+        
+        # Result template
+        result = {
+            'thumbnail_url': None,
+            'source': 'none',
+            'extracted': False,
+            'quality': quality
+        }
+        
+        try:
+            # STEP 1: Check Redis cache first
+            if self.redis:
+                cache_key = f"thumb:{normalized}"
+                cached = await self.redis.get(cache_key)
+                if cached:
+                    try:
+                        cached_data = json.loads(cached)
+                        if cached_data.get('thumbnail_url'):
+                            self.stats['cache_hits'] += 1
+                            logger.debug(f"✅ Redis cache HIT for: {title[:30]}")
+                            return cached_data
+                    except:
+                        pass
+            
+            # STEP 2: Check MongoDB
+            if self.thumbnails_col is not None:
+                doc = await self.thumbnails_col.find_one(
+                    {"normalized_title": normalized}
+                )
+                
+                if doc and doc.get('thumbnail_url'):
+                    self.stats['db_hits'] += 1
+                    
+                    # Update cache
+                    if self.redis:
+                        cache_data = {
+                            'thumbnail_url': doc['thumbnail_url'],
+                            'source': doc.get('source', 'database'),
+                            'extracted': doc.get('extracted', True),
+                            'quality': doc.get('quality')
+                        }
+                        await self.redis.setex(
+                            f"thumb:{normalized}",
+                            86400,  # 24 hours
+                            json.dumps(cache_data)
+                        )
+                    
+                    logger.debug(f"✅ MongoDB HIT for: {title[:30]}")
+                    return {
+                        'thumbnail_url': doc['thumbnail_url'],
+                        'source': doc.get('source', 'database'),
+                        'extracted': doc.get('extracted', True),
+                        'quality': doc.get('quality')
+                    }
+            
+            # STEP 3: Try to extract if message_id provided
+            if channel_id and message_id:
+                self.stats['extraction_attempts'] += 1
+                
+                # Try bot client first
+                if self.bot_client:
+                    try:
+                        thumbnail_url = await self._extract_with_bot(channel_id, message_id)
+                        if thumbnail_url:
+                            self.stats['extraction_success'] += 1
+                            
+                            # Save to database
+                            await self._save_thumbnail(
+                                title=title,
+                                normalized=normalized,
+                                thumbnail_url=thumbnail_url,
+                                source='bot_extracted',
+                                channel_id=channel_id,
+                                message_id=message_id,
+                                quality=quality,
+                                extracted=True
+                            )
+                            
+                            logger.info(f"✅ Extracted thumbnail with BOT: {title[:30]}")
+                            
+                            result.update({
+                                'thumbnail_url': thumbnail_url,
+                                'source': 'extracted',
+                                'extracted': True
+                            })
+                            return result
+                            
+                    except Exception as e:
+                        logger.debug(f"Bot extraction failed for {title[:30]}: {e}")
+                
+                # Try user client if bot failed
+                if self.user_client and not result['thumbnail_url']:
+                    try:
+                        thumbnail_url = await self._extract_with_user(channel_id, message_id)
+                        if thumbnail_url:
+                            self.stats['extraction_success'] += 1
+                            
+                            # Save to database
+                            await self._save_thumbnail(
+                                title=title,
+                                normalized=normalized,
+                                thumbnail_url=thumbnail_url,
+                                source='user_extracted',
+                                channel_id=channel_id,
+                                message_id=message_id,
+                                quality=quality,
+                                extracted=True
+                            )
+                            
+                            logger.info(f"✅ Extracted thumbnail with USER: {title[:30]}")
+                            
+                            result.update({
+                                'thumbnail_url': thumbnail_url,
+                                'source': 'extracted',
+                                'extracted': True
+                            })
+                            return result
+                            
+                    except Exception as e:
+                        logger.debug(f"User extraction failed for {title[:30]}: {e}")
+                
+                # If we reached here, extraction failed
+                self.stats['extraction_failed'] += 1
+                
+                # Still save that we attempted but failed (optional)
+                await self._save_thumbnail(
+                    title=title,
+                    normalized=normalized,
+                    thumbnail_url=None,
+                    source='extraction_failed',
+                    channel_id=channel_id,
+                    message_id=message_id,
+                    quality=quality,
+                    extracted=False
+                )
+            
+            # No thumbnail found/extracted
+            logger.debug(f"❌ No thumbnail for: {title[:30]}")
+            return result
+            
+        except Exception as e:
+            self.stats['errors'] += 1
+            logger.error(f"❌ get_thumbnail_for_movie error for {title}: {e}")
+            return result
     
-    async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
-        """Get thumbnails for multiple movies in batch"""
+    async def get_thumbnails_batch(
+        self,
+        movies: List[Dict]
+    ) -> List[Dict[str, Any]]:
+        """
+        Get thumbnails for multiple movies in batch
+        Returns list of results in same order
+        """
         results = []
         
         for movie in movies:
-            title = movie.get('title', '')
-            result = await self.get_thumbnail_for_movie(title)
-            results.append(result)
+            try:
+                result = await self.get_thumbnail_for_movie(
+                    title=movie.get('title', ''),
+                    channel_id=movie.get('channel_id'),
+                    message_id=movie.get('message_id'),
+                    quality=movie.get('quality')
+                )
+                results.append(result)
+            except Exception as e:
+                logger.error(f"Batch thumbnail error: {e}")
+                results.append({
+                    'thumbnail_url': None,
+                    'source': 'error',
+                    'extracted': False
+                })
         
         return results
     
+    async def _extract_with_bot(self, channel_id: int, message_id: int) -> Optional[str]:
+        """Extract thumbnail using bot client"""
+        try:
+            if not self.bot_client:
+                return None
+            
+            # Get message
+            message = await self.bot_client.get_messages(channel_id, message_id)
+            if not message:
+                return None
+            
+            thumbnail_data = None
+            
+            # Video thumbnail
+            if message.video and hasattr(message.video, 'thumbnail') and message.video.thumbnail:
+                thumb_file_id = message.video.thumbnail.file_id
+                thumbnail_data = await self._download_file(self.bot_client, thumb_file_id)
+            
+            # Document thumbnail
+            elif message.document and hasattr(message.document, 'thumbnail') and message.document.thumbnail:
+                thumb_file_id = message.document.thumbnail.file_id
+                thumbnail_data = await self._download_file(self.bot_client, thumb_file_id)
+            
+            if thumbnail_data:
+                # Convert to base64
+                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                return f"data:image/jpeg;base64,{base64_data}"
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Bot extraction error: {e}")
+            return None
+    
+    async def _extract_with_user(self, channel_id: int, message_id: int) -> Optional[str]:
+        """Extract thumbnail using user client"""
+        try:
+            if not self.user_client:
+                return None
+            
+            # Get message
+            message = await self.user_client.get_messages(channel_id, message_id)
+            if not message:
+                return None
+            
+            thumbnail_data = None
+            
+            # Video thumbnail
+            if message.video and hasattr(message.video, 'thumbnail') and message.video.thumbnail:
+                thumb_file_id = message.video.thumbnail.file_id
+                thumbnail_data = await self._download_file(self.user_client, thumb_file_id)
+            
+            # Document thumbnail
+            elif message.document and hasattr(message.document, 'thumbnail') and message.document.thumbnail:
+                thumb_file_id = message.document.thumbnail.file_id
+                thumbnail_data = await self._download_file(self.user_client, thumb_file_id)
+            
+            if thumbnail_data:
+                # Convert to base64
+                base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+                return f"data:image/jpeg;base64,{base64_data}"
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"User extraction error: {e}")
+            return None
+    
+    async def _download_file(self, client, file_id: str) -> Optional[bytes]:
+        """Download file from Telegram"""
+        try:
+            download_path = await client.download_media(file_id, in_memory=True)
+            if not download_path:
+                return None
+            
+            if isinstance(download_path, bytes):
+                return download_path
+            else:
+                # If it's a file path, read it
+                async with aiofiles.open(download_path, 'rb') as f:
+                    return await f.read()
+                    
+        except Exception as e:
+            logger.error(f"Download error: {e}")
+            return None
+    
+    async def _save_thumbnail(
+        self,
+        title: str,
+        normalized: str,
+        thumbnail_url: Optional[str],
+        source: str,
+        channel_id: int = None,
+        message_id: int = None,
+        quality: str = None,
+        extracted: bool = False
+    ):
+        """Save thumbnail info to database"""
+        if self.thumbnails_col is None:
+            return
+        
+        try:
+            doc = {
+                'title': title[:100],
+                'normalized_title': normalized,
+                'thumbnail_url': thumbnail_url,
+                'source': source,
+                'extracted': extracted,
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'quality': quality,
+                'created_at': datetime.now(),
+                'expires_at': datetime.now() + timedelta(days=30)  # 30 days TTL
+            }
+            
+            # Upsert
+            await self.thumbnails_col.update_one(
+                {'normalized_title': normalized},
+                {'$set': doc},
+                upsert=True
+            )
+            
+            # Update cache
+            if self.redis and thumbnail_url:
+                cache_data = {
+                    'thumbnail_url': thumbnail_url,
+                    'source': source,
+                    'extracted': extracted,
+                    'quality': quality
+                }
+                await self.redis.setex(
+                    f"thumb:{normalized}",
+                    86400,  # 24 hours
+                    json.dumps(cache_data)
+                )
+            
+            logger.debug(f"💾 Saved thumbnail for: {title[:30]} - {source}")
+            
+        except Exception as e:
+            logger.error(f"Save thumbnail error: {e}")
+    
+    async def _cleanup_old_thumbnails(self):
+        """Background task to clean up old thumbnails"""
+        logger.info("🧹 Starting thumbnail cleanup task...")
+        
+        while self.is_running:
+            try:
+                await asyncio.sleep(3600)  # Run every hour
+                
+                if self.thumbnails_col is None:
+                    continue
+                
+                # Delete expired thumbnails
+                result = await self.thumbnails_col.delete_many({
+                    'expires_at': {'$lt': datetime.now()}
+                })
+                
+                if result.deleted_count > 0:
+                    logger.info(f"🧹 Cleaned up {result.deleted_count} expired thumbnails")
+                
+                # Also clean up physical files if any
+                await self._cleanup_physical_files()
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Cleanup error: {e}")
+    
+    async def _cleanup_physical_files(self):
+        """Clean up physical thumbnail files"""
+        try:
+            # Get list of files in download directory
+            files = list(self.download_path.glob("*.jpg"))
+            
+            # Check each file's age
+            for file_path in files:
+                if file_path.stat().st_mtime < (time.time() - 30 * 86400):  # 30 days
+                    file_path.unlink()
+                    logger.debug(f"🧹 Deleted old file: {file_path.name}")
+                    
+        except Exception as e:
+            logger.error(f"Physical cleanup error: {e}")
+    
+    def _normalize_title(self, title: str) -> str:
+        """Normalize title for consistent lookup"""
+        if not title:
+            return ""
+        
+        # Convert to lowercase
+        normalized = title.lower().strip()
+        
+        # Remove special characters
+        normalized = re.sub(r'[^\w\s]', '', normalized)
+        
+        # Remove extra spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
+        
+        # Remove year at the end
+        normalized = re.sub(r'\s+\d{4}$', '', normalized)
+        
+        # Limit length
+        return normalized[:100]
+    
     async def get_stats(self) -> Dict[str, Any]:
         """Get thumbnail manager statistics"""
-        total_thumbnails = 0
-        # ✅ FIXED: Check with is None
-        if self.thumb_collection is not None:
-            try:
-                total_thumbnails = await self.thumb_collection.count_documents({})
-            except Exception as e:
-                logger.error(f"❌ Error counting thumbnails: {e}")
+        stats = self.stats.copy()
         
-        return {
-            'total_thumbnails': total_thumbnails,
-            'performance_stats': {
-                'avg_extraction_time': '0.5s',
-                'success_rate': '95%'
-            },
-            'success_rate': '95%',
-            'target': '99% success rate',
-            'one_movie_one_thumbnail': True,
-            'priority': 'Extracted First for SEARCH, Poster First for HOME',
-            'database_connected': self.db is not None,
-            'collection_ready': self.thumb_collection is not None
-        }
+        if self.thumbnails_col is not None:
+            try:
+                # Count total thumbnails
+                stats['total_thumbnails'] = await self.thumbnails_col.count_documents({})
+                
+                # Count extracted vs failed
+                stats['extracted_count'] = await self.thumbnails_col.count_documents({
+                    'extracted': True
+                })
+                
+                stats['failed_count'] = await self.thumbnails_col.count_documents({
+                    'source': 'extraction_failed'
+                })
+                
+                # Source distribution
+                pipeline = [
+                    {'$group': {'_id': '$source', 'count': {'$sum': 1}}}
+                ]
+                
+                source_stats = {}
+                async for doc in self.thumbnails_col.aggregate(pipeline):
+                    source_stats[doc['_id']] = doc['count']
+                
+                stats['source_distribution'] = source_stats
+                
+            except Exception as e:
+                logger.error(f"Error getting stats: {e}")
+        
+        # Calculate success rate
+        if stats['extraction_attempts'] > 0:
+            stats['success_rate'] = f"{(stats['extraction_success'] / stats['extraction_attempts'] * 100):.1f}%"
+        else:
+            stats['success_rate'] = "0%"
+        
+        return stats
+    
+    async def preload_thumbnails_for_movies(self, movies: List[Dict]):
+        """Preload thumbnails for a list of movies (background)"""
+        logger.info(f"🔄 Preloading thumbnails for {len(movies)} movies...")
+        
+        for movie in movies:
+            try:
+                await self.get_thumbnail_for_movie(
+                    title=movie.get('title', ''),
+                    channel_id=movie.get('channel_id'),
+                    message_id=movie.get('message_id')
+                )
+                await asyncio.sleep(0.5)  # Rate limiting
+            except Exception as e:
+                logger.error(f"Preload error: {e}")
+        
+        logger.info("✅ Thumbnail preloading complete")
     
     async def shutdown(self):
-        """Clean up resources"""
-        logger.info("👋 ThumbnailManager closed")
+        """Shutdown thumbnail manager"""
+        logger.info("🛑 Shutting down Thumbnail Manager...")
+        self.is_running = False
+        
+        if self.cleanup_task:
+            self.cleanup_task.cancel()
+            try:
+                await self.cleanup_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Save final stats
+        if self.stats_col is not None:
+            try:
+                await self.stats_col.insert_one({
+                    'timestamp': datetime.now(),
+                    'stats': self.stats
+                })
+            except:
+                pass
+        
+        logger.info("✅ Thumbnail Manager shutdown complete")
 
+# ============================================================================
+# ✅ FALLBACK THUMBNAIL MANAGER (if imports fail)
+# ============================================================================
 
 class FallbackThumbnailManager:
-    """Fallback when real ThumbnailManager fails"""
+    """Fallback when ThumbnailManager is not available"""
     
-    def __init__(self, download_path="downloads/thumbnails", mongodb=None, bot_client=None, user_client=None, file_channel_id=None):
-        logger.warning("⚠️ Using FALLBACK Thumbnail Manager")
-        self.download_path = download_path
-        self.db = None
-        self.thumb_collection = None
-        self.movie_collection = None
-        self.bot = bot_client
-        self.user = user_client
-        self.file_channel = file_channel_id
+    def __init__(self, *args, **kwargs):
+        self.stats = {'mode': 'fallback'}
+        logger.warning("⚠️ Using FallbackThumbnailManager")
     
     async def initialize(self):
-        logger.info("✅ Fallback ThumbnailManager initialized")
+        logger.info("✅ FallbackThumbnailManager initialized")
         return True
     
-    async def get_thumbnail(self, *args, **kwargs) -> Optional[str]:
-        return None
-    
-    async def get_thumbnail_for_movie(self, title: str, channel_id: int = None, message_id: int = None) -> Dict[str, Any]:
+    async def get_thumbnail_for_movie(self, title, *args, **kwargs):
         return {
-            'thumbnail_url': '',
+            'thumbnail_url': FALLBACK_THUMBNAIL_URL,
             'source': 'fallback',
-            'has_thumbnail': False,
-            'extracted': False,
-            'is_extracted': False
+            'extracted': False
         }
     
-    async def get_thumbnails_batch(self, movies: List[Dict]) -> List[Dict]:
+    async def get_thumbnails_batch(self, movies):
         return [{
-            **movie,
-            'thumbnail_url': '',
+            'thumbnail_url': FALLBACK_THUMBNAIL_URL,
             'source': 'fallback',
-            'has_thumbnail': False,
-            'extracted': False,
-            'is_extracted': False
-        } for movie in movies]
+            'extracted': False
+        } for _ in movies]
     
-    async def get_stats(self) -> Dict[str, Any]:
-        return {
-            'total_thumbnails': 0,
-            'performance_stats': {},
-            'success_rate': '0%',
-            'target': '99% success rate (fallback)',
-            'one_movie_one_thumbnail': False,
-            'database_connected': False,
-            'collection_ready': False
-        }
+    async def get_stats(self):
+        return self.stats
     
     async def shutdown(self):
-        logger.info("👋 Fallback ThumbnailManager closed")
+        logger.info("✅ FallbackThumbnailManager shutdown")
+
+# ============================================================================
+# ✅ REGEX IMPORT FOR NORMALIZATION
+# ============================================================================
+
+# Import regex here to avoid circular imports
+import re
+
+# ============================================================================
+# ✅ EXPORTS
+# ============================================================================
+
+__all__ = ['ThumbnailManager', 'FallbackThumbnailManager', 'FALLBACK_THUMBNAIL_URL']
