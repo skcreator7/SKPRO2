@@ -98,25 +98,6 @@
             transform: scale(1.05);
         }
         
-        /* Top Ad Container */
-        .top-ad-container {
-            margin: 1rem 0 2rem 0;
-            text-align: center;
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            padding: 10px;
-        }
-        
-        /* Bottom Ad Container */
-        .bottom-ad-container {
-            margin: 2rem 0 1rem 0;
-            text-align: center;
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            padding: 10px;
-        }
-        
-        /* Result Cards */
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
@@ -130,49 +111,15 @@
             transform: translateY(-5px);
             box-shadow: 0 15px 40px rgba(0,0,0,0.6);
         }
-        
-        /* FILE RESULT STYLING */
-        .file-result-card {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
-            border-left: 5px solid #00ccff;
-        }
-        
-        .file-result-title {
+        .result-title {
             color: var(--accent-color);
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 700;
-            margin-bottom: 1.2rem;
+            margin-bottom: 1rem;
             line-height: 1.3;
-            padding-bottom: 0.8rem;
-            border-bottom: 2px solid rgba(0, 204, 255, 0.3);
         }
         
-        /* POST RESULT STYLING */
-        .post-result-card {
-            background: linear-gradient(135deg, rgba(20, 30, 48, 0.95) 0%, rgba(10, 15, 25, 0.95) 100%);
-            border-left: 5px solid #ff6b6b;
-        }
-        
-        .post-content-only {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            font-size: 1rem;
-            line-height: 1.7;
-            color: #e2e8f0;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .post-content-text {
-            max-height: 300px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-        
-        /* Thumbnail */
+        /* Result Structure */
         .result-thumbnail-top {
             margin-bottom: 1.5rem;
             position: relative;
@@ -183,6 +130,193 @@
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         }
         
+        /* IMPROVED: Post Content Styling */
+        .result-post-content {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.2rem;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Post Content Text Styling */
+        .post-content-text {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        /* Post Content Scrollbar */
+        .post-content-text::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .post-content-text::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+        
+        .post-content-text::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 3px;
+        }
+        
+        /* Post Content Links - IMPROVED */
+        .post-content-text a {
+            color: #00ccff;
+            text-decoration: none;
+            font-weight: 600;
+            background: rgba(0, 204, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 2px 0;
+        }
+        
+        .post-content-text a:hover {
+            background: rgba(0, 204, 255, 0.2);
+            color: #80e1ff;
+            text-decoration: none;
+            border-color: rgba(0, 204, 255, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0, 204, 255, 0.2);
+        }
+        
+        /* Telegram Links Styling */
+        .post-content-text a[href*="t.me"],
+        .post-content-text a[href*="telegram"] {
+            color: #0088cc;
+            background: rgba(0, 136, 204, 0.1);
+            border: 1px solid rgba(0, 136, 204, 0.3);
+        }
+        
+        .post-content-text a[href*="t.me"]:hover,
+        .post-content-text a[href*="telegram"]:hover {
+            background: rgba(0, 136, 204, 0.2);
+            color: #33aadd;
+            border-color: rgba(0, 136, 204, 0.5);
+        }
+        
+        /* Bold Text in Post Content */
+        .post-content-text strong,
+        .post-content-text b {
+            color: #ffffff;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        
+        /* Italic Text */
+        .post-content-text em,
+        .post-content-text i {
+            color: #cbd5e1;
+            font-style: italic;
+        }
+        
+        /* Headers in Post Content */
+        .post-content-text h1,
+        .post-content-text h2,
+        .post-content-text h3,
+        .post-content-text h4 {
+            color: var(--accent-color);
+            margin: 15px 0 10px 0;
+            font-weight: 700;
+        }
+        
+        /* Lists in Post Content */
+        .post-content-text ul,
+        .post-content-text ol {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        
+        .post-content-text li {
+            margin: 5px 0;
+        }
+        
+        /* Code/Pre tags */
+        .post-content-text pre,
+        .post-content-text code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-x: auto;
+        }
+        
+        /* Blockquotes */
+        .post-content-text blockquote {
+            border-left: 4px solid var(--accent-color);
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        
+        /* Horizontal Rule */
+        .post-content-text hr {
+            border: none;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 20px 0;
+        }
+        
+        /* Images in Post Content */
+        .post-content-text img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Video in Post Content */
+        .post-content-text video {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Tags/Hashtags */
+        .post-content-text .hashtag {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin: 0 2px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        /* Mentions */
+        .post-content-text .mention {
+            color: #ff6b9d;
+            background: rgba(255, 107, 157, 0.1);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin: 0 2px;
+            border: 1px solid rgba(255, 107, 157, 0.3);
+        }
+        
+        .result-download-section {
+            margin-top: 1rem;
+        }
+        
+        /* Thumbnail Container */
         .thumbnail-container {
             position: relative;
             width: 100%;
@@ -231,22 +365,96 @@
             background: var(--secondary-color);
         }
         
-        /* Action Buttons */
+        /* Thumbnail Loading States */
+        .thumbnail-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            height: 100%;
+        }
+        .thumbnail-loading .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            border-width: 0.2em;
+        }
+        
+        /* Default Thumbnail */
+        .default-thumbnail {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .default-thumbnail i {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+        .default-thumbnail span {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        /* Thumbnail Source Badge */
+        .thumbnail-source-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        /* Thumbnail Source Colors */
+        .thumbnail-source-badge.telegram {
+            background: linear-gradient(135deg, #0088cc, #00aaff);
+            color: white;
+        }
+        
+        .thumbnail-source-badge.tmdb {
+            background: linear-gradient(135deg, #01d277, #0d253f);
+            color: white;
+        }
+        
+        .thumbnail-source-badge.omdb {
+            background: linear-gradient(135deg, #f5c518, #000000);
+            color: white;
+        }
+        
+        .thumbnail-source-badge.fallback {
+            background: linear-gradient(135deg, #666666, #999999);
+            color: white;
+        }
+        
+        /* Action Buttons Container */
         .action-buttons-container {
             display: flex;
             gap: 12px;
             margin-top: 1rem;
         }
         
-        /* Stream Now Button - Direct Link (NO DROPDOWN) */
-        .btn-stream-now-direct {
+        /* Stream Now Button */
+        .btn-stream-now {
             background: linear-gradient(45deg, #ff416c, #ff4b2b);
             color: white;
             border: none;
-            padding: 14px 24px;
+            padding: 12px 24px;
             border-radius: 10px;
-            font-weight: 700;
-            font-size: 1.1rem;
+            font-weight: 600;
+            font-size: 1rem;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
@@ -254,26 +462,30 @@
             gap: 8px;
             flex: 1;
             min-width: 140px;
-            text-decoration: none;
-            text-align: center;
-            box-shadow: 0 6px 15px rgba(255, 65, 108, 0.3);
         }
         
-        .btn-stream-now-direct:hover {
+        .btn-stream-now:hover:not(:disabled) {
             transform: scale(1.03);
-            box-shadow: 0 8px 25px rgba(255, 65, 108, 0.5);
+            box-shadow: 0 6px 20px rgba(255, 65, 108, 0.35);
             color: white;
         }
         
-        /* Download Button - With Dropdown */
+        .btn-stream-now:disabled {
+            background: #495057 !important;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        /* Download Button */
         .btn-download-main {
             background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
             border: none;
-            padding: 14px 24px;
+            padding: 12px 24px;
             border-radius: 10px;
-            font-weight: 700;
-            font-size: 1.1rem;
+            font-weight: 600;
+            font-size: 1rem;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
@@ -281,111 +493,194 @@
             gap: 8px;
             flex: 1;
             min-width: 140px;
-            text-decoration: none;
-            text-align: center;
-            box-shadow: 0 6px 15px rgba(40, 167, 69, 0.3);
-            cursor: pointer;
         }
         
-        .btn-download-main:hover {
+        .btn-download-main:hover:not(:disabled) {
             transform: scale(1.03);
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.5);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35);
             color: white;
+        }
+        
+        .btn-download-main:disabled {
+            background: #495057 !important;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
         }
         
         /* Quality Dropdown */
         .quality-dropdown {
             display: none;
             background: rgba(20, 30, 48, 0.98);
-            border: 2px solid #28a745;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 15px;
+            border: 2px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
             animation: slideDown 0.3s ease;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .quality-dropdown.show {
             display: block;
         }
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
+            from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        /* Quality Buttons Row */
+        /* Quality Buttons Row - ALWAYS HORIZONTAL WITH WRAP */
         .quality-buttons-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
             justify-content: flex-start;
             align-items: stretch;
             width: 100%;
         }
         
+        /* Premium Quality Option Buttons */
         .quality-option {
             display: inline-flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 12px 18px;
+            padding: 15px 20px;
             color: white;
             text-decoration: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-weight: 700;
-            font-size: 0.95rem;
+            font-size: 1rem;
             white-space: nowrap;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border: none;
             cursor: pointer;
-            min-width: 100px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            min-width: 110px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
             flex: 0 0 auto;
             position: relative;
             overflow: hidden;
             letter-spacing: 0.5px;
         }
         
-        .quality-option i {
-            margin-right: 6px;
-            font-size: 1rem;
+        /* Stream Quality Button */
+        .quality-option.stream-btn {
+            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+            border: 1px solid rgba(255, 107, 107, 0.5);
         }
         
-        .quality-option small {
-            font-size: 0.7rem;
-            opacity: 0.9;
-            margin-top: 4px;
+        /* Download Quality Button */
+        .quality-option.download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: 1px solid rgba(40, 167, 69, 0.5);
         }
         
-        /* Quality Colors */
-        .quality-option[data-quality*="2160p"] { background: linear-gradient(135deg, #FF416C, #FF4B2B); }
-        .quality-option[data-quality*="1080p"] { background: linear-gradient(135deg, #00b09b, #96c93d); }
-        .quality-option[data-quality*="720p"] { background: linear-gradient(135deg, #8E2DE2, #4A00E0); }
-        .quality-option[data-quality*="480p"] { background: linear-gradient(135deg, #FF5E62, #FF9966); }
-        .quality-option[data-quality*="360p"] { background: linear-gradient(135deg, #36D1DC, #5B86E5); }
-        .quality-option[data-quality*="HEVC"] { background: linear-gradient(135deg, #FF416C, #FF4B2B); }
-        .quality-option:not([data-quality]) { background: linear-gradient(135deg, #9CECFB, #65C7F7, #0052D4); }
+        /* Premium Gradient Colors for Each Quality */
+        .quality-option[data-quality*="2160p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+            border: 1px solid rgba(255, 107, 107, 0.5);
+        }
         
+        .quality-option[data-quality*="2160p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #FF8008 0%, #FFC837 100%);
+            border: 1px solid rgba(255, 168, 38, 0.5);
+        }
+        
+        .quality-option[data-quality*="1080p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+            border: 1px solid rgba(86, 210, 189, 0.5);
+        }
+        
+        .quality-option[data-quality*="1080p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            border: 1px solid rgba(109, 213, 237, 0.5);
+        }
+        
+        .quality-option[data-quality*="720p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
+            border: 1px solid rgba(142, 45, 226, 0.5);
+        }
+        
+        .quality-option[data-quality*="720p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+        }
+        
+        .quality-option[data-quality*="480p"][data-quality*="HEVC"] {
+            background: linear-gradient(135deg, #FF5E62 0%, #FF9966 100%);
+            border: 1px solid rgba(255, 94, 98, 0.5);
+        }
+        
+        .quality-option[data-quality*="480p"]:not([data-quality*="HEVC"]) {
+            background: linear-gradient(135deg, #FF6B9D 0%, #FF8E53 100%);
+            border: 1px solid rgba(255, 107, 157, 0.5);
+        }
+        
+        .quality-option[data-quality*="360p"] {
+            background: linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%);
+            border: 1px solid rgba(91, 134, 229, 0.5);
+        }
+        
+        .quality-option[data-quality*="240p"] {
+            background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
+            border: 1px solid rgba(120, 255, 214, 0.5);
+            color: #333;
+        }
+        
+        .quality-option[data-quality*="HD"] {
+            background: linear-gradient(135deg, #FFE53B 0%, #FF2525 100%);
+            border: 1px solid rgba(255, 229, 59, 0.5);
+            color: #333;
+        }
+        
+        .quality-option[data-quality*="SD"] {
+            background: linear-gradient(135deg, #f46b45 0%, #eea849 100%);
+            border: 1px solid rgba(238, 168, 73, 0.5);
+        }
+        
+        .quality-option[data-quality*="HQ"] {
+            background: linear-gradient(135deg, #FFAFBD 0%, #ffc3a0 100%);
+            border: 1px solid rgba(255, 175, 189, 0.5);
+            color: #333;
+        }
+        
+        .quality-option[data-quality*="LQ"] {
+            background: linear-gradient(135deg, #CCCCCC 0%, #999999 100%);
+            border: 1px solid rgba(153, 153, 153, 0.5);
+            color: #333;
+        }
+        
+        /* Default gradient for other qualities */
+        .quality-option:not([data-quality]) {
+            background: linear-gradient(135deg, #9CECFB 0%, #65C7F7 50%, #0052D4 100%);
+            border: 1px solid rgba(101, 199, 247, 0.5);
+        }
+        
+        /* Premium Hover Effects */
         .quality-option:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-            color: white;
+            transform: translateY(-5px) scale(1.03);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4);
             text-decoration: none;
+            color: white;
         }
         
-        /* Disclaimer */
-        .disclaimer {
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 2rem;
-            text-align: center;
-            color: #ff6b6b;
-            font-size: 0.9rem;
-            backdrop-filter: blur(10px);
+        .quality-option:active {
+            transform: translateY(-2px) scale(1.01);
+            transition: transform 0.1s ease;
         }
         
-        /* Pagination */
+        /* Video File Badge */
+        .video-file-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
+        }
+        
+        /* Pagination & State */
         .pagination {
             margin-top: 2rem;
         }
@@ -399,26 +694,281 @@
             border-color: var(--accent-color);
             color: #0a0a0f;
         }
+        .page-item.disabled .page-link {
+            opacity: 0.4;
+        }
+        .results-info {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--accent-color);
+            margin-bottom: 1.5rem;
+        }
         
-        /* Mobile */
+        /* Loading Skeleton */
+        .skeleton-loader {
+            background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-thumbnail {
+            height: 250px;
+            width: 100%;
+        }
+        .skeleton-title {
+            height: 24px;
+            width: 70%;
+        }
+        .skeleton-post {
+            height: 100px;
+            width: 100%;
+        }
+        .skeleton-button {
+            height: 45px;
+            width: 100%;
+        }
+        
+        /* Error States */
+        .error-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: rgba(255, 0, 0, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        .error-state i {
+            font-size: 3rem;
+            color: #ff4757;
+            margin-bottom: 1rem;
+        }
+        .retry-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+            margin-top: 1rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .retry-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Ad Container */
+        .ad-container {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        .top-ad-container {
+            margin: 1rem 0 2rem 0;
+            text-align: center;
+        }
+        
+        /* Disclaimer Styles */
+        .disclaimer {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 2rem;
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        .disclaimer strong {
+            color: #ff4757;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        /* Mobile Optimizations */
         @media (max-width: 768px) {
             .result-thumbnail-top {
                 height: 200px;
             }
+            
             .action-buttons-container {
                 flex-direction: column;
+                gap: 10px;
             }
-            .btn-stream-now-direct,
+            
+            .btn-stream-now,
             .btn-download-main {
                 width: 100%;
+                min-width: auto;
                 padding: 12px 16px;
-                font-size: 1rem;
+                font-size: 0.9rem;
             }
+            
+            .play-button {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            
+            .quality-buttons-row {
+                gap: 8px;
+            }
+            
+            .quality-option {
+                min-width: 100px;
+                padding: 12px 15px;
+                font-size: 0.9rem;
+                flex: 0 0 auto;
+            }
+            
+            .post-content-text {
+                font-size: 0.95rem;
+                max-height: 250px;
+            }
+            
+            .thumbnail-source-badge {
+                font-size: 0.6rem;
+                padding: 3px 6px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .result-thumbnail-top {
+                height: 180px;
+            }
+            
+            .btn-stream-now,
+            .btn-download-main {
+                font-size: 0.85rem;
+                padding: 10px 12px;
+            }
+            
+            .quality-buttons-row {
+                gap: 6px;
+            }
+            
             .quality-option {
                 min-width: 90px;
                 padding: 10px 12px;
                 font-size: 0.85rem;
             }
+            
+            .post-content-text {
+                font-size: 0.9rem;
+                max-height: 200px;
+            }
+            
+            .result-post-content {
+                padding: 1rem;
+            }
+            
+            .thumbnail-source-badge {
+                font-size: 0.55rem;
+                padding: 2px 5px;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .result-thumbnail-top {
+                height: 150px;
+            }
+            
+            .btn-stream-now,
+            .btn-download-main {
+                font-size: 0.8rem;
+                padding: 10px 8px;
+            }
+            
+            .quality-buttons-row {
+                gap: 5px;
+            }
+            
+            .quality-option {
+                min-width: 85px;
+                padding: 8px 10px;
+                font-size: 0.8rem;
+            }
+            
+            .post-content-text {
+                font-size: 0.85rem;
+                max-height: 180px;
+            }
+            
+            .result-post-content {
+                padding: 0.8rem;
+            }
+            
+            .thumbnail-source-badge {
+                font-size: 0.5rem;
+                padding: 2px 4px;
+            }
+        }
+        
+        /* For tablets and larger phones */
+        @media (min-width: 577px) and (max-width: 768px) {
+            .quality-option {
+                min-width: 100px;
+            }
+        }
+        
+        /* For desktop */
+        @media (min-width: 769px) {
+            .quality-buttons-row {
+                gap: 12px;
+            }
+            
+            .quality-option {
+                min-width: 110px;
+                padding: 15px 20px;
+            }
+        }
+        
+        /* For large desktop screens */
+        @media (min-width: 993px) {
+            .quality-buttons-row {
+                gap: 15px;
+            }
+            
+            .quality-option {
+                min-width: 120px;
+            }
+        }
+        
+        /* When there are very few buttons (1-3), center them */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)),
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)),
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(3)) {
+            justify-content: center;
+        }
+        
+        /* For 1-2 buttons, make them larger */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option,
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(2)) .quality-option {
+            min-width: 150px;
+        }
+        
+        /* For 1 button only, make it extra large */
+        .quality-buttons-row:has(.quality-option:nth-child(1):nth-last-child(1)) .quality-option {
+            min-width: 200px;
         }
     </style>
 </head>
@@ -438,7 +988,7 @@
 
 <!-- Main Content -->
 <div class="container my-4">
-    <!-- TOP AD -->
+    <!-- Top Ad -->
     <div class="top-ad-container">
         <script type="text/javascript">
             atOptions = {
@@ -464,13 +1014,13 @@
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
     
-    <!-- BOTTOM AD -->
-    <div class="bottom-ad-container">
+    <!-- Bottom Ad Container -->
+    <div class="ad-container">
         <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
         <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
     </div>
     
-    <!-- Disclaimer -->
+    <!-- Disclaimer Section -->
     <div class="disclaimer">
         <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
         This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
@@ -479,21 +1029,37 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ✅ API ENDPOINTS
+// ✅ DUAL MONGODB SYSTEM के साथ API endpoints
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
     'https://sk4film-backup.herokuapp.com',
     'https://sk4film-alternate.onrender.com'
 ];
 
+// Fast Thumbnail Services
+const THUMBNAIL_SERVICES = [
+    {
+        name: 'TMDB',
+        url: (title) => `https://api.themoviedb.org/3/search/movie?api_key=b8a7d0e37e4b0c49d60d0b52f1e5a6d8&query=${encodeURIComponent(title)}`
+    },
+    {
+        name: 'OMDB',
+        url: (title) => `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=trilogy`
+    }
+];
+
 const RESULTS_PER_PAGE = 10;
-const FILE_CHANNEL_ID = "-1001768249569";
-const BOT_USERNAME = 'sk4filmbot';
-const FALLBACK_IMAGE_URL = 'https://iili.io/fAeIwv9.th.png';
 const AD_LINK = 'https://otieu.com/4/10220520';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache duration
+
+// ✅ DUAL MONGODB SYSTEM के लिए config
+const FILE_CHANNEL_ID = "-1001768249569"; // Real channel ID
+const BOT_USERNAME = 'sk4filmbot'; // Fixed bot username
 
 let currentQuery = '';
 let currentPage = 1;
+let currentAPI = 0;
+let isOnline = true;
 
 const resultsContainer = document.getElementById('resultsContainer');
 const resultsInfo = document.getElementById('resultsInfo');
@@ -501,23 +1067,168 @@ const paginationContainer = document.getElementById('paginationContainer');
 const searchInput = document.getElementById('searchInput');
 const searchButton = document.getElementById('searchButton');
 
-// ✅ Message ID Extraction
-function extractRealMessageId(messageIdData) {
-    if (!messageIdData) return null;
+// Fast Thumbnail Cache
+class FastThumbnailCache {
+    constructor() {
+        this.thumbnailCache = new Map();
+        this.pendingRequests = new Map();
+    }
     
+    async getThumbnail(movieTitle) {
+        const cleanTitle = this.cleanTitle(movieTitle);
+        
+        // Check cache first
+        if (this.thumbnailCache.has(cleanTitle)) {
+            return this.thumbnailCache.get(cleanTitle);
+        }
+        
+        // Check if request is already in progress
+        if (this.pendingRequests.has(cleanTitle)) {
+            return this.pendingRequests.get(cleanTitle);
+        }
+        
+        // Create new request
+        const thumbnailPromise = this.fetchThumbnail(cleanTitle);
+        this.pendingRequests.set(cleanTitle, thumbnailPromise);
+        
+        try {
+            const thumbnail = await thumbnailPromise;
+            if (thumbnail) {
+                this.thumbnailCache.set(cleanTitle, thumbnail);
+            }
+            return thumbnail;
+        } finally {
+            this.pendingRequests.delete(cleanTitle);
+        }
+    }
+    
+    cleanTitle(title) {
+        return title
+            .replace(/[\(\)\[\]\{\}]/g, '')
+            .replace(/\b\d{4}\b/, '')
+            .replace(/\./g, ' ')
+            .replace(/_/g, ' ')
+            .trim()
+            .toLowerCase();
+    }
+    
+    async fetchThumbnail(title) {
+        // Try multiple services concurrently
+        const promises = THUMBNAIL_SERVICES.map(service => 
+            this.tryThumbnailService(service, title)
+        );
+        
+        // Return the first successful result
+        for (const promise of promises) {
+            try {
+                const result = await promise;
+                if (result) return result;
+            } catch (error) {
+                // Continue to next service
+            }
+        }
+        
+        return null;
+    }
+    
+    async tryThumbnailService(service, title) {
+        try {
+            const response = await fetch(service.url(title), {
+                signal: AbortSignal.timeout(3000) // Fast timeout
+            });
+            
+            if (!response.ok) return null;
+            
+            const data = await response.json();
+            
+            if (service.name === 'TMDB' && data.results && data.results[0] && data.results[0].poster_path) {
+                return `https://image.tmdb.org/t/p/w500${data.results[0].poster_path}`;
+            }
+            
+            if (service.name === 'OMDB' && data.Poster && data.Poster !== 'N/A') {
+                return data.Poster;
+            }
+            
+            return null;
+        } catch (error) {
+            return null;
+        }
+    }
+    
+    clear() {
+        this.thumbnailCache.clear();
+        this.pendingRequests.clear();
+    }
+}
+
+const thumbnailCache = new FastThumbnailCache();
+
+// Enhanced Cache Implementation
+class EnhancedSearchCache {
+    constructor() {
+        this.storage = new Map();
+    }
+    
+    async set(key, data) {
+        const timestamp = Date.now();
+        this.storage.set(key, { data, timestamp });
+        this.cleanup();
+    }
+    
+    async get(key) {
+        const cached = this.storage.get(key);
+        if (cached && Date.now() - cached.timestamp <= CACHE_DURATION) {
+            return cached.data;
+        }
+        if (cached) {
+            this.storage.delete(key);
+        }
+        return null;
+    }
+    
+    cleanup() {
+        const now = Date.now();
+        for (const [key, value] of this.storage.entries()) {
+            if (now - value.timestamp > CACHE_DURATION) {
+                this.storage.delete(key);
+            }
+        }
+    }
+}
+
+const searchCache = new EnhancedSearchCache();
+
+// ✅ IMPROVED: Better Message ID Extraction
+function extractRealMessageId(messageIdData) {
+    if (!messageIdData) {
+        console.log("❌ No messageIdData provided");
+        return null;
+    }
+    
+    console.log("🔧 Extracting real message ID from:", typeof messageIdData, "=", messageIdData);
+    
+    // If it's already a number, use it directly
     if (typeof messageIdData === 'number') {
+        console.log("✅ Direct number:", messageIdData);
         return messageIdData.toString();
     }
     
+    // If it's a string
     if (typeof messageIdData === 'string') {
         const cleanStr = messageIdData.trim();
         
+        // Case 1: String is already a number
         if (/^\d+$/.test(cleanStr)) {
+            console.log("✅ Clean numeric string:", cleanStr);
             return cleanStr;
         }
         
+        // Case 2: Contains underscores (common in Telegram)
         if (cleanStr.includes('_')) {
             const parts = cleanStr.split('_');
+            console.log("Parts after split:", parts);
+            
+            // Look for the largest numeric part
             let maxNum = null;
             parts.forEach(part => {
                 if (/^\d+$/.test(part)) {
@@ -527,197 +1238,326 @@ function extractRealMessageId(messageIdData) {
                     }
                 }
             });
-            if (maxNum) return maxNum.toString();
+            
+            if (maxNum) {
+                console.log("✅ Found max numeric part:", maxNum);
+                return maxNum.toString();
+            }
         }
         
+        // Case 3: Extract any sequence of digits
         const digitMatch = cleanStr.match(/\d+/g);
         if (digitMatch) {
+            // Find the longest digit sequence
             let longest = '';
             digitMatch.forEach(match => {
                 if (match.length > longest.length) {
                     longest = match;
                 }
             });
-            if (longest.length >= 3) return longest;
+            
+            if (longest.length >= 3) { // At least 3 digits
+                console.log("✅ Extracted digit sequence:", longest);
+                return longest;
+            }
         }
     }
     
+    console.log("❌ No valid message ID found");
     return null;
 }
 
-// ✅ STREAM URL - Direct (No Dropdown)
-function generateStreamUrl(resultData) {
-    let realMessageId = null;
-    
-    const sources = [
-        resultData.real_message_id,
-        resultData.message_id,
-        resultData.quality_options ? Object.values(resultData.quality_options)[0]?.message_id : null,
-        resultData.quality_options ? Object.values(resultData.quality_options)[0]?.real_message_id : null
-    ];
-    
-    for (const source of sources) {
-        if (source) {
-            const extracted = extractRealMessageId(source);
-            if (extracted) {
-                realMessageId = extracted;
-                break;
-            }
-        }
-    }
-    
-    if (!realMessageId) {
-        const titleHash = resultData.title ? 
-            resultData.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 
-            Date.now();
-        realMessageId = Math.abs(titleHash % 1000000).toString();
-    }
-    
-    return `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${realMessageId}`;
+// Network status detection
+function updateOnlineStatus() {
+    isOnline = navigator.onLine;
 }
 
-// ✅ Generate Quality Options for Download
-function generateQualityOptions(qualityOptions, resultData) {
+// ✅ FIXED: Quality Options Generator for STREAMING and DOWNLOAD
+function generateQualityOptions(qualityOptions, resultData, type = 'both') {
+    console.log(`🔧 Generating ${type} quality options...`);
+    console.log("Quality options received:", qualityOptions);
+    console.log("Quality options type:", typeof qualityOptions);
+    console.log("Result data keys:", Object.keys(resultData));
+    
+    // Check if qualityOptions is properly structured
     if (!qualityOptions || typeof qualityOptions !== 'object') {
-        return '<p class="text-center text-muted mb-0">No download options available</p>';
+        console.log("❌ No quality options available or invalid format");
+        return '<p class="text-center text-muted mb-0">No files available</p>';
     }
     
-    let realMessageId = null;
-    const sources = [
-        resultData.real_message_id,
-        resultData.message_id,
-        Object.values(qualityOptions)[0]?.message_id,
-        Object.values(qualityOptions)[0]?.real_message_id
-    ];
-    
-    for (const source of sources) {
-        if (source) {
-            const extracted = extractRealMessageId(source);
-            if (extracted) {
-                realMessageId = extracted;
-                break;
-            }
-        }
-    }
-    
-    if (!realMessageId) {
-        const titleHash = resultData.title ? 
-            resultData.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 
-            Date.now();
-        realMessageId = Math.abs(titleHash % 1000000).toString();
-    }
-    
-    let html = '<div class="quality-buttons-row">';
-    let hasQualities = false;
-    
-    // Quality priority order
-    const qualityOrder = [
-        '2160p HEVC', '2160p', '1080p HEVC', '1080p', 
-        '720p HEVC', '720p', '480p HEVC', '480p', '360p'
-    ];
-    
-    // Show qualities in priority order
-    qualityOrder.forEach(quality => {
-        const qualityData = qualityOptions[quality];
-        if (qualityData) {
-            hasQualities = true;
-            const fileSize = qualityData.file_size ? formatSize(qualityData.file_size) : '';
-            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-            const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
-            const downloadUrl = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-            
-            html += `
-            <a href="${downloadUrl}" target="_blank" class="quality-option" data-quality="${quality}">
-                <i class="fas fa-download"></i> ${quality}
-                ${fileSize ? `<br><small>${fileSize}</small>` : ''}
-            </a>`;
+    // Check if we have any data in quality options
+    let hasValidData = false;
+    Object.values(qualityOptions).forEach(q => {
+        if (q && (q.file_id || q.message_id || q.file_size || q.file_name || q.real_message_id)) {
+            hasValidData = true;
         }
     });
     
-    // If no standard qualities, show all available
-    if (!hasQualities) {
-        Object.entries(qualityOptions).forEach(([quality, qualityData]) => {
-            if (qualityData && typeof qualityData === 'object') {
-                const fileSize = qualityData.file_size ? formatSize(qualityData.file_size) : '';
-                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
-                const downloadUrl = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-                
+    // If no quality options, check resultData directly
+    if (!hasValidData) {
+        console.log("❌ No valid data in quality options, checking resultData");
+        // Try to extract from resultData directly
+        if (resultData.file_id || resultData.real_message_id || resultData.message_id) {
+            hasValidData = true;
+        }
+    }
+    
+    if (!hasValidData) {
+        console.log("❌ No valid data in quality options");
+        return '<p class="text-center text-muted mb-0">No download data available</p>';
+    }
+    
+    // Try multiple sources for message ID
+    let realMessageId = null;
+    const sources = [
+        { name: 'resultData.real_message_id', value: resultData.real_message_id },
+        { name: 'resultData.message_id', value: resultData.message_id },
+        { name: 'quality options message_id', value: Object.values(qualityOptions)[0]?.message_id },
+        { name: 'quality options real_message_id', value: Object.values(qualityOptions)[0]?.real_message_id },
+        { name: 'resultData.id', value: resultData.id }
+    ];
+    
+    for (const source of sources) {
+        if (source.value) {
+            const extracted = extractRealMessageId(source.value);
+            if (extracted) {
+                realMessageId = extracted;
+                console.log(`✅ Found message ID from ${source.name}: ${realMessageId}`);
+                break;
+            }
+        }
+    }
+    
+    // If still no message ID, create a fallback one
+    if (!realMessageId) {
+        console.log("⚠️ No message ID found, using fallback");
+        // Create a simple message ID based on title hash
+        const titleHash = resultData.title ? 
+            resultData.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 
+            Date.now();
+        realMessageId = Math.abs(titleHash % 1000000).toString();
+        console.log(`✅ Created fallback message ID: ${realMessageId}`);
+    }
+    
+    console.log(`✅ Final message ID to use: ${realMessageId}`);
+    console.log(`✅ Quality options keys:`, Object.keys(qualityOptions));
+    
+    // Generate quality buttons
+    let html = '<div class="quality-buttons-row">';
+    let linksGenerated = 0;
+    
+    // Define quality order preference
+    const qualityOrder = [
+        '2160p HEVC', '2160p', '1080p HEVC', '1080p', 
+        '720p HEVC', '720p', '480p HEVC', '480p',
+        '360p', '240p', 'HD', 'SD', 'HQ', 'LQ'
+    ];
+    
+    // First, check if qualityOptions is an object with quality keys
+    if (typeof qualityOptions === 'object' && !Array.isArray(qualityOptions)) {
+        console.log("✅ Quality options is an object with keys:", Object.keys(qualityOptions));
+        
+        // First, try to show qualities in preferred order
+        qualityOrder.forEach(quality => {
+            const qualityData = qualityOptions[quality];
+            if (!qualityData) return;
+            
+            console.log(`Processing quality: ${quality}`, qualityData);
+            
+            const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+            
+            // Use the qualityData's message_id if available, otherwise use realMessageId
+            const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+            
+            if (type === 'stream' || type === 'both') {
+                // STREAM button - opens view.html
+                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
                 html += `
-                <a href="${downloadUrl}" target="_blank" class="quality-option" data-quality="${quality}">
-                    <i class="fas fa-download"></i> ${quality}
-                    ${fileSize ? `<br><small>${fileSize}</small>` : ''}
+                <a href="${streamUrl}" 
+                   target="_blank" 
+                   class="quality-option stream-btn"
+                   data-quality="${quality}"
+                   onclick="console.log('Streaming: ${streamUrl}')">
+                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                    <small>Stream Now</small>
                 </a>`;
             }
+            
+            if (type === 'download' || type === 'both') {
+                // DOWNLOAD button - opens Telegram bot
+                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                const botUsername = resultData.bot_username || BOT_USERNAME;
+                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                
+                html += `
+                <a href="${downloadUrl}" 
+                   target="_blank" 
+                   class="quality-option download-btn"
+                   data-quality="${quality}"
+                   onclick="console.log('Downloading: ${fileId}')">
+                    <i class="fas fa-download me-1"></i>${quality}<br>
+                    <small>Download</small>
+                </a>`;
+            }
+            
+            linksGenerated++;
         });
+        
+        // If no standard qualities found, show all available qualities
+        if (linksGenerated === 0) {
+            console.log("No standard qualities found, showing all available");
+            for (const [quality, qualityData] of Object.entries(qualityOptions)) {
+                if (qualityData && typeof qualityData === 'object') {
+                    const isVideo = qualityData.is_video === true || qualityData.is_video_file === true;
+                    const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                    
+                    // Use the qualityData's message_id if available, otherwise use realMessageId
+                    const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
+                    
+                    if (type === 'stream' || type === 'both') {
+                        const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                        html += `
+                        <a href="${streamUrl}" 
+                           target="_blank" 
+                           class="quality-option stream-btn"
+                           data-quality="${quality}">
+                            <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                            <small>Stream Now</small>
+                        </a>`;
+                    }
+                    
+                    if (type === 'download' || type === 'both') {
+                        const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                        const botUsername = resultData.bot_username || BOT_USERNAME;
+                        const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                        
+                        html += `
+                        <a href="${downloadUrl}" 
+                           target="_blank" 
+                           class="quality-option download-btn"
+                           data-quality="${quality}">
+                            <i class="fas fa-download me-1"></i>${quality}<br>
+                            <small>Download</small>
+                        </a>`;
+                    }
+                    linksGenerated++;
+                }
+            }
+        }
+    } else {
+        console.log("❌ Quality options is not in expected format:", typeof qualityOptions);
+        
+        // Try last resort: Check if resultData has direct file info
+        if (resultData.has_file && (resultData.file_id || resultData.real_message_id || resultData.message_id)) {
+            console.log("✅ Using direct file info from resultData");
+            const quality = resultData.quality || 'HD';
+            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+            
+            // Use available message ID
+            const msgId = resultData.real_message_id || resultData.message_id || realMessageId;
+            
+            if (type === 'stream' || type === 'both') {
+                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}&quality=${qualityCode}`;
+                html += `
+                <a href="${streamUrl}" 
+                   target="_blank" 
+                   class="quality-option stream-btn"
+                   data-quality="${quality}">
+                    <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                    <small>Stream Now</small>
+                </a>`;
+            }
+            
+            if (type === 'download' || type === 'both') {
+                const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
+                const botUsername = resultData.bot_username || BOT_USERNAME;
+                const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                
+                html += `
+                <a href="${downloadUrl}" 
+                   target="_blank" 
+                   class="quality-option download-btn"
+                   data-quality="${quality}">
+                    <i class="fas fa-download me-1"></i>${quality}<br>
+                    <small>Download</small>
+                </a>`;
+            }
+            linksGenerated++;
+        }
     }
     
     html += '</div>';
+    
+    if (linksGenerated === 0) {
+        // Last resort: Create simple buttons
+        console.log("Creating simple buttons as last resort");
+        html = '<div class="quality-buttons-row">';
+        
+        // Get bot username
+        const botUsername = resultData.bot_username || BOT_USERNAME;
+        
+        // Show all quality names from quality options
+        if (typeof qualityOptions === 'object' && Object.keys(qualityOptions).length > 0) {
+            Object.keys(qualityOptions).forEach((quality, index) => {
+                const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
+                
+                if (type === 'stream' || type === 'both') {
+                    const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${realMessageId}&quality=${qualityCode}`;
+                    html += `
+                    <a href="${streamUrl}" 
+                       target="_blank" 
+                       class="quality-option stream-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-play-circle me-1"></i>${quality}<br>
+                        <small>Stream Now</small>
+                    </a>`;
+                }
+                
+                if (type === 'download' || type === 'both') {
+                    const fileId = `${FILE_CHANNEL_ID}_${realMessageId}_${qualityCode}`;
+                    const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
+                    
+                    html += `
+                    <a href="${downloadUrl}" 
+                       target="_blank" 
+                       class="quality-option download-btn"
+                       data-quality="${quality}">
+                        <i class="fas fa-download me-1"></i>${quality}<br>
+                        <small>Download</small>
+                    </a>`;
+                }
+                linksGenerated++;
+            });
+        } else {
+            // No quality options at all
+            html += `
+            <a href="https://t.me/${BOT_USERNAME}" 
+               target="_blank" 
+               class="quality-option download-btn"
+               data-quality="HD">
+                <i class="fas fa-download me-1"></i>Get from Telegram
+            </a>`;
+            linksGenerated++;
+        }
+        
+        html += '</div>';
+    }
+    
+    console.log(`✅ Generated ${linksGenerated} ${type} links`);
     return html;
 }
 
-// ✅ Toggle Download Quality Dropdown
-function toggleDownloadQuality(index) {
-    const dropdown = document.getElementById(`download-quality-${index}`);
-    const arrow = document.getElementById(`download-arrow-${index}`);
-    
-    // Close all other dropdowns
-    document.querySelectorAll('.quality-dropdown').forEach(el => {
-        if (el.id !== `download-quality-${index}`) {
-            el.classList.remove('show');
-        }
-    });
-    
-    // Close all other arrows
-    document.querySelectorAll('.fa-chevron-down').forEach(el => {
-        if (el.id !== `download-arrow-${index}`) {
-            el.style.transform = 'rotate(0deg)';
-        }
-    });
-    
-    dropdown.classList.toggle('show');
-    if (arrow) {
-        arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-}
-
-// ✅ Format Post Content
-function formatPostContent(content) {
-    let formatted = escapeHtml(content);
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
-        const lastChar = url.slice(-1);
-        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
-        return `<a href="${cleanUrl}" target="_blank" style="color: #00ccff; text-decoration: none; font-weight: 600;">${cleanUrl}</a>${punctuation}`;
-    });
-    
-    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
-        const lastChar = url.slice(-1);
-        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
-        const fullUrl = 'https://' + cleanUrl;
-        return `<a href="${fullUrl}" target="_blank" style="color: #0088cc; text-decoration: none; font-weight: 600;">${cleanUrl}</a>${punctuation}`;
-    });
-    
-    return formatted;
-}
-
-// ✅ Format File Size
-function formatSize(bytes) {
-    if (!bytes || bytes === 0) return '';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// ✅ Initialize Page
+// Initialize the page
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const query = urlParams.get('query');
     const page = parseInt(urlParams.get('page')) || 1;
+    
+    // Set up network status listeners
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
     
     if (query) {
         currentQuery = query;
@@ -725,6 +1565,7 @@ window.addEventListener('DOMContentLoaded', () => {
         performSearch(page);
     }
     
+    // Set up search button event
     searchButton.addEventListener('click', () => {
         const query = searchInput.value.trim();
         if (query) {
@@ -733,6 +1574,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Set up enter key in search input
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             const query = searchInput.value.trim();
@@ -744,7 +1586,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// ✅ Perform Search
 async function performSearch(page = 1) {
     if (!currentQuery) {
         showError("Please enter a search query");
@@ -757,253 +1598,578 @@ async function performSearch(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
     
-    resultsContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-3">Searching...</p></div>';
+    // Show loading state with skeleton
+    showSkeletonLoader();
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
     
+    // Check cache first
+    const cacheKey = `${currentQuery}-${page}`;
+    const cachedData = await searchCache.get(cacheKey);
+    
+    if (cachedData) {
+        displayResults(cachedData.results, cachedData.pagination);
+        return;
+    }
+    
+    // If offline and no cache, show error
+    if (!isOnline) {
+        showOfflineError();
+        return;
+    }
+    
+    // Try multiple API endpoints
+    try {
+        const data = await tryAllEndpoints(currentQuery, page);
+        if (data) {
+            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
+            
+            // Cache the successful results
+            searchCache.set(cacheKey, {
+                results: sortedResults,
+                pagination: data.pagination,
+                bot_username: data.bot_username || BOT_USERNAME
+            });
+            
+            displayResults(sortedResults, data.pagination);
+        } else {
+            showConnectionError();
+        }
+    } catch (error) {
+        console.error("Search error:", error);
+        showConnectionError();
+    }
+}
+
+function showSkeletonLoader() {
+    let html = '';
+    for (let i = 0; i < RESULTS_PER_PAGE; i++) {
+        html += `
+        <div class="result-card">
+            <div class="skeleton-loader skeleton-thumbnail mb-3"></div>
+            <div class="skeleton-loader skeleton-title mb-3"></div>
+            <div class="skeleton-loader skeleton-post mb-3"></div>
+            <div class="skeleton-loader skeleton-button"></div>
+        </div>
+        `;
+    }
+    resultsContainer.innerHTML = html;
+}
+
+async function tryAllEndpoints(query, page) {
     for (let i = 0; i < API_ENDPOINTS.length; i++) {
         try {
-            const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+            const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+            console.log(`Trying API endpoint ${i}: ${apiUrl}`);
+            
             const response = await fetch(apiUrl, { 
                 method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(5000)
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
+                signal: AbortSignal.timeout(8000)
             });
             
             if (response.ok) {
                 const data = await response.json();
+                console.log(`API ${i} response:`, data.status, "results:", data.results?.length);
+                
                 if (data.status === "success") {
-                    displayResults(data.results, data.pagination);
-                    return;
+                    currentAPI = i;
+                    console.log("✅ API response successful, showing first result:", data.results?.[0]);
+                    return data;
                 }
+            } else {
+                console.log(`API ${i} response not OK:`, response.status);
             }
         } catch (error) {
+            console.log(`API ${i} error:`, error.message);
             continue;
         }
     }
-    
-    showConnectionError();
+    return null;
 }
 
-// ✅ Display Results
-function displayResults(results, pagination) {
+function showConnectionError() {
+    const cacheKey = `${currentQuery}-${currentPage}`;
+    const cachedData = searchCache.get(cacheKey);
+    
+    if (cachedData) {
+        displayResults(cachedData.results, cachedData.pagination);
+    } else {
+        resultsContainer.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-unlink"></i>
+                <h4>Connection Error</h4>
+                <p>Unable to connect to the server. Please check your internet connection and try again.</p>
+                <button class="retry-btn" onclick="performSearch(${currentPage})">
+                    <i class="fas fa-redo me-1"></i>Retry Search
+                </button>
+            </div>
+        `;
+    }
+}
+
+function showOfflineError() {
+    resultsContainer.innerHTML = `
+        <div class="error-state">
+            <i class="fas fa-wifi-slash"></i>
+            <h4>You're Offline</h4>
+            <p>Please check your internet connection and try again.</p>
+            <button class="retry-btn" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-1"></i>Reload Page
+            </button>
+        </div>
+    `;
+}
+
+function sortResultsWithExactMatchFirst(results, query) {
+    if (!results || results.length === 0) return [];
+    
+    const queryLower = query.toLowerCase().trim();
+    const resultsCopy = [...results];
+    
+    resultsCopy.sort((a, b) => {
+        if (!a.title || !b.title) return 0;
+        
+        const titleALower = a.title.toLowerCase().trim();
+        const titleBLower = b.title.toLowerCase().trim();
+        
+        const aIsExact = titleALower === queryLower;
+        const bIsExact = titleBLower === queryLower;
+        
+        if (aIsExact && !bIsExact) return -1;
+        if (!aIsExact && bIsExact) return 1;
+        if (aIsExact && bIsExact) return 0;
+        
+        const aHasPartial = titleALower.includes(queryLower);
+        const bHasPartial = titleBLower.includes(queryLower);
+        
+        if (aHasPartial && !bHasPartial) return -1;
+        if (!aHasPartial && bHasPartial) return 1;
+        if (aHasPartial && bHasPartial) return 0;
+        
+        return 0;
+    });
+    
+    return resultsCopy;
+}
+
+// ✅ NEW: Get thumbnail source badge class
+function getThumbnailSourceBadgeClass(source) {
+    if (!source) return 'fallback';
+    
+    source = source.toLowerCase();
+    if (source === 'telegram') return 'telegram';
+    if (source === 'tmdb') return 'tmdb';
+    if (source === 'omdb') return 'omdb';
+    return 'fallback';
+}
+
+async function displayResults(results, pagination) {
     if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="empty-state text-center py-5"><i class="fas fa-search fa-3x mb-3 text-muted"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
+        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
         return;
     }
     
-    resultsInfo.innerHTML = `<div class="results-info text-center mb-4">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
+    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
     
     let html = '';
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
         const hasFile = result.has_file === true;
-        const hasPost = result.has_post === true;
+        const qualityOptions = result.quality_options || {};
+        const hasQualities = Object.keys(qualityOptions).length > 0;
+        const postContent = result.post_content || '';
+        const hasPostContent = postContent.trim().length > 0;
+        const thumbnail = result.thumbnail_url || result.poster_url || '';
+        const thumbnailSource = result.thumbnail_source || result.poster_source || 'fallback';
+        const hasThumbnail = result.has_thumbnail === true;
+        const thumbnailExtracted = result.thumbnail_extracted === true;
         
-        // FILE RESULT: Title + Stream (Direct) + Download (with Quality Dropdown)
-        if (hasFile) {
-            const streamUrl = generateStreamUrl(result);
-            const qualityOptions = result.quality_options || {};
-            const hasQualities = Object.keys(qualityOptions).length > 0;
-            const thumbnail = result.thumbnail_url || result.poster_url || '';
+        console.log(`Result ${i}: ${result.title}`);
+        console.log(`Has file: ${hasFile}, Has qualities: ${hasQualities}`);
+        console.log(`Thumbnail source: ${thumbnailSource}, Extracted: ${thumbnailExtracted}`);
+        console.log(`Quality options:`, qualityOptions);
+        console.log(`Quality options type:`, typeof qualityOptions);
+        console.log(`Quality options keys:`, Object.keys(qualityOptions));
+        
+        // Debug: Show first quality option details
+        if (hasQualities) {
+            const firstKey = Object.keys(qualityOptions)[0];
+            console.log(`First quality option (${firstKey}):`, qualityOptions[firstKey]);
+        }
+        
+        // Get thumbnail source badge
+        const thumbnailBadgeClass = getThumbnailSourceBadgeClass(thumbnailSource);
+        const thumbnailBadgeText = thumbnailSource.charAt(0).toUpperCase() + thumbnailSource.slice(1);
+        
+        html += `
+        <div class="result-card">
+            <!-- 1. THUMBNAIL - सबसे ऊपर -->
+            <div class="result-thumbnail-top">
+                <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
+                    <!-- Thumbnail will be loaded here -->
+                </div>
+            </div>
             
-            html += `
-            <div class="result-card file-result-card">
-                <!-- Thumbnail -->
-                <div class="result-thumbnail-top">
-                    <div class="thumbnail-container" onclick="window.open('${streamUrl}', '_blank')">
-                        ${getThumbnailHtml(result, thumbnail, i)}
-                        <div class="play-overlay">
-                            <div class="play-button">
-                                <i class="fas fa-play"></i>
-                            </div>
-                        </div>
+            <!-- 3. POST CONTENT - बीच में -->
+            ${hasPostContent ? `
+                <div class="result-post-content">
+                        ${formatPostContent(postContent)}
                     </div>
                 </div>
-                
-                <!-- Title Only -->
-                <h3 class="file-result-title">${escapeHtml(result.title || 'Untitled')}</h3>
-                
-                <!-- Action Buttons -->
-                <div class="action-buttons-container">
-                    <!-- STREAM NOW - Direct Link (No Dropdown) -->
-                    <a href="${streamUrl}" target="_blank" class="btn-stream-now-direct">
-                        <i class="fas fa-play-circle me-2"></i>Stream Now
-                    </a>
+            ` : ''}
+            
+            <!-- 4. ACTION BUTTONS - सबसे नीचे -->
+            <div class="result-download-section">
+                ${hasFile && hasQualities ? `
+                    <div class="action-buttons-container">
+                        <!-- STREAM NOW BUTTON -->
+                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
+                            <i class="fas fa-play-circle me-2"></i>Stream Now
+                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
+                        </button>
+                        
+                        <!-- DOWNLOAD BUTTON -->
+                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
+                            <i class="fas fa-download me-2"></i>Download Now
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
+                        </button>
+                    </div>
                     
-                    <!-- DOWNLOAD - With Quality Dropdown -->
-                    <button class="btn-download-main" onclick="toggleDownloadQuality(${i})">
-                        <i class="fas fa-download me-2"></i>Download
-                        <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
+                    <!-- STREAM QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="stream-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'stream')}
+                    </div>
+                    
+                    <!-- DOWNLOAD QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="download-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'download')}
+                    </div>
+                ` : hasFile ? `
+                    <div class="action-buttons-container">
+                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
+                            <i class="fas fa-play-circle me-2"></i>Stream Now
+                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
+                        </button>
+                        
+                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
+                            <i class="fas fa-download me-2"></i>Download Now
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- STREAM QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="stream-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'stream')}
+                    </div>
+                    
+                    <!-- DOWNLOAD QUALITY DROPDOWN -->
+                    <div class="quality-dropdown" id="download-quality-${i}">
+                        ${generateQualityOptions(qualityOptions, result, 'download')}
+                    </div>
+                ` : `
+                    <button class="btn btn-stream-now" disabled>
+                        <i class="fas fa-times me-2"></i>File Not Available
                     </button>
-                </div>
-                
-                <!-- Download Quality Dropdown -->
-                <div class="quality-dropdown" id="download-quality-${i}">
-                    ${hasQualities ? generateQualityOptions(qualityOptions, result) : '<p class="text-center text-muted mb-0">No download options available</p>'}
-                </div>
+                `}
             </div>
-            `;
-        }
-        // POST RESULT: Only Post Content (No Title, No Buttons)
-        else if (hasPost) {
-            const postContent = result.post_content || '';
-            const formattedContent = formatPostContent(postContent);
-            const thumbnail = result.thumbnail_url || result.poster_url || '';
             
-            html += `
-            <div class="result-card post-result-card">
-                <!-- Thumbnail -->
-                <div class="result-thumbnail-top">
-                    <div class="thumbnail-container" onclick="window.open('${AD_LINK}', '_blank')">
-                        ${getThumbnailHtml(result, thumbnail, i)}
-                        <div class="play-overlay">
-                            <div class="play-button">
-                                <i class="fas fa-play"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Post Content Only -->
-                <div class="post-content-only">
-                    <div class="post-content-text">
-                        ${formattedContent}
-                    </div>
-                </div>
-                
-                <div class="text-center mt-3">
-                    <span class="badge bg-secondary"><i class="fas fa-info-circle me-1"></i>Information Post</span>
-                </div>
+            <!-- DEBUG INFO (visible only in console) -->
+            <div style="display:none;" id="debug-${i}">
+                ${JSON.stringify({
+                    title: result.title,
+                    hasFile: hasFile,
+                    hasQualities: hasQualities,
+                    thumbnailSource: thumbnailSource,
+                    thumbnailExtracted: thumbnailExtracted,
+                    qualityKeys: Object.keys(qualityOptions),
+                    qualityOptions: qualityOptions,
+                    resultKeys: Object.keys(result)
+                })}
             </div>
-            `;
-        }
+        </div>
+        `;
     }
     
     resultsContainer.innerHTML = html;
+    
+    // Load thumbnails for ALL results
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        loadThumbnailForResult(result, i);
+    }
     
     if (pagination && pagination.total_pages > 1) displayPagination(pagination);
     if (pagination.current_page > 1) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ✅ Get Thumbnail HTML
-function getThumbnailHtml(result, thumbnail, index) {
-    // CRITICAL: Check if we have a REAL thumbnail (not fallback)
-    const hasRealThumbnail = thumbnail && 
-        thumbnail !== FALLBACK_IMAGE_URL && 
-        thumbnail !== 'https://iili.io/fAeIwv9.th.png' &&
-        !thumbnail.includes('fallback') &&
-        thumbnail.startsWith('http') || thumbnail.startsWith('data:image');
+async function loadThumbnailForResult(result, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
     
-    if (hasRealThumbnail) {
-        return `<img src="${thumbnail}" alt="${escapeHtml(result.title || 'Movie')}" 
-                loading="lazy" 
-                style="width:100%; height:100%; object-fit:cover;"
-                onerror="this.onerror=null; this.parentNode.innerHTML='${getFallbackThumbnailHtml(result)}';">`;
+    const thumbnail = result.thumbnail_url || result.poster_url || '';
+    const thumbnailSource = result.thumbnail_source || result.poster_source || 'fallback';
+    const thumbnailBadgeClass = getThumbnailSourceBadgeClass(thumbnailSource);
+    const thumbnailBadgeText = thumbnailSource.charAt(0).toUpperCase() + thumbnailSource.slice(1);
+    
+    // Show loading state first
+    thumbnailContainer.innerHTML = `
+        <div class="thumbnail-loading">
+            <div class="spinner-border text-light" role="status">
+                <span class="visually-hidden">Loading thumbnail...</span>
+            </div>
+        </div>
+    `;
+    
+    if (thumbnail && thumbnail !== 'https://iili.io/fAeIwv9.th.png') {
+        setTimeout(() => {
+            thumbnailContainer.innerHTML = `
+                <div class="thumbnail-source-badge ${thumbnailBadgeClass}">${thumbnailBadgeText}</div>
+                ${result.has_file ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
+                <img src="${thumbnail}" alt="${escapeHtml(result.title)}" loading="lazy" 
+                     onerror="loadFallbackThumbnail('${escapeHtml(result.title)}', ${index})">
+                <div class="play-overlay" onclick="triggerAdLink()">
+                    <div class="play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
+            `;
+        }, 100);
     } else {
-        return getFallbackThumbnailHtml(result);
+        await loadFallbackThumbnail(result.title, index);
     }
 }
 
-// ✅ NEW: Separate function for fallback thumbnail
-function getFallbackThumbnailHtml(result) {
-    const title = result.title || 'Movie';
-    const shortTitle = title.substring(0, 30) + (title.length > 30 ? '...' : '');
+async function loadFallbackThumbnail(movieTitle, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
     
-    return `
-        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; 
-                    align-items: center; justify-content: center; 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    color: white; text-align: center; padding: 20px;">
-            <i class="fas fa-film fa-3x mb-3"></i>
-            <span style="font-weight:600; font-size:1.1rem;">${escapeHtml(shortTitle)}</span>
-            <small style="margin-top:10px; opacity:0.9;">No Thumbnail Available</small>
+    try {
+        const thumbnailUrl = await thumbnailCache.getThumbnail(movieTitle);
+        if (thumbnailUrl) {
+            thumbnailContainer.innerHTML = `
+                <div class="thumbnail-source-badge tmdb">API</div>
+                <img src="${thumbnailUrl}" alt="${escapeHtml(movieTitle)}" loading="lazy" 
+                     onerror="showDefaultThumbnail('${escapeHtml(movieTitle)}', ${index})">
+                <div class="play-overlay" onclick="triggerAdLink()">
+                    <div class="play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
+            `;
+        } else {
+            showDefaultThumbnail(movieTitle, index);
+        }
+    } catch (error) {
+        showDefaultThumbnail(movieTitle, index);
+    }
+}
+
+function showDefaultThumbnail(movieTitle, index) {
+    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
+    if (!thumbnailContainer) return;
+    
+    thumbnailContainer.innerHTML = `
+        <div class="thumbnail-source-badge fallback">Default</div>
+        <div class="default-thumbnail" onclick="triggerAdLink()">
+            <i class="fas fa-film"></i>
+            <span>${escapeHtml(movieTitle.substring(0, 30))}${movieTitle.length > 30 ? '...' : ''}</span>
+        </div>
+        <div class="play-overlay" onclick="triggerAdLink()">
+            <div class="play-button">
+                <i class="fas fa-play"></i>
+            </div>
         </div>
     `;
 }
-// ✅ Display Pagination
+
+// ✅ IMPROVED: Post Content Formatting with Better Link Visibility
+function formatPostContent(content) {
+    let formatted = escapeHtml(content);
+    
+    // Replace newlines with <br> tags
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Detect and format URLs (http/https)
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        const lastChar = url.slice(-1);
+        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
+        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="post-link">${cleanUrl}</a>${punctuation}`;
+    });
+    
+    // Detect and format Telegram links (t.me)
+    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        const lastChar = url.slice(-1);
+        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
+        const fullUrl = 'https://' + cleanUrl;
+        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="telegram-link">${cleanUrl}</a>${punctuation}`;
+    });
+    
+    // Detect and format @mentions
+    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, function(mention) {
+        const username = mention.substring(1);
+        return `<a href="https://t.me/${username}" target="_blank" rel="noopener noreferrer" class="mention-link">${mention}</a>`;
+    });
+    
+    // Detect and format #hashtags
+    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, function(hashtag) {
+        return `<span class="hashtag-tag">${hashtag}</span>`;
+    });
+    
+    // Format bold text (**text**)
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Format italic text (*text*)
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Format underline text (__text__)
+    formatted = formatted.replace(/__(.*?)__/g, '<u>$1</u>');
+    
+    // Format strikethrough text (~~text~~)
+    formatted = formatted.replace(/~~(.*?)~~/g, '<del>$1</del>');
+    
+    // Format inline code (`code`)
+    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Format code blocks (```code```)
+    formatted = formatted.replace(/```([^`]+)```/g, '<pre>$1</pre>');
+    
+    // Format blockquotes (> text)
+    formatted = formatted.replace(/^&gt;\s*(.*)$/gm, '<blockquote>$1</blockquote>');
+    
+    return formatted;
+}
+
+function triggerAdLink() {
+    window.open(AD_LINK, '_blank');
+}
+
+// Toggle Stream Quality Dropdown
+function toggleStreamQuality(index) {
+    const dropdown = document.getElementById(`stream-quality-${index}`);
+    const arrow = document.getElementById(`stream-arrow-${index}`);
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
+        if (el.id !== `stream-quality-${index}`) {
+            el.classList.remove('show');
+            const otherStreamArrow = document.getElementById(`stream-arrow-${i}`);
+            const otherDownloadArrow = document.getElementById(`download-arrow-${i}`);
+            if (otherStreamArrow) otherStreamArrow.style.transform = 'rotate(0deg)';
+            if (otherDownloadArrow) otherDownloadArrow.style.transform = 'rotate(0deg)';
+        }
+    });
+    
+    dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+// Toggle Download Quality Dropdown
+function toggleDownloadQuality(index) {
+    const dropdown = document.getElementById(`download-quality-${index}`);
+    const arrow = document.getElementById(`download-arrow-${index}`);
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach((el, i) => {
+        if (el.id !== `download-quality-${index}`) {
+            el.classList.remove('show');
+            const otherStreamArrow = document.getElementById(`stream-arrow-${i}`);
+            const otherDownloadArrow = document.getElementById(`download-arrow-${i}`);
+            if (otherStreamArrow) otherStreamArrow.style.transform = 'rotate(0deg)';
+            if (otherDownloadArrow) otherDownloadArrow.style.transform = 'rotate(0deg)';
+        }
+    });
+    
+    dropdown.classList.toggle('show');
+    arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
 function displayPagination(pagination) {
     let html = '<nav><ul class="pagination justify-content-center">';
     const { current_page, total_pages, has_previous, has_next } = pagination;
-    
-    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}">
-                    <i class="fas fa-chevron-left"></i>
-                </a>
-            </li>`;
-    
     const maxVisible = 5;
+    
+    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
+    
     let startPage = Math.max(1, current_page - 2);
     let endPage = Math.min(total_pages, startPage + maxVisible - 1);
-    
     if (endPage - startPage < maxVisible - 1) {
         startPage = Math.max(1, endPage - maxVisible + 1);
     }
     
     if (startPage > 1) {
         html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;
-        if (startPage > 2) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        if (startPage > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
     }
     
     for (let i = startPage; i <= endPage; i++) {
-        html += `<li class="page-item ${i === current_page ? 'active' : ''}">
-                    <a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a>
-                </li>`;
+        html += `<li class="page-item ${i === current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;
     }
     
     if (endPage < total_pages) {
-        if (endPage < total_pages - 1) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        if (endPage < total_pages - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
         html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;
     }
     
-    html += `<li class="page-item ${!has_next ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-            </li>`;
+    html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
     html += '</ul></nav>';
     
     paginationContainer.innerHTML = html;
 }
 
-// ✅ Helper Functions
 function showError(message) {
     resultsContainer.innerHTML = `<div class="alert alert-danger text-center">${escapeHtml(message)}</div>`;
 }
 
-function showConnectionError() {
-    resultsContainer.innerHTML = `
-        <div class="error-state text-center py-5">
-            <i class="fas fa-unlink fa-3x text-danger mb-3"></i>
-            <h4>Connection Error</h4>
-            <p class="text-muted">Unable to connect to the server. Please try again.</p>
-            <button class="btn btn-primary mt-3" onclick="performSearch(${currentPage})">
-                <i class="fas fa-redo me-1"></i>Retry Search
-            </button>
-        </div>
-    `;
-}
-
 function escapeHtml(text) {
-    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// ✅ Close dropdown when clicking outside
+function formatSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Close dropdowns when clicking outside
 document.addEventListener('click', function(event) {
-    if (!event.target.closest('.btn-download-main') && !event.target.closest('.quality-dropdown')) {
-        document.querySelectorAll('.quality-dropdown').forEach(dropdown => {
+    if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
+        document.querySelectorAll('.quality-dropdown').forEach((dropdown, index) => {
             dropdown.classList.remove('show');
-        });
-        document.querySelectorAll('.fa-chevron-down').forEach(arrow => {
-            arrow.style.transform = 'rotate(0deg)';
+            const streamArrow = document.getElementById(`stream-arrow-${index}`);
+            const downloadArrow = document.getElementById(`download-arrow-${index}`);
+            if (streamArrow) streamArrow.style.transform = 'rotate(0deg)';
+            if (downloadArrow) downloadArrow.style.transform = 'rotate(0deg)';
         });
     }
 });
 
-// ✅ Add timeout polyfill
+// Handle browser back/forward buttons
+window.addEventListener('popstate', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('query');
+    const page = parseInt(urlParams.get('page')) || 1;
+    
+    if (query) {
+        currentQuery = query;
+        searchInput.value = query;
+        performSearch(page);
+    }
+});
+
+// Add timeout to fetch (polyfill for older browsers)
 if (!AbortSignal.timeout) {
     AbortSignal.timeout = function(ms) {
         const controller = new AbortController();
@@ -1012,10 +2178,41 @@ if (!AbortSignal.timeout) {
     };
 }
 
-console.log("✅ SK4FiLM Search Page Loaded");
-console.log("✅ Stream Now: Direct Link (No Dropdown)");
-console.log("✅ Download Now: Quality Dropdown");
-console.log("✅ Ads: Top + Bottom");
+// Debug info
+console.log("✅ SK4FiLM Search Page Loaded with DUAL MONGODB THUMBNAIL SYSTEM");
+console.log(`🔧 Config: Channel ID: ${FILE_CHANNEL_ID}, Bot: ${BOT_USERNAME}`);
+console.log("📱 Open browser console (F12) to see debug messages");
+
+// Test function to check API response
+async function testApiResponse() {
+    console.log("🧪 Testing API response...");
+    try {
+        const response = await fetch(`${API_ENDPOINTS[0]}/api/search?query=test&page=1&limit=1`);
+        const data = await response.json();
+        console.log("API Test Response:", data);
+        if (data.results && data.results.length > 0) {
+            console.log("First result thumbnail source:", data.results[0].thumbnail_source);
+            console.log("First result quality options:", data.results[0].quality_options);
+        }
+    } catch (error) {
+        console.error("API Test Error:", error);
+    }
+}
+
+// Run test on load
+setTimeout(testApiResponse, 3000);
 </script>
+    <script>
+(function(obqzha){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = obqzha || {};
+s.src = "\/\/jumbo-nothing.com\/bMXsVZs.dHGUlN0dYVWDcH\/DeqmW9\/umZeU\/lgkuPXTjYQ3KNcjfI\/z\/Nnzsk\/t-NRjEcs2bM\/jAM\/4\/MfAd";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+    </script>
 </body>
 </html>
