@@ -1399,72 +1399,66 @@ class ThumbnailManager:
         logger.info("🖼️ Thumbnail Manager v9.2 initialized")
     
     async def initialize(self):
-        """Initialize database collections and indexes"""
-        try:
-            if not self.mongodb:
-                logger.error("❌ MongoDB client not provided")
-                return False
-            
-            # Get database
-            self.db = self.mongodb.sk4film
-            
-            # Create/Get collections
-            self.thumbnails_col = self.db.thumbnails
-            
-            # 🔥 FIX: Drop all existing indexes and create fresh
-            await self._reset_indexes()
-            
-            self.initialized = True
-            logger.info("✅ Thumbnail Manager initialized successfully")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
+    """Initialize database collections and indexes"""
+    try:
+        if not self.mongodb:
+            logger.error("❌ MongoDB client not provided")
             return False
+        
+        # Get database
+        self.db = self.mongodb.sk4film
+        
+        # Create/Get collections
+        self.thumbnails_col = self.db.thumbnails
+        
+        # 🔥 FIX: Use safe index management instead of dropping all
+        await self._reset_indexes()
+        
+        self.initialized = True
+        logger.info("✅ Thumbnail Manager initialized successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
+        return False
     
     async def _reset_indexes(self):
-        """Drop all indexes and create fresh ones"""
-        try:
-            # Drop all indexes except _id_
-            await self.thumbnails_col.drop_indexes()
-            logger.info("✅ Dropped all existing indexes")
+    """Safely manage indexes without conflicts"""
+    try:
+        # Get list of existing indexes
+        existing_indexes = await self.thumbnails_col.index_information()
+        logger.info(f"📊 Found {len(existing_indexes)} existing indexes")
+        
+        # Define desired indexes
+        desired_indexes = {
+            "title_idx": [("normalized_title", 1)],
+            "title_quality_idx": [("normalized_title", 1), ("quality", 1)],
+            "has_thumb_idx": [("has_thumbnail", 1)],
+            "msg_idx": [("message_id", 1)],
+            "channel_msg_idx": [("channel_id", 1), ("message_id", -1)]
+        }
+        
+        # Create or update indexes
+        for name, keys in desired_indexes.items():
+            if name in existing_indexes:
+                logger.debug(f"✅ Index {name} already exists, skipping")
+                continue
             
-            # Create fresh indexes
+            # Create index with unique constraint only for title_quality_idx
+            unique = (name == "title_quality_idx")
             await self.thumbnails_col.create_index(
-                [("normalized_title", 1)],
-                name="title_idx",
+                keys,
+                name=name,
+                unique=unique,
                 background=True
             )
-            
-            await self.thumbnails_col.create_index(
-                [("normalized_title", 1), ("quality", 1)],
-                unique=True,
-                name="title_quality_idx",
-                background=True
-            )
-            
-            await self.thumbnails_col.create_index(
-                [("has_thumbnail", 1)],
-                name="has_thumb_idx",
-                background=True
-            )
-            
-            await self.thumbnails_col.create_index(
-                [("message_id", 1)],
-                name="msg_idx",
-                background=True
-            )
-            
-            await self.thumbnails_col.create_index(
-                [("channel_id", 1), ("message_id", -1)],
-                name="channel_msg_idx",
-                background=True
-            )
-            
-            logger.info("✅ Created fresh indexes")
-            
-        except Exception as e:
-            logger.error(f"❌ Index reset error: {e}")
+            logger.info(f"✅ Created index: {name}")
+        
+        logger.info("✅ Index management completed")
+        
+    except Exception as e:
+        logger.error(f"❌ Index management error: {e}")
+        # Don't fail initialization, just log the error
     
     async def extract_thumbnail(self, channel_id, message_id, file_name=None):
         """Extract thumbnail from Telegram message"""
