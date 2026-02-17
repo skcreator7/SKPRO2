@@ -959,37 +959,34 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         has_thumb = False
         thumb_file_id = None
         
-        if msg.video:
-            file_name = msg.video.file_name or "video.mp4"
-            if hasattr(msg.video, 'thumbs') and msg.video.thumbs:
-                thumb_file_id = msg.video.thumbs[0].file_id
-                has_thumb = True
-        elif msg.document:
-            file_name = msg.document.file_name
-            if hasattr(msg.document, 'thumbs') and msg.document.thumbs:
-                thumb_file_id = msg.document.thumbs[0].file_id
-                has_thumb = True
-        
-        if not file_name or not is_video_file(file_name):
-            logger.debug(f"⏭️ Not a video file: {file_name}")
-            return
-        
-        if not has_thumb or not thumb_file_id:
-            logger.debug(f"⏭️ No thumbnail in Telegram for: {clean_title}")
-            # Mark as no thumbnail to avoid re-checking
-            await thumbnails_col.update_one(
-                {'normalized_title': normalized_title},
-                {'$set': {
-                    'title': clean_title,
-                    'has_thumbnail': False,
-                    'checked_at': datetime.now(),
-                    'file_name': file_name,
-                    'message_id': msg.id,
-                    'channel_id': msg.chat.id
-                }},
-                upsert=True
-            )
-            return
+        media = msg.video or msg.document
+
+if not media:
+    return
+
+file_name = getattr(media, "file_name", "video.mp4")
+
+# Get BEST quality thumbnail (largest)
+thumb = None
+
+if getattr(media, "thumbs", None):
+    thumb = sorted(media.thumbs, key=lambda x: x.file_size or 0)[-1]
+
+elif getattr(media, "sizes", None):
+    thumb = sorted(media.sizes, key=lambda x: x.file_size or 0)[-1]
+
+elif getattr(media, "thumbnail", None):
+    thumb = media.thumbnail
+
+if thumb:
+    thumb_file_id = thumb.file_id
+    has_thumb = True
+else:
+    has_thumb = False
+
+    logger.debug(f"No thumbnail yet for: {clean_title}")
+return
+
         
         # Download thumbnail
         client = User if user_session_ready else Bot
