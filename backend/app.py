@@ -1,4 +1,4 @@
-# ============================================================================
+# =============================================================================
 # 🚀 SK4FiLM v9.0 - ZERO CPU, TELEGRAM METADATA ONLY, BASE64 STORAGE
 # ============================================================================
 
@@ -41,6 +41,52 @@ logging.getLogger('pyrogram').setLevel(logging.WARNING)
 logging.getLogger('hypercorn').setLevel(logging.WARNING)
 logging.getLogger('motor').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+# ============================================================================
+# ✅ ASYNC CACHE DECORATOR - DEFINED FIRST
+# ============================================================================
+
+def async_cache_with_ttl(maxsize=128, ttl=300):
+    """
+    Decorator to cache async function results with TTL
+    """
+    cache = {}
+    cache_lock = asyncio.Lock()
+    
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Create cache key
+            key_parts = [func.__name__]
+            key_parts.extend(str(arg) for arg in args)
+            key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
+            key = hashlib.md5(":".join(key_parts).encode()).hexdigest()
+            
+            now = time.time()
+            
+            # Check cache
+            async with cache_lock:
+                if key in cache:
+                    value, timestamp = cache[key]
+                    if now - timestamp < ttl:
+                        logger.debug(f"✅ Cache hit for {func.__name__}")
+                        return value
+            
+            # Execute function
+            result = await func(*args, **kwargs)
+            
+            # Store in cache
+            async with cache_lock:
+                cache[key] = (result, now)
+                # Maintain maxsize
+                if len(cache) > maxsize:
+                    # Remove oldest entry
+                    oldest_key = min(cache.keys(), key=lambda k: cache[k][1])
+                    del cache[oldest_key]
+            
+            return result
+        return wrapper
+    return decorator
 
 # ============================================================================
 # ✅ MODULE IMPORTS WITH FALLBACKS
@@ -106,6 +152,15 @@ except ImportError as e:
         async def get_subscription_details(self, user_id):
             return {"tier": "basic", "expiry": None}
         async def stop_cleanup_task(self): pass
+
+# Thumbnail Manager
+try:
+    from thumbnail_manager import ThumbnailManager
+    THUMBNAIL_MANAGER_AVAILABLE = True
+    logger.info("✅ ThumbnailManager module imported")
+except ImportError as e:
+    logger.error(f"❌ ThumbnailManager import error: {e}")
+    THUMBNAIL_MANAGER_AVAILABLE = False
 
 # Poster Fetcher
 try:
@@ -397,6 +452,7 @@ premium_system = None
 poster_fetcher = None
 bot_handler = None
 telegram_bot = None
+thumbnail_extractor = None
 
 # ============================================================================
 # ✅ BOT HANDLER MODULE
