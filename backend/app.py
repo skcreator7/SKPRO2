@@ -936,12 +936,12 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
 
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
-    """Store real Telegram thumbnail"""
+    """Store REAL Telegram streaming preview thumbnail (works for all videos)"""
     try:
         if not msg or thumbnails_col is None:
             return
 
-        # Skip if already exists
+        # Skip if already stored
         existing = await thumbnails_col.find_one({
             'normalized_title': normalized_title,
             'has_thumbnail': True
@@ -957,29 +957,25 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if not is_video_file(file_name):
             return
 
-        # Select BEST thumbnail (largest)
-        thumb = None
-
-        if getattr(media, "thumbs", None):
-            thumb = sorted(media.thumbs, key=lambda x: x.file_size or 0)[-1]
-
-        elif getattr(media, "sizes", None):
-            thumb = sorted(media.sizes, key=lambda x: x.file_size or 0)[-1]
-
-        elif getattr(media, "thumbnail", None):
-            thumb = media.thumbnail
-
-        if not thumb:
-            logger.debug(f"No thumbnail yet for: {clean_title}")
-            return
-
-        thumb_file_id = thumb.file_id
-
         client = User if user_session_ready else Bot
         if not client:
             return
 
-        data = await client.download_media(thumb_file_id, in_memory=True)
+        # ⭐ VERY IMPORTANT PART
+        # Re-fetch message & extract preview frame
+        try:
+            msg_full = await client.get_messages(msg.chat.id, msg.id)
+
+            data = await client.download_media(
+                msg_full,
+                in_memory=True,
+                thumb=-1   # <-- Telegram preview thumbnail
+            )
+
+        except Exception as e:
+            logger.debug(f"No Telegram preview available: {clean_title} | {e}")
+            return
+
         if not data:
             return
 
@@ -1001,7 +997,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
                 'quality': quality,
                 'year': year,
                 'thumbnail_url': thumbnail_url,
-                'thumbnail_source': 'telegram',
+                'thumbnail_source': 'telegram_preview',
                 'has_thumbnail': True,
                 'extracted_at': datetime.now(),
                 'message_id': msg.id,
@@ -1012,7 +1008,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
             upsert=True
         )
 
-        logger.info(f"✅ Stored real thumbnail: {clean_title} ({size_kb:.1f}KB)")
+        logger.info(f"🖼️ Telegram preview saved: {clean_title} ({size_kb:.1f}KB)")
 
         if thumbnail_manager:
             thumbnail_manager.stats['total_extracted'] += 1
@@ -1020,7 +1016,6 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
 
     except Exception as e:
         logger.debug(f"Thumbnail store error: {e}")
-
 
 async def get_thumbnails_batch(movies: List[Dict]) -> List[Dict]:
     """
