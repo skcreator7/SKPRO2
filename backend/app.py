@@ -728,14 +728,28 @@ def extract_year(filename):
     return year_match.group() if year_match else ""
 
 def has_telegram_thumbnail(message):
-    """Check if message has thumbnail in Telegram"""
+    """Reliable Telegram thumbnail detection"""
     try:
-        if message.video and hasattr(message.video, 'thumbnail') and message.video.thumbnail:
+        media = message.video or message.document
+        if not media:
+            return False
+
+        # Pyrogram v2 PhotoSize list
+        if getattr(media, "thumbs", None):
+            return len(media.thumbs) > 0
+
+        # Some files store in .sizes
+        if getattr(media, "sizes", None):
+            return len(media.sizes) > 0
+
+        # Fallback single thumbnail
+        if getattr(media, "thumbnail", None):
             return True
-        elif message.document and hasattr(message.document, 'thumbnail') and message.document.thumbnail:
-            return True
+
         return False
-    except:
+
+    except Exception as e:
+        logger.debug(f"Thumbnail check error: {e}")
         return False
 
 def detect_quality_enhanced(filename):
