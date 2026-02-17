@@ -107,14 +107,9 @@ except ImportError as e:
             return {"tier": "basic", "expiry": None}
         async def stop_cleanup_task(self): pass
 
-# Thumbnail Manager
-try:
-    from thumbnail_manager import ThumbnailManager
-    THUMBNAIL_MANAGER_AVAILABLE = True
-    logger.info("✅ ThumbnailManager module imported")
-except ImportError as e:
-    logger.error(f"❌ ThumbnailManager import error: {e}")
-    THUMBNAIL_MANAGER_AVAILABLE = False
+# Thumbnail Manager - INLINE ✅
+THUMBNAIL_MANAGER_AVAILABLE = True
+logger.info("✅ ThumbnailManager INLINE - Ready!")
 
 # Poster Fetcher
 try:
