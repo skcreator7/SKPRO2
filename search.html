@@ -680,23 +680,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// ============================================================================
+// ✅ SK4FiLM SEARCH v2.0 - FIXED: Thumbnail Priority + Ad Integration
+// ============================================================================
+
 // API endpoints
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
     'https://sk4film-backup.herokuapp.com',
     'https://sk4film-alternate.onrender.com'
-];
-
-// Thumbnail Services
-const THUMBNAIL_SERVICES = [
-    {
-        name: 'TMDB',
-        url: (title) => `https://api.themoviedb.org/3/search/movie?api_key=b8a7d0e37e4b0c49d60d0b52f1e5a6d8&query=${encodeURIComponent(title)}`
-    },
-    {
-        name: 'OMDB',
-        url: (title) => `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=trilogy`
-    }
 ];
 
 // Fallback thumbnail URL
@@ -1025,11 +1017,16 @@ async function tryAllEndpoints(query, page) {
         try {
             const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
             
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
             const response = await fetch(apiUrl, { 
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(8000)
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (response.ok) {
                 const data = await response.json();
@@ -1111,7 +1108,7 @@ function sortResultsWithExactMatchFirst(results, query) {
 function getThumbnailSourceBadgeClass(source) {
     if (!source) return 'fallback';
     source = source.toLowerCase();
-    if (source === 'telegram') return 'telegram';
+    if (source === 'telegram' || source === 'extracted') return 'telegram';
     if (source === 'tmdb') return 'tmdb';
     if (source === 'omdb') return 'omdb';
     return 'fallback';
@@ -1145,9 +1142,15 @@ async function fetchThumbnailFromAPI(movieTitle) {
     // Try TMDB first
     const tmdbPromise = (async () => {
         try {
-            const response = await fetch(THUMBNAIL_SERVICES[0].url(cleanTitle), {
-                signal: AbortSignal.timeout(3000)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            
+            const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=e547e17d4e91f3e62a571655cd1ccaff&query=${encodeURIComponent(cleanTitle)}`, {
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
+            
             if (response.ok) {
                 const data = await response.json();
                 if (data.results && data.results[0] && data.results[0].poster_path) {
@@ -1185,12 +1188,12 @@ async function displayResults(results, pagination) {
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
         const hasFile = result.has_file === true;
-        const qualityOptions = result.quality_options || {};
+        const qualityOptions = result.qualities || result.quality_options || {};
         const hasQualities = Object.keys(qualityOptions).length > 0;
-        const postContent = result.post_content || '';
+        const postContent = result.post_content || result.content || '';
         const hasPostContent = postContent.trim().length > 0;
         
-        // Get thumbnail info
+        // Get thumbnail info - PRIORITY: Extracted > Poster > Fallback
         const thumbnailUrl = result.thumbnail_url || result.poster_url || '';
         const thumbnailSource = result.thumbnail_source || result.poster_source || 'fallback';
         const thumbnailBadgeClass = getThumbnailSourceBadgeClass(thumbnailSource);
@@ -1199,15 +1202,15 @@ async function displayResults(results, pagination) {
         // Check if we have a valid extracted thumbnail
         const hasExtractedThumbnail = thumbnailUrl && thumbnailUrl !== FALLBACK_THUMBNAIL && thumbnailUrl.trim() !== '';
         
-        // Determine which thumbnail to show initially
+        // Determine which thumbnail to show
         let thumbnailHtml = '';
         if (hasExtractedThumbnail) {
-            // Priority 1: Show extracted thumbnail directly
+            // Priority 1: Show extracted thumbnail directly (from MongoDB/Telegram)
             thumbnailHtml = `
                 <div class="thumbnail-source-badge ${thumbnailBadgeClass}">${thumbnailBadgeText}</div>
                 ${hasFile ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
                 <img src="${thumbnailUrl}" alt="${escapeHtml(result.title)}" class="thumbnail-img" loading="lazy" 
-                     onerror="this.onerror=null; loadFallbackForIndex(${i}, '${escapeHtml(result.title)}')">
+                     onerror="this.onerror=null; loadFallbackForIndex(${i}, '${escapeHtml(result.title)}', ${hasFile})">
                 <div class="play-overlay" onclick="triggerAdLink()">
                     <div class="play-button">
                         <i class="fas fa-play"></i>
@@ -1378,7 +1381,7 @@ window.loadApiThumbnailForIndex = async function(index, movieTitle, hasFile) {
                 <div class="thumbnail-source-badge tmdb">API</div>
                 ${hasFile ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
                 <img src="${apiThumbnail}" alt="${escapeHtml(movieTitle)}" class="thumbnail-img" loading="lazy"
-                     onerror="this.onerror=null; loadFallbackForIndex(${index}, '${escapeHtml(movieTitle)}')">
+                     onerror="this.onerror=null; loadFallbackForIndex(${index}, '${escapeHtml(movieTitle)}', ${hasFile})">
                 <div class="play-overlay" onclick="triggerAdLink()">
                     <div class="play-button">
                         <i class="fas fa-play"></i>
@@ -1582,16 +1585,7 @@ window.addEventListener('popstate', function() {
     }
 });
 
-// Polyfill for AbortSignal.timeout
-if (!AbortSignal.timeout) {
-    AbortSignal.timeout = function(ms) {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), ms);
-        return controller.signal;
-    };
-}
-
-console.log("✅ Thumbnail Priority Fixed for ALL Results");
+console.log("✅ SK4FiLM Search v2.0 - Thumbnail Priority Fixed");
 </script>
     <script>
 (function(obqzha){
