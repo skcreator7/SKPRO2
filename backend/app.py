@@ -734,15 +734,12 @@ def has_telegram_thumbnail(message):
         if not media:
             return False
 
-        # Pyrogram v2 PhotoSize list
         if getattr(media, "thumbs", None):
             return len(media.thumbs) > 0
 
-        # Some files store in .sizes
         if getattr(media, "sizes", None):
             return len(media.sizes) > 0
 
-        # Fallback single thumbnail
         if getattr(media, "thumbnail", None):
             return True
 
@@ -939,111 +936,90 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
 
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
-    """
-    🔄 Background task to store real thumbnail from Telegram message
-    """
+    """Store real Telegram thumbnail"""
     try:
         if not msg or thumbnails_col is None:
             return
-        
-        # Check if already exists
-        existing = await thumbnails_col.find_one(
-            {'normalized_title': normalized_title, 'has_thumbnail': True}
-        )
+
+        # Skip if already exists
+        existing = await thumbnails_col.find_one({
+            'normalized_title': normalized_title,
+            'has_thumbnail': True
+        })
         if existing:
-            logger.debug(f"✅ Thumbnail already exists for {clean_title}")
             return
-        
-        # Get thumbnail from message
-        file_name = None
-        has_thumb = False
-        thumb_file_id = None
-        
+
         media = msg.video or msg.document
+        if not media:
+            return
 
-if not media:
-    return
+        file_name = getattr(media, "file_name", "video.mp4")
+        if not is_video_file(file_name):
+            return
 
-file_name = getattr(media, "file_name", "video.mp4")
+        # Select BEST thumbnail (largest)
+        thumb = None
 
-# Get BEST quality thumbnail (largest)
-thumb = None
+        if getattr(media, "thumbs", None):
+            thumb = sorted(media.thumbs, key=lambda x: x.file_size or 0)[-1]
 
-if getattr(media, "thumbs", None):
-    thumb = sorted(media.thumbs, key=lambda x: x.file_size or 0)[-1]
+        elif getattr(media, "sizes", None):
+            thumb = sorted(media.sizes, key=lambda x: x.file_size or 0)[-1]
 
-elif getattr(media, "sizes", None):
-    thumb = sorted(media.sizes, key=lambda x: x.file_size or 0)[-1]
+        elif getattr(media, "thumbnail", None):
+            thumb = media.thumbnail
 
-elif getattr(media, "thumbnail", None):
-    thumb = media.thumbnail
+        if not thumb:
+            logger.debug(f"No thumbnail yet for: {clean_title}")
+            return
 
-if thumb:
-    thumb_file_id = thumb.file_id
-    has_thumb = True
-else:
-    has_thumb = False
+        thumb_file_id = thumb.file_id
 
-    logger.debug(f"No thumbnail yet for: {clean_title}")
-return
-
-        
-        # Download thumbnail
         client = User if user_session_ready else Bot
         if not client:
-            logger.debug("⚠️ No Telegram client available")
             return
-        
-        download_path = await client.download_media(thumb_file_id, in_memory=True)
-        if not download_path:
-            logger.debug("⚠️ Failed to download thumbnail")
+
+        data = await client.download_media(thumb_file_id, in_memory=True)
+        if not data:
             return
-        
-        # Convert to base64
-        if isinstance(download_path, bytes):
-            thumbnail_data = download_path
-        else:
-            with open(download_path, 'rb') as f:
-                thumbnail_data = f.read()
-        
-        thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_data).decode('utf-8')}"
+
+        if not isinstance(data, bytes):
+            with open(data, "rb") as f:
+                data = f.read()
+
+        thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(data).decode()}"
         size_kb = len(thumbnail_url) / 1024
-        
-        # Extract metadata
+
         quality = detect_quality_enhanced(file_name)
         year = extract_year(file_name)
-        
-        # Store in MongoDB
-        thumbnail_doc = {
-            'normalized_title': normalized_title,
-            'title': clean_title,
-            'quality': quality,
-            'year': year,
-            'thumbnail_url': thumbnail_url,
-            'thumbnail_source': 'telegram',
-            'has_thumbnail': True,
-            'extracted_at': datetime.now(),
-            'message_id': msg.id,
-            'channel_id': msg.chat.id,
-            'file_name': file_name,
-            'size_kb': size_kb
-        }
-        
+
         await thumbnails_col.update_one(
             {'normalized_title': normalized_title},
-            {'$set': thumbnail_doc},
+            {'$set': {
+                'normalized_title': normalized_title,
+                'title': clean_title,
+                'quality': quality,
+                'year': year,
+                'thumbnail_url': thumbnail_url,
+                'thumbnail_source': 'telegram',
+                'has_thumbnail': True,
+                'extracted_at': datetime.now(),
+                'message_id': msg.id,
+                'channel_id': msg.chat.id,
+                'file_name': file_name,
+                'size_kb': size_kb
+            }},
             upsert=True
         )
-        
-        logger.info(f"✅ Stored real thumbnail for: {clean_title} ({size_kb:.1f}KB)")
-        
-        # Update stats if thumbnail manager exists
+
+        logger.info(f"✅ Stored real thumbnail: {clean_title} ({size_kb:.1f}KB)")
+
         if thumbnail_manager:
             thumbnail_manager.stats['total_extracted'] += 1
             thumbnail_manager.stats['total_size_kb'] += size_kb
-            
+
     except Exception as e:
-        logger.debug(f"⚠️ Background thumbnail store error: {e}")
+        logger.debug(f"Thumbnail store error: {e}")
 
 
 async def get_thumbnails_batch(movies: List[Dict]) -> List[Dict]:
@@ -1382,23 +1358,20 @@ async def search_movies_optimized(query, limit=15, page=1):
 # ============================================================================
 
 class ThumbnailManager:
-    """🖼️ THUMBNAIL MANAGER v9.2"""
-    
+    """🖼️ THUMBNAIL MANAGER v10"""
+
     def __init__(self, mongodb=None, bot_client=None, user_client=None, file_channel_id=None):
         self.mongodb = mongodb
         self.bot_client = bot_client
         self.user_client = user_client
         self.file_channel_id = file_channel_id
-        
-        # Collections
+
         self.db = None
         self.thumbnails_col = None
-        
-        # State
+
         self.initialized = False
         self.is_extracting = False
-        
-        # Statistics
+
         self.stats = {
             'total_extracted': 0,
             'total_failed': 0,
@@ -1406,70 +1379,55 @@ class ThumbnailManager:
             'total_size_kb': 0,
             'avg_size_kb': 0
         }
-        
-        logger.info("🖼️ Thumbnail Manager v9.2 initialized")
-    
+
+        logger.info("🖼️ Thumbnail Manager v10 initialized")
+
     async def initialize(self):
         """Initialize database collections and indexes"""
         try:
             if not self.mongodb:
                 logger.error("❌ MongoDB client not provided")
                 return False
-            
-            # Get database
+
             self.db = self.mongodb.sk4film
-            
-            # Create/Get collections
             self.thumbnails_col = self.db.thumbnails
-            
-            # 🔥 FIX: Use safe index management instead of dropping all
+
             await self._reset_indexes()
-            
+
             self.initialized = True
             logger.info("✅ Thumbnail Manager initialized successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
             return False
-    
+
     async def _reset_indexes(self):
-        """Safely manage indexes without conflicts"""
+        """Safely manage indexes"""
         try:
-            # Get list of existing indexes
-            existing_indexes = await self.thumbnails_col.index_information()
-            logger.info(f"📊 Found {len(existing_indexes)} existing indexes")
-            
-            # Define desired indexes
-            desired_indexes = {
+            existing = await self.thumbnails_col.index_information()
+
+            indexes = {
                 "title_idx": [("normalized_title", 1)],
                 "title_quality_idx": [("normalized_title", 1), ("quality", 1)],
-                "has_thumb_idx": [("has_thumbnail", 1)],
                 "msg_idx": [("message_id", 1)],
                 "channel_msg_idx": [("channel_id", 1), ("message_id", -1)]
             }
-            
-            # Create or update indexes
-            for name, keys in desired_indexes.items():
-                if name in existing_indexes:
-                    logger.debug(f"✅ Index {name} already exists, skipping")
+
+            for name, keys in indexes.items():
+                if name in existing:
                     continue
-                
-                # Create index with unique constraint only for title_quality_idx
-                unique = (name == "title_quality_idx")
+
                 await self.thumbnails_col.create_index(
                     keys,
                     name=name,
-                    unique=unique,
                     background=True
                 )
-                logger.info(f"✅ Created index: {name}")
-            
+
             logger.info("✅ Index management completed")
-            
+
         except Exception as e:
             logger.error(f"❌ Index management error: {e}")
-            # Don't fail initialization, just log the error
     
     async def extract_thumbnail(self, channel_id, message_id, file_name=None):
         """Extract thumbnail from Telegram message"""
