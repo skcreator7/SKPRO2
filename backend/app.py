@@ -2284,17 +2284,32 @@ async def init_mongodb():
         verification_col = db.verifications
         thumbnails_col = db.thumbnails
         posters_col = db.posters
-        
-        # Create indexes for posters collection
+
+
+        # ---------- SAFE INDEX CREATOR ----------
+        async def safe_index(col, keys, **kwargs):
+            try:
+                await col.create_index(keys, **kwargs)
+            except Exception as e:
+                msg = str(e)
+                if "already exists" in msg or "IndexOptionsConflict" in msg:
+                    logger.warning(f"⚠️ Index already exists ignored: {keys}")
+                else:
+                    raise
+
+
+        # ---------- POSTER INDEXES ----------
         if posters_col is not None:
-            await posters_col.create_index('cache_key', unique=True)
-            await posters_col.create_index('cached_at')
-        
-        # Create indexes for thumbnails collection
+            await safe_index(posters_col, 'cache_key', unique=True)
+            await safe_index(posters_col, 'cached_at')
+
+
+        # ---------- THUMBNAIL INDEXES ----------
         if thumbnails_col is not None:
-            await thumbnails_col.create_index('normalized_title', unique=False)
-            await thumbnails_col.create_index([('normalized_title', 1), ('has_thumbnail', 1)])
-        
+            await safe_index(thumbnails_col, 'normalized_title')
+            await safe_index(thumbnails_col, [('normalized_title', 1), ('has_thumbnail', 1)])
+
+
         logger.info("✅ MongoDB OK")
         return True
         
