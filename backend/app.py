@@ -1399,7 +1399,7 @@ class ThumbnailManager:
         logger.info("🖼️ Thumbnail Manager v9.2 initialized")
     
     async def initialize(self):
-    """Initialize database collections and indexes"""
+        """Initialize database collections and indexes"""
     try:
         if not self.mongodb:
             logger.error("❌ MongoDB client not provided")
@@ -1423,7 +1423,7 @@ class ThumbnailManager:
         return False
     
     async def _reset_indexes(self):
-    """Safely manage indexes without conflicts"""
+        """Safely manage indexes without conflicts"""
     try:
         # Get list of existing indexes
         existing_indexes = await self.thumbnails_col.index_information()
