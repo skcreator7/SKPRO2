@@ -2129,25 +2129,63 @@ async def start_telegram_bot():
 # ============================================================================
 
 async def init_thumbnail_manager():
-    """Initialize Thumbnail Manager"""
+    """Initialize INLINE Thumbnail Manager - NO IMPORT NEEDED"""
     global thumbnail_manager
     
-    try:
-        if THUMBNAIL_MANAGER_AVAILABLE:
-            from thumbnail_manager import ThumbnailManager
-            thumbnail_manager = ThumbnailManager(
-                download_path="downloads/thumbnails",
-                mongodb=db,
-                bot_client=Bot if bot_session_ready else None,
-                user_client=User if user_session_ready else None,
-                file_channel_id=Config.FILE_CHANNEL_ID
-            )
-            await thumbnail_manager.initialize()
-            logger.info("✅ Thumbnail Manager initialized successfully")
+    # INLINE ThumbnailManager Class - सीधे यहाँ define
+    class InlineThumbnailManager:
+        def __init__(self, download_path="downloads/thumbnails", mongodb=None, bot_client=None, user_client=None, file_channel_id=None):
+            self.download_path = Path(download_path)
+            self.download_path.mkdir(parents=True, exist_ok=True)
+            self.mongodb = mongodb
+            self.db = mongodb.sk4film if mongodb else None
+            self.thumbnails_col = self.db.thumbnails if self.db else None
+            self.bot_client = bot_client
+            self.user_client = user_client
+            self.file_channel_id = file_channel_id
+            self.stats = {"extracted": 0, "total": 0, "failed": 0}
+            self.initialized = False
+        
+        async def initialize(self):
+            if self.thumbnails_col:
+                try:
+                    await self.thumbnails_col.create_index([("normalized_title", 1), ("quality", 1)], unique=True)
+                    await self.thumbnails_col.create_index("expires_at", expireAfterSeconds=0)
+                    logger.info("✅ Thumbnail indexes created")
+                except Exception as e:
+                    logger.warning(f"Index warning: {e}")
+            self.initialized = True
+            logger.info("✅ INLINE ThumbnailManager initialized")
             return True
-        else:
-            logger.warning("⚠️ Thumbnail Manager not available")
-            return False
+        
+        async def extract_thumbnail(self, channel_id, message_id):
+            """BotHandler से thumbnail extract करो"""
+            global bot_handler
+            if bot_handler and bot_handler.initialized:
+                thumb = await bot_handler.extract_thumbnail(channel_id, message_id)
+                if thumb:
+                    self.stats["extracted"] += 1
+                    return thumb
+            self.stats["failed"] += 1
+            return FALLBACK_THUMBNAIL_URL
+        
+        async def get_stats(self):
+            return self.stats
+    
+    try:
+        # INLINE instance बनाओ - NO IMPORT!
+        thumbnail_manager = InlineThumbnailManager(
+            download_path="downloads/thumbnails",
+            mongodb=db,
+            bot_client=Bot if bot_session_ready else None,
+            user_client=User if user_session_ready else None,
+            file_channel_id=Config.FILE_CHANNEL_ID
+        )
+        
+        await thumbnail_manager.initialize()
+        logger.info("✅ Thumbnail Manager initialized successfully - INLINE")
+        return True
+        
     except Exception as e:
         logger.error(f"❌ Thumbnail Manager initialization failed: {e}")
         thumbnail_manager = None
