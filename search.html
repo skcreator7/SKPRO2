@@ -25,40 +25,110 @@
             min-height: 100vh;
             padding-top: 80px;
         }
-        /* Navbar */
-        .navbar {
+        /* Navigation */
+        .top-navbar {
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(15px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 12px 0;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        .navbar-brand {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 1.5rem;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        
+        .navbar-content {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
+            gap: 12px;
+            position: relative;
+            padding: 0 15px;
+            max-width: 100%;
         }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            max-width: 60%;
+        }
+        
         .logo-img {
             height: 40px;
             width: 40px;
+            margin-right: 8px;
             border-radius: 8px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+            object-fit: contain;
         }
-        .btn-back-home {
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            padding: 8px 20px;
-            font-weight: 600;
-            border-radius: 20px;
-            color: white;
+        
+        .brand-content {
+            min-width: 0;
+            flex: 1;
+        }
+        
+        .brand-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.3rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        
+        .brand-subtitle {
+            font-size: 0.6rem;
+            color: var(--accent);
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            font-style: italic;
+            white-space: nowrap;
+        }
+        
+        .menu-button {
+            background: rgba(0, 204, 255, 0.15);
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            padding: 9px 11px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
         }
-        .btn-back-home:hover {
-            transform: scale(1.05);
+        
+        .menu-button:hover {
+            background: rgba(0, 204, 255, 0.25);
+            box-shadow: 0 0 20px rgba(0, 204, 255, 0.6);
+        }
+        
+        .menu-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        
+        .menu-line {
+            width: 18px;
+            height: 2px;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .menu-button.active .menu-line:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        
+        .menu-button.active .menu-line:nth-child(2) {
+            opacity: 0;
+        }
+        
+        .menu-button.active .menu-line:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
         }
         
         /* Search Bar */
