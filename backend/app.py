@@ -954,15 +954,25 @@ def detect_quality_enhanced(filename):
     return "480p"
 
 # ============================================================================
-# ✅ UPDATED THUMBNAIL STORAGE - WITH DUPLICATE PREVENTION
+# ✅ FIXED try_store_real_thumbnail - HANDLES BytesIO CORRECTLY
 # ============================================================================
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
     """
-    🎯 Store ONE thumbnail per movie with duplicate prevention
+    🎯 FIXED: Store ONE thumbnail per movie (handles BytesIO correctly)
     """
     try:
         if not msg or thumbnails_col is None:
+            return
+
+        # Check if movie already has thumbnail
+        existing = await thumbnails_col.find_one({
+            'normalized_title': normalized_title,
+            'has_thumbnail': True
+        })
+        
+        if existing:
+            logger.debug(f"📦 Movie already has thumbnail: {clean_title}")
             return
 
         # Get media
@@ -974,23 +984,9 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if not is_video_file(file_name):
             return
 
-        # Check if movie already has ANY thumbnail
-        existing = await thumbnails_col.find_one({
-            'normalized_title': normalized_title
-        })
-        
-        if existing and existing.get('has_thumbnail'):
-            logger.debug(f"📦 Movie already has thumbnail: {clean_title}")
-            return
-        
-        # If exists but no thumbnail, update it
-        if existing and not existing.get('has_thumbnail'):
-            logger.debug(f"🔄 Updating existing record for: {clean_title}")
-
         # Find thumbnail file_id
         thumbnail_file_id = None
         
-        # Check all locations
         if msg.video:
             if hasattr(msg.video, 'thumbnail') and msg.video.thumbnail:
                 thumbnail_file_id = msg.video.thumbnail.file_id
@@ -1003,7 +999,6 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
                 thumbnail_file_id = msg.document.thumbs[0].file_id
 
         if not thumbnail_file_id:
-            # Mark as no thumbnail
             await thumbnails_col.update_one(
                 {'normalized_title': normalized_title},
                 {'$set': {
@@ -1025,21 +1020,22 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if not downloaded:
             return
 
-        # Convert to bytes
+        # 🔥 FIX: Handle both bytes and BytesIO
         if isinstance(downloaded, bytes):
             thumbnail_data = downloaded
         else:
-            with open(downloaded, 'rb') as f:
-                thumbnail_data = f.read()
+            # BytesIO object - read directly
+            downloaded.seek(0)
+            thumbnail_data = downloaded.read()
 
         # Convert to base64
         thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_data).decode()}"
         size_kb = len(thumbnail_url) / 1024
 
-        # Store ONE thumbnail for the movie - use update_one with upsert
-        result = await thumbnails_col.update_one(
-            {'normalized_title': normalized_title},  # filter
-            {'$set': {  # update
+        # Store in MongoDB
+        await thumbnails_col.update_one(
+            {'normalized_title': normalized_title},
+            {'$set': {
                 'normalized_title': normalized_title,
                 'title': clean_title,
                 'year': extract_year(file_name),
@@ -1052,16 +1048,13 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
                 'file_name': file_name,
                 'size_kb': size_kb
             }},
-            upsert=True  # Create if doesn't exist
+            upsert=True
         )
 
-        if result.upserted_id:
-            logger.info(f"✅✅✅ NEW movie thumbnail: {clean_title} ({size_kb:.1f}KB)")
-        else:
-            logger.info(f"✅✅✅ UPDATED movie thumbnail: {clean_title} ({size_kb:.1f}KB)")
+        logger.info(f"✅✅✅ Thumbnail stored: {clean_title} ({size_kb:.1f}KB)")
 
     except Exception as e:
-        logger.error(f"❌ Thumbnail error: {e}")
+        logger.error(f"❌ Thumbnail error for {clean_title}: {e}")
         import traceback
         traceback.print_exc()
 
