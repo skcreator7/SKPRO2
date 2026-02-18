@@ -1192,14 +1192,15 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ OPTIMIZED SEARCH v4.0 - ONE THUMBNAIL, ALL QUALITIES
+# ✅ OPTIMIZED SEARCH v4.1 - FIXED FOR POSTS (WITH PROPER AWAIT)
 # ============================================================================
 
 @performance_monitor.measure("optimized_search")
 @async_cache_with_ttl(maxsize=500, ttl=600)
 async def search_movies_optimized(query, limit=15, page=1):
     """
-    🔥 OPTIMIZED SEARCH v4.0 - One thumbnail per movie, all qualities shown
+    🔥 OPTIMIZED SEARCH v4.1 - One thumbnail per movie, all qualities shown
+    FIXED: Posts ke liye bhi thumbnail
     """
     start_time = time.time()
     offset = (page - 1) * limit
@@ -1368,42 +1369,42 @@ async def search_movies_optimized(query, limit=15, page=1):
         except Exception as e:
             logger.error(f"❌ Text channels search error: {e}")
     
-# ============================================================================
-# ✅ STEP 3: Get Thumbnails for Each Result (FIXED FOR POSTS)
-# ============================================================================
-for normalized, result in results_dict.items():
-    # Check if it's a post-only result
-    is_post_only = result.get('has_file') == False and result.get('has_post') == True
-    
-    if result.get('has_file'):
-        # File result - has message object
-        msg = result.get('first_file_msg')
-        thumbnail_url, thumbnail_source = await get_best_thumbnail(
-            normalized,
-            result.get('title'),
-            result.get('year'),
-            msg,
-            is_post=False
-        )
-    else:
-        # Post-only result - no message object
-        thumbnail_url, thumbnail_source = await get_best_thumbnail(
-            normalized,
-            result.get('title'),
-            result.get('year'),
-            None,  # No message
-            is_post=True
-        )
-    
-    result['thumbnail_url'] = thumbnail_url
-    result['thumbnail_source'] = thumbnail_source
-    result['has_thumbnail'] = True
-    
-    # Clean up
-    if 'first_file_msg' in result:
-        del result['first_file_msg']
-    if 'all_messages' in result:
-        del result['all_messages']
+    # ============================================================================
+    # ✅ STEP 3: Get Thumbnails for Each Result (FIXED FOR POSTS)
+    # ============================================================================
+    for normalized, result in results_dict.items():
+        # Check if it's a post-only result
+        is_post_only = result.get('has_file') == False and result.get('has_post') == True
+        
+        if result.get('has_file'):
+            # File result - has message object
+            msg = result.get('first_file_msg')
+            thumbnail_url, thumbnail_source = await get_best_thumbnail(
+                normalized,
+                result.get('title'),
+                result.get('year'),
+                msg,
+                is_post=False
+            )
+        else:
+            # Post-only result - no message object
+            thumbnail_url, thumbnail_source = await get_best_thumbnail(
+                normalized,
+                result.get('title'),
+                result.get('year'),
+                None,  # No message
+                is_post=True
+            )
+        
+        result['thumbnail_url'] = thumbnail_url
+        result['thumbnail_source'] = thumbnail_source
+        result['has_thumbnail'] = True
+        
+        # Clean up
+        if 'first_file_msg' in result:
+            del result['first_file_msg']
+        if 'all_messages' in result:
+            del result['all_messages']
     
     # ============================================================================
     # ✅ STEP 4: Convert to List and Sort
@@ -1430,9 +1431,19 @@ for normalized, result in results_dict.items():
     file_count = sum(1 for r in all_results if r.get('has_file'))
     post_count = sum(1 for r in all_results if r.get('has_post'))
     combined_count = sum(1 for r in all_results if r.get('has_file') and r.get('has_post'))
-    mongodb_count = sum(1 for r in all_results if r.get('thumbnail_source') == 'mongodb')
-    poster_count = sum(1 for r in all_results if r.get('thumbnail_source') in ['tmdb', 'omdb', 'poster'])
-    fallback_count = sum(1 for r in all_results if r.get('thumbnail_source') == 'fallback')
+    
+    # Count thumbnail sources
+    mongodb_count = 0
+    poster_count = 0
+    fallback_count = 0
+    
+    for r in paginated:
+        if r.get('thumbnail_source') == 'mongodb':
+            mongodb_count += 1
+        elif r.get('thumbnail_source') in ['tmdb', 'omdb', 'poster']:
+            poster_count += 1
+        elif r.get('thumbnail_source') == 'fallback':
+            fallback_count += 1
     
     # Count total qualities
     total_qualities = sum(len(r.get('available_qualities', [])) for r in all_results)
@@ -1472,7 +1483,7 @@ for normalized, result in results_dict.items():
             'mongodb_thumbnails': mongodb_count,
             'posters': poster_count,
             'fallback': fallback_count,
-            'mode': 'optimized_v4',
+            'mode': 'optimized_v4.1',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED
         },
         'bot_username': Config.BOT_USERNAME
