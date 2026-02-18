@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-    <title>Search Movies - SK4FiLM</title>
+    <title>SK4FiLM — post results fixed</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <meta name="referrer" content="no-referrer-when-downgrade" />
+    <!-- AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary-color: #ff0000;
-            --secondary-color: #0066ff;
-            --accent-color: #00ccff;
+            --primary: #ff0000;
+            --secondary: #0066ff;
+            --accent: #00ccff;
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
         }
@@ -25,188 +27,281 @@
             min-height: 100vh;
             padding-top: 80px;
         }
-        /* Navigation */
+        /* fixed navbar */
         .top-navbar {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(10px);
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            width: 100%;
-            z-index: 1000;
-            padding: 12px 0;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            height: 80px;
+            z-index: 1100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
         }
-        
         .navbar-content {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            position: relative;
-            padding: 0 15px;
-            max-width: 100%;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 25px;
         }
-        
         .logo-section {
             display: flex;
             align-items: center;
-            flex-shrink: 0;
-            max-width: 60%;
         }
-        
         .logo-img {
-            height: 40px;
-            width: 40px;
-            margin-right: 8px;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+            height: 48px;
+            width: 48px;
+            margin-right: 12px;
+            border-radius: 10px;
             object-fit: contain;
         }
-        
-        .brand-content {
-            min-width: 0;
-            flex: 1;
-        }
-        
         .brand-text {
             font-family: 'Montserrat', sans-serif;
-            font-size: 1.3rem;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, #ff0000, #0066ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
             line-height: 1.2;
-            white-space: nowrap;
         }
-        
         .brand-subtitle {
-            font-size: 0.6rem;
-            color: var(--accent);
+            font-size: 0.7rem;
+            color: #00ccff;
             font-weight: 300;
-            letter-spacing: 0.5px;
-            font-style: italic;
-            white-space: nowrap;
         }
-        
+
+        /* menu button & dropdown */
+        .menu-section {
+            position: relative;
+        }
         .menu-button {
-            background: rgba(0, 204, 255, 0.15);
+            background: rgba(0,204,255,0.12);
             border: 2px solid var(--accent);
-            color: var(--accent);
-            padding: 9px 11px;
-            border-radius: 10px;
+            border-radius: 14px;
+            padding: 10px 14px;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .menu-button:hover {
-            background: rgba(0, 204, 255, 0.25);
-            box-shadow: 0 0 20px rgba(0, 204, 255, 0.6);
-        }
-        
-        .menu-lines {
+            transition: all 0.2s;
             display: flex;
-            flex-direction: column;
-            gap: 3px;
+            align-items: center;
+            justify-content: center;
         }
-        
-        .menu-line {
-            width: 18px;
+        .menu-button:hover {
+            background: rgba(0,204,255,0.25);
+            box-shadow: 0 0 15px #00ccff66;
+        }
+        .menu-lines div {
+            width: 22px;
             height: 2px;
-            background: var(--accent);
-            border-radius: 2px;
-            transition: all 0.3s ease;
+            background: #00ccff;
+            margin: 4px 0;
+            border-radius: 4px;
+            transition: 0.2s;
         }
-        
         .menu-button.active .menu-line:nth-child(1) {
             transform: rotate(45deg) translate(5px, 5px);
         }
-        
         .menu-button.active .menu-line:nth-child(2) {
             opacity: 0;
         }
-        
         .menu-button.active .menu-line:nth-child(3) {
             transform: rotate(-45deg) translate(5px, -5px);
         }
-        
-        /* Search Bar */
+        .menu-dropdown {
+            position: absolute;
+            top: 65px;
+            right: 0;
+            width: 260px;
+            background: rgba(10, 20, 40, 0.98);
+            backdrop-filter: blur(15px);
+            border: 2px solid var(--accent);
+            border-radius: 20px;
+            padding: 1.2rem 1rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+            display: none;
+            z-index: 1101;
+        }
+        .menu-dropdown.show {
+            display: block;
+        }
+        .menu-dropdown h4 {
+            color: white;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .menu-links {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .menu-link {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 14px;
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: 0.2s;
+            border: 1px solid transparent;
+        }
+        .menu-link:hover {
+            background: rgba(0,204,255,0.15);
+            border-color: #00ccff;
+            transform: translateX(5px);
+        }
+        .menu-link i {
+            font-size: 1.3rem;
+            width: 28px;
+            text-align: center;
+        }
+
+        /* main container */
+        .main-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 10px 20px 20px;
+        }
+        .ad-unit {
+            text-align: center;
+            margin: 8px 0;
+            min-height: 90px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .search-container {
-            margin: 2rem 0;
+            margin: 5px 0 8px 0;
             position: relative;
         }
         .search-box {
-            background: rgba(15, 23, 42, 0.8);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 60px;
             padding: 12px 25px;
             color: white;
             font-size: 1.1rem;
             width: 100%;
-            transition: all 0.3s ease;
         }
         .search-box:focus {
+            border-color: #00ccff;
             outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.2);
         }
         .search-btn {
             position: absolute;
-            right: 5px;
-            top: 5px;
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            right: 6px;
+            top: 6px;
+            background: linear-gradient(45deg, #ff0000, #0066ff);
             border: none;
             border-radius: 50px;
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             color: white;
             cursor: pointer;
-            transition: transform 0.3s ease;
         }
-        .search-btn:hover {
-            transform: scale(1.05);
-        }
-        
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .result-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-        }
-        .result-title {
-            color: var(--accent-color);
-            font-size: 1.4rem;
-            font-weight: 700;
+            border-radius: 16px;
+            padding: 1.2rem;
             margin-bottom: 1rem;
-            line-height: 1.3;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
         }
-        
-        /* Result Thumbnail */
         .result-thumbnail-top {
-            margin-bottom: 1.5rem;
-            position: relative;
-            border-radius: 10px;
+            height: 220px;
+            border-radius: 12px;
             overflow: hidden;
+            margin-bottom: 1rem;
+            background: #1e293b;
+        }
+        .thumbnail-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
             cursor: pointer;
-            height: 250px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        .thumbnail-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        /* Original play button ad */
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .thumbnail-container:hover .play-overlay {
+            opacity: 1;
+        }
+        .play-button {
+            width: 70px;
+            height: 70px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            transition: transform 0.3s ease;
+            border: 3px solid white;
+        }
+        .play-button:hover {
+            transform: scale(1.1);
+            background: var(--secondary);
+        }
+        .thumbnail-source-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
+            backdrop-filter: blur(5px);
+        }
+        .video-file-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
         }
         
-        /* Post Content Styling */
+        /* Post content styling - IMPROVED */
         .result-post-content {
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(255,255,255,0.15);
             border-radius: 12px;
             padding: 1.5rem;
-            margin-bottom: 1.2rem;
+            margin: 1rem 0;
             font-size: 1rem;
             line-height: 1.7;
             color: #e2e8f0;
@@ -215,7 +310,7 @@
         }
         
         .post-content-text {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             padding-right: 10px;
         }
@@ -230,7 +325,7 @@
         }
         
         .post-content-text::-webkit-scrollbar-thumb {
-            background: var(--accent-color);
+            background: var(--accent);
             border-radius: 3px;
         }
         
@@ -252,1405 +347,227 @@
             color: #80e1ff;
             text-decoration: none;
             border-color: rgba(0, 204, 255, 0.5);
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(0, 204, 255, 0.2);
         }
         
-        /* Thumbnail Container */
-        .thumbnail-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-        .thumbnail-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-        .thumbnail-container:hover img {
-            transform: scale(1.05);
-        }
-        .play-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .thumbnail-container:hover .play-overlay {
-            opacity: 1;
-        }
-        .play-button {
-            width: 70px;
-            height: 70px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-            transition: transform 0.3s ease;
-            border: 3px solid white;
-        }
-        .play-button:hover {
-            transform: scale(1.1);
-            background: var(--secondary-color);
+        .result-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #00ccff;
+            margin-bottom: 0.5rem;
         }
         
-        /* Thumbnail Loading */
-        .thumbnail-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.1);
-            height: 100%;
-        }
-        .thumbnail-loading .spinner-border {
-            width: 2rem;
-            height: 2rem;
-            border-width: 0.2em;
-        }
-        
-        /* Thumbnail Image */
-        .thumbnail-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        /* Thumbnail Source Badge */
-        .thumbnail-source-badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .thumbnail-source-badge.telegram { background: linear-gradient(135deg, #0088cc, #00aaff); }
-        .thumbnail-source-badge.tmdb { background: linear-gradient(135deg, #01d277, #0d253f); }
-        .thumbnail-source-badge.omdb { background: linear-gradient(135deg, #f5c518, #000000); }
-        .thumbnail-source-badge.fallback { background: linear-gradient(135deg, #666666, #999999); }
-        
-        /* Action Buttons Container */
         .action-buttons-container {
             display: flex;
             gap: 12px;
-            margin-top: 1rem;
+            margin-top: 0.75rem;
         }
-        
-        /* Stream Now Button */
-        .btn-stream-now {
-            background: linear-gradient(45deg, #ff416c, #ff4b2b);
-            color: white;
+        .btn-stream-now, .btn-download-main {
+            flex: 1;
+            padding: 12px 16px;
             border: none;
-            padding: 12px 24px;
             border-radius: 10px;
             font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            flex: 1;
-            min-width: 140px;
+            gap: 6px;
+            color: white;
             text-decoration: none;
+            cursor: pointer;
         }
+        .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
+        .btn-download-main { background: linear-gradient(45deg, #28a745, #20c997); }
         
-        .btn-stream-now:hover:not(:disabled) {
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(255, 65, 108, 0.35);
-            color: white;
-        }
-        
-        .btn-stream-now:disabled {
-            background: #495057 !important;
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        
-        /* Download Button */
-        .btn-download-main {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            flex: 1;
-            min-width: 140px;
-            text-decoration: none;
-        }
-        
-        .btn-download-main:hover:not(:disabled) {
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.35);
-            color: white;
-        }
-        
-        .btn-download-main:disabled {
-            background: #495057 !important;
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        
-        /* Quality Dropdown */
         .quality-dropdown {
             display: none;
-            background: rgba(20, 30, 48, 0.98);
-            border: 2px solid var(--accent-color);
-            border-radius: 10px;
+            background: #1e293b;
+            border: 2px solid #00ccff;
+            border-radius: 12px;
             padding: 15px;
             margin-top: 10px;
-            animation: slideDown 0.3s ease;
         }
-        .quality-dropdown.show {
-            display: block;
-        }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .quality-dropdown.show { display: block; }
         
-        /* Quality Buttons Row */
         .quality-buttons-row {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            justify-content: flex-start;
-            align-items: stretch;
-            width: 100%;
         }
         
-        /* Quality Option Buttons */
         .quality-option {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 15px 20px;
-            color: white;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 1rem;
-            white-space: nowrap;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            cursor: pointer;
-            min-width: 110px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-            flex: 0 0 auto;
-            position: relative;
-            overflow: hidden;
-            letter-spacing: 0.5px;
-        }
-        
-        /* Download Quality Button */
-        .quality-option.download-btn {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            border: 1px solid rgba(40, 167, 69, 0.5);
-        }
-        
-        .quality-option[data-quality*="2160p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
-        }
-        .quality-option[data-quality*="2160p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #FF8008 0%, #FFC837 100%);
-        }
-        .quality-option[data-quality*="1080p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
-        }
-        .quality-option[data-quality*="1080p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
-        }
-        .quality-option[data-quality*="720p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
-        }
-        .quality-option[data-quality*="720p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .quality-option[data-quality*="480p"][data-quality*="HEVC"] {
-            background: linear-gradient(135deg, #FF5E62 0%, #FF9966 100%);
-        }
-        .quality-option[data-quality*="480p"]:not([data-quality*="HEVC"]) {
-            background: linear-gradient(135deg, #FF6B9D 0%, #FF8E53 100%);
-        }
-        .quality-option[data-quality*="360p"] {
-            background: linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%);
-        }
-        .quality-option[data-quality*="240p"] {
-            background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
-            color: #333;
-        }
-        
-        .quality-option:hover {
-            transform: translateY(-5px) scale(1.03);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4);
-            text-decoration: none;
-            color: white;
-        }
-        
-        .quality-option small {
-            font-size: 0.8rem;
-            opacity: 0.9;
-        }
-        
-        /* Video File Badge */
-        .video-file-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--primary-color);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-        }
-        
-        /* Pagination */
-        .pagination {
-            margin-top: 2rem;
-        }
-        .page-link {
-            background: rgba(0,204,255,0.2);
-            color: var(--accent-color);
-            border: 2px solid var(--accent-color);
-        }
-        .page-link:hover, .page-item.active .page-link {
-            background: var(--accent-color);
-            border-color: var(--accent-color);
-            color: #0a0a0f;
-        }
-        .page-item.disabled .page-link {
-            opacity: 0.4;
-        }
-        .results-info {
-            text-align: center;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-        }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-            border-width: 0.3rem;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-        }
-        .empty-state i {
-            font-size: 4rem;
-            color: var(--accent-color);
-            margin-bottom: 1.5rem;
-        }
-        
-        /* Loading Skeleton */
-        .skeleton-loader {
-            background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
+            padding: 10px 15px;
             border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        .skeleton-thumbnail {
-            height: 250px;
-            width: 100%;
-        }
-        .skeleton-title {
-            height: 24px;
-            width: 70%;
-        }
-        .skeleton-post {
-            height: 100px;
-            width: 100%;
-        }
-        .skeleton-button {
-            height: 45px;
-            width: 100%;
-        }
-        
-        /* Error States */
-        .error-state {
-            text-align: center;
-            padding: 3rem 2rem;
-            background: rgba(255, 0, 0, 0.1);
-            border-radius: 15px;
-            border: 1px solid rgba(255, 0, 0, 0.3);
-        }
-        .error-state i {
-            font-size: 3rem;
-            color: #ff4757;
-            margin-bottom: 1rem;
-        }
-        .retry-btn {
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            padding: 10px 25px;
-            border-radius: 25px;
             color: white;
+            text-decoration: none;
             font-weight: 600;
-            margin-top: 1rem;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-        .retry-btn:hover {
-            transform: scale(1.05);
-        }
-        
-        /* Ad Container */
-        .ad-container {
-            margin: 2rem 0;
-            text-align: center;
-        }
-        .top-ad-container {
-            margin: 1rem 0 2rem 0;
-            text-align: center;
-        }
-        
-        /* Disclaimer */
-        .disclaimer {
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 2rem;
-            text-align: center;
-            color: #ff6b6b;
             font-size: 0.9rem;
-            backdrop-filter: blur(10px);
-        }
-        .disclaimer strong {
-            color: #ff4757;
-            display: block;
-            margin-bottom: 8px;
-            font-size: 1rem;
         }
         
-        /* Mobile Optimizations */
-        @media (max-width: 768px) {
-            .result-thumbnail-top {
-                height: 200px;
-            }
-            .action-buttons-container {
-                flex-direction: column;
-                gap: 10px;
-            }
-            .btn-stream-now,
-            .btn-download-main {
-                width: 100%;
-                min-width: auto;
-                padding: 12px 16px;
-                font-size: 0.9rem;
-            }
-            .quality-option {
-                min-width: 100px;
-                padding: 12px 15px;
-                font-size: 0.9rem;
-            }
+        .disclaimer {
+            background: rgba(255,0,0,0.1);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 15px;
+            text-align: center;
         }
         
-        @media (max-width: 576px) {
-            .result-thumbnail-top {
-                height: 180px;
-            }
-            .quality-option {
-                min-width: 90px;
-                padding: 10px 12px;
-                font-size: 0.85rem;
-            }
+        .debug-info {
+            background: rgba(255,255,0,0.1);
+            border: 1px solid yellow;
+            padding: 5px;
+            margin: 5px 0;
+            font-size: 0.8rem;
+            display: none; /* Hide by default */
+        }
+        
+        @media (max-width: 600px) {
+            .result-thumbnail-top { height: 180px; }
         }
     </style>
 </head>
 <body>
-<!-- Navigation -->
-    <nav class="top-navbar">
-        <div class="container-fluid">
-            <div class="navbar-content">
-                <div class="logo-section">
-                    <a href="#" style="display: flex; align-items: center; color: white; text-decoration: none;">
-                        <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
-                        <div class="brand-content">
-                            <div class="brand-text">SK4FiLM</div>
-                            <div class="brand-subtitle">House of Entertainment</div>
-                        </div>
+
+<!-- FIXED NAVBAR -->
+<nav class="top-navbar">
+    <div class="navbar-content">
+        <div class="logo-section">
+            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
+            <div>
+                <div class="brand-text">SK4FiLM</div>
+                <div class="brand-subtitle">House of Entertainment</div>
+            </div>
+        </div>
+
+        <div class="menu-section">
+            <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn">
+                <div class="menu-lines">
+                    <div class="menu-line"></div>
+                    <div class="menu-line"></div>
+                    <div class="menu-line"></div>
+                </div>
+            </button>
+
+            <div class="menu-dropdown" id="menuDropdown">
+                <h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
+                <div class="menu-links">
+                    <a href="https://t.me/sk4film" target="_blank" class="menu-link">
+                        <i class="fab fa-telegram" style="color: #0088cc;"></i>
+                        <span>Telegram</span>
                     </a>
-                </div>           
-                    <div class="menu-section">
-                        <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn">
-                            <div class="menu-lines">
-                                <div class="menu-line"></div>
-                                <div class="menu-line"></div>
-                                <div class="menu-line"></div>
-                            </div>
-                        </button>
-                        
-                        <div class="menu-dropdown" id="menuDropdown">
-                            <h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
-                            <div class="menu-links">
-                                <a href="https://t.me/sk4film" target="_blank" class="menu-link">
-                                    <i class="fab fa-telegram" style="color: #0088cc;"></i>
-                                    <span>Telegram</span>
-                                </a>
-                                <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
-                                    <i class="fab fa-whatsapp" style="color: #25d366;"></i>
-                                    <span>WhatsApp</span>
-                                </a>
-                                <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
-                                    <i class="fab fa-youtube" style="color: #ff0000;"></i>
-                                    <span>YouTube</span>
-                                </a>
-                                <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
-                                    <i class="fas fa-robot" style="color: #7b68ee;"></i>
-                                    <span>Telegram Bot</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
+                        <i class="fab fa-whatsapp" style="color: #25d366;"></i>
+                        <span>WhatsApp</span>
+                    </a>
+                    <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
+                        <i class="fab fa-youtube" style="color: #ff0000;"></i>
+                        <span>YouTube</span>
+                    </a>
+                    <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
+                        <i class="fas fa-robot" style="color: #7b68ee;"></i>
+                        <span>Telegram Bot</span>
+                    </a>
                 </div>
             </div>
         </div>
-    </nav>
+    </div>
+</nav>
 
-<!-- Main Content -->
-<div class="container my-4">
-    <!-- Top Ad -->
-    <div class="top-ad-container">
-        <script type="text/javascript">
-            atOptions = {
-                'key' : '567936a964b0784aedd11f237d26bee0',
-                'format' : 'iframe',
-                'height' : 250,
-                'width' : 300,
-                'params' : {}
-            };
+<!-- MAIN CONTAINER -->
+<div class="main-container">
+
+    <!-- 728x90 AD TOP -->
+    <div class="ad-unit">
+        <script>
+          atOptions = {
+            'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+            'format' : 'iframe',
+            'height' : 90,
+            'width' : 728,
+            'params' : {}
+          };
         </script>
-        <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+        <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
     </div>
 
-    <!-- Search Bar -->
+    <!-- SEARCH BAR -->
     <div class="search-container">
-        <input type="text" id="searchInput" class="search-box" placeholder="Search for movies..." value="">
-        <button class="search-btn" id="searchButton">
-            <i class="fas fa-search"></i>
-        </button>
+        <input type="text" id="searchInput" class="search-box" placeholder="Search movies...">
+        <button class="search-btn" id="searchButton"><i class="fas fa-search"></i></button>
     </div>
 
-    <div id="resultsInfo"></div>
+    <!-- 728x90 AD BOTTOM -->
+    <div class="ad-unit">
+        <script>
+          atOptions = {
+            'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+            'format' : 'iframe',
+            'height' : 90,
+            'width' : 728,
+            'params' : {}
+          };
+        </script>
+        <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+    </div>
+
+    <div id="resultsInfo" class="text-center mt-2 small"></div>
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
-    
-    <!-- Bottom Ad -->
-    <div class="ad-container">
+
+    <!-- bottom ad -->
+    <div class="ad-unit" style="margin-top:12px;">
         <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
         <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
     </div>
-    
-    <!-- Disclaimer -->
+
     <div class="disclaimer">
         <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
-        This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.
+        This site does not store any file, it links to media hosted on Telegram.
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ============================================================================
-// ✅ SK4FiLM SEARCH v2.0 - FIXED: Thumbnail Priority + Ad Integration
-// ============================================================================
+// ========== TOGGLE MENU ==========
+function toggleMenu() {
+    const btn = document.getElementById('menuToggleBtn');
+    const dropdown = document.getElementById('menuDropdown');
+    btn.classList.toggle('active');
+    dropdown.classList.toggle('show');
+}
+document.addEventListener('click', function(event) {
+    const btn = document.getElementById('menuToggleBtn');
+    const dropdown = document.getElementById('menuDropdown');
+    if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
+        btn.classList.remove('active');
+        dropdown.classList.remove('show');
+    }
+});
 
-// API endpoints
+// ========== SEARCH FUNCTIONALITY ==========
 const API_ENDPOINTS = [
     'https://sk4film.koyeb.app',
     'https://sk4film-backup.herokuapp.com',
     'https://sk4film-alternate.onrender.com'
 ];
-
-// Fallback thumbnail URL
 const FALLBACK_THUMBNAIL = 'https://iili.io/fAeIwv9.th.png';
-
 const RESULTS_PER_PAGE = 10;
 const AD_LINK = 'https://otieu.com/4/10220520';
-const CACHE_DURATION = 30 * 60 * 1000;
-
-// Config
 const FILE_CHANNEL_ID = "-1001768249569";
 const BOT_USERNAME = 'sk4filmbot';
 
 let currentQuery = '';
 let currentPage = 1;
-let currentAPI = 0;
-let isOnline = true;
-
 const resultsContainer = document.getElementById('resultsContainer');
 const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
 const searchInput = document.getElementById('searchInput');
 const searchButton = document.getElementById('searchButton');
 
-// Thumbnail Cache
-const thumbnailCache = new Map();
-const pendingThumbnails = new Map();
+// Cache
+const searchCache = new Map();
 
-// Search Cache
-class SearchCache {
-    constructor() {
-        this.storage = new Map();
-    }
-    
-    async set(key, data) {
-        const timestamp = Date.now();
-        this.storage.set(key, { data, timestamp });
-        this.cleanup();
-    }
-    
-    async get(key) {
-        const cached = this.storage.get(key);
-        if (cached && Date.now() - cached.timestamp <= CACHE_DURATION) {
-            return cached.data;
-        }
-        if (cached) {
-            this.storage.delete(key);
-        }
-        return null;
-    }
-    
-    cleanup() {
-        const now = Date.now();
-        for (const [key, value] of this.storage.entries()) {
-            if (now - value.timestamp > CACHE_DURATION) {
-                this.storage.delete(key);
-            }
-        }
-    }
-}
-
-const searchCache = new SearchCache();
-
-// Extract real message ID
-function extractRealMessageId(messageIdData) {
-    if (!messageIdData) return null;
-    
-    if (typeof messageIdData === 'number') {
-        return messageIdData.toString();
-    }
-    
-    if (typeof messageIdData === 'string') {
-        const cleanStr = messageIdData.trim();
-        
-        if (/^\d+$/.test(cleanStr)) {
-            return cleanStr;
-        }
-        
-        if (cleanStr.includes('_')) {
-            const parts = cleanStr.split('_');
-            let maxNum = null;
-            parts.forEach(part => {
-                if (/^\d+$/.test(part)) {
-                    const num = parseInt(part, 10);
-                    if (!maxNum || num > maxNum) {
-                        maxNum = num;
-                    }
-                }
-            });
-            if (maxNum) return maxNum.toString();
-        }
-        
-        const digitMatch = cleanStr.match(/\d+/g);
-        if (digitMatch) {
-            let longest = '';
-            digitMatch.forEach(match => {
-                if (match.length > longest.length) {
-                    longest = match;
-                }
-            });
-            if (longest.length >= 3) return longest;
-        }
-    }
-    
-    return null;
-}
-
-// Generate quality options for DOWNLOAD only
-function generateDownloadQualityOptions(qualityOptions, resultData) {
-    if (!qualityOptions || typeof qualityOptions !== 'object') {
-        return '<p class="text-center text-muted mb-0">No download options</p>';
-    }
-    
-    let hasValidData = false;
-    Object.values(qualityOptions).forEach(q => {
-        if (q && (q.file_id || q.message_id || q.file_size)) {
-            hasValidData = true;
-        }
-    });
-    
-    if (!hasValidData) {
-        return '<p class="text-center text-muted mb-0">No download options</p>';
-    }
-    
-    let realMessageId = null;
-    const sources = [
-        resultData.real_message_id,
-        resultData.message_id,
-        Object.values(qualityOptions)[0]?.message_id,
-        Object.values(qualityOptions)[0]?.real_message_id,
-        resultData.id
-    ];
-    
-    for (const source of sources) {
-        if (source) {
-            const extracted = extractRealMessageId(source);
-            if (extracted) {
-                realMessageId = extracted;
-                break;
-            }
-        }
-    }
-    
-    if (!realMessageId) {
-        const titleHash = resultData.title ? 
-            resultData.title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 
-            Date.now();
-        realMessageId = Math.abs(titleHash % 1000000).toString();
-    }
-    
-    const qualityOrder = [
-        '2160p HEVC', '2160p', '1080p HEVC', '1080p', 
-        '720p HEVC', '720p', '480p HEVC', '480p',
-        '360p', '240p', 'HD', 'SD', 'HQ', 'LQ'
-    ];
-    
-    let html = '<div class="quality-buttons-row">';
-    let linksGenerated = 0;
-    
-    if (typeof qualityOptions === 'object' && !Array.isArray(qualityOptions)) {
-        qualityOrder.forEach(quality => {
-            const qualityData = qualityOptions[quality];
-            if (!qualityData) return;
-            
-            const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-            const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
-            const fileSize = qualityData.file_size ? formatSize(qualityData.file_size) : '';
-            
-            const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-            const botUsername = resultData.bot_username || BOT_USERNAME;
-            const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
-            
-            html += `
-            <a href="${downloadUrl}" 
-               target="_blank" 
-               class="quality-option download-btn"
-               data-quality="${quality}">
-                <i class="fas fa-download me-1"></i>${quality}<br>
-                <small>${fileSize || 'Download'}</small>
-            </a>`;
-            
-            linksGenerated++;
-        });
-        
-        if (linksGenerated === 0) {
-            for (const [quality, qualityData] of Object.entries(qualityOptions)) {
-                if (qualityData && typeof qualityData === 'object') {
-                    const qualityCode = quality.toLowerCase().replace(/\s+/g, '_');
-                    const msgId = qualityData.message_id || qualityData.real_message_id || realMessageId;
-                    const fileSize = qualityData.file_size ? formatSize(qualityData.file_size) : '';
-                    
-                    const fileId = `${FILE_CHANNEL_ID}_${msgId}_${qualityCode}`;
-                    const botUsername = resultData.bot_username || BOT_USERNAME;
-                    const downloadUrl = `https://t.me/${botUsername}?start=${fileId}`;
-                    
-                    html += `
-                    <a href="${downloadUrl}" 
-                       target="_blank" 
-                       class="quality-option download-btn"
-                       data-quality="${quality}">
-                        <i class="fas fa-download me-1"></i>${quality}<br>
-                        <small>${fileSize || 'Download'}</small>
-                    </a>`;
-                    linksGenerated++;
-                }
-            }
-        }
-    }
-    
-    if (linksGenerated === 0) {
-        html += `
-        <a href="https://t.me/${BOT_USERNAME}" 
-           target="_blank" 
-           class="quality-option download-btn"
-           data-quality="HD">
-            <i class="fas fa-download me-1"></i>Get from Telegram
-        </a>`;
-    }
-    
-    html += '</div>';
-    return html;
-}
-
-// Initialize
-window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('query');
-    const page = parseInt(urlParams.get('page')) || 1;
-    
-    window.addEventListener('online', () => isOnline = true);
-    window.addEventListener('offline', () => isOnline = false);
-    isOnline = navigator.onLine;
-    
-    if (query) {
-        currentQuery = query;
-        searchInput.value = query;
-        performSearch(page);
-    }
-    
-    searchButton.addEventListener('click', () => {
-        const query = searchInput.value.trim();
-        if (query) {
-            currentQuery = query;
-            performSearch(1);
-        }
-    });
-    
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const query = searchInput.value.trim();
-            if (query) {
-                currentQuery = query;
-                performSearch(1);
-            }
-        }
-    });
-});
-
-async function performSearch(page = 1) {
-    if (!currentQuery) {
-        showError("Please enter a search query");
-        return;
-    }
-    
-    currentPage = page;
-    const url = new URL(window.location);
-    url.searchParams.set('query', currentQuery);
-    url.searchParams.set('page', page);
-    window.history.pushState({}, '', url);
-    
-    showSkeletonLoader();
-    resultsInfo.innerHTML = '';
-    paginationContainer.innerHTML = '';
-    
-    const cacheKey = `${currentQuery}-${page}`;
-    const cachedData = await searchCache.get(cacheKey);
-    
-    if (cachedData) {
-        displayResults(cachedData.results, cachedData.pagination);
-        return;
-    }
-    
-    if (!isOnline) {
-        showOfflineError();
-        return;
-    }
-    
-    try {
-        const data = await tryAllEndpoints(currentQuery, page);
-        if (data) {
-            const sortedResults = sortResultsWithExactMatchFirst(data.results, currentQuery);
-            
-            searchCache.set(cacheKey, {
-                results: sortedResults,
-                pagination: data.pagination,
-                bot_username: data.bot_username || BOT_USERNAME
-            });
-            
-            displayResults(sortedResults, data.pagination);
-        } else {
-            showConnectionError();
-        }
-    } catch (error) {
-        console.error("Search error:", error);
-        showConnectionError();
-    }
-}
-
-function showSkeletonLoader() {
-    let html = '';
-    for (let i = 0; i < RESULTS_PER_PAGE; i++) {
-        html += `
-        <div class="result-card">
-            <div class="skeleton-loader skeleton-thumbnail mb-3"></div>
-            <div class="skeleton-loader skeleton-title mb-3"></div>
-            <div class="skeleton-loader skeleton-post mb-3"></div>
-            <div class="skeleton-loader skeleton-button"></div>
-        </div>
-        `;
-    }
-    resultsContainer.innerHTML = html;
-}
-
-async function tryAllEndpoints(query, page) {
-    for (let i = 0; i < API_ENDPOINTS.length; i++) {
-        try {
-            const apiUrl = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-            
-            const response = await fetch(apiUrl, { 
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === "success") {
-                    currentAPI = i;
-                    return data;
-                }
-            }
-        } catch (error) {
-            console.log(`API ${i} error:`, error.message);
-        }
-    }
-    return null;
-}
-
-function showConnectionError() {
-    const cacheKey = `${currentQuery}-${currentPage}`;
-    const cachedData = searchCache.get(cacheKey);
-    
-    if (cachedData) {
-        displayResults(cachedData.results, cachedData.pagination);
-    } else {
-        resultsContainer.innerHTML = `
-            <div class="error-state">
-                <i class="fas fa-unlink"></i>
-                <h4>Connection Error</h4>
-                <p>Unable to connect to the server. Please check your internet connection and try again.</p>
-                <button class="retry-btn" onclick="performSearch(${currentPage})">
-                    <i class="fas fa-redo me-1"></i>Retry Search
-                </button>
-            </div>
-        `;
-    }
-}
-
-function showOfflineError() {
-    resultsContainer.innerHTML = `
-        <div class="error-state">
-            <i class="fas fa-wifi-slash"></i>
-            <h4>You're Offline</h4>
-            <p>Please check your internet connection and try again.</p>
-            <button class="retry-btn" onclick="location.reload()">
-                <i class="fas fa-sync-alt me-1"></i>Reload Page
-            </button>
-        </div>
-    `;
-}
-
-function sortResultsWithExactMatchFirst(results, query) {
-    if (!results || results.length === 0) return [];
-    
-    const queryLower = query.toLowerCase().trim();
-    const resultsCopy = [...results];
-    
-    resultsCopy.sort((a, b) => {
-        if (!a.title || !b.title) return 0;
-        
-        const titleALower = a.title.toLowerCase().trim();
-        const titleBLower = b.title.toLowerCase().trim();
-        
-        const aIsExact = titleALower === queryLower;
-        const bIsExact = titleBLower === queryLower;
-        
-        if (aIsExact && !bIsExact) return -1;
-        if (!aIsExact && bIsExact) return 1;
-        
-        const aHasPartial = titleALower.includes(queryLower);
-        const bHasPartial = titleBLower.includes(queryLower);
-        
-        if (aHasPartial && !bHasPartial) return -1;
-        if (!aHasPartial && bHasPartial) return 1;
-        
-        return 0;
-    });
-    
-    return resultsCopy;
-}
-
-function getThumbnailSourceBadgeClass(source) {
-    if (!source) return 'fallback';
-    source = source.toLowerCase();
-    if (source === 'telegram' || source === 'extracted') return 'telegram';
-    if (source === 'tmdb') return 'tmdb';
-    if (source === 'omdb') return 'omdb';
-    return 'fallback';
-}
-
-// Clean movie title for API search
-function cleanTitleForAPI(title) {
-    return title
-        .replace(/[\(\)\[\]\{\}]/g, '')
-        .replace(/\b\d{4}\b/, '')
-        .replace(/\./g, ' ')
-        .replace(/_/g, ' ')
-        .replace(/(480p|720p|1080p|2160p|HEVC|x264|x265|BluRay|WEBRip|HDTV|HDRip)/gi, '')
-        .trim();
-}
-
-// Fetch thumbnail from TMDB/OMDB
-async function fetchThumbnailFromAPI(movieTitle) {
-    const cleanTitle = cleanTitleForAPI(movieTitle);
-    
-    // Check cache first
-    if (thumbnailCache.has(cleanTitle)) {
-        return thumbnailCache.get(cleanTitle);
-    }
-    
-    // Check if already pending
-    if (pendingThumbnails.has(cleanTitle)) {
-        return pendingThumbnails.get(cleanTitle);
-    }
-    
-    // Try TMDB first
-    const tmdbPromise = (async () => {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
-            
-            const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=e547e17d4e91f3e62a571655cd1ccaff&query=${encodeURIComponent(cleanTitle)}`, {
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.results && data.results[0] && data.results[0].poster_path) {
-                    return `https://image.tmdb.org/t/p/w500${data.results[0].poster_path}`;
-                }
-            }
-            return null;
-        } catch {
-            return null;
-        }
-    })();
-    
-    pendingThumbnails.set(cleanTitle, tmdbPromise);
-    
-    try {
-        const result = await tmdbPromise;
-        if (result) {
-            thumbnailCache.set(cleanTitle, result);
-        }
-        return result;
-    } finally {
-        pendingThumbnails.delete(cleanTitle);
-    }
-}
-
-async function displayResults(results, pagination) {
-    if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
-        return;
-    }
-    
-    resultsInfo.innerHTML = `<div class="results-info">Found <strong>${pagination.total_results}</strong> result${pagination.total_results !== 1 ? 's' : ''} | Page ${pagination.current_page} of ${pagination.total_pages}</div>`;
-    
-    let html = '';
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const hasFile = result.has_file === true;
-        const qualityOptions = result.qualities || result.quality_options || {};
-        const hasQualities = Object.keys(qualityOptions).length > 0;
-        const postContent = result.post_content || result.content || '';
-        const hasPostContent = postContent.trim().length > 0;
-        
-        // Get thumbnail info - PRIORITY: Extracted > Poster > Fallback
-        const thumbnailUrl = result.thumbnail_url || result.poster_url || '';
-        const thumbnailSource = result.thumbnail_source || result.poster_source || 'fallback';
-        const thumbnailBadgeClass = getThumbnailSourceBadgeClass(thumbnailSource);
-        const thumbnailBadgeText = thumbnailSource.charAt(0).toUpperCase() + thumbnailSource.slice(1);
-        
-        // Check if we have a valid extracted thumbnail
-        const hasExtractedThumbnail = thumbnailUrl && thumbnailUrl !== FALLBACK_THUMBNAIL && thumbnailUrl.trim() !== '';
-        
-        // Determine which thumbnail to show
-        let thumbnailHtml = '';
-        if (hasExtractedThumbnail) {
-            // Priority 1: Show extracted thumbnail directly (from MongoDB/Telegram)
-            thumbnailHtml = `
-                <div class="thumbnail-source-badge ${thumbnailBadgeClass}">${thumbnailBadgeText}</div>
-                ${hasFile ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
-                <img src="${thumbnailUrl}" alt="${escapeHtml(result.title)}" class="thumbnail-img" loading="lazy" 
-                     onerror="this.onerror=null; loadFallbackForIndex(${i}, '${escapeHtml(result.title)}', ${hasFile})">
-                <div class="play-overlay" onclick="triggerAdLink()">
-                    <div class="play-button">
-                        <i class="fas fa-play"></i>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Priority 2: Show loading then try API
-            thumbnailHtml = `
-                <div class="thumbnail-loading" id="loading-${i}">
-                    <div class="spinner-border text-light" role="status">
-                        <span class="visually-hidden">Loading thumbnail...</span>
-                    </div>
-                </div>
-            `;
-            
-            // Trigger API fetch after a small delay
-            setTimeout(() => {
-                loadApiThumbnailForIndex(i, result.title, hasFile);
-            }, i * 100);
-        }
-        
-        html += `
-        <div class="result-card">
-            <!-- Thumbnail -->
-            <div class="result-thumbnail-top">
-                <div class="thumbnail-container" onclick="triggerAdLink()" id="thumbnail-${i}">
-                    ${thumbnailHtml}
-                </div>
-            </div>
-            
-            <!-- Title -->
-            <h3 class="result-title">${escapeHtml(result.title)}</h3>
-        `;
-        
-        // POST RESULTS: Show formatted post content
-        if (hasPostContent) {
-            html += `
-            <!-- Post Content -->
-            <div class="result-post-content">
-                <div class="post-content-text">
-                    ${formatPostContent(postContent)}
-                </div>
-            </div>
-            `;
-            
-            // Files with post results
-            if (hasFile && hasQualities) {
-                html += `
-                <div class="result-download-section">
-                    <div class="action-buttons-container">
-                        <button class="btn btn-stream-now" onclick="toggleStreamQuality(${i})">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${i}"></i>
-                        </button>
-                        
-                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
-                            <i class="fas fa-download me-2"></i>Download Now
-                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="quality-dropdown" id="stream-quality-${i}">
-                        ${generateDownloadQualityOptions(qualityOptions, result)}
-                    </div>
-                    
-                    <div class="quality-dropdown" id="download-quality-${i}">
-                        ${generateDownloadQualityOptions(qualityOptions, result)}
-                    </div>
-                </div>
-                `;
-            } else if (hasFile) {
-                const realMessageId = extractRealMessageId(result.real_message_id || result.message_id || result.id) || '1';
-                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${realMessageId}`;
-                const downloadUrl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${realMessageId}`;
-                
-                html += `
-                <div class="result-download-section">
-                    <div class="action-buttons-container">
-                        <a href="${streamUrl}" target="_blank" class="btn btn-stream-now">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                        </a>
-                        <a href="${downloadUrl}" target="_blank" class="btn btn-download-main">
-                            <i class="fas fa-download me-2"></i>Download Now
-                        </a>
-                    </div>
-                </div>
-                `;
-            } else {
-                html += `<div class="result-download-section"></div>`;
-            }
-        } 
-        // FILE RESULTS: No post content
-        else {
-            if (hasFile && hasQualities) {
-                const realMessageId = extractRealMessageId(result.real_message_id || result.message_id || result.id) || '1';
-                html += `
-                <div class="result-download-section">
-                    <div class="action-buttons-container">
-                        <a href="view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${realMessageId}" 
-                           target="_blank" 
-                           class="btn btn-stream-now">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                        </a>
-                        
-                        <button class="btn btn-download-main" onclick="toggleDownloadQuality(${i})">
-                            <i class="fas fa-download me-2"></i>Download Now
-                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${i}"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="quality-dropdown" id="download-quality-${i}">
-                        ${generateDownloadQualityOptions(qualityOptions, result)}
-                    </div>
-                </div>
-                `;
-            } else if (hasFile) {
-                const realMessageId = extractRealMessageId(result.real_message_id || result.message_id || result.id) || '1';
-                const streamUrl = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${realMessageId}`;
-                const downloadUrl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${realMessageId}`;
-                
-                html += `
-                <div class="result-download-section">
-                    <div class="action-buttons-container">
-                        <a href="${streamUrl}" target="_blank" class="btn btn-stream-now">
-                            <i class="fas fa-play-circle me-2"></i>Stream Now
-                        </a>
-                        <a href="${downloadUrl}" target="_blank" class="btn btn-download-main">
-                            <i class="fas fa-download me-2"></i>Download Now
-                        </a>
-                    </div>
-                </div>
-                `;
-            } else {
-                html += `
-                <div class="result-download-section">
-                    <div class="action-buttons-container">
-                        <button class="btn btn-stream-now" disabled>
-                            <i class="fas fa-times me-2"></i>No File Available
-                        </button>
-                    </div>
-                </div>
-                `;
-            }
-        }
-        
-        html += `</div>`;
-    }
-    
-    resultsContainer.innerHTML = html;
-    
-    if (pagination && pagination.total_pages > 1) displayPagination(pagination);
-}
-
-// Global function to load API thumbnail for a specific index
-window.loadApiThumbnailForIndex = async function(index, movieTitle, hasFile) {
-    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
-    const loadingEl = document.getElementById(`loading-${index}`);
-    
-    if (!thumbnailContainer) return;
-    
-    try {
-        const apiThumbnail = await fetchThumbnailFromAPI(movieTitle);
-        
-        if (apiThumbnail) {
-            // Priority 2: API thumbnail found
-            thumbnailContainer.innerHTML = `
-                <div class="thumbnail-source-badge tmdb">API</div>
-                ${hasFile ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
-                <img src="${apiThumbnail}" alt="${escapeHtml(movieTitle)}" class="thumbnail-img" loading="lazy"
-                     onerror="this.onerror=null; loadFallbackForIndex(${index}, '${escapeHtml(movieTitle)}', ${hasFile})">
-                <div class="play-overlay" onclick="triggerAdLink()">
-                    <div class="play-button">
-                        <i class="fas fa-play"></i>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Priority 3: Use fallback image
-            loadFallbackForIndex(index, movieTitle, hasFile);
-        }
-    } catch (error) {
-        loadFallbackForIndex(index, movieTitle, hasFile);
-    }
-};
-
-// Global function to load fallback thumbnail
-window.loadFallbackForIndex = function(index, movieTitle, hasFile = false) {
-    const thumbnailContainer = document.getElementById(`thumbnail-${index}`);
-    if (!thumbnailContainer) return;
-    
-    thumbnailContainer.innerHTML = `
-        <div class="thumbnail-source-badge fallback">Fallback</div>
-        ${hasFile ? `<div class="video-file-badge"><i class="fas fa-play-circle me-1"></i>MOVIE</div>` : ''}
-        <img src="${FALLBACK_THUMBNAIL}" alt="${escapeHtml(movieTitle)}" class="thumbnail-img" loading="lazy">
-        <div class="play-overlay" onclick="triggerAdLink()">
-            <div class="play-button">
-                <i class="fas fa-play"></i>
-            </div>
-        </div>
-    `;
-};
-
-function formatPostContent(content) {
-    let formatted = escapeHtml(content);
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    // URLs
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
-        const lastChar = url.slice(-1);
-        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
-        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${punctuation}`;
-    });
-    
-    // Telegram links
-    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
-        const lastChar = url.slice(-1);
-        const punctuation = /[.,!?;:]/.test(lastChar) ? lastChar : '';
-        const fullUrl = 'https://' + cleanUrl;
-        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${punctuation}`;
-    });
-    
-    // Mentions
-    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, function(mention) {
-        const username = mention.substring(1);
-        return `<a href="https://t.me/${username}" target="_blank" rel="noopener noreferrer">${mention}</a>`;
-    });
-    
-    // Hashtags
-    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, '<span class="hashtag">$&</span>');
-    
-    // Bold
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Italic
-    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-    // Underline
-    formatted = formatted.replace(/__(.*?)__/g, '<u>$1</u>');
-    
-    // Strikethrough
-    formatted = formatted.replace(/~~(.*?)~~/g, '<del>$1</del>');
-    
-    // Code
-    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
-    return formatted;
-}
-
-function triggerAdLink() {
-    window.open(AD_LINK, '_blank');
-}
-
-function toggleStreamQuality(index) {
-    const dropdown = document.getElementById(`stream-quality-${index}`);
-    const arrow = document.getElementById(`stream-arrow-${index}`);
-    
-    if (!dropdown) return;
-    
-    const downloadDropdown = document.getElementById(`download-quality-${index}`);
-    const downloadArrow = document.getElementById(`download-arrow-${index}`);
-    if (downloadDropdown && downloadDropdown.classList.contains('show')) {
-        downloadDropdown.classList.remove('show');
-        if (downloadArrow) downloadArrow.style.transform = 'rotate(0deg)';
-    }
-    
-    dropdown.classList.toggle('show');
-    if (arrow) {
-        arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-}
-
-function toggleDownloadQuality(index) {
-    const dropdown = document.getElementById(`download-quality-${index}`);
-    const arrow = document.getElementById(`download-arrow-${index}`);
-    
-    if (!dropdown) return;
-    
-    const streamDropdown = document.getElementById(`stream-quality-${index}`);
-    const streamArrow = document.getElementById(`stream-arrow-${index}`);
-    if (streamDropdown && streamDropdown.classList.contains('show')) {
-        streamDropdown.classList.remove('show');
-        if (streamArrow) streamArrow.style.transform = 'rotate(0deg)';
-    }
-    
-    dropdown.classList.toggle('show');
-    if (arrow) {
-        arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-}
-
-function displayPagination(pagination) {
-    let html = '<nav><ul class="pagination justify-content-center">';
-    const { current_page, total_pages, has_previous, has_next } = pagination;
-    const maxVisible = 5;
-    
-    html += `<li class="page-item ${!has_previous ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_previous ? `performSearch(${current_page - 1});return false;` : 'return false;'}"><i class="fas fa-chevron-left"></i></a></li>`;
-    
-    let startPage = Math.max(1, current_page - 2);
-    let endPage = Math.min(total_pages, startPage + maxVisible - 1);
-    if (endPage - startPage < maxVisible - 1) {
-        startPage = Math.max(1, endPage - maxVisible + 1);
-    }
-    
-    if (startPage > 1) {
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(1);return false;">1</a></li>`;
-        if (startPage > 2) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        }
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-        html += `<li class="page-item ${i === current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="performSearch(${i});return false;">${i}</a></li>`;
-    }
-    
-    if (endPage < total_pages) {
-        if (endPage < total_pages - 1) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        }
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="performSearch(${total_pages});return false;">${total_pages}</a></li>`;
-    }
-    
-    html += `<li class="page-item ${!has_next ? 'disabled' : ''}"><a class="page-link" href="#" onclick="${has_next ? `performSearch(${current_page + 1});return false;` : 'return false;'}"><i class="fas fa-chevron-right"></i></a></li>`;
-    html += '</ul></nav>';
-    
-    paginationContainer.innerHTML = html;
-}
-
-function showError(message) {
-    resultsContainer.innerHTML = `<div class="alert alert-danger text-center">${escapeHtml(message)}</div>`;
-}
-
+// Utility functions
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -1666,44 +583,398 @@ function formatSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Close dropdowns when clicking outside
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
-        document.querySelectorAll('.quality-dropdown').forEach((dropdown) => {
-            dropdown.classList.remove('show');
+// Format post content with rich formatting
+function formatPostContent(content) {
+    if (!content) return '';
+    
+    let formatted = escapeHtml(content);
+    
+    // Preserve line breaks
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Format URLs
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>`;
+    });
+    
+    // Format Telegram links
+    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, function(url) {
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        return `<a href="https://${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>`;
+    });
+    
+    // Format mentions
+    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, function(mention) {
+        const username = mention.substring(1);
+        return `<a href="https://t.me/${username}" target="_blank" rel="noopener noreferrer">${mention}</a>`;
+    });
+    
+    // Format hashtags
+    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, '<span style="color: #00ccff; font-weight: 600;">$&</span>');
+    
+    // Format bold text
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    return formatted;
+}
+
+// Generate quality options
+function generateQualityOptions(qualityOptions, result) {
+    if (!qualityOptions || typeof qualityOptions !== 'object') {
+        return '<p class="text-muted mb-0">No download options</p>';
+    }
+    
+    let html = '<div class="quality-buttons-row">';
+    let count = 0;
+    
+    // Try to get message ID
+    let msgId = result.real_message_id || result.message_id || result.id || '1';
+    msgId = String(msgId).replace(/\D/g, '') || '1';
+    
+    for (const [quality, data] of Object.entries(qualityOptions)) {
+        if (data && typeof data === 'object') {
+            const fileId = `${FILE_CHANNEL_ID}_${msgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
+            const size = data.file_size ? formatSize(data.file_size) : '';
+            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option">${quality} ${size}</a>`;
+            count++;
+        }
+    }
+    
+    if (count === 0) {
+        html += `<a href="https://t.me/${BOT_USERNAME}" target="_blank" class="quality-option">Get from Bot</a>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// Trigger ad link
+function triggerAdLink() {
+    window.open(AD_LINK, '_blank');
+}
+
+// Toggle functions
+function toggleStream(index) {
+    const dropdown = document.getElementById(`stream-quality-${index}`);
+    const arrow = document.getElementById(`stream-arrow-${index}`);
+    if (!dropdown) return;
+    
+    // Close other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach(d => {
+        if (d.id !== `stream-quality-${index}` && d.id !== `download-quality-${index}`) {
+            d.classList.remove('show');
+        }
+    });
+    
+    dropdown.classList.toggle('show');
+    if (arrow) {
+        arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+}
+
+function toggleDownload(index) {
+    const dropdown = document.getElementById(`download-quality-${index}`);
+    const arrow = document.getElementById(`download-arrow-${index}`);
+    if (!dropdown) return;
+    
+    // Close other dropdowns
+    document.querySelectorAll('.quality-dropdown').forEach(d => {
+        if (d.id !== `download-quality-${index}` && d.id !== `stream-quality-${index}`) {
+            d.classList.remove('show');
+        }
+    });
+    
+    dropdown.classList.toggle('show');
+    if (arrow) {
+        arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+}
+
+// API fetch
+async function fetchAPI(query, page) {
+    for (let i = 0; i < API_ENDPOINTS.length; i++) {
+        try {
+            const url = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
+            
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.status === 'success') {
+                    return data;
+                }
+            }
+        } catch (e) {
+            console.log(`API ${i} failed:`, e);
+        }
+    }
+    return null;
+}
+
+// Show skeleton loader
+function showSkeleton() {
+    let html = '';
+    for (let i = 0; i < RESULTS_PER_PAGE; i++) {
+        html += `
+            <div class="result-card">
+                <div style="height:200px; background:#1e293b; border-radius:12px;"></div>
+                <div style="height:24px; width:60%; margin:15px 0; background:#2d3a4f; border-radius:4px;"></div>
+                <div style="height:60px; width:100%; background:#2d3a4f; border-radius:8px;"></div>
+            </div>
+        `;
+    }
+    resultsContainer.innerHTML = html;
+}
+
+// Render results
+function renderResults(results, pagination) {
+    if (!results || results.length === 0) {
+        resultsContainer.innerHTML = '<div class="text-center p-5"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
+        return;
+    }
+    
+    resultsInfo.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
+    
+    let html = '';
+    
+    results.forEach((result, index) => {
+        const title = escapeHtml(result.title || 'Untitled');
+        const thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
+        const hasFile = result.has_file === true;
+        const qualityOptions = result.qualities || result.quality_options || {};
+        const hasQualities = Object.keys(qualityOptions).length > 0;
+        
+        // Check for post content in various possible fields
+        const postContent = result.post_content || result.content || result.description || result.text || '';
+        const hasPostContent = postContent && postContent.trim().length > 0;
+        
+        // Debug log
+        if (hasPostContent) {
+            console.log('Found post content for:', title, postContent.substring(0, 100));
+        }
+        
+        // Thumbnail HTML
+        const thumbnailHtml = `
+            <div class="thumbnail-container" onclick="triggerAdLink()">
+                <img src="${thumbUrl}" alt="${title}" loading="lazy">
+                <div class="play-overlay">
+                    <div class="play-button">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
+                ${result.thumbnail_source ? `<div class="thumbnail-source-badge">${result.thumbnail_source}</div>` : ''}
+                ${hasFile ? '<div class="video-file-badge">MOVIE</div>' : ''}
+            </div>
+        `;
+        
+        html += `<div class="result-card">
+            <div class="result-thumbnail-top">${thumbnailHtml}</div>
+            <h3 class="result-title">${title}</h3>`;
+        
+        // Add post content if available - FIXED SECTION
+        if (hasPostContent) {
+            html += `
+                <div class="result-post-content">
+                    <div class="post-content-text">
+                        ${formatPostContent(postContent)}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Add buttons
+        const msgId = result.real_message_id || result.message_id || result.id || '1';
+        const cleanMsgId = String(msgId).replace(/\D/g, '') || '1';
+        const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${cleanMsgId}`;
+        const downloadLink = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${cleanMsgId}`;
+        
+        if (hasFile && hasQualities) {
+            html += `
+                <div class="result-download-section">
+                    <div class="action-buttons-container">
+                        <button class="btn-stream-now" onclick="toggleStream(${index})">
+                            <i class="fas fa-play-circle me-2"></i>Stream
+                            <i class="fas fa-chevron-down ms-2" id="stream-arrow-${index}"></i>
+                        </button>
+                        <button class="btn-download-main" onclick="toggleDownload(${index})">
+                            <i class="fas fa-download me-2"></i>Download
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${index}"></i>
+                        </button>
+                    </div>
+                    <div class="quality-dropdown" id="stream-quality-${index}">
+                        ${generateQualityOptions(qualityOptions, result)}
+                    </div>
+                    <div class="quality-dropdown" id="download-quality-${index}">
+                        ${generateQualityOptions(qualityOptions, result)}
+                    </div>
+                </div>
+            `;
+        } else if (hasFile) {
+            html += `
+                <div class="action-buttons-container">
+                    <a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle me-2"></i>Stream Now</a>
+                    <a href="${downloadLink}" target="_blank" class="btn-download-main"><i class="fas fa-download me-2"></i>Download</a>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="action-buttons-container">
+                    <button class="btn-stream-now" disabled style="opacity:0.5"><i class="fas fa-times-circle me-2"></i>No File Available</button>
+                </div>
+            `;
+        }
+        
+        html += `</div>`;
+    });
+    
+    resultsContainer.innerHTML = html;
+    
+    // Render pagination
+    if (pagination.total_pages > 1) {
+        renderPagination(pagination);
+    }
+}
+
+// Render pagination
+function renderPagination(pag) {
+    let p = '<nav><ul class="pagination justify-content-center">';
+    
+    // Previous button
+    p += `<li class="page-item ${!pag.has_previous ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="changePage(${pag.current_page - 1}); return false;">«</a>
+    </li>`;
+    
+    // Page numbers
+    for (let i = 1; i <= pag.total_pages; i++) {
+        if (i === 1 || i === pag.total_pages || (i >= pag.current_page - 2 && i <= pag.current_page + 2)) {
+            p += `<li class="page-item ${i === pag.current_page ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+            </li>`;
+        } else if (i === pag.current_page - 3 || i === pag.current_page + 3) {
+            p += '<li class="page-item disabled"><span class="page-link">…</span></li>';
+        }
+    }
+    
+    // Next button
+    p += `<li class="page-item ${!pag.has_next ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="changePage(${pag.current_page + 1}); return false;">»</a>
+    </li>`;
+    
+    p += '</ul></nav>';
+    paginationContainer.innerHTML = p;
+}
+
+// Change page
+window.changePage = function(page) {
+    if (page > 0) {
+        performSearch(page);
+    }
+};
+
+// Perform search
+async function performSearch(page = 1) {
+    const query = searchInput.value.trim();
+    if (!query) {
+        resultsContainer.innerHTML = '<div class="text-center p-5"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4>Enter a search term</h4></div>';
+        return;
+    }
+    
+    currentQuery = query;
+    currentPage = page;
+    
+    // Update URL
+    const url = new URL(window.location);
+    url.searchParams.set('query', query);
+    url.searchParams.set('page', page);
+    window.history.pushState({}, '', url);
+    
+    // Show skeleton
+    showSkeleton();
+    resultsInfo.innerHTML = '';
+    paginationContainer.innerHTML = '';
+    
+    // Check cache
+    const cacheKey = `${query}-${page}`;
+    if (searchCache.has(cacheKey)) {
+        const cached = searchCache.get(cacheKey);
+        renderResults(cached.results, cached.pagination);
+        return;
+    }
+    
+    // Fetch from API
+    const data = await fetchAPI(query, page);
+    if (data && data.results) {
+        searchCache.set(cacheKey, {
+            results: data.results,
+            pagination: data.pagination
         });
-        document.querySelectorAll('[id^="stream-arrow-"], [id^="download-arrow-"]').forEach((arrow) => {
-            arrow.style.transform = 'rotate(0deg)';
-        });
+        renderResults(data.results, data.pagination);
+    } else {
+        resultsContainer.innerHTML = `
+            <div class="error-state text-center p-5">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
+                <h4>Connection Error</h4>
+                <p class="text-muted">Unable to reach server. Please try again.</p>
+                <button class="btn btn-primary mt-3" onclick="performSearch(${page})">
+                    <i class="fas fa-redo me-2"></i>Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Event listeners
+searchButton.addEventListener('click', () => performSearch(1));
+searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        performSearch(1);
     }
 });
 
-// Handle browser back/forward
-window.addEventListener('popstate', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('query');
-    const page = parseInt(urlParams.get('page')) || 1;
+// Load from URL on page load
+window.addEventListener('load', () => {
+    const params = new URLSearchParams(window.location.search);
+    const query = params.get('query');
+    const page = parseInt(params.get('page')) || 1;
     
     if (query) {
-        currentQuery = query;
         searchInput.value = query;
         performSearch(page);
     }
 });
 
-console.log("✅ SK4FiLM Search v2.0 - Thumbnail Priority Fixed");
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
+        document.querySelectorAll('.quality-dropdown').forEach(d => {
+            d.classList.remove('show');
+        });
+        document.querySelectorAll('[id^="stream-arrow-"], [id^="download-arrow-"]').forEach(arrow => {
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        });
+    }
+});
+
+// Expose functions globally
+window.triggerAdLink = triggerAdLink;
+window.toggleStream = toggleStream;
+window.toggleDownload = toggleDownload;
 </script>
-    <script>
+
+<!-- Original ad script -->
+<script>
 (function(obqzha){
-var d = document,
-    s = d.createElement('script'),
-    l = d.scripts[d.scripts.length - 1];
+var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length-1];
 s.settings = obqzha || {};
 s.src = "\/\/jumbo-nothing.com\/bMXsVZs.dHGUlN0dYVWDcH\/DeqmW9\/umZeU\/lgkuPXTjYQ3KNcjfI\/z\/Nnzsk\/t-NRjEcs2bM\/jAM\/4\/MfAd";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
+s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade';
 l.parentNode.insertBefore(s, l);
 })({})
-    </script>
+</script>
 </body>
 </html>
