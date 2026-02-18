@@ -2116,14 +2116,14 @@ class OptimizedSyncManager:
 sync_manager = OptimizedSyncManager()
 
 # ============================================================================
-# ✅ HOME MOVIES - WITH POSTER PRIORITY
+# ✅ UPDATED HOME MOVIES - PRIORITY: POSTER > MONGODB > FALLBACK
 # ============================================================================
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
 async def get_home_movies(limit=25):
     """
-    🎬 HOME MOVIES - Priority: Poster > Thumbnail > Fallback
+    🎬 HOME MOVIES - PRIORITY: POSTER > MONGODB > FALLBACK
     """
     try:
         if User is None or not user_session_ready:
@@ -2152,13 +2152,23 @@ async def get_home_movies(limit=25):
                     formatted_content = format_post(msg.text, max_length=500)
                     norm_title = normalize_title(clean_title)
                     
-                    # Try to get thumbnail/poster
+                    # ========== STEP 1: TRY POSTER FIRST (TMDB/OMDB) ==========
                     thumbnail_url = None
                     thumbnail_source = None
                     poster_data = None
                     
-                    # Check MongoDB first
-                    if thumbnails_col is not None:
+                    if Config.POSTER_FETCHING_ENABLED and poster_fetcher:
+                        try:
+                            poster_data = await get_poster_for_movie(clean_title, year)
+                            if poster_data and poster_data.get('found') and poster_data.get('poster_url'):
+                                thumbnail_url = poster_data['poster_url']
+                                thumbnail_source = poster_data.get('source', 'poster')
+                                logger.info(f"🎬 POSTER FOUND for home movie: {clean_title}")
+                        except Exception as e:
+                            logger.debug(f"Poster error for {clean_title}: {e}")
+                    
+                    # ========== STEP 2: IF NO POSTER, TRY MONGODB THUMBNAIL ==========
+                    if not thumbnail_url and thumbnails_col is not None:
                         try:
                             thumb_doc = await thumbnails_col.find_one({
                                 'normalized_title': norm_title,
@@ -2168,24 +2178,16 @@ async def get_home_movies(limit=25):
                             
                             if thumb_doc and thumb_doc.get('thumbnail_url'):
                                 thumbnail_url = thumb_doc['thumbnail_url']
-                                thumbnail_source = 'extracted'
+                                thumbnail_source = 'mongodb'
+                                logger.info(f"📦 MONGODB thumbnail FOUND for home movie: {clean_title}")
                         except Exception as e:
-                            logger.debug(f"Thumbnail fetch error: {e}")
+                            logger.debug(f"MongoDB fetch error for {clean_title}: {e}")
                     
-                    # If no thumbnail, try poster
-                    if not thumbnail_url and Config.POSTER_FETCHING_ENABLED and poster_fetcher:
-                        try:
-                            poster_data = await get_poster_for_movie(clean_title, year)
-                            if poster_data and poster_data.get('found') and poster_data.get('poster_url'):
-                                thumbnail_url = poster_data['poster_url']
-                                thumbnail_source = poster_data.get('source', 'poster')
-                        except Exception as e:
-                            logger.debug(f"Poster error: {e}")
-                    
-                    # Fallback
+                    # ========== STEP 3: FALLBACK ==========
                     if not thumbnail_url:
                         thumbnail_url = FALLBACK_THUMBNAIL_URL
                         thumbnail_source = 'fallback'
+                        logger.warning(f"⚠️ FALLBACK for home movie: {clean_title}")
                     
                     movie_data = {
                         'title': clean_title,
@@ -2214,22 +2216,24 @@ async def get_home_movies(limit=25):
                         break
         
         # Statistics
-        poster_count = sum(1 for m in movies if m.get('has_poster'))
-        extracted_count = sum(1 for m in movies if m.get('thumbnail_source') == 'extracted')
+        poster_count = sum(1 for m in movies if m.get('thumbnail_source') in ['poster', 'tmdb', 'omdb'])
+        mongodb_count = sum(1 for m in movies if m.get('thumbnail_source') == 'mongodb')
         fallback_count = sum(1 for m in movies if m.get('thumbnail_source') == 'fallback')
         
         logger.info("=" * 60)
         logger.info("📊 HOME MOVIES SUMMARY:")
         logger.info(f"   • Total movies: {len(movies)}")
-        logger.info(f"   • With Posters: {poster_count}")
-        logger.info(f"   • With Extracted Thumbnails: {extracted_count}")
-        logger.info(f"   • With Fallback Images: {fallback_count}")
+        logger.info(f"   • POSTERS (Priority 1): {poster_count}")
+        logger.info(f"   • MONGODB Thumbnails (Priority 2): {mongodb_count}")
+        logger.info(f"   • FALLBACK Images (Priority 3): {fallback_count}")
         logger.info("=" * 60)
         
         return movies[:limit]
         
     except Exception as e:
         logger.error(f"❌ Home movies error: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 # ============================================================================
