@@ -1368,31 +1368,42 @@ async def search_movies_optimized(query, limit=15, page=1):
         except Exception as e:
             logger.error(f"❌ Text channels search error: {e}")
     
-    # ============================================================================
-    # ✅ STEP 3: Get ONE Thumbnail Per Movie
-    # ============================================================================
-    for normalized, result in results_dict.items():
-        if result.get('has_file'):
-            # Get the first message for thumbnail extraction
-            msg = result.get('first_file_msg')
-            
-            # Get ONE thumbnail for the movie
-            thumbnail_url, thumbnail_source = await get_best_thumbnail(
-                normalized,
-                result.get('title'),
-                result.get('year'),
-                msg
-            )
-            
-            result['thumbnail_url'] = thumbnail_url
-            result['thumbnail_source'] = thumbnail_source
-            result['has_thumbnail'] = True
-            
-            # Clean up - remove message objects
-            if 'first_file_msg' in result:
-                del result['first_file_msg']
-            if 'all_messages' in result:
-                del result['all_messages']
+# ============================================================================
+# ✅ STEP 3: Get Thumbnails for Each Result (FIXED FOR POSTS)
+# ============================================================================
+for normalized, result in results_dict.items():
+    # Check if it's a post-only result
+    is_post_only = result.get('has_file') == False and result.get('has_post') == True
+    
+    if result.get('has_file'):
+        # File result - has message object
+        msg = result.get('first_file_msg')
+        thumbnail_url, thumbnail_source = await get_best_thumbnail(
+            normalized,
+            result.get('title'),
+            result.get('year'),
+            msg,
+            is_post=False
+        )
+    else:
+        # Post-only result - no message object
+        thumbnail_url, thumbnail_source = await get_best_thumbnail(
+            normalized,
+            result.get('title'),
+            result.get('year'),
+            None,  # No message
+            is_post=True
+        )
+    
+    result['thumbnail_url'] = thumbnail_url
+    result['thumbnail_source'] = thumbnail_source
+    result['has_thumbnail'] = True
+    
+    # Clean up
+    if 'first_file_msg' in result:
+        del result['first_file_msg']
+    if 'all_messages' in result:
+        del result['all_messages']
     
     # ============================================================================
     # ✅ STEP 4: Convert to List and Sort
