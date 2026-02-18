@@ -939,10 +939,16 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
     return FALLBACK_THUMBNAIL_URL, "fallback"
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
-    """Store Telegram streaming preview thumbnail (reliable version)"""
-
+    """Store real Telegram streaming preview frame"""
     try:
         if not msg or thumbnails_col is None:
+            return
+
+        existing = await thumbnails_col.find_one({
+            'normalized_title': normalized_title,
+            'has_thumbnail': True
+        })
+        if existing:
             return
 
         media = msg.video or msg.document
@@ -953,33 +959,15 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if not is_video_file(file_name):
             return
 
-        # ========= GET BEST TELEGRAM PREVIEW =========
-        thumb = None
-
-        # priority order matters
-        if getattr(media, "video_thumbs", None):
-            thumb = media.video_thumbs[-1]
-
-        elif getattr(media, "sizes", None):
-            thumb = sorted(media.sizes, key=lambda x: x.file_size or 0)[-1]
-
-        elif getattr(media, "thumbs", None):
-            thumb = sorted(media.thumbs, key=lambda x: x.file_size or 0)[-1]
-
-        elif getattr(media, "thumbnail", None):
-            thumb = media.thumbnail
-
-        if not thumb:
-            logger.debug(f"No Telegram preview for: {clean_title}")
-            return
-
         client = User if user_session_ready else Bot
         if not client:
             return
 
-        # download preview
-        data = await client.download_media(thumb, in_memory=True)
+        # 🔥 MAGIC LINE (REAL TELEGRAM FRAME)
+        data = await client.download_media(msg, in_memory=True, thumb=0)
+
         if not data:
+            logger.debug(f"No preview frame: {clean_title}")
             return
 
         if not isinstance(data, bytes):
@@ -993,28 +981,28 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         year = extract_year(file_name)
 
         await thumbnails_col.update_one(
-            {"normalized_title": normalized_title},
-            {"$set": {
-                "normalized_title": normalized_title,
-                "title": clean_title,
-                "quality": quality,
-                "year": year,
-                "thumbnail_url": thumbnail_url,
-                "thumbnail_source": "telegram_stream",
-                "has_thumbnail": True,
-                "extracted_at": datetime.now(),
-                "message_id": msg.id,
-                "channel_id": msg.chat.id,
-                "file_name": file_name,
-                "size_kb": size_kb
+            {'normalized_title': normalized_title},
+            {'$set': {
+                'normalized_title': normalized_title,
+                'title': clean_title,
+                'quality': quality,
+                'year': year,
+                'thumbnail_url': thumbnail_url,
+                'thumbnail_source': 'telegram_frame',
+                'has_thumbnail': True,
+                'extracted_at': datetime.now(),
+                'message_id': msg.id,
+                'channel_id': msg.chat.id,
+                'file_name': file_name,
+                'size_kb': size_kb
             }},
             upsert=True
         )
 
-        logger.info(f"🖼️ STREAM PREVIEW SAVED: {clean_title}")
+        logger.info(f"🖼️ STREAM FRAME SAVED: {clean_title}")
 
     except Exception as e:
-        logger.debug(f"Thumbnail store error: {e}")
+        logger.debug(f"Thumbnail error: {e}")
 
 async def get_thumbnails_batch(movies: List[Dict]) -> List[Dict]:
     """
