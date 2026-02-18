@@ -224,7 +224,65 @@ except ImportError as e:
 FALLBACK_THUMBNAIL_URL = "https://iili.io/fAeIwv9.th.png"
 
 # ============================================================================
-# ✅ ULTIMATE THUMBNAIL DEBUGGER - FIND THE REAL PROBLEM
+# ✅ FAST INITIALIZATION
+# ============================================================================
+
+app = Quart(__name__)
+app.config['JSON_SORT_KEYS'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+
+@app.after_request
+async def add_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['X-SK4FiLM-Version'] = '9.3-POSTER-ENABLED'
+    response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
+    return response
+
+# ============================================================================
+# ✅ GLOBAL COMPONENTS
+# ============================================================================
+
+# Database
+mongo_client = None
+db = None
+files_col = None
+verification_col = None
+thumbnails_col = None
+posters_col = None
+
+# Telegram Sessions
+try:
+    from pyrogram import Client
+    PYROGRAM_AVAILABLE = True
+    User = None
+    Bot = None
+    user_session_ready = False
+    bot_session_ready = False
+except ImportError:
+    PYROGRAM_AVAILABLE = False
+    User = None
+    Bot = None
+
+# System Components
+cache_manager = None
+verification_system = None
+premium_system = None
+poster_fetcher = None
+bot_handler = None
+telegram_bot = None
+
+# Thumbnail Manager
+thumbnail_manager = None
+
+# Indexing State
+is_indexing = False
+last_index_time = None
+indexing_task = None
+
+# ============================================================================
+# ✅ 🔥 ULTIMATE THUMBNAIL DEBUGGER - ADDED HERE 🔥
 # ============================================================================
 
 @app.route('/api/debug/thumbnail-ultimate/<int:message_id>')
@@ -257,11 +315,9 @@ async def debug_thumbnail_ultimate(message_id):
         if msg.document:
             result['message_type'] = 'document'
             result['file_name'] = msg.document.file_name
-            media = msg.document
         elif msg.video:
             result['message_type'] = 'video'
             result['file_name'] = msg.video.file_name or "video.mp4"
-            media = msg.video
         else:
             return jsonify({'error': 'Not a document or video'}), 400
         
@@ -397,16 +453,6 @@ async def debug_thumbnail_ultimate(message_id):
         else:
             result['mongodb_after'] = {'exists': False}
         
-        # CHECK 5: Try to get via get_best_thumbnail
-        try:
-            thumb_url, thumb_source = await get_best_thumbnail(normalized, clean_title)
-            result['get_best_thumbnail'] = {
-                'url': thumb_url[:50] + '...' if thumb_url else None,
-                'source': thumb_source
-            }
-        except Exception as e:
-            result['get_best_thumbnail'] = {'error': str(e)}
-        
         return jsonify(result)
         
     except Exception as e:
@@ -414,8 +460,8 @@ async def debug_thumbnail_ultimate(message_id):
         return jsonify({
             'error': str(e),
             'traceback': traceback.format_exc()
-        }), 500      
-        
+        }), 500
+
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
 # ============================================================================
@@ -609,64 +655,6 @@ class Config:
     # 🔥 OPTIMIZED STORAGE SETTINGS
     STORE_ONLY_THUMBNAILS = True
     EXTRACT_IN_BACKGROUND = True
-
-# ============================================================================
-# ✅ FAST INITIALIZATION
-# ============================================================================
-
-app = Quart(__name__)
-app.config['JSON_SORT_KEYS'] = False
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-
-@app.after_request
-async def add_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.3-POSTER-ENABLED'
-    response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
-    return response
-
-# ============================================================================
-# ✅ GLOBAL COMPONENTS
-# ============================================================================
-
-# Database
-mongo_client = None
-db = None
-files_col = None
-verification_col = None
-thumbnails_col = None
-posters_col = None
-
-# Telegram Sessions
-try:
-    from pyrogram import Client
-    PYROGRAM_AVAILABLE = True
-    User = None
-    Bot = None
-    user_session_ready = False
-    bot_session_ready = False
-except ImportError:
-    PYROGRAM_AVAILABLE = False
-    User = None
-    Bot = None
-
-# System Components
-cache_manager = None
-verification_system = None
-premium_system = None
-poster_fetcher = None
-bot_handler = None
-telegram_bot = None
-
-# Thumbnail Manager
-thumbnail_manager = None
-
-# Indexing State
-is_indexing = False
-last_index_time = None
-indexing_task = None
 
 # ============================================================================
 # ✅ BOT HANDLER MODULE
@@ -1108,7 +1096,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         logger.error(f"❌❌❌ CRITICAL ERROR for {clean_title}: {e}")
         import traceback
         traceback.print_exc()
-        
+
 # ============================================================================
 # ✅ IMPROVED get_best_thumbnail WITH BETTER THUMBNAIL HANDLING
 # ============================================================================
