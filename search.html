@@ -12,9 +12,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
-        /* === ZERO MARGIN/PADDING OVERRIDE === */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         :root {
             --primary: #ff0000;
             --secondary: #0066ff;
@@ -22,16 +20,14 @@
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
         }
-        
         body {
             font-family: 'Josefin Sans', sans-serif;
             background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
             color: #f8f9fa;
             min-height: 100vh;
-            padding-top: 70px;
+            padding-top: 80px;
         }
-        
-        /* === COMPACT FIXED NAVBAR === */
+        /* fixed navbar */
         .top-navbar {
             background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(10px);
@@ -39,13 +35,12 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 70px;
+            height: 80px;
             z-index: 1100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             display: flex;
             align-items: center;
         }
-        
         .navbar-content {
             display: flex;
             align-items: center;
@@ -53,248 +48,235 @@
             width: 100%;
             max-width: 1400px;
             margin: 0 auto;
-            padding: 0 15px;
+            padding: 0 25px;
         }
-        
         .logo-section {
             display: flex;
             align-items: center;
         }
-        
         .logo-img {
-            height: 40px;
-            width: 40px;
-            margin-right: 8px;
-            border-radius: 8px;
+            height: 48px;
+            width: 48px;
+            margin-right: 12px;
+            border-radius: 10px;
             object-fit: contain;
         }
-        
         .brand-text {
             font-family: 'Montserrat', sans-serif;
-            font-size: 1.3rem;
+            font-size: 1.5rem;
             background: linear-gradient(90deg, #ff0000, #0066ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             line-height: 1.2;
         }
-        
         .brand-subtitle {
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             color: #00ccff;
             font-weight: 300;
         }
-        
+
         /* menu button & dropdown */
-        .menu-section { position: relative; }
+        .menu-section {
+            position: relative;
+        }
         .menu-button {
             background: rgba(0,204,255,0.12);
             border: 2px solid var(--accent);
-            border-radius: 12px;
-            padding: 8px 12px;
+            border-radius: 14px;
+            padding: 10px 14px;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
         }
+        .menu-button:hover {
+            background: rgba(0,204,255,0.25);
+            box-shadow: 0 0 15px #00ccff66;
+        }
         .menu-lines div {
-            width: 20px;
+            width: 22px;
             height: 2px;
             background: #00ccff;
             margin: 4px 0;
             border-radius: 4px;
             transition: 0.2s;
         }
+        .menu-button.active .menu-line:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        .menu-button.active .menu-line:nth-child(2) {
+            opacity: 0;
+        }
+        .menu-button.active .menu-line:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
         .menu-dropdown {
             position: absolute;
-            top: 60px;
+            top: 65px;
             right: 0;
-            width: 240px;
+            width: 260px;
             background: rgba(10, 20, 40, 0.98);
             backdrop-filter: blur(15px);
             border: 2px solid var(--accent);
-            border-radius: 16px;
-            padding: 1rem;
+            border-radius: 20px;
+            padding: 1.2rem 1rem;
             box-shadow: 0 15px 35px rgba(0,0,0,0.7);
             display: none;
             z-index: 1101;
         }
-        .menu-dropdown.show { display: block; }
+        .menu-dropdown.show {
+            display: block;
+        }
         .menu-dropdown h4 {
             color: white;
-            font-size: 1rem;
+            font-size: 1.1rem;
             border-bottom: 1px solid #334155;
-            padding-bottom: 8px;
-            margin-bottom: 12px;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
         }
-        .menu-links { display: flex; flex-direction: column; gap: 8px; }
+        .menu-links {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
         .menu-link {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 8px 12px;
+            gap: 15px;
+            padding: 10px 12px;
             background: rgba(255,255,255,0.05);
-            border-radius: 12px;
+            border-radius: 14px;
             color: white;
             text-decoration: none;
             font-weight: 500;
             transition: 0.2s;
             border: 1px solid transparent;
         }
-        
-        /* === MAIN CONTAINER - MINIMAL GAPS === */
+        .menu-link:hover {
+            background: rgba(0,204,255,0.15);
+            border-color: #00ccff;
+            transform: translateX(5px);
+        }
+        .menu-link i {
+            font-size: 1.3rem;
+            width: 28px;
+            text-align: center;
+        }
+
+        /* main container - fully responsive */
         .main-container {
             width: 100%;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 5px 10px 10px;
+            padding: 10px 15px 20px;
         }
         
-        /* === FIXED PROPER ADS - VISIBLE NOW === */
+        /* responsive ad units */
         .ad-unit {
             text-align: center;
-            margin: 8px 0;
-            min-height: 100px;
-            background: linear-gradient(145deg, #1a1f2e, #0f1422);
-            border-radius: 12px;
+            margin: 10px 0;
+            min-height: 90px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            width: 100%;
-            border: 1px solid rgba(0,204,255,0.2);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            position: relative;
         }
-        
-        /* Ad placeholder styling to show ads are working */
-        .ad-unit::before {
-            content: "ADVERTISEMENT";
-            position: absolute;
-            top: 2px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.6rem;
-            color: rgba(255,255,255,0.3);
-            z-index: 1;
-            letter-spacing: 1px;
-        }
-        
-        .ad-container {
+        .ad-unit iframe {
+            max-width: 100%;
             width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 5px 0;
+            height: auto;
             min-height: 90px;
         }
         
-        .ad-container iframe,
-        .ad-container ins,
-        .ad-container script + * {
-            max-width: 100%;
-            width: 100% !important;
-            height: auto !important;
-            min-height: 90px !important;
-            border-radius: 8px;
-        }
-        
-        /* Desktop ad size */
-        @media (min-width: 768px) {
-            .ad-unit {
-                min-height: 100px;
-            }
-            .ad-container {
-                max-width: 728px;
-                margin: 0 auto;
-            }
-        }
-        
-        /* Mobile ad size */
-        @media (max-width: 767px) {
-            .ad-unit {
-                min-height: 120px;
-            }
-            .ad-container {
-                max-width: 320px;
-                margin: 0 auto;
-            }
-        }
-        
-        /* === SEARCH BAR === */
+        /* search container - responsive */
         .search-container {
-            margin: 8px 0 12px;
+            margin: 10px 0 15px;
             position: relative;
             width: 100%;
         }
-        
         .search-box {
             background: rgba(15, 23, 42, 0.9);
             border: 2px solid rgba(255,255,255,0.15);
-            border-radius: 50px;
-            padding: 12px 20px;
+            border-radius: 60px;
+            padding: 14px 25px;
             color: white;
-            font-size: 0.95rem;
+            font-size: 1rem;
             width: 100%;
             transition: all 0.3s ease;
         }
-        
         .search-box:focus {
             border-color: #00ccff;
             outline: none;
             box-shadow: 0 0 0 3px rgba(0,204,255,0.2);
         }
-        
+        .search-box::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
         .search-btn {
             position: absolute;
-            right: 5px;
-            top: 5px;
+            right: 6px;
+            top: 6px;
             background: linear-gradient(45deg, #ff0000, #0066ff);
             border: none;
             border-radius: 50px;
-            width: 42px;
-            height: 42px;
+            width: 48px;
+            height: 48px;
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: transform 0.2s;
+        }
+        .search-btn:hover {
+            transform: scale(1.05);
+        }
+        .search-btn i {
+            font-size: 1.2rem;
         }
         
-        /* === RESULTS GRID === */
+        /* results grid - responsive card layout */
         #resultsContainer {
             display: grid;
             grid-template-columns: 1fr;
             gap: 1rem;
-            margin: 0.5rem 0;
+            margin: 1rem 0;
         }
         
         @media (min-width: 768px) {
             #resultsContainer {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 1.2rem;
+                gap: 1.5rem;
             }
         }
         
-        /* === RESULT CARD - WITH LARGER POST CONTAINER === */
+        @media (min-width: 1024px) {
+            #resultsContainer {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* result card - responsive */
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 16px;
             padding: 1.2rem;
             height: fit-content;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            transition: transform 0.2s;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
         }
-        
         .result-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0,204,255,0.2);
-            border-color: rgba(0,204,255,0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.5);
         }
         
+        /* thumbnail - responsive height */
         .result-thumbnail-top {
             width: 100%;
             aspect-ratio: 16/9;
@@ -303,59 +285,69 @@
             margin-bottom: 1rem;
             background: #1e293b;
         }
-        
         .thumbnail-container {
             width: 100%;
             height: 100%;
             position: relative;
             cursor: pointer;
         }
-        
         .thumbnail-container img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: transform 0.3s;
         }
-        
         .thumbnail-container:hover img {
             transform: scale(1.05);
         }
         
-        /* Play overlay */
+        /* Original play button ad */
         .play-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.7);
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             transition: opacity 0.3s ease;
         }
-        .thumbnail-container:hover .play-overlay { opacity: 1; }
+        .thumbnail-container:hover .play-overlay {
+            opacity: 1;
+        }
         .play-button {
-            width: 55px;
-            height: 55px;
+            width: 60px;
+            height: 60px;
             background: var(--primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-size: 24px;
             color: white;
-            border: 2px solid white;
-            box-shadow: 0 0 20px rgba(255,0,0,0.5);
+            transition: transform 0.3s ease, background 0.3s;
+            border: 3px solid white;
+        }
+        @media (min-width: 768px) {
+            .play-button {
+                width: 70px;
+                height: 70px;
+                font-size: 28px;
+            }
+        }
+        .play-button:hover {
+            transform: scale(1.1);
+            background: var(--secondary);
         }
         
         /* badges */
         .thumbnail-source-badge {
             position: absolute;
-            top: 8px;
-            left: 8px;
+            top: 10px;
+            left: 10px;
             background: rgba(0,0,0,0.8);
             color: white;
             padding: 4px 10px;
@@ -364,11 +356,12 @@
             font-weight: 600;
             z-index: 2;
             backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         .video-file-badge {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 10px;
+            right: 10px;
             background: var(--primary);
             color: white;
             padding: 4px 10px;
@@ -387,55 +380,56 @@
             margin-bottom: 0.75rem;
             line-height: 1.4;
         }
-        
-        /* === LARGER POST CONTENT CONTAINER - AS REQUESTED === */
-        .result-post-content {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(0,204,255,0.2);
-            border-radius: 14px;
-            padding: 1.5rem;  /* Increased padding */
-            margin: 0.75rem 0 1.2rem;  /* Increased margin */
-            font-size: 1rem;  /* Slightly larger font */
-            line-height: 1.7;  /* Better line height for readability */
-            color: #f0f4fa;
-            word-wrap: break-word;
-            max-height: 350px;  /* Larger max height */
-            overflow-y: auto;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+        @media (min-width: 768px) {
+            .result-title {
+                font-size: 1.3rem;
+            }
         }
         
-        /* Scrollbar styling for post content */
+        /* post content - scrollable if needed */
+        .result-post-content {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin: 0.5rem 0 1rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
         .result-post-content::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
         .result-post-content::-webkit-scrollbar-track {
             background: rgba(255,255,255,0.05);
-            border-radius: 4px;
+            border-radius: 3px;
         }
         .result-post-content::-webkit-scrollbar-thumb {
             background: var(--accent);
-            border-radius: 4px;
+            border-radius: 3px;
         }
-        
         .result-post-content a {
-            color: #80e1ff;
+            color: #00ccff;
             text-decoration: none;
             font-weight: 600;
-            background: rgba(0, 204, 255, 0.15);
-            padding: 3px 8px;
-            border-radius: 6px;
-            border: 1px solid rgba(0, 204, 255, 0.4);
+            background: rgba(0, 204, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 204, 255, 0.3);
             transition: all 0.2s;
             display: inline-block;
             margin: 2px 0;
         }
         .result-post-content a:hover {
-            background: rgba(0, 204, 255, 0.25);
-            color: #ffffff;
-            border-color: #00ccff;
+            background: rgba(0, 204, 255, 0.2);
+            color: #80e1ff;
+            border-color: rgba(0, 204, 255, 0.5);
         }
         
-        /* action buttons */
+        /* action buttons container - responsive flex */
         .action-buttons-container {
             display: flex;
             flex-direction: column;
@@ -445,10 +439,10 @@
         @media (min-width: 480px) {
             .action-buttons-container {
                 flex-direction: row;
-                gap: 10px;
             }
         }
         
+        /* button styles */
         .btn-stream-now, .btn-download-main {
             flex: 1;
             padding: 12px 16px;
@@ -464,7 +458,7 @@
             text-decoration: none;
             cursor: pointer;
             transition: all 0.2s;
-            min-width: 130px;
+            min-width: 140px;
         }
         .btn-stream-now {
             background: linear-gradient(45deg, #ff416c, #ff4b2b);
@@ -474,10 +468,15 @@
         }
         .btn-stream-now:hover:not(:disabled), .btn-download-main:hover:not(:disabled) {
             transform: scale(1.02);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .btn-stream-now:disabled, .btn-download-main:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #495057;
         }
         
-        /* download dropdown */
+        /* download quality dropdown - only for download button */
         .quality-dropdown {
             display: none;
             background: #1e293b;
@@ -487,13 +486,16 @@
             margin-top: 10px;
             width: 100%;
         }
-        .quality-dropdown.show { display: block; }
+        .quality-dropdown.show {
+            display: block;
+        }
         
         .quality-buttons-row {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
         }
+        
         .quality-option {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             padding: 10px 15px;
@@ -502,24 +504,28 @@
             text-decoration: none;
             font-weight: 600;
             font-size: 0.9rem;
+            transition: all 0.2s;
             flex: 1 1 auto;
             min-width: 100px;
             text-align: center;
         }
+        .quality-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
         
-        /* pagination */
+        /* pagination - responsive */
         .pagination {
-            margin: 1.5rem 0 1rem;
+            margin: 2rem 0;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 3px;
         }
         .page-link {
             background: rgba(0,204,255,0.1);
             color: var(--accent);
             border: 1px solid var(--accent);
+            margin: 2px;
             padding: 8px 12px;
-            border-radius: 8px;
         }
         .page-link:hover {
             background: var(--accent);
@@ -528,21 +534,25 @@
         .page-item.active .page-link {
             background: var(--accent);
             color: #0a0a0f;
+            border-color: var(--accent);
         }
         
+        /* results info */
         .results-info {
             text-align: center;
-            margin: 0.5rem 0 0.2rem;
+            margin: 1rem 0;
+            color: rgba(255,255,255,0.8);
             font-size: 0.95rem;
-            color: #a0b3d9;
         }
         
+        /* disclaimer */
         .disclaimer {
-            background: rgba(255,0,0,0.15);
+            background: rgba(255,0,0,0.1);
             border-radius: 12px;
-            padding: 12px;
-            margin-top: 15px;
-            font-size: 0.85rem;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.9rem;
             border: 1px solid rgba(255,0,0,0.2);
         }
         
@@ -558,18 +568,19 @@
             100% { background-position: -200% 0; }
         }
         
+        /* error states */
         .error-state {
             text-align: center;
-            padding: 2.5rem 1rem;
+            padding: 3rem 1rem;
             background: rgba(255,0,0,0.1);
             border-radius: 16px;
-            border: 1px solid rgba(255,0,0,0.2);
+            border: 1px solid rgba(255,0,0,0.3);
         }
     </style>
 </head>
 <body>
 
-<!-- COMPACT FIXED NAVBAR -->
+<!-- FIXED NAVBAR -->
 <nav class="top-navbar">
     <div class="navbar-content">
         <div class="logo-section">
@@ -617,20 +628,18 @@
 <!-- MAIN CONTAINER -->
 <div class="main-container">
 
-    <!-- 728x90 AD TOP - VISIBLE NOW -->
+    <!-- 728x90 AD TOP -->
     <div class="ad-unit">
-        <div class="ad-container">
-            <script>
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            </script>
-            <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-        </div>
+        <script>
+          atOptions = {
+            'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+            'format' : 'iframe',
+            'height' : 90,
+            'width' : 728,
+            'params' : {}
+          };
+        </script>
+        <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
     </div>
 
     <!-- SEARCH BAR -->
@@ -639,40 +648,30 @@
         <button class="search-btn" id="searchButton"><i class="fas fa-search"></i></button>
     </div>
 
-    <!-- 728x90 AD BOTTOM - VISIBLE NOW -->
+    <!-- 728x90 AD BOTTOM -->
     <div class="ad-unit">
-        <div class="ad-container">
-            <script>
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            </script>
-            <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-        </div>
+        <script>
+          atOptions = {
+            'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+            'format' : 'iframe',
+            'height' : 90,
+            'width' : 728,
+            'params' : {}
+          };
+        </script>
+        <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
     </div>
 
-    <!-- RESULTS INFO -->
     <div id="resultsInfo" class="results-info"></div>
-    
-    <!-- RESULTS GRID -->
     <div id="resultsContainer"></div>
-    
-    <!-- PAGINATION -->
     <div id="paginationContainer"></div>
 
-    <!-- BOTTOM AD - VISIBLE NOW -->
+    <!-- bottom ad -->
     <div class="ad-unit" style="margin-top:12px;">
-        <div class="ad-container">
-            <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
-        </div>
+        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
     </div>
 
-    <!-- DISCLAIMER -->
     <div class="disclaimer">
         <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
         This site does not store any file, it links to media hosted on Telegram.
@@ -750,7 +749,7 @@ function formatPostContent(content) {
     return formatted;
 }
 
-// Generate quality options
+// Generate quality options for DOWNLOAD only
 function generateQualityOptions(qualityOptions, result) {
     if (!qualityOptions || typeof qualityOptions !== 'object') {
         return '<p class="text-muted mb-0">No download options</p>';
@@ -784,12 +783,13 @@ function triggerAdLink() {
     window.open(AD_LINK, '_blank');
 }
 
-// Toggle download dropdown
+// Toggle download dropdown only (stream button removed)
 function toggleDownload(index) {
     const dropdown = document.getElementById(`download-quality-${index}`);
     const arrow = document.getElementById(`download-arrow-${index}`);
     if (!dropdown) return;
     
+    // Close any other download dropdowns
     document.querySelectorAll('.quality-dropdown').forEach(d => {
         if (d.id !== `download-quality-${index}`) {
             d.classList.remove('show');
@@ -832,10 +832,9 @@ function showSkeleton() {
     for (let i = 0; i < RESULTS_PER_PAGE; i++) {
         html += `
             <div class="result-card">
-                <div class="skeleton" style="height:180px; border-radius:10px;"></div>
-                <div class="skeleton" style="height:20px; width:70%; margin:12px 0 8px; border-radius:4px;"></div>
-                <div class="skeleton" style="height:80px; width:100%; border-radius:10px;"></div>
-                <div class="skeleton" style="height:40px; width:100%; margin-top:10px; border-radius:8px;"></div>
+                <div class="skeleton" style="height:200px; border-radius:12px;"></div>
+                <div class="skeleton" style="height:24px; width:70%; margin:15px 0; border-radius:4px;"></div>
+                <div class="skeleton" style="height:60px; width:100%; border-radius:8px;"></div>
             </div>
         `;
     }
@@ -845,7 +844,7 @@ function showSkeleton() {
 // Render results
 function renderResults(results, pagination) {
     if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-2" style="color: #00ccff;"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
+        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4>No results found</h4><p class="text-muted">Try different keywords</p></div>';
         return;
     }
     
@@ -864,12 +863,12 @@ function renderResults(results, pagination) {
         const postContent = result.post_content || result.content || result.description || result.text || '';
         const hasPostContent = postContent && postContent.trim().length > 0;
         
-        // Get clean message ID
+        // Get clean message ID for streaming
         let msgId = result.real_message_id || result.message_id || result.id || '1';
         msgId = String(msgId).replace(/\D/g, '') || '1';
         const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}`;
         
-        // Thumbnail HTML
+        // Thumbnail HTML with original play button
         const thumbnailHtml = `
             <div class="thumbnail-container" onclick="triggerAdLink()">
                 <img src="${thumbUrl}" alt="${title}" loading="lazy">
@@ -887,7 +886,7 @@ function renderResults(results, pagination) {
             <div class="result-thumbnail-top">${thumbnailHtml}</div>
             <h3 class="result-title">${title}</h3>`;
         
-        // Add post content if available - NOW LARGER
+        // Add post content if available
         if (hasPostContent) {
             html += `
                 <div class="result-post-content">
@@ -896,20 +895,20 @@ function renderResults(results, pagination) {
             `;
         }
         
-        // Add buttons
+        // Add buttons - Stream Now is direct link to view.html, Download has dropdown
         if (hasFile) {
             html += `
                 <div class="result-download-section">
                     <div class="action-buttons-container">
                         <a href="${streamLink}" target="_blank" class="btn-stream-now">
-                            <i class="fas fa-play-circle"></i> Stream Now
+                            <i class="fas fa-play-circle me-2"></i>Stream Now
                         </a>`;
             
             if (hasQualities) {
                 html += `
                         <button class="btn-download-main" onclick="toggleDownload(${index})">
-                            <i class="fas fa-download"></i> Download
-                            <i class="fas fa-chevron-down" id="download-arrow-${index}" style="font-size:0.8rem;"></i>
+                            <i class="fas fa-download me-2"></i>Download
+                            <i class="fas fa-chevron-down ms-2" id="download-arrow-${index}"></i>
                         </button>
                     </div>
                     <div class="quality-dropdown" id="download-quality-${index}">
@@ -919,7 +918,7 @@ function renderResults(results, pagination) {
                 const downloadLink = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgId}`;
                 html += `
                         <a href="${downloadLink}" target="_blank" class="btn-download-main">
-                            <i class="fas fa-download"></i> Download
+                            <i class="fas fa-download me-2"></i>Download
                         </a>
                     </div>`;
             }
@@ -928,8 +927,8 @@ function renderResults(results, pagination) {
         } else {
             html += `
                 <div class="action-buttons-container">
-                    <button class="btn-stream-now" enabled>
-                        <i class="fas fa-times-circle"></i> No File Available
+                    <button class="btn-stream-now" disabled>
+                        <i class="fas fa-times-circle me-2"></i>No File Available
                     </button>
                 </div>
             `;
@@ -943,8 +942,6 @@ function renderResults(results, pagination) {
     // Render pagination
     if (pagination.total_pages > 1) {
         renderPagination(pagination);
-    } else {
-        paginationContainer.innerHTML = '';
     }
 }
 
@@ -985,7 +982,7 @@ window.changePage = function(page) {
 async function performSearch(page = 1) {
     const query = searchInput.value.trim();
     if (!query) {
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-2" style="color: #00ccff;"></i><h4>Enter a search term</h4></div>';
+        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4>Enter a search term</h4></div>';
         return;
     }
     
@@ -1022,11 +1019,11 @@ async function performSearch(page = 1) {
     } else {
         resultsContainer.innerHTML = `
             <div class="error-state">
-                <i class="fas fa-exclamation-triangle fa-3x mb-2" style="color: #ff6b6b;"></i>
+                <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
                 <h4>Connection Error</h4>
                 <p class="text-muted">Unable to reach server. Please try again.</p>
-                <button class="btn btn-primary mt-3" onclick="performSearch(${page})" style="background: #00ccff; border: none; padding: 8px 25px; border-radius: 25px;">
-                    <i class="fas fa-redo me-1"></i> Retry
+                <button class="btn btn-primary mt-3" onclick="performSearch(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px;">
+                    <i class="fas fa-redo me-2"></i>Retry
                 </button>
             </div>
         `;
@@ -1053,7 +1050,7 @@ window.addEventListener('load', () => {
     }
 });
 
-// Close dropdowns
+// Close dropdowns when clicking outside
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
         document.querySelectorAll('.quality-dropdown').forEach(d => {
@@ -1065,12 +1062,12 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Expose functions
+// Expose functions globally
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
 </script>
 
-<!-- Original ad script (kept) -->
+<!-- Original ad script -->
 <script>
 (function(obqzha){
 var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length-1];
