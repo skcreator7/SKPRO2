@@ -224,6 +224,199 @@ except ImportError as e:
 FALLBACK_THUMBNAIL_URL = "https://iili.io/fAeIwv9.th.png"
 
 # ============================================================================
+# ✅ ULTIMATE THUMBNAIL DEBUGGER - FIND THE REAL PROBLEM
+# ============================================================================
+
+@app.route('/api/debug/thumbnail-ultimate/<int:message_id>')
+async def debug_thumbnail_ultimate(message_id):
+    """Ultimate thumbnail debugger - checks EVERYTHING"""
+    try:
+        client = User
+        if not client:
+            return jsonify({'error': 'No user session'}), 500
+        
+        # Get message
+        msg = await client.get_messages(Config.FILE_CHANNEL_ID, message_id)
+        if not msg:
+            return jsonify({'error': 'Message not found'}), 404
+        
+        result = {
+            'message_id': message_id,
+            'message_exists': True,
+            'message_type': None,
+            'file_name': None,
+            'has_thumbnail_in_telegram': has_telegram_thumbnail(msg),
+            'thumbnail_locations': {},
+            'download_test': None,
+            'mongodb_before': None,
+            'mongodb_after': None,
+            'error': None
+        }
+        
+        # Get file name
+        if msg.document:
+            result['message_type'] = 'document'
+            result['file_name'] = msg.document.file_name
+            media = msg.document
+        elif msg.video:
+            result['message_type'] = 'video'
+            result['file_name'] = msg.video.file_name or "video.mp4"
+            media = msg.video
+        else:
+            return jsonify({'error': 'Not a document or video'}), 400
+        
+        # Extract clean title
+        clean_title = extract_clean_title(result['file_name'])
+        normalized = normalize_title(clean_title)
+        quality = detect_quality_enhanced(result['file_name'])
+        
+        result['clean_title'] = clean_title
+        result['normalized'] = normalized
+        result['quality'] = quality
+        
+        # CHECK 1: Check all possible thumbnail locations
+        result['thumbnail_locations']['video.thumbnail'] = hasattr(msg.video, 'thumbnail') and bool(msg.video.thumbnail) if msg.video else False
+        result['thumbnail_locations']['video.thumbs'] = hasattr(msg.video, 'thumbs') and len(msg.video.thumbs) > 0 if msg.video else False
+        result['thumbnail_locations']['video.sizes'] = hasattr(msg.video, 'sizes') and len(msg.video.sizes) > 0 if msg.video else False
+        result['thumbnail_locations']['document.thumbnail'] = hasattr(msg.document, 'thumbnail') and bool(msg.document.thumbnail) if msg.document else False
+        result['thumbnail_locations']['document.thumbs'] = hasattr(msg.document, 'thumbs') and len(msg.document.thumbs) > 0 if msg.document else False
+        
+        # Get file_id if exists
+        thumbnail_file_id = None
+        if msg.video and hasattr(msg.video, 'thumbnail') and msg.video.thumbnail:
+            thumbnail_file_id = msg.video.thumbnail.file_id
+            result['thumbnail_file_id'] = thumbnail_file_id
+            result['thumbnail_source'] = 'video.thumbnail'
+        elif msg.document and hasattr(msg.document, 'thumbnail') and msg.document.thumbnail:
+            thumbnail_file_id = msg.document.thumbnail.file_id
+            result['thumbnail_file_id'] = thumbnail_file_id
+            result['thumbnail_source'] = 'document.thumbnail'
+        elif msg.video and hasattr(msg.video, 'thumbs') and msg.video.thumbs:
+            thumbnail_file_id = msg.video.thumbs[0].file_id
+            result['thumbnail_file_id'] = thumbnail_file_id
+            result['thumbnail_source'] = 'video.thumbs'
+        elif msg.document and hasattr(msg.document, 'thumbs') and msg.document.thumbs:
+            thumbnail_file_id = msg.document.thumbs[0].file_id
+            result['thumbnail_file_id'] = thumbnail_file_id
+            result['thumbnail_source'] = 'document.thumbs'
+        
+        # CHECK 2: Check MongoDB before
+        before = await thumbnails_col.find_one({'normalized_title': normalized})
+        if before:
+            result['mongodb_before'] = {
+                'has_thumbnail': before.get('has_thumbnail'),
+                'exists': True
+            }
+        else:
+            result['mongodb_before'] = {'exists': False}
+        
+        # CHECK 3: If thumbnail exists, try to download
+        if thumbnail_file_id:
+            try:
+                # Try download
+                download_start = time.time()
+                downloaded = await client.download_media(
+                    thumbnail_file_id,
+                    in_memory=True
+                )
+                download_time = time.time() - download_start
+                
+                result['download_test'] = {
+                    'success': bool(downloaded),
+                    'time_taken': f"{download_time:.2f}s"
+                }
+                
+                if downloaded:
+                    if isinstance(downloaded, bytes):
+                        data = downloaded
+                    else:
+                        with open(downloaded, 'rb') as f:
+                            data = f.read()
+                    
+                    result['download_test']['size_bytes'] = len(data)
+                    result['download_test']['size_kb'] = len(data) / 1024
+                    
+                    # Convert to base64
+                    b64 = base64.b64encode(data).decode('utf-8')
+                    result['download_test']['base64_length'] = len(b64)
+                    result['download_test']['preview'] = b64[:50] + '...'
+                    
+                    # TRY TO STORE MANUALLY
+                    try:
+                        thumbnail_url = f"data:image/jpeg;base64,{b64}"
+                        size_kb = len(thumbnail_url) / 1024
+                        
+                        update_result = await thumbnails_col.update_one(
+                            {'normalized_title': normalized},
+                            {'$set': {
+                                'normalized_title': normalized,
+                                'title': clean_title,
+                                'quality': quality,
+                                'year': extract_year(result['file_name']),
+                                'thumbnail_url': thumbnail_url,
+                                'thumbnail_source': 'debug_manual',
+                                'has_thumbnail': True,
+                                'extracted_at': datetime.now(),
+                                'message_id': message_id,
+                                'channel_id': Config.FILE_CHANNEL_ID,
+                                'file_name': result['file_name'],
+                                'size_kb': size_kb,
+                                'file_id': thumbnail_file_id
+                            }},
+                            upsert=True
+                        )
+                        
+                        result['manual_store'] = {
+                            'success': True,
+                            'modified_count': update_result.modified_count,
+                            'upserted_id': str(update_result.upserted_id) if update_result.upserted_id else None
+                        }
+                        
+                    except Exception as e:
+                        result['manual_store'] = {
+                            'success': False,
+                            'error': str(e)
+                        }
+                        
+            except Exception as e:
+                result['download_test'] = {
+                    'success': False,
+                    'error': str(e)
+                }
+        else:
+            result['download_test'] = {'success': False, 'reason': 'No thumbnail file_id'}
+        
+        # CHECK 4: Check MongoDB after
+        after = await thumbnails_col.find_one({'normalized_title': normalized})
+        if after:
+            result['mongodb_after'] = {
+                'has_thumbnail': after.get('has_thumbnail'),
+                'exists': True,
+                'id': str(after['_id'])
+            }
+        else:
+            result['mongodb_after'] = {'exists': False}
+        
+        # CHECK 5: Try to get via get_best_thumbnail
+        try:
+            thumb_url, thumb_source = await get_best_thumbnail(normalized, clean_title)
+            result['get_best_thumbnail'] = {
+                'url': thumb_url[:50] + '...' if thumb_url else None,
+                'source': thumb_source
+            }
+        except Exception as e:
+            result['get_best_thumbnail'] = {'error': str(e)}
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500      
+        
+# ============================================================================
 # ✅ PERFORMANCE MONITOR
 # ============================================================================
 
