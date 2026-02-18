@@ -1059,15 +1059,16 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         traceback.print_exc()
 
 # ============================================================================
-# ✅ IMPROVED get_best_thumbnail - ONE PER MOVIE
+# ✅ FIXED get_best_thumbnail - POSTS KE LIYE BHI THUMBNAIL
 # ============================================================================
 
 async def get_best_thumbnail(normalized_title: str, clean_title: str = None, 
-                            year: str = None, msg=None) -> Tuple[str, str]:
+                            year: str = None, msg=None, is_post: bool = False) -> Tuple[str, str]:
     """
-    🎯 FIXED: Get ONE thumbnail per movie with correct source
+    🎯 FIXED: Get thumbnail for both files AND posts
+    is_post: True for post-only results
     """
-    # PRIORITY 1: Check MongoDB for movie thumbnail
+    # PRIORITY 1: Check MongoDB for movie thumbnail (WORKS FOR BOTH FILES AND POSTS)
     if thumbnails_col is not None:
         try:
             doc = await thumbnails_col.find_one({
@@ -1077,40 +1078,34 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
             })
             
             if doc and doc.get('thumbnail_url'):
-                logger.info(f"📦 MongoDB thumbnail FOUND for: {clean_title}")  # Changed to INFO
-                return doc['thumbnail_url'], 'mongodb'  # Force source to 'mongodb'
+                logger.info(f"📦 MongoDB thumbnail FOUND for POST: {clean_title}")
+                return doc['thumbnail_url'], 'mongodb'
                     
         except Exception as e:
             logger.debug(f"⚠️ MongoDB thumbnail fetch error: {e}")
     
-    # PRIORITY 2: Try poster fetch
+    # PRIORITY 2: Try poster fetch (WORKS FOR POSTS)
     if Config.POSTER_FETCHING_ENABLED and poster_fetcher and clean_title:
         try:
             poster = await get_poster_for_movie(clean_title, year)
             
             if poster and poster.get('poster_url') and poster.get('found'):
-                # Try to store real thumbnail in background
-                if msg and has_telegram_thumbnail(msg):
-                    asyncio.create_task(
-                        try_store_real_thumbnail(normalized_title, clean_title, msg)
-                    )
-                
-                logger.info(f"🎬 POSTER FOUND for: {clean_title}")
-                return poster['poster_url'], 'poster'  # Force source to 'poster'
+                logger.info(f"🎬 POSTER FOUND for POST: {clean_title}")
+                return poster['poster_url'], 'poster'
                 
         except Exception as e:
             logger.debug(f"⚠️ Poster fetch error: {clean_title}: {e}")
     
-    # PRIORITY 3: Try to extract from message if available
-    if msg and clean_title:
+    # PRIORITY 3: If it's a file and has message, try to extract
+    if not is_post and msg and clean_title:
         asyncio.create_task(
             try_store_real_thumbnail(normalized_title, clean_title, msg)
         )
     
     # PRIORITY 4: Fallback
-    logger.info(f"⚠️ Using fallback for: {clean_title}")
-    return FALLBACK_THUMBNAIL_URL, 'fallback'  # Force source to 'fallback'
-
+    logger.info(f"⚠️ Using fallback for POST: {clean_title}")
+    return FALLBACK_THUMBNAIL_URL, 'fallback'
+                                
 # ============================================================================
 # ✅ POSTER FETCHING FUNCTIONS
 # ============================================================================
