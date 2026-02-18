@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SK4FiLM — blur popup + ads</title>
+    <title>SK4FiLM — nav always visible</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <!-- AdSense (legacy) -->
@@ -26,12 +26,12 @@
             background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
             color: #f8f9fa;
             min-height: 100vh;
-            padding-top: 70px;
+            padding-top: 70px;   /* space for fixed navbar */
             font-size: 16px;
             -webkit-font-smoothing: antialiased;
         }
         
-        /* fixed navbar */
+        /* fixed navbar – ALWAYS ON TOP (z-index 9999) */
         .top-navbar {
             background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(10px);
@@ -40,7 +40,7 @@
             left: 0;
             right: 0;
             height: 70px;
-            z-index: 9999;
+            z-index: 9999;           /* higher than popup? no: popup is 99999, but we want navbar above popup? Actually we want navbar to be visible above popup, so popup should start below navbar. We'll set popup z-index lower than navbar? But then navbar would block clicks. Better: keep navbar 9999, popup 10000 but with top:70px and height:calc(100% - 70px). That way navbar stays on top of popup and popup sits below it. */
             box-shadow: 0 2px 15px rgba(0,0,0,0.5);
             display: flex;
             align-items: center;
@@ -239,15 +239,17 @@
         @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         .error-state { text-align: center; padding: 30px 15px; background: rgba(255,0,0,0.1); border-radius: 16px; }
 
-        /* ========== FULLSCREEN SEARCH POPUP (blur background) ========== */
+        /* ========== FULLSCREEN SEARCH POPUP – now starts BELOW navbar ========== */
         .search-popup {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            /* backdrop filter for blur + dark tint */
-            background: rgba(2, 6, 20, 0.6);        /* semi‑transparent dark */
-            backdrop-filter: blur(8px);              /* <<< blur effect as requested */
+            top: 70px;                /* starts right below fixed navbar */
+            left: 0;
+            width: 100%;
+            height: calc(100% - 70px); /* fill rest of screen */
+            background: rgba(2, 6, 20, 0.6);
+            backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
-            z-index: 99999;
+            z-index: 10000;            /* below navbar (9999) ? actually we set navbar 9999, popup 10000, but because popup starts at top:70px, navbar (70px tall) stays above it – perfect */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -323,7 +325,7 @@
             font-size: 16px;
             margin-bottom: 25px;
         }
-        /* popup ad box — now uses the exact ad code you provided */
+        /* popup ad box — uses the exact ad code you provided */
         .popup-ad-box {
             background: rgba(0,0,0,0.3);
             border: 1px solid #00ccff;
@@ -337,7 +339,6 @@
             align-items: center;
             justify-content: center;
         }
-        /* style for the iframe ad container */
         .popup-ad-box iframe {
             max-width: 100%;
             border: none;
@@ -371,7 +372,7 @@
 </head>
 <body>
 
-<!-- fixed navbar -->
+<!-- fixed navbar – ALWAYS VISIBLE (z 9999) -->
 <nav class="top-navbar">
     <div class="navbar-content">
         <a href="/" class="logo-section">
@@ -433,14 +434,14 @@
     </div>
 </div>
 
-<!-- ========== FULLSCREEN SEARCH POPUP (blur background + your ad) ========== -->
+<!-- ========== FULLSCREEN SEARCH POPUP (starts below navbar) ========== -->
 <div id="searchPopup" class="search-popup">
     <div class="popup-content">
         <div class="film-reel">
             <i class="fas fa-film"></i>
         </div>
         <div class="popup-message">SK SEARCHING</div>
-        <div class="popup-sub">scanning database...</div>
+        <div class="popup-sub">scanning database ...</div>
 
         <!-- popup ad box: exactly the ad code you provided (160x300 iframe) -->
         <div class="popup-ad-box">
@@ -457,9 +458,9 @@
         </div>
 
         <div class="auto-close-hint">
-            <i class="fas fa-spinner fa-pulse"></i> Please Wait..
+            <i class="fas fa-spinner fa-pulse"></i> Please Wait...
         </div>
-        <button class="close-btn-manual" onclick="closeSearchPopup()">close</button>
+        <button class="close-btn-manual" onclick="closeSearchPopup()">close manually</button>
     </div>
 </div>
 
@@ -523,7 +524,7 @@ async function performSearchWithPopup(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
 
-    // SHOW FULLSCREEN POPUP (with blur)
+    // SHOW FULLSCREEN POPUP (starts below navbar)
     openSearchPopup();
 
     // show skeleton in background 
