@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SK4FiLM — navbar fixed</title>
+    <title>SK4FiLM — mobile optimized results</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <!-- AdSense -->
@@ -41,7 +41,7 @@
             -moz-osx-font-smoothing: grayscale;
         }
         
-        /* fixed navbar - FULLY VISIBLE */
+        /* fixed navbar */
         .top-navbar {
             background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(10px);
@@ -78,7 +78,6 @@
             margin-right: 10px;
             border-radius: 10px;
             object-fit: contain;
-            box-shadow: 0 0 15px rgba(255,0,0,0.3);
         }
         .brand-content {
             display: flex;
@@ -97,10 +96,9 @@
             font-size: 0.65rem;
             color: #00ccff;
             font-weight: 300;
-            letter-spacing: 0.5px;
         }
 
-        /* menu button - clearly visible */
+        /* menu button */
         .menu-section {
             position: relative;
         }
@@ -111,13 +109,6 @@
             padding: 10px 12px;
             cursor: pointer;
             transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .menu-button:hover {
-            background: rgba(0,204,255,0.25);
-            box-shadow: 0 0 15px rgba(0,204,255,0.5);
         }
         .menu-lines div {
             width: 22px;
@@ -125,85 +116,20 @@
             background: #00ccff;
             margin: 4px 0;
             border-radius: 2px;
-            transition: all 0.3s ease;
         }
-        .menu-button.active .menu-line:nth-child(1) {
-            transform: rotate(45deg) translate(6px, 6px);
-        }
-        .menu-button.active .menu-line:nth-child(2) {
-            opacity: 0;
-        }
-        .menu-button.active .menu-line:nth-child(3) {
-            transform: rotate(-45deg) translate(6px, -6px);
-        }
-
-        /* dropdown menu */
-        .menu-dropdown {
-            position: absolute;
-            top: 60px;
-            right: 0;
-            width: 260px;
-            background: rgba(10, 20, 40, 0.98);
-            backdrop-filter: blur(15px);
-            border: 2px solid var(--accent);
-            border-radius: 16px;
-            padding: 1.2rem 1rem;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.7);
-            display: none;
-            z-index: 10000;
-        }
-        .menu-dropdown.show {
-            display: block;
-        }
-        .menu-dropdown h4 {
-            color: white;
-            font-size: 1.1rem;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-        .menu-links {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .menu-link {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-        .menu-link:hover {
-            background: rgba(0,204,255,0.15);
-            border-color: #00ccff;
-            transform: translateX(5px);
-        }
-        .menu-link i {
-            font-size: 1.3rem;
-            width: 28px;
-            text-align: center;
-        }
-
+        
         /* main container */
         .main-container {
             width: 100%;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 10px 12px 20px;
+            padding: 8px 12px 20px;
         }
         
         /* ad container */
         .ad-container {
             text-align: center;
-            margin: 10px 0;
+            margin: 8px 0;
             min-height: auto;
             background: rgba(0,0,0,0.1);
             border-radius: 8px;
@@ -237,7 +163,7 @@
         
         /* search container */
         .search-container {
-            margin: 10px 0 15px;
+            margin: 8px 0 12px;
             position: relative;
             width: 100%;
         }
@@ -245,76 +171,58 @@
             background: rgba(15, 23, 42, 0.95);
             border: 2px solid rgba(255,255,255,0.15);
             border-radius: 50px;
-            padding: 14px 25px;
+            padding: 12px 20px;
             color: white;
-            font-size: 1rem;
+            font-size: 16px;
             width: 100%;
-            height: 52px;
-            transition: all 0.3s;
+            height: 50px;
         }
         .search-box:focus {
             border-color: #00ccff;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(0,204,255,0.2);
-        }
-        .search-box::placeholder {
-            color: rgba(255,255,255,0.5);
         }
         .search-btn {
             position: absolute;
-            right: 6px;
-            top: 6px;
+            right: 5px;
+            top: 5px;
             background: linear-gradient(45deg, #ff0000, #0066ff);
             border: none;
             border-radius: 50px;
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
-        }
-        .search-btn:hover {
-            transform: scale(1.05);
         }
         
-        /* results grid */
+        /* results container - FIXED SCALING */
         #resultsContainer {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1rem;
-            margin: 1rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 10px 0;
+            width: 100%;
         }
         
-        @media (min-width: 768px) {
-            #resultsContainer {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 1.2rem;
-            }
-        }
-        
-        /* result card */
+        /* result card - FIXED SIZE */
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 16px;
-            padding: 1.2rem;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-            transition: transform 0.2s;
-        }
-        .result-card:hover {
-            transform: translateY(-4px);
+            padding: 16px;
+            width: 100%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
         
-        /* thumbnail */
+        /* thumbnail - FIXED RATIO */
         .result-thumbnail-top {
             width: 100%;
             aspect-ratio: 16/9;
             border-radius: 12px;
             overflow: hidden;
-            margin-bottom: 1rem;
+            margin-bottom: 12px;
             background: #1e293b;
         }
         .thumbnail-container {
@@ -329,7 +237,7 @@
             object-fit: cover;
         }
         
-        /* play button overlay */
+        /* play button overlay - ORIGINAL */
         .play-overlay {
             position: absolute;
             top: 0;
@@ -358,18 +266,6 @@
             font-size: 24px;
             color: white;
             border: 3px solid white;
-            transition: transform 0.2s;
-        }
-        .play-button:hover {
-            transform: scale(1.1);
-            background: var(--secondary);
-        }
-        @media (min-width: 768px) {
-            .play-button {
-                width: 70px;
-                height: 70px;
-                font-size: 28px;
-            }
         }
         
         /* badges */
@@ -381,10 +277,9 @@
             color: white;
             padding: 4px 10px;
             border-radius: 20px;
-            font-size: 0.7rem;
+            font-size: 12px;
             font-weight: 600;
             z-index: 2;
-            backdrop-filter: blur(5px);
         }
         .video-file-badge {
             position: absolute;
@@ -394,30 +289,30 @@
             color: white;
             padding: 4px 10px;
             border-radius: 20px;
-            font-size: 0.7rem;
+            font-size: 12px;
             font-weight: 600;
             z-index: 2;
         }
         
-        /* title */
+        /* title - FIXED SIZE */
         .result-title {
-            font-size: 1.2rem;
+            font-size: 18px;
             font-weight: 700;
             color: #00ccff;
-            margin-bottom: 0.75rem;
+            margin-bottom: 10px;
             line-height: 1.3;
         }
         
-        /* post content */
+        /* post content - FIXED SIZE */
         .result-post-content {
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 10px;
-            padding: 1rem;
-            margin: 0.75rem 0;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            max-height: 250px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 200px;
             overflow-y: auto;
         }
         .result-post-content a {
@@ -426,12 +321,12 @@
             font-weight: 600;
         }
         
-        /* action buttons */
+        /* action buttons - FIXED SIZE */
         .action-buttons-container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            margin-top: 0.75rem;
+            gap: 8px;
+            margin-top: 10px;
         }
         @media (min-width: 480px) {
             .action-buttons-container {
@@ -445,26 +340,20 @@
             border: none;
             border-radius: 10px;
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             color: white;
             text-decoration: none;
-            min-width: 130px;
-            cursor: pointer;
-            transition: all 0.2s;
+            min-height: 48px;
         }
         .btn-stream-now {
             background: linear-gradient(45deg, #ff416c, #ff4b2b);
         }
         .btn-download-main {
             background: linear-gradient(45deg, #28a745, #20c997);
-        }
-        .btn-stream-now:hover, .btn-download-main:hover {
-            transform: scale(1.02);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
         /* quality dropdown */
@@ -474,7 +363,7 @@
             border: 2px solid #00ccff;
             border-radius: 10px;
             padding: 12px;
-            margin-top: 10px;
+            margin-top: 8px;
         }
         .quality-dropdown.show {
             display: block;
@@ -488,41 +377,49 @@
         
         .quality-option {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            padding: 8px 12px;
+            padding: 10px 12px;
             border-radius: 8px;
             color: white;
             text-decoration: none;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 14px;
             flex: 1 1 auto;
             min-width: 90px;
             text-align: center;
         }
         
-        /* pagination */
+        /* pagination - FIXED SIZE */
         .pagination {
-            margin: 1.5rem 0;
+            margin: 20px 0;
             flex-wrap: wrap;
             justify-content: center;
+            gap: 4px;
         }
         .page-link {
             background: rgba(0,204,255,0.1);
             color: var(--accent);
             border: 1px solid var(--accent);
             padding: 8px 12px;
-            margin: 2px;
+            font-size: 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
         }
-        .page-link:hover {
+        .page-item.active .page-link {
             background: var(--accent);
             color: #0a0a0f;
+        }
+        .page-item.disabled .page-link {
+            opacity: 0.5;
+            pointer-events: none;
         }
         
         /* results info */
         .results-info {
             text-align: center;
-            margin: 1rem 0 0.5rem;
+            margin: 10px 0;
+            font-size: 14px;
             color: rgba(255,255,255,0.7);
-            font-size: 0.9rem;
         }
         
         /* disclaimer */
@@ -531,9 +428,8 @@
             border-radius: 10px;
             padding: 12px;
             margin-top: 15px;
-            font-size: 0.85rem;
+            font-size: 13px;
             text-align: center;
-            border: 1px solid rgba(255,0,0,0.2);
         }
         
         /* loading skeleton */
@@ -548,15 +444,32 @@
             100% { background-position: -200% 0; }
         }
         
-        /* prevent zoom on inputs */
-        input, button {
-            font-size: 16px;
+        /* error state */
+        .error-state {
+            text-align: center;
+            padding: 30px 15px;
+            background: rgba(255,0,0,0.1);
+            border-radius: 16px;
+        }
+        
+        /* ensure proper scaling on mobile */
+        @media (max-width: 480px) {
+            .result-title {
+                font-size: 17px;
+            }
+            .btn-stream-now, .btn-download-main {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
+            .result-post-content {
+                font-size: 13px;
+            }
         }
     </style>
 </head>
 <body>
 
-<!-- FIXED NAVBAR - FULLY VISIBLE -->
+<!-- FIXED NAVBAR -->
 <nav class="top-navbar">
     <div class="navbar-content">
         <a href="/" class="logo-section">
@@ -576,23 +489,23 @@
                 </div>
             </button>
 
-            <div class="menu-dropdown" id="menuDropdown">
-                <h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
-                <div class="menu-links">
-                    <a href="https://t.me/sk4film" target="_blank" class="menu-link">
-                        <i class="fab fa-telegram" style="color: #0088cc;"></i>
+            <div class="menu-dropdown" id="menuDropdown" style="display: none; position: absolute; top: 60px; right: 0; width: 260px; background: rgba(10,20,40,0.98); border: 2px solid #00ccff; border-radius: 16px; padding: 1.2rem 1rem; z-index: 10000;">
+                <h4 style="color: white; border-bottom: 1px solid #334155; padding-bottom: 10px;"><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <a href="https://t.me/sk4film" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
+                        <i class="fab fa-telegram" style="color: #0088cc; font-size: 1.3rem; width: 28px;"></i>
                         <span>Telegram</span>
                     </a>
-                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
-                        <i class="fab fa-whatsapp" style="color: #25d366;"></i>
+                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
+                        <i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.3rem; width: 28px;"></i>
                         <span>WhatsApp</span>
                     </a>
-                    <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
-                        <i class="fab fa-youtube" style="color: #ff0000;"></i>
+                    <a href="https://youtube.com/@Skcreator7" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
+                        <i class="fab fa-youtube" style="color: #ff0000; font-size: 1.3rem; width: 28px;"></i>
                         <span>YouTube</span>
                     </a>
-                    <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
-                        <i class="fas fa-robot" style="color: #7b68ee;"></i>
+                    <a href="https://t.me/skfilmbot" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
+                        <i class="fas fa-robot" style="color: #7b68ee; font-size: 1.3rem; width: 28px;"></i>
                         <span>Telegram Bot</span>
                     </a>
                 </div>
@@ -685,10 +598,12 @@
 <script>
 // ========== TOGGLE MENU ==========
 function toggleMenu() {
-    const btn = document.getElementById('menuToggleBtn');
     const dropdown = document.getElementById('menuDropdown');
-    btn.classList.toggle('active');
-    dropdown.classList.toggle('show');
+    if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
 }
 
 // Close menu when clicking outside
@@ -696,8 +611,7 @@ document.addEventListener('click', function(event) {
     const btn = document.getElementById('menuToggleBtn');
     const dropdown = document.getElementById('menuDropdown');
     if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
-        btn.classList.remove('active');
-        dropdown.classList.remove('show');
+        dropdown.style.display = 'none';
     }
 });
 
@@ -746,16 +660,15 @@ function formatPostContent(content) {
     formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$&" target="_blank" rel="noopener noreferrer">$&</a>');
     formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, '<a href="https://$&" target="_blank" rel="noopener noreferrer">$&</a>');
     formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, '<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer">@$1</a>');
-    formatted = formatted.replace(/#([a-zA-Z0-9_]+)/g, '<span style="color: #00ccff;">#$1</span>');
     return formatted;
 }
 
 function generateQualityOptions(qualityOptions, result) {
     if (!qualityOptions || typeof qualityOptions !== 'object') {
-        return '<p class="text-muted">No options</p>';
+        return '<p style="color: #999; margin:0;">No options</p>';
     }
     
-    let html = '<div class="quality-buttons-row">';
+    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
     let count = 0;
     
     let msgId = result.real_message_id || result.message_id || result.id || '1';
@@ -765,13 +678,13 @@ function generateQualityOptions(qualityOptions, result) {
         if (data && typeof data === 'object') {
             const fileId = `${FILE_CHANNEL_ID}_${msgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
             const size = data.file_size ? formatSize(data.file_size) : '';
-            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" class="quality-option">${quality} ${size}</a>`;
+            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-weight: 600; font-size: 14px; flex: 1 1 auto; min-width: 90px; text-align: center;">${quality} ${size}</a>`;
             count++;
         }
     }
     
     if (count === 0) {
-        html += `<a href="https://t.me/${BOT_USERNAME}" target="_blank" class="quality-option">Get from Bot</a>`;
+        html += `<a href="https://t.me/${BOT_USERNAME}" target="_blank" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-weight: 600; font-size: 14px;">Get from Bot</a>`;
     }
     
     html += '</div>';
@@ -784,18 +697,12 @@ function triggerAdLink() {
 
 function toggleDownload(index) {
     const dropdown = document.getElementById(`download-quality-${index}`);
-    const arrow = document.getElementById(`download-arrow-${index}`);
     if (!dropdown) return;
     
-    document.querySelectorAll('.quality-dropdown').forEach(d => {
-        if (d.id !== `download-quality-${index}`) {
-            d.classList.remove('show');
-        }
-    });
-    
-    dropdown.classList.toggle('show');
-    if (arrow) {
-        arrow.style.transform = dropdown.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+    if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
     }
 }
 
@@ -818,12 +725,12 @@ async function fetchAPI(query, page) {
 
 function showSkeleton() {
     let html = '';
-    for (let i = 0; i < RESULTS_PER_PAGE; i++) {
+    for (let i = 0; i < 5; i++) {
         html += `
             <div class="result-card">
-                <div class="skeleton" style="height:180px;"></div>
-                <div class="skeleton" style="height:24px; width:70%; margin:12px 0;"></div>
-                <div class="skeleton" style="height:48px; width:100%;"></div>
+                <div class="skeleton" style="height: 180px;"></div>
+                <div class="skeleton" style="height: 24px; width: 70%; margin: 12px 0;"></div>
+                <div class="skeleton" style="height: 48px; width: 100%;"></div>
             </div>
         `;
     }
@@ -832,7 +739,7 @@ function showSkeleton() {
 
 function renderResults(results, pagination) {
     if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3"></i><h4>No results found</h4><p>Try different keywords</p></div>';
+        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4 style="margin: 10px 0;">No results found</h4><p style="color: #999;">Try different keywords</p></div>';
         return;
     }
     
@@ -853,20 +760,18 @@ function renderResults(results, pagination) {
         msgId = String(msgId).replace(/\D/g, '') || '1';
         const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}`;
         
-        const thumbnailHtml = `
-            <div class="thumbnail-container" onclick="triggerAdLink()">
-                <img src="${thumbUrl}" alt="${title}" loading="lazy">
-                <div class="play-overlay">
-                    <div class="play-button">
-                        <i class="fas fa-play"></i>
-                    </div>
-                </div>
-                ${hasFile ? '<div class="video-file-badge">MOVIE</div>' : ''}
-            </div>
-        `;
-        
         html += `<div class="result-card">
-            <div class="result-thumbnail-top">${thumbnailHtml}</div>
+            <div class="result-thumbnail-top">
+                <div class="thumbnail-container" onclick="triggerAdLink()">
+                    <img src="${thumbUrl}" alt="${title}" loading="lazy">
+                    <div class="play-overlay">
+                        <div class="play-button">
+                            <i class="fas fa-play"></i>
+                        </div>
+                    </div>
+                    ${hasFile ? '<div class="video-file-badge">SK4FiLM</div>' : ''}
+                </div>
+            </div>
             <h3 class="result-title">${title}</h3>`;
         
         if (hasPostContent) {
@@ -883,10 +788,10 @@ function renderResults(results, pagination) {
                 html += `
                     <button class="btn-download-main" onclick="toggleDownload(${index})">
                         <i class="fas fa-download"></i>Download
-                        <i class="fas fa-chevron-down ms-1" id="download-arrow-${index}"></i>
+                        <i class="fas fa-chevron-down ms-1"></i>
                     </button>
                 </div>
-                <div class="quality-dropdown" id="download-quality-${index}">
+                <div class="quality-dropdown" id="download-quality-${index}" style="display: none;">
                     ${generateQualityOptions(qualityOptions, result)}
                 </div>`;
             } else {
@@ -899,7 +804,7 @@ function renderResults(results, pagination) {
             }
         } else {
             html += `<div class="action-buttons-container">
-                <button class="btn-stream-now" disabled>No File Available</button>
+                <button class="btn-stream-now" disabled style="opacity: 0.5;">No File Available</button>
             </div>`;
         }
         
@@ -914,24 +819,19 @@ function renderResults(results, pagination) {
 }
 
 function renderPagination(pag) {
-    let p = '<nav><ul class="pagination">';
-    p += `<li class="page-item ${!pag.has_previous ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="changePage(${pag.current_page - 1}); return false;">«</a>
-    </li>`;
+    let p = '<nav><ul style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; list-style: none; padding: 0; margin: 20px 0;">';
+    
+    p += `<li style="margin: 0;"><a class="page-link ${!pag.has_previous ? 'disabled' : ''}" href="#" onclick="${pag.has_previous ? `changePage(${pag.current_page - 1}); return false;` : 'return false;'}" style="background: rgba(0,204,255,0.1); color: #00ccff; border: 1px solid #00ccff; padding: 8px 12px; border-radius: 8px; text-decoration: none; display: inline-block;">«</a></li>`;
     
     for (let i = 1; i <= pag.total_pages; i++) {
         if (i === 1 || i === pag.total_pages || (i >= pag.current_page - 2 && i <= pag.current_page + 2)) {
-            p += `<li class="page-item ${i === pag.current_page ? 'active' : ''}">
-                <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
-            </li>`;
+            p += `<li style="margin: 0;"><a class="page-link ${i === pag.current_page ? 'active' : ''}" href="#" onclick="changePage(${i}); return false;" style="background: ${i === pag.current_page ? '#00ccff' : 'rgba(0,204,255,0.1)'}; color: ${i === pag.current_page ? '#0a0a0f' : '#00ccff'}; border: 1px solid #00ccff; padding: 8px 12px; border-radius: 8px; text-decoration: none; display: inline-block;">${i}</a></li>`;
         } else if (i === pag.current_page - 3 || i === pag.current_page + 3) {
-            p += '<li class="page-item disabled"><span class="page-link">…</span></li>';
+            p += '<li style="margin: 0;"><span style="padding: 8px 12px;">…</span></li>';
         }
     }
     
-    p += `<li class="page-item ${!pag.has_next ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="changePage(${pag.current_page + 1}); return false;">»</a>
-    </li>`;
+    p += `<li style="margin: 0;"><a class="page-link ${!pag.has_next ? 'disabled' : ''}" href="#" onclick="${pag.has_next ? `changePage(${pag.current_page + 1}); return false;` : 'return false;'}" style="background: rgba(0,204,255,0.1); color: #00ccff; border: 1px solid #00ccff; padding: 8px 12px; border-radius: 8px; text-decoration: none; display: inline-block;">»</a></li>`;
     p += '</ul></nav>';
     paginationContainer.innerHTML = p;
 }
@@ -943,7 +843,7 @@ window.changePage = function(page) {
 async function performSearch(page = 1) {
     const query = searchInput.value.trim();
     if (!query) {
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3"></i><h4>Enter a search term</h4></div>';
+        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4 style="margin: 10px 0;">Enter a search term</h4></div>';
         return;
     }
     
@@ -976,9 +876,9 @@ async function performSearch(page = 1) {
     } else {
         resultsContainer.innerHTML = `
             <div class="error-state">
-                <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                <h4>Connection Error</h4>
-                <button class="btn btn-primary mt-2" onclick="performSearch(${page})" style="background:#00ccff; border:none; padding:10px 25px; border-radius:25px;">Retry</button>
+                <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
+                <h4 style="margin: 10px 0;">Connection Error</h4>
+                <button onclick="performSearch(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer;">Retry</button>
             </div>
         `;
     }
@@ -1001,26 +901,14 @@ window.addEventListener('load', () => {
 
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
-        document.querySelectorAll('.quality-dropdown').forEach(d => d.classList.remove('show'));
-        document.querySelectorAll('[id^="download-arrow-"]').forEach(arrow => {
-            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        document.querySelectorAll('.quality-dropdown').forEach(d => {
+            d.style.display = 'none';
         });
     }
 });
 
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
-</script>
-
-<!-- Original ad script -->
-<script>
-(function(obqzha){
-var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length-1];
-s.settings = obqzha || {};
-s.src = "\/\/jumbo-nothing.com\/bMXsVZs.dHGUlN0dYVWDcH\/DeqmW9\/umZeU\/lgkuPXTjYQ3KNcjfI\/z\/Nnzsk\/t-NRjEcs2bM\/jAM\/4\/MfAd";
-s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
 </script>
 </body>
 </html>
