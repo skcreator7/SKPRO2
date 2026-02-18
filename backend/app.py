@@ -954,25 +954,15 @@ def detect_quality_enhanced(filename):
     return "480p"
 
 # ============================================================================
-# ✅ UPDATED THUMBNAIL STORAGE - ONE THUMBNAIL PER MOVIE
+# ✅ UPDATED THUMBNAIL STORAGE - WITH DUPLICATE PREVENTION
 # ============================================================================
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
     """
-    🎯 Store ONE thumbnail per movie (independent of quality)
+    🎯 Store ONE thumbnail per movie with duplicate prevention
     """
     try:
         if not msg or thumbnails_col is None:
-            return
-
-        # Check if movie already has ANY thumbnail
-        existing = await thumbnails_col.find_one({
-            'normalized_title': normalized_title,
-            'has_thumbnail': True
-        })
-        
-        if existing:
-            logger.debug(f"📦 Movie already has thumbnail: {clean_title}")
             return
 
         # Get media
@@ -983,6 +973,19 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         file_name = getattr(media, "file_name", "video.mp4")
         if not is_video_file(file_name):
             return
+
+        # Check if movie already has ANY thumbnail
+        existing = await thumbnails_col.find_one({
+            'normalized_title': normalized_title
+        })
+        
+        if existing and existing.get('has_thumbnail'):
+            logger.debug(f"📦 Movie already has thumbnail: {clean_title}")
+            return
+        
+        # If exists but no thumbnail, update it
+        if existing and not existing.get('has_thumbnail'):
+            logger.debug(f"🔄 Updating existing record for: {clean_title}")
 
         # Find thumbnail file_id
         thumbnail_file_id = None
@@ -1033,10 +1036,10 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_data).decode()}"
         size_kb = len(thumbnail_url) / 1024
 
-        # Store ONE thumbnail for the movie (without quality)
-        await thumbnails_col.update_one(
-            {'normalized_title': normalized_title},
-            {'$set': {
+        # Store ONE thumbnail for the movie - use update_one with upsert
+        result = await thumbnails_col.update_one(
+            {'normalized_title': normalized_title},  # filter
+            {'$set': {  # update
                 'normalized_title': normalized_title,
                 'title': clean_title,
                 'year': extract_year(file_name),
@@ -1049,10 +1052,13 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
                 'file_name': file_name,
                 'size_kb': size_kb
             }},
-            upsert=True
+            upsert=True  # Create if doesn't exist
         )
 
-        logger.info(f"✅✅✅ MOVIE THUMBNAIL SAVED: {clean_title} ({size_kb:.1f}KB)")
+        if result.upserted_id:
+            logger.info(f"✅✅✅ NEW movie thumbnail: {clean_title} ({size_kb:.1f}KB)")
+        else:
+            logger.info(f"✅✅✅ UPDATED movie thumbnail: {clean_title} ({size_kb:.1f}KB)")
 
     except Exception as e:
         logger.error(f"❌ Thumbnail error: {e}")
@@ -2287,7 +2293,7 @@ async def init_telegram_sessions():
     return bot_session_ready or user_session_ready
 
 # ============================================================================
-# ✅ MONGODB INITIALIZATION
+# ✅ FIXED MONGODB INITIALIZATION - HANDLES DUPLICATES
 # ============================================================================
 
 @performance_monitor.measure("mongodb_init")
@@ -2316,26 +2322,70 @@ async def init_mongodb():
         thumbnails_col = db.thumbnails
         posters_col = db.posters
 
-        # Safe index creator
-        async def safe_index(col, keys, **kwargs):
+        # ---------- SAFE INDEX CREATION ----------
+        async def safe_index_creation():
             try:
-                await col.create_index(keys, **kwargs)
+                # Check existing indexes
+                existing_indexes = await thumbnails_col.index_information()
+                logger.info(f"📊 Existing indexes: {list(existing_indexes.keys())}")
+                
+                # Drop problematic unique index if exists
+                if "normalized_title_1" in existing_indexes:
+                    try:
+                        await thumbnails_col.drop_index("normalized_title_1")
+                        logger.info("✅ Dropped problematic unique index")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not drop index: {e}")
+                
+                # Handle duplicate documents
+                logger.info("🔍 Checking for duplicate documents...")
+                pipeline = [
+                    {"$group": {
+                        "_id": "$normalized_title",
+                        "count": {"$sum": 1},
+                        "docs": {"$push": "$_id"}
+                    }},
+                    {"$match": {"count": {"$gt": 1}}}
+                ]
+                
+                duplicates = await thumbnails_col.aggregate(pipeline).to_list(length=100)
+                
+                if duplicates:
+                    logger.warning(f"⚠️ Found {len(duplicates)} duplicate titles")
+                    for dup in duplicates:
+                        # Keep first document, delete others
+                        keep_id = dup['docs'][0]
+                        delete_ids = dup['docs'][1:]
+                        if delete_ids:
+                            await thumbnails_col.delete_many({"_id": {"$in": delete_ids}})
+                            logger.info(f"🧹 Cleaned duplicates for: {dup['_id']}")
+                
+                # Create new non-unique index
+                await thumbnails_col.create_index(
+                    [("normalized_title", 1)],
+                    name="title_idx",
+                    background=True
+                )
+                logger.info("✅ Created title_idx (non-unique)")
+                
+                # Create other indexes
+                await thumbnails_col.create_index(
+                    [("has_thumbnail", 1)],
+                    name="has_thumbnail_idx",
+                    background=True
+                )
+                
             except Exception as e:
-                msg = str(e)
-                if "already exists" in msg or "IndexOptionsConflict" in msg:
-                    logger.warning(f"⚠️ Index already exists ignored: {keys}")
-                else:
-                    raise
-
+                logger.error(f"❌ Index creation error: {e}")
+        
+        await safe_index_creation()
+        
         # Poster indexes
         if posters_col is not None:
-            await safe_index(posters_col, 'cache_key', unique=True)
-            await safe_index(posters_col, 'cached_at')
-
-        # Thumbnail indexes - ONE PER MOVIE
-        if thumbnails_col is not None:
-            await safe_index(thumbnails_col, 'normalized_title', unique=True)
-            await safe_index(thumbnails_col, [('has_thumbnail', 1)])
+            try:
+                await posters_col.create_index('cache_key', unique=True, sparse=True)
+            except Exception as e:
+                logger.warning(f"⚠️ Poster index error: {e}")
 
         logger.info("✅ MongoDB OK")
         return True
