@@ -785,53 +785,61 @@ def detect_quality_enhanced(filename):
 # ============================================================================
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
-    """Store REAL Telegram thumbnail with proper error handling"""
+    """
+    🚨 FIXED VERSION - WITH PROPER ERROR HANDLING
+    """
     try:
         if not msg or thumbnails_col is None:
-            return
-
-        # Skip if already stored
-        existing = await thumbnails_col.find_one({
-            'normalized_title': normalized_title,
-            'has_thumbnail': True
-        })
-        if existing:
+            logger.error(f"❌ No message or collection for {clean_title}")
             return
 
         # Get media
         media = msg.video or msg.document
         if not media:
+            logger.error(f"❌ No media in message for {clean_title}")
             return
 
         file_name = getattr(media, "file_name", "video.mp4")
         if not is_video_file(file_name):
+            logger.debug(f"⏭️ Not a video file: {file_name}")
             return
 
-        # Get thumbnail file_id
+        logger.info(f"🔄 Processing thumbnail for: {clean_title}")
+
+        # Find thumbnail file_id
         thumbnail_file_id = None
         
-        # Check all possible locations
+        # Check video
         if msg.video:
             if hasattr(msg.video, 'thumbnail') and msg.video.thumbnail:
                 thumbnail_file_id = msg.video.thumbnail.file_id
+                logger.debug(f"✅ Found video.thumbnail for {clean_title}")
             elif hasattr(msg.video, 'thumbs') and msg.video.thumbs:
                 thumbnail_file_id = msg.video.thumbs[0].file_id
-                
-        elif msg.document:
+                logger.debug(f"✅ Found video.thumbs for {clean_title}")
+        
+        # Check document
+        if msg.document and not thumbnail_file_id:
             if hasattr(msg.document, 'thumbnail') and msg.document.thumbnail:
                 thumbnail_file_id = msg.document.thumbnail.file_id
+                logger.debug(f"✅ Found document.thumbnail for {clean_title}")
             elif hasattr(msg.document, 'thumbs') and msg.document.thumbs:
                 thumbnail_file_id = msg.document.thumbs[0].file_id
+                logger.debug(f"✅ Found document.thumbs for {clean_title}")
 
         if not thumbnail_file_id:
-            # No thumbnail - mark as checked
+            logger.warning(f"⚠️ No thumbnail file_id for {clean_title}")
+            # Store as no thumbnail
             await thumbnails_col.update_one(
                 {'normalized_title': normalized_title},
                 {'$set': {
                     'normalized_title': normalized_title,
                     'title': clean_title,
                     'has_thumbnail': False,
-                    'checked_at': datetime.now()
+                    'checked_at': datetime.now(),
+                    'message_id': msg.id,
+                    'channel_id': msg.chat.id,
+                    'file_name': file_name
                 }},
                 upsert=True
             )
@@ -840,11 +848,18 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         # Download thumbnail
         client = User if user_session_ready else (Bot if bot_session_ready else None)
         if not client:
+            logger.error(f"❌ No client for {clean_title}")
             return
 
         try:
-            downloaded = await client.download_media(thumbnail_file_id, in_memory=True)
+            logger.debug(f"⬇️ Downloading thumbnail for {clean_title}")
+            downloaded = await client.download_media(
+                thumbnail_file_id,
+                in_memory=True
+            )
+            
             if not downloaded:
+                logger.error(f"❌ Download returned None for {clean_title}")
                 return
                 
             if isinstance(downloaded, bytes):
@@ -852,12 +867,16 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
             else:
                 with open(downloaded, 'rb') as f:
                     thumbnail_data = f.read()
+                    
+            logger.debug(f"✅ Downloaded {len(thumbnail_data)} bytes for {clean_title}")
+                    
         except Exception as e:
-            logger.error(f"Download error: {e}")
+            logger.error(f"❌ Download error for {clean_title}: {e}")
             return
 
         # Convert to base64
-        thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_data).decode()}"
+        b64_data = base64.b64encode(thumbnail_data).decode('utf-8')
+        thumbnail_url = f"data:image/jpeg;base64,{b64_data}"
         size_kb = len(thumbnail_url) / 1024
 
         # Get quality and year
@@ -865,7 +884,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         year = extract_year(file_name)
 
         # Store in MongoDB
-        await thumbnails_col.update_one(
+        result = await thumbnails_col.update_one(
             {'normalized_title': normalized_title},
             {'$set': {
                 'normalized_title': normalized_title,
@@ -879,16 +898,24 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
                 'message_id': msg.id,
                 'channel_id': msg.chat.id,
                 'file_name': file_name,
-                'size_kb': size_kb
+                'size_kb': size_kb,
+                'file_id': thumbnail_file_id
             }},
             upsert=True
         )
 
-        logger.info(f"✅ Thumbnail SAVED: {clean_title} ({size_kb:.1f}KB)")
+        logger.info(f"✅✅✅ Thumbnail SAVED: {clean_title} ({quality}) - {size_kb:.1f}KB - Modified: {result.modified_count}, Upserted: {result.upserted_id}")
+
+        # Update stats
+        if thumbnail_manager:
+            thumbnail_manager.stats['total_extracted'] += 1
+            thumbnail_manager.stats['total_size_kb'] += size_kb
 
     except Exception as e:
-        logger.error(f"Thumbnail error: {e}")
-
+        logger.error(f"❌❌❌ CRITICAL ERROR for {clean_title}: {e}")
+        import traceback
+        traceback.print_exc()
+        
 # ============================================================================
 # ✅ IMPROVED get_best_thumbnail WITH BETTER THUMBNAIL HANDLING
 # ============================================================================
