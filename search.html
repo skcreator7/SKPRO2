@@ -3,21 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SK4FiLM — mobile optimized results</title>
+    <title>SK4FiLM — blur popup + ads</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <meta name="referrer" content="no-referrer-when-downgrade" />
-    <!-- AdSense -->
+    <!-- AdSense (legacy) -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5244164301170945" crossorigin="anonymous"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
-        * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         :root {
             --primary: #ff0000;
             --secondary: #0066ff;
@@ -25,11 +20,7 @@
             --bg-dark: #0a0a0f;
             --card-bg: rgba(30, 41, 59, 0.9);
         }
-        html, body {
-            width: 100%;
-            overflow-x: hidden;
-            position: relative;
-        }
+        html, body { width: 100%; overflow-x: hidden; position: relative; }
         body {
             font-family: 'Josefin Sans', sans-serif;
             background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
@@ -38,7 +29,6 @@
             padding-top: 70px;
             font-size: 16px;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
         
         /* fixed navbar */
@@ -79,10 +69,7 @@
             border-radius: 10px;
             object-fit: contain;
         }
-        .brand-content {
-            display: flex;
-            flex-direction: column;
-        }
+        .brand-content { display: flex; flex-direction: column; }
         .brand-text {
             font-family: 'Montserrat', sans-serif;
             font-size: 1.4rem;
@@ -92,16 +79,9 @@
             line-height: 1.2;
             font-weight: 800;
         }
-        .brand-subtitle {
-            font-size: 0.65rem;
-            color: #00ccff;
-            font-weight: 300;
-        }
+        .brand-subtitle { font-size: 0.65rem; color: #00ccff; font-weight: 300; }
 
-        /* menu button */
-        .menu-section {
-            position: relative;
-        }
+        .menu-section { position: relative; }
         .menu-button {
             background: rgba(0,204,255,0.15);
             border: 2px solid var(--accent);
@@ -110,13 +90,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        .menu-lines div {
-            width: 22px;
-            height: 2px;
-            background: #00ccff;
-            margin: 4px 0;
-            border-radius: 2px;
-        }
+        .menu-lines div { width: 22px; height: 2px; background: #00ccff; margin: 4px 0; border-radius: 2px; }
         
         /* main container */
         .main-container {
@@ -139,26 +113,11 @@
             overflow: hidden;
         }
         
-        /* responsive ads */
-        #adTopDesktop, #adBottomDesktop {
-            display: none;
-            max-width: 728px;
-            margin: 0 auto;
-        }
-        
-        #adTopMobile, #adBottomMobile {
-            display: block;
-            max-width: 320px;
-            margin: 0 auto;
-        }
-        
+        #adTopDesktop, #adBottomDesktop { display: none; max-width: 728px; margin: 0 auto; }
+        #adTopMobile, #adBottomMobile { display: block; max-width: 320px; margin: 0 auto; }
         @media (min-width: 768px) {
-            #adTopDesktop, #adBottomDesktop {
-                display: block;
-            }
-            #adTopMobile, #adBottomMobile {
-                display: none;
-            }
+            #adTopDesktop, #adBottomDesktop { display: block; }
+            #adTopMobile, #adBottomMobile { display: none; }
         }
         
         /* search container */
@@ -177,10 +136,7 @@
             width: 100%;
             height: 50px;
         }
-        .search-box:focus {
-            border-color: #00ccff;
-            outline: none;
-        }
+        .search-box:focus { border-color: #00ccff; outline: none; }
         .search-btn {
             position: absolute;
             right: 5px;
@@ -197,16 +153,8 @@
             justify-content: center;
         }
         
-        /* results container - FIXED SCALING */
-        #resultsContainer {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin: 10px 0;
-            width: 100%;
-        }
-        
-        /* result card - FIXED SIZE */
+        /* results container */
+        #resultsContainer { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; width: 100%; }
         .result-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.1);
@@ -215,8 +163,6 @@
             width: 100%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-        
-        /* thumbnail - FIXED RATIO */
         .result-thumbnail-top {
             width: 100%;
             aspect-ratio: 16/9;
@@ -231,245 +177,201 @@
             position: relative;
             cursor: pointer;
         }
-        .thumbnail-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        /* play button overlay - ORIGINAL */
+        .thumbnail-container img { width: 100%; height: 100%; object-fit: cover; }
         .play-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s;
         }
         .thumbnail-container:hover .play-overlay,
-        .thumbnail-container:active .play-overlay {
-            opacity: 1;
-        }
+        .thumbnail-container:active .play-overlay { opacity: 1; }
         .play-button {
-            width: 60px;
-            height: 60px;
-            background: var(--primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-            border: 3px solid white;
+            width: 60px; height: 60px; background: var(--primary);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; color: white; border: 3px solid white;
         }
-        
-        /* badges */
-        .thumbnail-source-badge {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 2;
+        .thumbnail-source-badge, .video-file-badge {
+            position: absolute; top: 8px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 2;
         }
-        .video-file-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: var(--primary);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 2;
-        }
-        
-        /* title - FIXED SIZE */
-        .result-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #00ccff;
-            margin-bottom: 10px;
-            line-height: 1.3;
-        }
-        
-        /* post content - FIXED SIZE */
+        .thumbnail-source-badge { left: 8px; background: rgba(0,0,0,0.8); color: white; }
+        .video-file-badge { right: 8px; background: var(--primary); color: white; }
+        .result-title { font-size: 18px; font-weight: 700; color: #00ccff; margin-bottom: 10px; }
         .result-post-content {
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 12px;
-            margin: 10px 0;
-            font-size: 14px;
-            line-height: 1.5;
-            max-height: 200px;
-            overflow-y: auto;
+            border-radius: 10px; padding: 12px; margin: 10px 0;
+            font-size: 14px; max-height: 200px; overflow-y: auto;
         }
-        .result-post-content a {
-            color: #00ccff;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        
-        /* action buttons - FIXED SIZE */
-        .action-buttons-container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        @media (min-width: 480px) {
-            .action-buttons-container {
-                flex-direction: row;
-            }
-        }
-        
+        .action-buttons-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        @media (min-width: 480px) { .action-buttons-container { flex-direction: row; } }
         .btn-stream-now, .btn-download-main {
-            flex: 1;
-            padding: 12px 16px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 15px;
+            flex: 1; padding: 12px 16px; border: none; border-radius: 10px; font-weight: 600;
+            font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;
+            color: white; text-decoration: none; min-height: 48px;
+        }
+        .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
+        .btn-download-main { background: linear-gradient(45deg, #28a745, #20c997); }
+        .quality-dropdown { display: none; background: #1e293b; border: 2px solid #00ccff; border-radius: 10px; padding: 12px; margin-top: 8px; }
+        .quality-dropdown.show { display: block; }
+        .quality-buttons-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .quality-option {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            padding: 10px 12px; border-radius: 8px; color: white; text-decoration: none;
+            font-weight: 600; font-size: 14px; flex: 1 1 auto; min-width: 90px; text-align: center;
+        }
+        .pagination { margin: 20px 0; flex-wrap: wrap; justify-content: center; gap: 4px; }
+        .page-link {
+            background: rgba(0,204,255,0.1); color: var(--accent); border: 1px solid var(--accent);
+            padding: 8px 12px; font-size: 14px; border-radius: 8px; text-decoration: none; display: inline-block;
+        }
+        .page-item.active .page-link { background: var(--accent); color: #0a0a0f; }
+        .results-info { text-align: center; margin: 10px 0; font-size: 14px; color: rgba(255,255,255,0.7); }
+        .disclaimer {
+            background: rgba(255,0,0,0.1); border-radius: 10px; padding: 12px; margin-top: 15px;
+            font-size: 13px; text-align: center;
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #2d3a4f 50%, #1e293b 75%);
+            background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 8px;
+        }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .error-state { text-align: center; padding: 30px 15px; background: rgba(255,0,0,0.1); border-radius: 16px; }
+
+        /* ========== FULLSCREEN SEARCH POPUP (blur background) ========== */
+        .search-popup {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            /* backdrop filter for blur + dark tint */
+            background: rgba(2, 6, 20, 0.6);        /* semi‑transparent dark */
+            backdrop-filter: blur(8px);              /* <<< blur effect as requested */
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 99999;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            color: white;
-            text-decoration: none;
-            min-height: 48px;
+            flex-direction: column;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s;
         }
-        .btn-stream-now {
-            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+        .search-popup.active {
+            opacity: 1;
+            visibility: visible;
         }
-        .btn-download-main {
-            background: linear-gradient(45deg, #28a745, #20c997);
-        }
-        
-        /* quality dropdown */
-        .quality-dropdown {
-            display: none;
-            background: #1e293b;
+        .popup-content {
+            max-width: 400px;
+            width: 100%;
+            background: rgba(15, 25, 45, 0.95);
             border: 2px solid #00ccff;
-            border-radius: 10px;
-            padding: 12px;
-            margin-top: 8px;
+            border-radius: 40px;
+            padding: 35px 20px 30px;
+            box-shadow: 0 20px 40px rgba(0,204,255,0.3);
+            text-align: center;
         }
-        .quality-dropdown.show {
-            display: block;
-        }
-        
-        .quality-buttons-row {
+        /* cinematic searching animation */
+        .film-reel {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            border: 6px solid rgba(0,204,255,0.3);
+            border-top: 6px solid #ff0000;
+            border-right: 6px solid #0066ff;
+            border-bottom: 6px solid #00ccff;
+            border-left: 6px solid #ffaa00;
+            border-radius: 50%;
+            animation: spin 1.2s infinite linear;
+            position: relative;
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        
-        .quality-option {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            padding: 10px 12px;
-            border-radius: 8px;
-            color: white;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            flex: 1 1 auto;
-            min-width: 90px;
-            text-align: center;
-        }
-        
-        /* pagination - FIXED SIZE */
-        .pagination {
-            margin: 20px 0;
-            flex-wrap: wrap;
+            align-items: center;
             justify-content: center;
-            gap: 4px;
         }
-        .page-link {
-            background: rgba(0,204,255,0.1);
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            padding: 8px 12px;
-            font-size: 14px;
-            border-radius: 8px;
-            text-decoration: none;
-            display: inline-block;
+        .film-reel i {
+            font-size: 42px;
+            color: #00ccff;
+            text-shadow: 0 0 15px cyan;
+            animation: flicker 1.5s infinite alternate;
         }
-        .page-item.active .page-link {
-            background: var(--accent);
-            color: #0a0a0f;
+        .film-reel::after {
+            content: "🎬";
+            position: absolute;
+            font-size: 32px;
+            top: -10px;
+            right: -10px;
+            filter: drop-shadow(0 0 8px gold);
         }
-        .page-item.disabled .page-link {
-            opacity: 0.5;
-            pointer-events: none;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        
-        /* results info */
-        .results-info {
-            text-align: center;
-            margin: 10px 0;
-            font-size: 14px;
-            color: rgba(255,255,255,0.7);
+        @keyframes flicker {
+            0% { opacity: 0.6; text-shadow: 0 0 5px cyan; }
+            100% { opacity: 1; text-shadow: 0 0 25px deepskyblue; }
         }
-        
-        /* disclaimer */
-        .disclaimer {
-            background: rgba(255,0,0,0.1);
-            border-radius: 10px;
-            padding: 12px;
-            margin-top: 15px;
-            font-size: 13px;
-            text-align: center;
+        .popup-message {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #ffcc00, #ff6ec4, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
         }
-        
-        /* loading skeleton */
-        .skeleton {
-            background: linear-gradient(90deg, #1e293b 25%, #2d3a4f 50%, #1e293b 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 8px;
+        .popup-sub {
+            color: #aaa;
+            font-size: 16px;
+            margin-bottom: 25px;
         }
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+        /* popup ad box — now uses the exact ad code you provided */
+        .popup-ad-box {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #00ccff;
+            border-radius: 30px;
+            padding: 15px 5px;
+            margin-top: 10px;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-        
-        /* error state */
-        .error-state {
-            text-align: center;
-            padding: 30px 15px;
-            background: rgba(255,0,0,0.1);
+        /* style for the iframe ad container */
+        .popup-ad-box iframe {
+            max-width: 100%;
+            border: none;
             border-radius: 16px;
         }
-        
-        /* ensure proper scaling on mobile */
+        .auto-close-hint {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #00ccff;
+            opacity: 0.8;
+        }
+        .close-btn-manual {
+            background: transparent;
+            border: 2px solid #aaa;
+            color: #ccc;
+            border-radius: 40px;
+            padding: 8px 30px;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: 0.2s;
+        }
+        .close-btn-manual:hover {
+            border-color: #00ccff;
+            color: white;
+        }
+
         @media (max-width: 480px) {
-            .result-title {
-                font-size: 17px;
-            }
-            .btn-stream-now, .btn-download-main {
-                font-size: 14px;
-                padding: 10px 12px;
-            }
-            .result-post-content {
-                font-size: 13px;
-            }
+            .result-title { font-size: 17px; }
         }
     </style>
 </head>
 <body>
 
-<!-- FIXED NAVBAR -->
+<!-- fixed navbar -->
 <nav class="top-navbar">
     <div class="navbar-content">
         <a href="/" class="logo-section">
@@ -479,35 +381,17 @@
                 <div class="brand-subtitle">House of Entertainment</div>
             </div>
         </a>
-
         <div class="menu-section">
             <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn">
-                <div class="menu-lines">
-                    <div class="menu-line"></div>
-                    <div class="menu-line"></div>
-                    <div class="menu-line"></div>
-                </div>
+                <div class="menu-lines"><div></div><div></div><div></div></div>
             </button>
-
             <div class="menu-dropdown" id="menuDropdown" style="display: none; position: absolute; top: 60px; right: 0; width: 260px; background: rgba(10,20,40,0.98); border: 2px solid #00ccff; border-radius: 16px; padding: 1.2rem 1rem; z-index: 10000;">
                 <h4 style="color: white; border-bottom: 1px solid #334155; padding-bottom: 10px;"><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <a href="https://t.me/sk4film" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
-                        <i class="fab fa-telegram" style="color: #0088cc; font-size: 1.3rem; width: 28px;"></i>
-                        <span>Telegram</span>
-                    </a>
-                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
-                        <i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.3rem; width: 28px;"></i>
-                        <span>WhatsApp</span>
-                    </a>
-                    <a href="https://youtube.com/@Skcreator7" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
-                        <i class="fab fa-youtube" style="color: #ff0000; font-size: 1.3rem; width: 28px;"></i>
-                        <span>YouTube</span>
-                    </a>
-                    <a href="https://t.me/skfilmbot" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;">
-                        <i class="fas fa-robot" style="color: #7b68ee; font-size: 1.3rem; width: 28px;"></i>
-                        <span>Telegram Bot</span>
-                    </a>
+                    <a href="https://t.me/sk4film" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-telegram" style="color: #0088cc; font-size: 1.3rem; width: 28px;"></i><span>Telegram</span></a>
+                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.3rem; width: 28px;"></i><span>WhatsApp</span></a>
+                    <a href="https://youtube.com/@Skcreator7" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-youtube" style="color: #ff0000; font-size: 1.3rem; width: 28px;"></i><span>YouTube</span></a>
+                    <a href="https://t.me/skfilmbot" target="_blank" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none;"><i class="fas fa-robot" style="color: #7b68ee; font-size: 1.3rem; width: 28px;"></i><span>Telegram Bot</span></a>
                 </div>
             </div>
         </div>
@@ -516,33 +400,10 @@
 
 <!-- MAIN CONTAINER -->
 <div class="main-container">
-
     <!-- Top Ads -->
     <div class="ad-container">
-        <div id="adTopDesktop">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-        </div>
-        <div id="adTopMobile">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
-                    'format' : 'iframe',
-                    'height' : 50,
-                    'width' : 320,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
-        </div>
+        <div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
+        <div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div>
     </div>
 
     <!-- SEARCH BAR -->
@@ -553,30 +414,8 @@
 
     <!-- Bottom Ads -->
     <div class="ad-container">
-        <div id="adBottomDesktop">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format' : 'iframe',
-                    'height' : 90,
-                    'width' : 728,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-        </div>
-        <div id="adBottomMobile">
-            <script type="text/javascript">
-                atOptions = {
-                    'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
-                    'format' : 'iframe',
-                    'height' : 50,
-                    'width' : 320,
-                    'params' : {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
-        </div>
+        <div id="adBottomDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
+        <div id="adBottomMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div>
     </div>
 
     <div id="resultsInfo" class="results-info"></div>
@@ -590,8 +429,37 @@
     </div>
 
     <div class="disclaimer">
-        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong>
-        This site does not store any file, it links to media hosted on Telegram.
+        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong> This site does not store any file, it links to media hosted on Telegram.
+    </div>
+</div>
+
+<!-- ========== FULLSCREEN SEARCH POPUP (blur background + your ad) ========== -->
+<div id="searchPopup" class="search-popup">
+    <div class="popup-content">
+        <div class="film-reel">
+            <i class="fas fa-film"></i>
+        </div>
+        <div class="popup-message">SK SEARCHING</div>
+        <div class="popup-sub">scanning database...</div>
+
+        <!-- popup ad box: exactly the ad code you provided (160x300 iframe) -->
+        <div class="popup-ad-box">
+            <script type="text/javascript">
+                atOptions = {
+                    'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
+                    'format' : 'iframe',
+                    'height' : 300,
+                    'width' : 160,
+                    'params' : {}
+                };
+            </script>
+            <script type="text/javascript" src="https://marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
+        </div>
+
+        <div class="auto-close-hint">
+            <i class="fas fa-spinner fa-pulse"></i> Please Wait..
+        </div>
+        <button class="close-btn-manual" onclick="closeSearchPopup()">close</button>
     </div>
 </div>
 
@@ -599,28 +467,16 @@
 // ========== TOGGLE MENU ==========
 function toggleMenu() {
     const dropdown = document.getElementById('menuDropdown');
-    if (dropdown.style.display === 'none' || dropdown.style.display === '') {
-        dropdown.style.display = 'block';
-    } else {
-        dropdown.style.display = 'none';
-    }
+    dropdown.style.display = (dropdown.style.display === 'none' || dropdown.style.display === '') ? 'block' : 'none';
 }
-
-// Close menu when clicking outside
 document.addEventListener('click', function(event) {
     const btn = document.getElementById('menuToggleBtn');
     const dropdown = document.getElementById('menuDropdown');
-    if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.style.display = 'none';
-    }
+    if (!btn.contains(event.target) && !dropdown.contains(event.target)) dropdown.style.display = 'none';
 });
 
-// ========== SEARCH FUNCTIONALITY ==========
-const API_ENDPOINTS = [
-    'https://sk4film.koyeb.app',
-    'https://sk4film-backup.herokuapp.com',
-    'https://sk4film-alternate.onrender.com'
-];
+// ========== GLOBALS ==========
+const API_ENDPOINTS = [ 'https://sk4film.koyeb.app', 'https://sk4film-backup.herokuapp.com', 'https://sk4film-alternate.onrender.com' ];
 const FALLBACK_THUMBNAIL = 'https://iili.io/fAeIwv9.th.png';
 const RESULTS_PER_PAGE = 10;
 const AD_LINK = 'https://otieu.com/4/10220520';
@@ -634,78 +490,76 @@ const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
 const searchInput = document.getElementById('searchInput');
 const searchButton = document.getElementById('searchButton');
+const searchPopup = document.getElementById('searchPopup');
 
-// Cache
 const searchCache = new Map();
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+// ========== POPUP CONTROL ==========
+function openSearchPopup() {
+    searchPopup.classList.add('active');
 }
-
-function formatSize(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+function closeSearchPopup() {
+    searchPopup.classList.remove('active');
 }
-
-function formatPostContent(content) {
-    if (!content) return '';
-    let formatted = escapeHtml(content);
-    formatted = formatted.replace(/\n/g, '<br>');
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$&" target="_blank" rel="noopener noreferrer">$&</a>');
-    formatted = formatted.replace(/(t\.me\/[^\s<]+)/g, '<a href="https://$&" target="_blank" rel="noopener noreferrer">$&</a>');
-    formatted = formatted.replace(/@([a-zA-Z0-9_]+)/g, '<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer">@$1</a>');
-    return formatted;
-}
-
-function generateQualityOptions(qualityOptions, result) {
-    if (!qualityOptions || typeof qualityOptions !== 'object') {
-        return '<p style="color: #999; margin:0;">No options</p>';
+// auto close popup when results are rendered
+function autoClosePopupIfOpen() {
+    if (searchPopup.classList.contains('active')) {
+        closeSearchPopup();
     }
-    
-    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
-    let count = 0;
-    
-    let msgId = result.real_message_id || result.message_id || result.id || '1';
-    msgId = String(msgId).replace(/\D/g, '') || '1';
-    
-    for (const [quality, data] of Object.entries(qualityOptions)) {
-        if (data && typeof data === 'object') {
-            const fileId = `${FILE_CHANNEL_ID}_${msgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
-            const size = data.file_size ? formatSize(data.file_size) : '';
-            html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-weight: 600; font-size: 14px; flex: 1 1 auto; min-width: 90px; text-align: center;">${quality} ${size}</a>`;
-            count++;
-        }
-    }
-    
-    if (count === 0) {
-        html += `<a href="https://t.me/${BOT_USERNAME}" target="_blank" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-weight: 600; font-size: 14px;">Get from Bot</a>`;
-    }
-    
-    html += '</div>';
-    return html;
 }
 
-function triggerAdLink() {
-    window.open(AD_LINK, '_blank');
-}
+// ========== SEARCH WRAPPER WITH POPUP ==========
+async function performSearchWithPopup(page = 1) {
+    const query = searchInput.value.trim();
+    if (!query) {
+        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4>Enter a search term</h4></div>';
+        return;
+    }
 
-function toggleDownload(index) {
-    const dropdown = document.getElementById(`download-quality-${index}`);
-    if (!dropdown) return;
-    
-    if (dropdown.style.display === 'none' || dropdown.style.display === '') {
-        dropdown.style.display = 'block';
+    currentQuery = query;
+    currentPage = page;
+    const url = new URL(window.location);
+    url.searchParams.set('query', query);
+    url.searchParams.set('page', page);
+    window.history.pushState({}, '', url);
+
+    // SHOW FULLSCREEN POPUP (with blur)
+    openSearchPopup();
+
+    // show skeleton in background 
+    showSkeleton();
+    resultsInfo.innerHTML = '';
+    paginationContainer.innerHTML = '';
+
+    const cacheKey = `${query}-${page}`;
+    if (searchCache.has(cacheKey)) {
+        const cached = searchCache.get(cacheKey);
+        renderResults(cached.results, cached.pagination);
+        autoClosePopupIfOpen(); 
+        return;
+    }
+
+    const data = await fetchAPI(query, page);
+    if (data && data.results) {
+        searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
+        renderResults(data.results, data.pagination);
+        autoClosePopupIfOpen();   // auto close on success
     } else {
-        dropdown.style.display = 'none';
+        resultsContainer.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
+                <h4>Connection Error</h4>
+                <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer;">Retry</button>
+            </div>
+        `;
+        autoClosePopupIfOpen(); // close popup to show error
     }
 }
 
+// Override old performSearch
+const performSearch = performSearchWithPopup;
+
+// ========== FETCH ==========
 async function fetchAPI(query, page) {
     for (let i = 0; i < API_ENDPOINTS.length; i++) {
         try {
@@ -723,30 +577,20 @@ async function fetchAPI(query, page) {
     return null;
 }
 
-function showSkeleton() {
-    let html = '';
-    for (let i = 0; i < 5; i++) {
-        html += `
-            <div class="result-card">
-                <div class="skeleton" style="height: 180px;"></div>
-                <div class="skeleton" style="height: 24px; width: 70%; margin: 12px 0;"></div>
-                <div class="skeleton" style="height: 48px; width: 100%;"></div>
-            </div>
-        `;
-    }
-    resultsContainer.innerHTML = html;
-}
+// ========== RENDER ETC ==========
+function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+function formatSize(bytes) { if (!bytes || bytes === 0) return '0 B'; const k = 1024; const sizes = ['B','KB','MB','GB']; const i = Math.floor(Math.log(bytes)/Math.log(k)); return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; }
+function formatPostContent(content) { if (!content) return ''; let f = escapeHtml(content); f = f.replace(/\n/g,'<br>'); f = f.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$&" target="_blank" rel="noopener noreferrer">$&</a>'); f = f.replace(/(t\.me\/[^\s<]+)/g,'<a href="https://$&" target="_blank" rel="noopener noreferrer">$&</a>'); f = f.replace(/@([a-zA-Z0-9_]+)/g,'<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer">@$1</a>'); return f; }
+function generateQualityOptions(qualityOptions, result) { if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options</p>'; let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">'; let count = 0; let msgId = result.real_message_id || result.message_id || result.id || '1'; msgId = String(msgId).replace(/\D/g, '') || '1'; for (const [quality, data] of Object.entries(qualityOptions)) { if (data && typeof data === 'object') { const fileId = `${FILE_CHANNEL_ID}_${msgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`; const size = data.file_size ? formatSize(data.file_size) : ''; html += `<a href="https://t.me/${BOT_USERNAME}?start=${fileId}" target="_blank" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-weight: 600; font-size: 14px; flex: 1 1 auto; min-width: 90px; text-align: center;">${quality} ${size}</a>`; count++; } } if (count === 0) { html += `<a href="https://t.me/${BOT_USERNAME}" target="_blank" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none;">Get from Bot</a>`; } html += '</div>'; return html; }
+function triggerAdLink() { window.open(AD_LINK, '_blank'); }
+function toggleDownload(index) { const d = document.getElementById(`download-quality-${index}`); if (d) d.style.display = (d.style.display === 'none' || d.style.display === '') ? 'block' : 'none'; }
+
+function showSkeleton() { let h=''; for(let i=0;i<5;i++) { h+=`<div class="result-card"><div class="skeleton" style="height:180px;"></div><div class="skeleton" style="height:24px;width:70%;margin:12px 0;"></div><div class="skeleton" style="height:48px;width:100%;"></div></div>`; } resultsContainer.innerHTML = h; }
 
 function renderResults(results, pagination) {
-    if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4 style="margin: 10px 0;">No results found</h4><p style="color: #999;">Try different keywords</p></div>';
-        return;
-    }
-    
+    if (!results || results.length === 0) { resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>'; return; }
     resultsInfo.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
-    
     let html = '';
-    
     results.forEach((result, index) => {
         const title = escapeHtml(result.title || 'Untitled');
         const thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
@@ -755,160 +599,59 @@ function renderResults(results, pagination) {
         const hasQualities = Object.keys(qualityOptions).length > 0;
         const postContent = result.post_content || result.content || '';
         const hasPostContent = postContent && postContent.trim().length > 0;
-        
         let msgId = result.real_message_id || result.message_id || result.id || '1';
         msgId = String(msgId).replace(/\D/g, '') || '1';
         const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgId}`;
-        
-        html += `<div class="result-card">
-            <div class="result-thumbnail-top">
-                <div class="thumbnail-container" onclick="triggerAdLink()">
-                    <img src="${thumbUrl}" alt="${title}" loading="lazy">
-                    <div class="play-overlay">
-                        <div class="play-button">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                    ${hasFile ? '<div class="video-file-badge">SK4FiLM</div>' : ''}
-                </div>
-            </div>
-            <h3 class="result-title">${title}</h3>`;
-        
-        if (hasPostContent) {
-            html += `<div class="result-post-content">${formatPostContent(postContent)}</div>`;
-        }
-        
+        html += `<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${thumbUrl}" alt="${title}" loading="lazy"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hasFile ? '<div class="video-file-badge">SK4FiLM</div>' : ''}</div></div><h3 class="result-title">${title}</h3>`;
+        if (hasPostContent) html += `<div class="result-post-content">${formatPostContent(postContent)}</div>`;
         if (hasFile) {
-            html += `<div class="action-buttons-container">
-                <a href="${streamLink}" target="_blank" class="btn-stream-now">
-                    <i class="fas fa-play-circle"></i>Stream Now
-                </a>`;
-            
+            html += `<div class="action-buttons-container"><a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>Stream Now</a>`;
             if (hasQualities) {
-                html += `
-                    <button class="btn-download-main" onclick="toggleDownload(${index})">
-                        <i class="fas fa-download"></i>Download
-                        <i class="fas fa-chevron-down ms-1"></i>
-                    </button>
-                </div>
-                <div class="quality-dropdown" id="download-quality-${index}" style="display: none;">
-                    ${generateQualityOptions(qualityOptions, result)}
-                </div>`;
+                html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button></div><div class="quality-dropdown" id="download-quality-${index}" style="display: none;">${generateQualityOptions(qualityOptions, result)}</div>`;
             } else {
-                const downloadLink = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgId}`;
-                html += `
-                    <a href="${downloadLink}" target="_blank" class="btn-download-main">
-                        <i class="fas fa-download"></i>Download
-                    </a>
-                </div>`;
+                const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgId}`;
+                html += `<a href="${dl}" target="_blank" class="btn-download-main"><i class="fas fa-download"></i>Download</a></div>`;
             }
-        } else {
-            html += `<div class="action-buttons-container">
-                <button class="btn-stream-now" disabled style="opacity: 0.5;">No File Available</button>
-            </div>`;
-        }
-        
+        } else { html += `<div class="action-buttons-container"><button class="btn-stream-now" disabled style="opacity: 0.5;">No File Available</button></div>`; }
         html += `</div>`;
     });
-    
     resultsContainer.innerHTML = html;
-    
-    if (pagination.total_pages > 1) {
-        renderPagination(pagination);
-    }
+    if (pagination.total_pages > 1) renderPagination(pagination);
 }
 
 function renderPagination(pag) {
     let p = '<nav><ul style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; list-style: none; padding: 0; margin: 20px 0;">';
-    
-    p += `<li style="margin: 0;"><a class="page-link ${!pag.has_previous ? 'disabled' : ''}" href="#" onclick="${pag.has_previous ? `changePage(${pag.current_page - 1}); return false;` : 'return false;'}" style="background: rgba(0,204,255,0.1); color: #00ccff; border: 1px solid #00ccff; padding: 8px 12px; border-radius: 8px; text-decoration: none; display: inline-block;">«</a></li>`;
-    
-    for (let i = 1; i <= pag.total_pages; i++) {
-        if (i === 1 || i === pag.total_pages || (i >= pag.current_page - 2 && i <= pag.current_page + 2)) {
-            p += `<li style="margin: 0;"><a class="page-link ${i === pag.current_page ? 'active' : ''}" href="#" onclick="changePage(${i}); return false;" style="background: ${i === pag.current_page ? '#00ccff' : 'rgba(0,204,255,0.1)'}; color: ${i === pag.current_page ? '#0a0a0f' : '#00ccff'}; border: 1px solid #00ccff; padding: 8px 12px; border-radius: 8px; text-decoration: none; display: inline-block;">${i}</a></li>`;
-        } else if (i === pag.current_page - 3 || i === pag.current_page + 3) {
-            p += '<li style="margin: 0;"><span style="padding: 8px 12px;">…</span></li>';
-        }
+    p += `<li><a class="page-link ${!pag.has_previous ? 'disabled' : ''}" href="#" onclick="${pag.has_previous ? `changePage(${pag.current_page - 1}); return false;` : 'return false;'}" style="background:rgba(0,204,255,0.1);color:#00ccff;border:1px solid #00ccff;padding:8px 12px;border-radius:8px;text-decoration:none;">«</a></li>`;
+    for (let i=1; i<=pag.total_pages; i++) {
+        if (i===1 || i===pag.total_pages || (i>=pag.current_page-2 && i<=pag.current_page+2)) {
+            p += `<li><a class="page-link ${i===pag.current_page?'active':''}" href="#" onclick="changePage(${i}); return false;" style="background:${i===pag.current_page?'#00ccff':'rgba(0,204,255,0.1)'};color:${i===pag.current_page?'#0a0a0f':'#00ccff'};border:1px solid #00ccff;padding:8px 12px;border-radius:8px;text-decoration:none;">${i}</a></li>`;
+        } else if (i===pag.current_page-3 || i===pag.current_page+3) { p += '<li><span style="padding:8px 12px;">…</span></li>'; }
     }
-    
-    p += `<li style="margin: 0;"><a class="page-link ${!pag.has_next ? 'disabled' : ''}" href="#" onclick="${pag.has_next ? `changePage(${pag.current_page + 1}); return false;` : 'return false;'}" style="background: rgba(0,204,255,0.1); color: #00ccff; border: 1px solid #00ccff; padding: 8px 12px; border-radius: 8px; text-decoration: none; display: inline-block;">»</a></li>`;
-    p += '</ul></nav>';
-    paginationContainer.innerHTML = p;
+    p += `<li><a class="page-link ${!pag.has_next ? 'disabled' : ''}" href="#" onclick="${pag.has_next ? `changePage(${pag.current_page + 1}); return false;` : 'return false;'}" style="background:rgba(0,204,255,0.1);color:#00ccff;border:1px solid #00ccff;padding:8px 12px;border-radius:8px;text-decoration:none;">»</a></li>`;
+    p += '</ul></nav>'; paginationContainer.innerHTML = p;
 }
 
-window.changePage = function(page) {
-    if (page > 0) performSearch(page);
-};
+window.changePage = function(page) { if (page>0) performSearchWithPopup(page); };
 
-async function performSearch(page = 1) {
-    const query = searchInput.value.trim();
-    if (!query) {
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4 style="margin: 10px 0;">Enter a search term</h4></div>';
-        return;
-    }
-    
-    currentQuery = query;
-    currentPage = page;
-    
-    const url = new URL(window.location);
-    url.searchParams.set('query', query);
-    url.searchParams.set('page', page);
-    window.history.pushState({}, '', url);
-    
-    showSkeleton();
-    resultsInfo.innerHTML = '';
-    paginationContainer.innerHTML = '';
-    
-    const cacheKey = `${query}-${page}`;
-    if (searchCache.has(cacheKey)) {
-        const cached = searchCache.get(cacheKey);
-        renderResults(cached.results, cached.pagination);
-        return;
-    }
-    
-    const data = await fetchAPI(query, page);
-    if (data && data.results) {
-        searchCache.set(cacheKey, {
-            results: data.results,
-            pagination: data.pagination
-        });
-        renderResults(data.results, data.pagination);
-    } else {
-        resultsContainer.innerHTML = `
-            <div class="error-state">
-                <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
-                <h4 style="margin: 10px 0;">Connection Error</h4>
-                <button onclick="performSearch(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer;">Retry</button>
-            </div>
-        `;
-    }
-}
-
-searchButton.addEventListener('click', () => performSearch(1));
-searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') performSearch(1);
-});
+searchButton.addEventListener('click', () => performSearchWithPopup(1));
+searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearchWithPopup(1); });
 
 window.addEventListener('load', () => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('query');
     const page = parseInt(params.get('page')) || 1;
-    if (query) {
-        searchInput.value = query;
-        performSearch(page);
-    }
+    if (query) { searchInput.value = query; performSearchWithPopup(page); }
 });
 
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
-        document.querySelectorAll('.quality-dropdown').forEach(d => {
-            d.style.display = 'none';
-        });
+        document.querySelectorAll('.quality-dropdown').forEach(d => d.style.display = 'none');
     }
 });
 
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
+window.closeSearchPopup = closeSearchPopup;
 </script>
 </body>
 </html>
