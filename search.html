@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-    <title>SK4FiLM — stream direct, responsive</title>
+    <title>SK4FiLM — responsive 728x90/320x50 ads</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <!-- AdSense -->
@@ -172,11 +172,11 @@
             padding: 10px 15px 20px;
         }
         
-        /* responsive ad units */
-        .ad-unit {
+        /* Ad container with responsive visibility */
+        .ad-container {
             text-align: center;
-            margin: 10px 0;
-            min-height: 90px;
+            margin: 15px 0;
+            min-height: 50px;
             background: rgba(0,0,0,0.2);
             border-radius: 8px;
             display: flex;
@@ -184,16 +184,33 @@
             justify-content: center;
             overflow: hidden;
         }
-        .ad-unit iframe {
-            max-width: 100%;
-            width: 100%;
-            height: auto;
-            min-height: 90px;
+        
+        /* Desktop ad - 728x90 visible on larger screens */
+        #adTopDesktop, #adBottomDesktop {
+            display: none;
+            max-width: 728px;
+            margin: 0 auto;
+        }
+        
+        /* Mobile ad - 320x50 visible on small screens */
+        #adTopMobile, #adBottomMobile {
+            display: block;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+        
+        @media (min-width: 768px) {
+            #adTopDesktop, #adBottomDesktop {
+                display: block;
+            }
+            #adTopMobile, #adBottomMobile {
+                display: none;
+            }
         }
         
         /* search container - responsive */
         .search-container {
-            margin: 10px 0 15px;
+            margin: 15px 0;
             position: relative;
             width: 100%;
         }
@@ -250,12 +267,6 @@
             #resultsContainer {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 1.5rem;
-            }
-        }
-        
-        @media (min-width: 1024px) {
-            #resultsContainer {
-                grid-template-columns: repeat(2, 1fr);
             }
         }
         
@@ -386,7 +397,7 @@
             }
         }
         
-        /* post content - scrollable if needed */
+        /* post content */
         .result-post-content {
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(255,255,255,0.15);
@@ -429,7 +440,7 @@
             border-color: rgba(0, 204, 255, 0.5);
         }
         
-        /* action buttons container - responsive flex */
+        /* action buttons container - responsive */
         .action-buttons-container {
             display: flex;
             flex-direction: column;
@@ -476,7 +487,7 @@
             background: #495057;
         }
         
-        /* download quality dropdown - only for download button */
+        /* download quality dropdown */
         .quality-dropdown {
             display: none;
             background: #1e293b;
@@ -514,7 +525,7 @@
             box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
         }
         
-        /* pagination - responsive */
+        /* pagination */
         .pagination {
             margin: 2rem 0;
             flex-wrap: wrap;
@@ -628,18 +639,32 @@
 <!-- MAIN CONTAINER -->
 <div class="main-container">
 
-    <!-- 728x90 AD TOP -->
-    <div class="ad-unit">
-        <script>
-          atOptions = {
-            'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-            'format' : 'iframe',
-            'height' : 90,
-            'width' : 728,
-            'params' : {}
-          };
-        </script>
-        <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+    <!-- Top Ads - 728x90 desktop / 320x50 mobile -->
+    <div class="ad-container">
+        <div id="adTopDesktop">
+            <script type="text/javascript">
+                atOptions = {
+                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+                    'format' : 'iframe',
+                    'height' : 90,
+                    'width' : 728,
+                    'params' : {}
+                };
+            </script>
+            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+        </div>
+        <div id="adTopMobile">
+            <script type="text/javascript">
+                atOptions = {
+                    'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
+                    'format' : 'iframe',
+                    'height' : 50,
+                    'width' : 320,
+                    'params' : {}
+                };
+            </script>
+            <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
+        </div>
     </div>
 
     <!-- SEARCH BAR -->
@@ -648,26 +673,40 @@
         <button class="search-btn" id="searchButton"><i class="fas fa-search"></i></button>
     </div>
 
-    <!-- 728x90 AD BOTTOM -->
-    <div class="ad-unit">
-        <script>
-          atOptions = {
-            'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-            'format' : 'iframe',
-            'height' : 90,
-            'width' : 728,
-            'params' : {}
-          };
-        </script>
-        <script src="https://marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+    <!-- Bottom Ads - 728x90 desktop / 320x50 mobile -->
+    <div class="ad-container">
+        <div id="adBottomDesktop">
+            <script type="text/javascript">
+                atOptions = {
+                    'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+                    'format' : 'iframe',
+                    'height' : 90,
+                    'width' : 728,
+                    'params' : {}
+                };
+            </script>
+            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+        </div>
+        <div id="adBottomMobile">
+            <script type="text/javascript">
+                atOptions = {
+                    'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
+                    'format' : 'iframe',
+                    'height' : 50,
+                    'width' : 320,
+                    'params' : {}
+                };
+            </script>
+            <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
+        </div>
     </div>
 
     <div id="resultsInfo" class="results-info"></div>
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
 
-    <!-- bottom ad -->
-    <div class="ad-unit" style="margin-top:12px;">
+    <!-- Legacy bottom ad (keeping for compatibility) -->
+    <div class="ad-container">
         <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
         <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
     </div>
@@ -783,7 +822,7 @@ function triggerAdLink() {
     window.open(AD_LINK, '_blank');
 }
 
-// Toggle download dropdown only (stream button removed)
+// Toggle download dropdown only
 function toggleDownload(index) {
     const dropdown = document.getElementById(`download-quality-${index}`);
     const arrow = document.getElementById(`download-arrow-${index}`);
@@ -877,7 +916,6 @@ function renderResults(results, pagination) {
                         <i class="fas fa-play"></i>
                     </div>
                 </div>
-                ${result.thumbnail_source ? `<div class="thumbnail-source-badge">${result.thumbnail_source}</div>` : ''}
                 ${hasFile ? '<div class="video-file-badge">MOVIE</div>' : ''}
             </div>
         `;
