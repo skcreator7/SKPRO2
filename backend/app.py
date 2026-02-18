@@ -785,10 +785,7 @@ def detect_quality_enhanced(filename):
 # ============================================================================
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
-    """
-    🎯 FIXED: Store REAL Telegram thumbnail (works for both videos AND documents)
-    Uses proper thumbnail extraction for all file types
-    """
+    """Store REAL Telegram thumbnail with proper error handling"""
     try:
         if not msg or thumbnails_col is None:
             return
@@ -801,7 +798,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if existing:
             return
 
-        # Get media object
+        # Get media
         media = msg.video or msg.document
         if not media:
             return
@@ -810,23 +807,24 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if not is_video_file(file_name):
             return
 
-        # Check if message has thumbnail in Telegram
-        has_thumb = False
+        # Get thumbnail file_id
         thumbnail_file_id = None
         
-        if msg.video and hasattr(msg.video, 'thumbnail') and msg.video.thumbnail:
-            has_thumb = True
-            thumbnail_file_id = msg.video.thumbnail.file_id
-            logger.debug(f"🎬 Video thumbnail found for: {clean_title}")
-            
-        elif msg.document and hasattr(msg.document, 'thumbnail') and msg.document.thumbnail:
-            has_thumb = True
-            thumbnail_file_id = msg.document.thumbnail.file_id
-            logger.debug(f"📄 Document thumbnail found for: {clean_title}")
-        
-        if not has_thumb or not thumbnail_file_id:
-            logger.debug(f"ℹ️ No Telegram thumbnail available for: {clean_title}")
-            # Still mark as checked but no thumbnail
+        # Check all possible locations
+        if msg.video:
+            if hasattr(msg.video, 'thumbnail') and msg.video.thumbnail:
+                thumbnail_file_id = msg.video.thumbnail.file_id
+            elif hasattr(msg.video, 'thumbs') and msg.video.thumbs:
+                thumbnail_file_id = msg.video.thumbs[0].file_id
+                
+        elif msg.document:
+            if hasattr(msg.document, 'thumbnail') and msg.document.thumbnail:
+                thumbnail_file_id = msg.document.thumbnail.file_id
+            elif hasattr(msg.document, 'thumbs') and msg.document.thumbs:
+                thumbnail_file_id = msg.document.thumbs[0].file_id
+
+        if not thumbnail_file_id:
+            # No thumbnail - mark as checked
             await thumbnails_col.update_one(
                 {'normalized_title': normalized_title},
                 {'$set': {
@@ -839,33 +837,23 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
             )
             return
 
-        # Get the best client (user session first, then bot)
+        # Download thumbnail
         client = User if user_session_ready else (Bot if bot_session_ready else None)
         if not client:
-            logger.error("❌ No Telegram client available for thumbnail download")
             return
 
-        # Download the thumbnail
         try:
-            # For thumbnails, we need to download using file_id
-            downloaded = await client.download_media(
-                thumbnail_file_id,
-                in_memory=True
-            )
-            
+            downloaded = await client.download_media(thumbnail_file_id, in_memory=True)
             if not downloaded:
-                logger.debug(f"⚠️ Failed to download thumbnail for: {clean_title}")
                 return
                 
-            # Convert to bytes if needed
             if isinstance(downloaded, bytes):
                 thumbnail_data = downloaded
             else:
                 with open(downloaded, 'rb') as f:
                     thumbnail_data = f.read()
-                    
         except Exception as e:
-            logger.debug(f"⚠️ Thumbnail download error for {clean_title}: {e}")
+            logger.error(f"Download error: {e}")
             return
 
         # Convert to base64
@@ -891,23 +879,15 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
                 'message_id': msg.id,
                 'channel_id': msg.chat.id,
                 'file_name': file_name,
-                'size_kb': size_kb,
-                'file_id': thumbnail_file_id  # Store for potential future use
+                'size_kb': size_kb
             }},
             upsert=True
         )
 
-        logger.info(f"🖼️✅ Telegram thumbnail SAVED: {clean_title} ({quality}) - {size_kb:.1f}KB")
-
-        # Update stats
-        if thumbnail_manager:
-            thumbnail_manager.stats['total_extracted'] += 1
-            thumbnail_manager.stats['total_size_kb'] += size_kb
+        logger.info(f"✅ Thumbnail SAVED: {clean_title} ({size_kb:.1f}KB)")
 
     except Exception as e:
-        logger.error(f"❌ Thumbnail store error for {clean_title}: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Thumbnail error: {e}")
 
 # ============================================================================
 # ✅ IMPROVED get_best_thumbnail WITH BETTER THUMBNAIL HANDLING
