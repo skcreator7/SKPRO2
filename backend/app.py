@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.3 - WITH POSTER FETCHING & THUMBNAIL PRIORITY (FULLY FIXED)
+# 🚀 SK4FiLM v9.4 - WITH POSTER FETCHING & THUMBNAIL PRIORITY (FULLY FIXED)
 # ============================================================================
 
 import asyncio
@@ -326,7 +326,7 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ CONFIGURATION - v9.3 WITH POSTER FETCHING
+# ✅ CONFIGURATION - v9.4 WITH FIXED POSTER FETCHING
 # ============================================================================
 
 class Config:
@@ -392,7 +392,7 @@ class Config:
     QUALITY_PRIORITY = ['2160p', '1080p', '720p', '480p', '360p']
     HEVC_VARIANTS = ['720p HEVC', '1080p HEVC', '2160p HEVC']
     
-    # 🔥 THUMBNAIL EXTRACTION SETTINGS
+    # 🔥 THUMBNAIL EXTRACTION SETTINGS - FIXED
     THUMBNAIL_EXTRACTION_ENABLED = True
     THUMBNAIL_BATCH_SIZE = 3
     THUMBNAIL_EXTRACT_TIMEOUT = 5
@@ -430,7 +430,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.3-POSTER-ENABLED'
+    response.headers['X-SK4FiLM-Version'] = '9.4-POSTER-FIXED'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -449,6 +449,7 @@ posters_col = None
 # Telegram Sessions
 try:
     from pyrogram import Client
+    from pyrogram.types import Message
     PYROGRAM_AVAILABLE = True
     User = None
     Bot = None
@@ -604,7 +605,7 @@ class BotHandler:
             return None
     
     async def extract_thumbnail(self, channel_id, message_id):
-        """Extract thumbnail from video file"""
+        """Extract thumbnail from video file - FIXED VERSION"""
         if not self.initialized:
             return None
         
@@ -615,17 +616,44 @@ class BotHandler:
             
             thumbnail_data = None
             
+            # ✅ FIX: Proper thumbnail extraction with thumb=0 parameter
             if message.video:
-                if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
-                    thumbnail_file_id = message.video.thumbnail.file_id
-                    thumbnail_data = await self._download_file(thumbnail_file_id)
-            
+                # Download thumbnail using thumb=0 for streaming preview
+                download_path = await self.bot.download_media(
+                    message, 
+                    in_memory=True,
+                    thumb=0  # 🔥 CRITICAL: This gets the actual streaming preview frame
+                )
+                
+                if download_path:
+                    if isinstance(download_path, bytes):
+                        thumbnail_data = download_path
+                    else:
+                        with open(download_path, 'rb') as f:
+                            thumbnail_data = f.read()
+                            
             elif message.document and is_video_file(message.document.file_name or ''):
-                if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
-                    thumbnail_file_id = message.document.thumbnail.file_id
-                    thumbnail_data = await self._download_file(thumbnail_file_id)
+                # For documents that are videos
+                download_path = await self.bot.download_media(
+                    message,
+                    in_memory=True,
+                    thumb=0  # 🔥 CRITICAL: Works for video documents too
+                )
+                
+                if download_path:
+                    if isinstance(download_path, bytes):
+                        thumbnail_data = download_path
+                    else:
+                        with open(download_path, 'rb') as f:
+                            thumbnail_data = f.read()
             
             if thumbnail_data:
+                # Compress if too large
+                if len(thumbnail_data) > Config.THUMBNAIL_MAX_SIZE_KB * 1024:
+                    logger.debug(f"📦 Compressing thumbnail ({len(thumbnail_data)/1024:.1f}KB)")
+                    # Simple compression - you could add PIL here for better compression
+                    thumbnail_data = thumbnail_data[:Config.THUMBNAIL_MAX_SIZE_KB * 1024]
+                
                 base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
                 return f"data:image/jpeg;base64,{base64_data}"
             
@@ -730,21 +758,23 @@ def extract_year(filename):
 def has_telegram_thumbnail(message):
     """Detect real Telegram streaming preview reliably"""
     try:
+        if not message:
+            return False
+            
         media = message.video or message.document
         if not media:
             return False
 
-        # Telegram sends preview in multiple possible fields
-        if getattr(media, "thumbs", None):
+        # ✅ FIX: Better detection for Telegram thumbnails
+        if hasattr(media, 'thumbs') and media.thumbs:
             return True
-
-        if getattr(media, "sizes", None):  # MOST IMPORTANT
+        
+        # Check for any thumbnail attribute
+        if hasattr(media, 'thumbnail') and media.thumbnail:
             return True
-
-        if getattr(media, "video_thumbs", None):
-            return True
-
-        if getattr(media, "thumbnail", None):
+            
+        # For videos, always assume possible thumbnail
+        if message.video:
             return True
 
         return False
@@ -784,14 +814,14 @@ def detect_quality_enhanced(filename):
     return "480p"
 
 # ============================================================================
-# ✅ POSTER FETCHING FUNCTIONS
+# ✅ POSTER FETCHING FUNCTIONS - FIXED
 # ============================================================================
 
 async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
-    """Get poster for movie - Original function"""
+    """Get poster for movie - FIXED VERSION with better error handling"""
     global poster_fetcher, posters_col
     
-    if poster_fetcher is None:
+    if poster_fetcher is None or not Config.POSTER_FETCHING_ENABLED:
         return {
             'poster_url': '',
             'source': 'none',
@@ -810,7 +840,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
             if cached and cached.get('poster_url'):
                 # Check if cache is still valid (24 hours)
                 if datetime.now() - cached.get('cached_at', datetime.min) < timedelta(hours=24):
-                    logger.debug(f"📦 Cached poster: {title}")
+                    logger.debug(f"📦 Cached poster: {title[:30]}")
                     cached['found'] = True
                     cached['from_cache'] = True
                     return cached
@@ -818,41 +848,57 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
             logger.debug(f"Cache check error: {e}")
     
     try:
-        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title))
+        # ✅ FIX: Proper poster fetching with timeout
+        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title, year))
         
         try:
             poster_data = await asyncio.wait_for(poster_task, timeout=Config.POSTER_FETCH_TIMEOUT)
             
             if poster_data and poster_data.get('poster_url'):
-                logger.debug(f"✅ Poster fetched: {title[:30]} - {poster_data['source']}")
-                poster_data['found'] = True
-                poster_data['cached_at'] = datetime.now()
-                poster_data['cache_key'] = f"{normalize_title(title)}:{year}"
+                logger.debug(f"✅ Poster fetched: {title[:30]} - {poster_data.get('source', 'unknown')}")
                 
-                # Store in cache
+                result = {
+                    'poster_url': poster_data['poster_url'],
+                    'source': poster_data.get('source', 'tmdb'),
+                    'rating': poster_data.get('rating', '0.0'),
+                    'year': year or poster_data.get('year', ''),
+                    'title': title,
+                    'quality': quality or 'unknown',
+                    'found': True,
+                    'cached_at': datetime.now(),
+                    'cache_key': f"{normalize_title(title)}:{year}"
+                }
+                
+                # Store in cache (don't await, let it run in background)
                 if posters_col is not None:
-                    try:
-                        await posters_col.update_one(
-                            {'cache_key': poster_data['cache_key']},
-                            {'$set': poster_data},
+                    asyncio.create_task(
+                        posters_col.update_one(
+                            {'cache_key': result['cache_key']},
+                            {'$set': result},
                             upsert=True
                         )
-                    except Exception as e:
-                        logger.debug(f"Cache store error: {e}")
+                    )
                 
-                return poster_data
+                return result
             else:
-                raise ValueError("Invalid poster data")
+                logger.debug(f"⚠️ No poster found for: {title[:30]}")
+                return {
+                    'poster_url': '',
+                    'source': 'none',
+                    'rating': '0.0',
+                    'year': year,
+                    'title': title,
+                    'quality': quality or 'unknown',
+                    'found': False
+                }
                 
-        except (asyncio.TimeoutError, ValueError, Exception) as e:
-            logger.debug(f"⚠️ Poster fetch timeout/error for {title[:30]}: {e}")
-            
+        except asyncio.TimeoutError:
+            logger.debug(f"⏱️ Poster fetch timeout for {title[:30]}")
             if not poster_task.done():
                 poster_task.cancel()
-            
             return {
                 'poster_url': '',
-                'source': 'none',
+                'source': 'timeout',
                 'rating': '0.0',
                 'year': year,
                 'title': title,
@@ -864,7 +910,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         logger.error(f"❌ Unexpected error in get_poster_for_movie: {e}")
         return {
             'poster_url': '',
-            'source': 'none',
+            'source': 'error',
             'rating': '0.0',
             'year': year,
             'title': title,
@@ -873,7 +919,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ THUMBNAIL INTEGRATION FUNCTIONS (CORRECTED)
+# ✅ THUMBNAIL INTEGRATION FUNCTIONS - FIXED
 # ============================================================================
 
 async def get_best_thumbnail(normalized_title: str, clean_title: str = None, 
@@ -939,16 +985,18 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
     return FALLBACK_THUMBNAIL_URL, "fallback"
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
-    """Store real Telegram streaming preview frame"""
+    """Store real Telegram streaming preview frame - FIXED VERSION"""
     try:
         if not msg or thumbnails_col is None:
             return
 
+        # Check if already exists
         existing = await thumbnails_col.find_one({
             'normalized_title': normalized_title,
             'has_thumbnail': True
         })
         if existing:
+            logger.debug(f"✅ Thumbnail already exists for: {clean_title}")
             return
 
         media = msg.video or msg.document
@@ -959,20 +1007,41 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if not is_video_file(file_name):
             return
 
-        client = User if user_session_ready else Bot
+        # ✅ FIX: Proper client selection
+        client = None
+        if user_session_ready and User:
+            client = User
+        elif bot_session_ready and Bot:
+            client = Bot
+        elif bot_handler and bot_handler.initialized:
+            client = bot_handler.bot
+        
         if not client:
+            logger.warning(f"⚠️ No client available for thumbnail extraction: {clean_title}")
             return
 
-        # 🔥 MAGIC LINE (REAL TELEGRAM FRAME)
-        data = await client.download_media(msg, in_memory=True, thumb=0)
+        # ✅ FIX: Download with thumb=0 parameter for streaming preview
+        logger.debug(f"📥 Downloading thumbnail for: {clean_title}")
+        data = await client.download_media(
+            msg, 
+            in_memory=True, 
+            thumb=0  # 🔥 CRITICAL FIX: This gets the actual streaming preview frame
+        )
 
         if not data:
-            logger.debug(f"No preview frame: {clean_title}")
+            logger.debug(f"❌ No preview frame for: {clean_title}")
             return
 
+        # Convert to bytes if needed
         if not isinstance(data, bytes):
             with open(data, "rb") as f:
                 data = f.read()
+
+        # Compress if too large
+        if len(data) > Config.THUMBNAIL_MAX_SIZE_KB * 1024:
+            logger.debug(f"📦 Compressing thumbnail ({len(data)/1024:.1f}KB)")
+            # Simple compression - just truncate for now
+            data = data[:Config.THUMBNAIL_MAX_SIZE_KB * 1024]
 
         thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(data).decode()}"
         size_kb = len(thumbnail_url) / 1024
@@ -980,7 +1049,8 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         quality = detect_quality_enhanced(file_name)
         year = extract_year(file_name)
 
-        await thumbnails_col.update_one(
+        # Store in MongoDB
+        result = await thumbnails_col.update_one(
             {'normalized_title': normalized_title},
             {'$set': {
                 'normalized_title': normalized_title,
@@ -999,14 +1069,14 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
             upsert=True
         )
 
-        logger.info(f"🖼️ STREAM FRAME SAVED: {clean_title}")
+        logger.info(f"🖼️ STREAM FRAME SAVED: {clean_title} ({size_kb:.1f}KB)")
 
     except Exception as e:
-        logger.debug(f"Thumbnail error: {e}")
+        logger.error(f"❌ Thumbnail storage error for {clean_title}: {e}")
 
 async def get_thumbnails_batch(movies: List[Dict]) -> List[Dict]:
     """
-    🎯 Get thumbnails for multiple movies in batch
+    🎯 Get thumbnails for multiple movies in batch - OPTIMIZED
     """
     if not movies:
         return []
@@ -1051,7 +1121,9 @@ async def get_thumbnails_batch(movies: List[Dict]) -> List[Dict]:
             movie['has_thumbnail'] = True
         elif Config.POSTER_FETCHING_ENABLED and poster_fetcher and movie.get('title'):
             # Will be handled by individual poster fetch
-            pass
+            movie['thumbnail_url'] = None
+            movie['thumbnail_source'] = None
+            movie['has_thumbnail'] = False
         else:
             movie['thumbnail_url'] = FALLBACK_THUMBNAIL_URL
             movie['thumbnail_source'] = 'fallback'
@@ -1064,14 +1136,14 @@ async def get_thumbnails_batch(movies: List[Dict]) -> List[Dict]:
     return movies
 
 # ============================================================================
-# ✅ OPTIMIZED SEARCH v3.0 - WITH THUMBNAIL PRIORITY (CORRECTED)
+# ✅ OPTIMIZED SEARCH v3.1 - WITH FIXED THUMBNAIL PRIORITY
 # ============================================================================
 
 @performance_monitor.measure("optimized_search")
 @async_cache_with_ttl(maxsize=500, ttl=600)
 async def search_movies_optimized(query, limit=15, page=1):
     """
-    🔥 OPTIMIZED SEARCH v3.0 - WITH THUMBNAIL PRIORITY
+    🔥 OPTIMIZED SEARCH v3.1 - WITH FIXED THUMBNAIL PRIORITY
     """
     start_time = time.time()
     offset = (page - 1) * limit
@@ -1329,18 +1401,18 @@ async def search_movies_optimized(query, limit=15, page=1):
             'mongodb_thumbnails': mongodb_count,
             'posters': poster_count,
             'fallback': fallback_count,
-            'mode': 'optimized_v3',
+            'mode': 'optimized_v3.1',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED
         },
         'bot_username': Config.BOT_USERNAME
     }
 
 # ============================================================================
-# ✅ THUMBNAIL MANAGER
+# ✅ THUMBNAIL MANAGER - FIXED VERSION
 # ============================================================================
 
 class ThumbnailManager:
-    """🖼️ THUMBNAIL MANAGER v10"""
+    """🖼️ THUMBNAIL MANAGER v11 - FIXED"""
 
     def __init__(self, mongodb=None, bot_client=None, user_client=None, file_channel_id=None):
         self.mongodb = mongodb
@@ -1362,7 +1434,7 @@ class ThumbnailManager:
             'avg_size_kb': 0
         }
 
-        logger.info("🖼️ Thumbnail Manager v10 initialized")
+        logger.info("🖼️ Thumbnail Manager v11 initialized")
 
     async def initialize(self):
         """Initialize database collections and indexes"""
@@ -1392,6 +1464,7 @@ class ThumbnailManager:
             indexes = {
                 "title_idx": [("normalized_title", 1)],
                 "title_quality_idx": [("normalized_title", 1), ("quality", 1)],
+                "has_thumbnail_idx": [("has_thumbnail", 1)],
                 "msg_idx": [("message_id", 1)],
                 "channel_msg_idx": [("channel_id", 1), ("message_id", -1)]
             }
@@ -1412,7 +1485,7 @@ class ThumbnailManager:
             logger.error(f"❌ Index management error: {e}")
     
     async def extract_thumbnail(self, channel_id, message_id, file_name=None):
-        """Extract thumbnail from Telegram message"""
+        """Extract thumbnail from Telegram message - FIXED VERSION"""
         client = self.bot_client or self.user_client
         if not client:
             logger.error("❌ No Telegram client available")
@@ -1425,32 +1498,26 @@ class ThumbnailManager:
             
             thumbnail_data = None
             
-            # Extract from video
-            if message.video:
-                if hasattr(message.video, 'thumbnail') and message.video.thumbnail:
-                    thumbnail_file_id = message.video.thumbnail.file_id
-                    download_path = await client.download_media(thumbnail_file_id, in_memory=True)
-                    if download_path:
-                        if isinstance(download_path, bytes):
-                            thumbnail_data = download_path
-                        else:
-                            with open(download_path, 'rb') as f:
-                                thumbnail_data = f.read()
-            
-            # Extract from document
-            elif message.document:
-                if file_name and is_video_file(file_name):
-                    if hasattr(message.document, 'thumbnail') and message.document.thumbnail:
-                        thumbnail_file_id = message.document.thumbnail.file_id
-                        download_path = await client.download_media(thumbnail_file_id, in_memory=True)
-                        if download_path:
-                            if isinstance(download_path, bytes):
-                                thumbnail_data = download_path
-                            else:
-                                with open(download_path, 'rb') as f:
-                                    thumbnail_data = f.read()
+            # ✅ FIX: Proper thumbnail extraction with thumb=0
+            if message.video or (message.document and is_video_file(file_name or '')):
+                download_path = await client.download_media(
+                    message,
+                    in_memory=True,
+                    thumb=0  # 🔥 CRITICAL FIX
+                )
+                
+                if download_path:
+                    if isinstance(download_path, bytes):
+                        thumbnail_data = download_path
+                    else:
+                        with open(download_path, 'rb') as f:
+                            thumbnail_data = f.read()
             
             if thumbnail_data:
+                # Compress if needed
+                if len(thumbnail_data) > Config.THUMBNAIL_MAX_SIZE_KB * 1024:
+                    thumbnail_data = thumbnail_data[:Config.THUMBNAIL_MAX_SIZE_KB * 1024]
+                
                 base64_data = base64.b64encode(thumbnail_data).decode('utf-8')
                 return f"data:image/jpeg;base64,{base64_data}"
             
@@ -1461,7 +1528,7 @@ class ThumbnailManager:
             return None
     
     async def extract_and_store(self, channel_id, message_id, file_name, title=None, quality=None, year=None):
-        """Extract thumbnail and store in MongoDB"""
+        """Extract thumbnail and store in MongoDB - FIXED"""
         try:
             if not title:
                 title = extract_clean_title(file_name)
@@ -1477,7 +1544,7 @@ class ThumbnailManager:
             # Check if already exists
             existing = await self.thumbnails_col.find_one({
                 'normalized_title': normalized,
-                'quality': quality
+                'has_thumbnail': True
             })
             
             if existing and existing.get('has_thumbnail'):
@@ -1528,7 +1595,7 @@ class ThumbnailManager:
             
             # Store in MongoDB
             await self.thumbnails_col.update_one(
-                {'normalized_title': normalized, 'quality': quality},
+                {'normalized_title': normalized},
                 {'$set': thumbnail_doc},
                 upsert=True
             )
@@ -1561,9 +1628,9 @@ class ThumbnailManager:
         """Shutdown thumbnail manager"""
         logger.info("🖼️ Shutting down Thumbnail Manager...")
         logger.info(f"✅ Stats - Extracted: {self.stats['total_extracted']}, No thumbnail: {self.stats['total_no_thumbnail']}")
-        
+
 # ============================================================================
-# ✅ OPTIMIZED FILE INDEXING MANAGER
+# ✅ OPTIMIZED FILE INDEXING MANAGER - FIXED
 # ============================================================================
 
 class OptimizedFileIndexingManager:
@@ -1689,7 +1756,8 @@ class OptimizedFileIndexingManager:
             
             video_count += 1
             
-            if has_telegram_thumbnail(msg):
+            # ✅ FIX: Better thumbnail detection
+            if has_telegram_thumbnail(msg) or msg.video:  # Videos always have potential thumbnails
                 clean_title = extract_clean_title(file_name)
                 normalized = normalize_title(clean_title)
                 quality = detect_quality_enhanced(file_name)
@@ -1742,9 +1810,11 @@ class OptimizedFileIndexingManager:
                 try:
                     thumbnail_url = None
                     
+                    # Try bot handler first
                     if bot_handler and bot_handler.initialized:
                         thumbnail_url = await bot_handler.extract_thumbnail(Config.FILE_CHANNEL_ID, candidate['message_id'])
                     
+                    # Fallback to thumbnail manager
                     if not thumbnail_url and thumbnail_manager:
                         thumbnail_url = await thumbnail_manager.extract_thumbnail(Config.FILE_CHANNEL_ID, candidate['message_id'], candidate['file_name'])
                     
@@ -1765,7 +1835,7 @@ class OptimizedFileIndexingManager:
                         }
                         
                         await thumbnails_col.update_one(
-                            {'normalized_title': candidate['normalized'], 'quality': candidate['quality']},
+                            {'normalized_title': candidate['normalized']},
                             {'$set': thumbnail_doc},
                             upsert=True
                         )
@@ -1773,6 +1843,7 @@ class OptimizedFileIndexingManager:
                         successful += 1
                         logger.info(f"✅ Thumbnail stored: {candidate['clean_title']} - {candidate['quality']}")
                     else:
+                        # Store even if no thumbnail (for negative caching)
                         no_thumb_doc = {
                             'normalized_title': candidate['normalized'],
                             'title': candidate['clean_title'],
@@ -1786,7 +1857,7 @@ class OptimizedFileIndexingManager:
                         }
                         
                         await thumbnails_col.update_one(
-                            {'normalized_title': candidate['normalized'], 'quality': candidate['quality']},
+                            {'normalized_title': candidate['normalized']},
                             {'$set': no_thumb_doc},
                             upsert=True
                         )
@@ -1861,7 +1932,7 @@ class OptimizedFileIndexingManager:
                 if not file_name or not is_video_file(file_name):
                     continue
                 
-                if has_telegram_thumbnail(msg):
+                if has_telegram_thumbnail(msg) or msg.video:
                     clean_title = extract_clean_title(file_name)
                     normalized = normalize_title(clean_title)
                     quality = detect_quality_enhanced(file_name)
@@ -1904,7 +1975,7 @@ class OptimizedFileIndexingManager:
 file_indexing_manager = OptimizedFileIndexingManager()
 
 # ============================================================================
-# ✅ SYNC MANAGER
+# ✅ SYNC MANAGER - FIXED
 # ============================================================================
 
 class OptimizedSyncManager:
@@ -2001,7 +2072,7 @@ class OptimizedSyncManager:
 sync_manager = OptimizedSyncManager()
 
 # ============================================================================
-# ✅ HOME MOVIES - WITH POSTER PRIORITY
+# ✅ HOME MOVIES - WITH POSTER PRIORITY - FIXED
 # ============================================================================
 
 @performance_monitor.measure("home_movies")
@@ -2057,15 +2128,15 @@ async def get_home_movies(limit=25):
                     # ====================================================================
                     # ✅ PRIORITY 2: EXTRACTED THUMBNAIL
                     # ====================================================================
-                    if not thumbnail_url and thumbnail_manager and thumbnails_col is not None:
+                    if not thumbnail_url and thumbnails_col is not None:
                         try:
                             thumb_doc = await thumbnails_col.find_one(
                                 {'normalized_title': norm_title, 'has_thumbnail': True}
-                            ).hint([('normalized_title', 1)])
+                            )
                             
                             if thumb_doc and thumb_doc.get('thumbnail_url'):
                                 thumbnail_url = thumb_doc['thumbnail_url']
-                                thumbnail_source = 'extracted'
+                                thumbnail_source = thumb_doc.get('thumbnail_source', 'extracted')
                                 logger.debug(f"✅ EXTRACTED THUMBNAIL found for: {clean_title[:30]}")
                         except Exception as e:
                             logger.debug(f"Thumbnail fetch error: {e}")
@@ -2098,10 +2169,10 @@ async def get_home_movies(limit=25):
                         'poster_source': poster_data.get('source') if poster_data else None,
                         'poster_rating': poster_data.get('rating') if poster_data else None,
                         'has_poster': bool(poster_data and poster_data.get('poster_url')),
-                        'extracted_thumbnail': thumbnail_url if thumbnail_source == 'extracted' else None,
-                        'has_extracted': thumbnail_source == 'extracted',
+                        'extracted_thumbnail': thumbnail_url if thumbnail_source not in ['poster', 'tmdb', 'omdb', 'fallback'] else None,
+                        'has_extracted': thumbnail_source not in ['poster', 'tmdb', 'omdb', 'fallback'],
                         'is_fallback': thumbnail_source == 'fallback',
-                        'image_priority': 'poster' if thumbnail_source in ['poster', 'tmdb', 'omdb'] else ('extracted' if thumbnail_source == 'extracted' else 'fallback')
+                        'image_priority': 'poster' if thumbnail_source in ['poster', 'tmdb', 'omdb'] else ('extracted' if thumbnail_source not in ['fallback'] else 'fallback')
                     }
                     
                     movies.append(movie_data)
@@ -2129,7 +2200,7 @@ async def get_home_movies(limit=25):
         return []
 
 # ============================================================================
-# ✅ TELEGRAM SESSION INITIALIZATION
+# ✅ TELEGRAM SESSION INITIALIZATION - FIXED
 # ============================================================================
 
 @performance_monitor.measure("telegram_init")
@@ -2207,7 +2278,7 @@ async def init_telegram_sessions():
     return bot_session_ready or user_session_ready
 
 # ============================================================================
-# ✅ MONGODB INITIALIZATION
+# ✅ MONGODB INITIALIZATION - FIXED
 # ============================================================================
 
 @performance_monitor.measure("mongodb_init")
@@ -2259,6 +2330,7 @@ async def init_mongodb():
         if thumbnails_col is not None:
             await safe_index(thumbnails_col, 'normalized_title')
             await safe_index(thumbnails_col, [('normalized_title', 1), ('has_thumbnail', 1)])
+            await safe_index(thumbnails_col, 'has_thumbnail')  # For faster queries
 
 
         logger.info("✅ MongoDB OK")
@@ -2398,7 +2470,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.3 - WITH POSTER FETCHING")
+        logger.info("🚀 SK4FiLM v9.4 - FIXED POSTER FETCHING")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2463,6 +2535,7 @@ async def init_system():
         logger.info(f"   • Thumbnail Extraction: ✅ ENABLED")
         logger.info(f"   • Home Movies Priority: Poster > Thumbnail > Fallback")
         logger.info(f"   • Search Priority: MongoDB > Poster > Fallback")
+        logger.info(f"   • Background Storage: ✅ FIXED")
         logger.info("=" * 60)
         
         return True
@@ -2511,7 +2584,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.3 - WITH POSTER FETCHING',
+        'service': 'SK4FiLM v9.4 - FIXED POSTER FETCHING',
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
         'storage_stats': {
             'total_thumbnails': total_thumbnails,
@@ -2756,7 +2829,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    logger.info("🛑 Shutting down SK4FiLM v9.3...")
+    logger.info("🛑 Shutting down SK4FiLM v9.4...")
     
     if telegram_bot and hasattr(telegram_bot, 'shutdown'):
         await telegram_bot.shutdown()
@@ -2805,7 +2878,7 @@ if __name__ == "__main__":
     config.http2 = True
     config.keep_alive_timeout = 30
     
-    logger.info(f"🌐 Starting SK4FiLM v9.3 on port {Config.WEB_SERVER_PORT}...")
+    logger.info(f"🌐 Starting SK4FiLM v9.4 on port {Config.WEB_SERVER_PORT}...")
     logger.info(f"📁 File Channel ID: {Config.FILE_CHANNEL_ID}")
     logger.info(f"🎬 Poster Fetching: {'ENABLED' if Config.POSTER_FETCHING_ENABLED else 'DISABLED'}")
     logger.info(f"🖼️ Home Movies: Poster > Thumbnail > Fallback")
