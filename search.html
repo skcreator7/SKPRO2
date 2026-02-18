@@ -624,18 +624,54 @@
     </style>
 </head>
 <body>
-<!-- Navbar -->
-<nav class="navbar fixed-top">
-    <div class="container d-flex align-items-center justify-content-between">
-        <a href="index.html" class="navbar-brand">
-            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
-            SK4FiLM
-        </a>
-        <button class="btn-back-home" onclick="window.location.href='index.html'">
-            <i class="fas fa-arrow-left me-2"></i>Back Home
-        </button>
-    </div>
-</nav>
+<!-- Navigation -->
+    <nav class="top-navbar">
+        <div class="container-fluid">
+            <div class="navbar-content">
+                <div class="logo-section">
+                    <a href="#" style="display: flex; align-items: center; color: white; text-decoration: none;">
+                        <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
+                        <div class="brand-content">
+                            <div class="brand-text">SK4FiLM</div>
+                            <div class="brand-subtitle">House of Entertainment</div>
+                        </div>
+                    </a>
+                </div>           
+                    <div class="menu-section">
+                        <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn">
+                            <div class="menu-lines">
+                                <div class="menu-line"></div>
+                                <div class="menu-line"></div>
+                                <div class="menu-line"></div>
+                            </div>
+                        </button>
+                        
+                        <div class="menu-dropdown" id="menuDropdown">
+                            <h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
+                            <div class="menu-links">
+                                <a href="https://t.me/sk4film" target="_blank" class="menu-link">
+                                    <i class="fab fa-telegram" style="color: #0088cc;"></i>
+                                    <span>Telegram</span>
+                                </a>
+                                <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
+                                    <i class="fab fa-whatsapp" style="color: #25d366;"></i>
+                                    <span>WhatsApp</span>
+                                </a>
+                                <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
+                                    <i class="fab fa-youtube" style="color: #ff0000;"></i>
+                                    <span>YouTube</span>
+                                </a>
+                                <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
+                                    <i class="fas fa-robot" style="color: #7b68ee;"></i>
+                                    <span>Telegram Bot</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
 
 <!-- Main Content -->
 <div class="container my-4">
