@@ -1065,8 +1065,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
 async def get_best_thumbnail(normalized_title: str, clean_title: str = None, 
                             year: str = None, msg=None) -> Tuple[str, str]:
     """
-    🎯 Get ONE thumbnail per movie
-    Priority: MongoDB > Poster > Fallback
+    🎯 FIXED: Get ONE thumbnail per movie with correct source
     """
     # PRIORITY 1: Check MongoDB for movie thumbnail
     if thumbnails_col is not None:
@@ -1078,8 +1077,8 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
             })
             
             if doc and doc.get('thumbnail_url'):
-                logger.debug(f"📦 MongoDB thumbnail FOUND for: {clean_title}")
-                return doc['thumbnail_url'], doc.get('thumbnail_source', 'mongodb')
+                logger.info(f"📦 MongoDB thumbnail FOUND for: {clean_title}")  # Changed to INFO
+                return doc['thumbnail_url'], 'mongodb'  # Force source to 'mongodb'
                     
         except Exception as e:
             logger.debug(f"⚠️ MongoDB thumbnail fetch error: {e}")
@@ -1090,13 +1089,14 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
             poster = await get_poster_for_movie(clean_title, year)
             
             if poster and poster.get('poster_url') and poster.get('found'):
-                # Try to store real thumbnail in background if available
+                # Try to store real thumbnail in background
                 if msg and has_telegram_thumbnail(msg):
                     asyncio.create_task(
                         try_store_real_thumbnail(normalized_title, clean_title, msg)
                     )
                 
-                return poster['poster_url'], poster.get('source', 'poster')
+                logger.info(f"🎬 POSTER FOUND for: {clean_title}")
+                return poster['poster_url'], 'poster'  # Force source to 'poster'
                 
         except Exception as e:
             logger.debug(f"⚠️ Poster fetch error: {clean_title}: {e}")
@@ -1108,8 +1108,8 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
         )
     
     # PRIORITY 4: Fallback
-    logger.debug(f"⚠️ Using fallback for: {clean_title}")
-    return FALLBACK_THUMBNAIL_URL, "fallback"
+    logger.info(f"⚠️ Using fallback for: {clean_title}")
+    return FALLBACK_THUMBNAIL_URL, 'fallback'  # Force source to 'fallback'
 
 # ============================================================================
 # ✅ POSTER FETCHING FUNCTIONS
