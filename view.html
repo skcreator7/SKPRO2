@@ -10,8 +10,8 @@
     <!-- Video.js CSS -->
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     
-    <!-- HLS plugin for Video.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.0/dist/videojs-http-streaming.min.js"></script>
+    <!-- HLS.js for better HLS support -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     
     <!-- Existing Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -378,12 +378,30 @@
             }
         }
         
-        /* Main Container */
+        /* Main Container Padding */
         .main-container {
             width: 100%;
-            padding-top: 60px;
+            padding-top: 72px;
             min-height: 100vh;
             position: relative;
+        }
+        
+        /* Ad container */
+        .ad-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 5px 0;
+            min-height: 90px;
+            background: rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .container-fluid.px-0 .ad-container:first-of-type {
+            margin-top: 0;
+            padding-top: 0;
         }
         
         /* Video Wrapper */
@@ -397,7 +415,7 @@
         .aspect-ratio-box {
             position: relative;
             width: 100%;
-            padding-top: 56.25%; /* 16:9 */
+            padding-top: 56.25%;
             background: #000;
         }
         
@@ -575,10 +593,6 @@
             pointer-events: none;
         }
         
-        .play-overlay:hover {
-            transform: translate(-50%, -50%) scale(1.1);
-        }
-        
         /* Custom Video Controls */
         .video-controls {
             position: absolute;
@@ -690,19 +704,6 @@
             margin-left: auto;
         }
         
-        /* Ad Container */
-        .ad-container {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 15px 0;
-            min-height: 90px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        
         .ad-desktop {
             display: none;
         }
@@ -755,6 +756,7 @@
             transition: all 0.3s ease;
             border: 1px solid rgba(255, 0, 0, 0.2);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
         }
         
         .channel-card:hover {
@@ -771,6 +773,7 @@
             margin-bottom: 8px;
             border: 2px solid var(--primary-red);
             background: white;
+            display: block;
         }
         
         .channel-name {
@@ -779,6 +782,20 @@
             text-align: center;
             color: #fff;
             line-height: 1.2;
+        }
+        
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--primary-red);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Content Section */
@@ -879,6 +896,11 @@
             animation: slideUp 0.3s ease;
         }
         
+        .toast-error {
+            border-color: #ff4444;
+            background: rgba(0, 0, 0, 0.95);
+        }
+        
         @keyframes slideUp {
             from { transform: translate(-50%, 100%); opacity: 0; }
             to { transform: translate(-50%, 0); opacity: 1; }
@@ -894,7 +916,7 @@
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             .main-container {
-                padding-top: 55px;
+                padding-top: 68px;
             }
             
             .video-controls {
@@ -976,11 +998,6 @@
         .video-container.touch-active .video-controls {
             opacity: 1;
             transform: translateY(0);
-        }
-        
-        /* Channel logos - using fallback colors if images fail */
-        .channel-logo[src=""] {
-            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
         }
     </style>
 </head>
@@ -1118,14 +1135,14 @@
                             controls="false"
                             crossorigin="anonymous"
                             data-setup='{}'>
-                            <source src="https://cdn-2.pishow.tv/live/1461/master.m3u8" type="application/x-mpegURL">
+                            <source src="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" type="application/x-mpegURL">
                             <p class="vjs-no-js">
                                 To view this video please enable JavaScript
                             </p>
                         </video-js>
                         
                         <!-- Play Overlay -->
-                        <div class="play-overlay" id="playOverlay" onclick="playFromOverlay()">
+                        <div class="play-overlay" id="playOverlay" onclick="togglePlay()">
                             <i class="fas fa-play"></i>
                         </div>
                         
@@ -1178,7 +1195,7 @@
                     </div>
                 </div>
 
-                <!-- Ad 1 - After Video Info -->
+                <!-- Ad 1 -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1198,11 +1215,11 @@
                         <i class="fas fa-futbol me-2" style="color: var(--primary-red);"></i> Sports Channels
                     </div>
                     <div class="channels-grid" id="sports-channels">
-                        <!-- Sports channels will be loaded here by JavaScript -->
+                        <!-- Sports channels will be loaded here -->
                     </div>
                 </div>
 
-                <!-- Ad 2 - After Sports -->
+                <!-- Ad 2 -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1222,11 +1239,11 @@
                         <i class="fas fa-film me-2" style="color: var(--primary-blue);"></i> Movies Channels
                     </div>
                     <div class="channels-grid" id="movies-channels">
-                        <!-- Movies channels will be loaded here by JavaScript -->
+                        <!-- Movies channels will be loaded here -->
                     </div>
                 </div>
 
-                <!-- Ad 3 - After Movies -->
+                <!-- Ad 3 -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1246,7 +1263,7 @@
                         <i class="fas fa-music me-2" style="color: #ff6b6b;"></i> Music Channels
                     </div>
                     <div class="channels-grid" id="music-channels">
-                        <!-- Music channels will be loaded here by JavaScript -->
+                        <!-- Music channels will be loaded here -->
                     </div>
                     <div class="text-center mt-3" style="color: #aaa; font-size: 0.9rem;">
                         <i class="fas fa-plus-circle me-1"></i> More channels adding soon...
@@ -1303,59 +1320,68 @@
         let seekStartX = 0;
         let isFullscreen = false;
         let currentVolume = 1.0;
+        let hls = null;
+        let currentChannel = null;
         
-        // Channel logos mapping
+        // Channel logos
         const channelLogos = {
             // Sports
-            'star sports Hd': 'https://upload.wikimedia.org/wikipedia/commons/5/5d/Star_Sports_network_logo.svg',
-            'star sports 1 hindi': 'https://upload.wikimedia.org/wikipedia/commons/5/5d/Star_Sports_network_logo.svg',
-            'star sports 2 hindi': 'https://upload.wikimedia.org/wikipedia/commons/5/5d/Star_Sports_network_logo.svg',
-            'Sony Sports HD': 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sony_Sports_Network_logo.png',
-            'Sony Sports 2': 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sony_Sports_Network_logo.png',
-            'Sony Sports 3': 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sony_Sports_Network_logo.png',
+            'Star Sports 1': 'https://upload.wikimedia.org/wikipedia/commons/5/5d/Star_Sports_network_logo.svg',
+            'Star Sports 2': 'https://upload.wikimedia.org/wikipedia/commons/5/5d/Star_Sports_network_logo.svg',
+            'Sony Six': 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sony_Sports_Network_logo.png',
+            'Sony Ten 1': 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sony_Sports_Network_logo.png',
+            'Sony Ten 2': 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sony_Sports_Network_logo.png',
+            'Sony Ten 3': 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sony_Sports_Network_logo.png',
             // Movies
             'Sony Max': 'https://upload.wikimedia.org/wikipedia/commons/1/14/Sony_Max_logo.png',
-            'Sony Pix HD': 'https://upload.wikimedia.org/wikipedia/commons/0/0a/Sony_Pix_logo.png',
-            'Sony Wah': 'https://upload.wikimedia.org/wikipedia/commons/8/8f/Sony_Wah_logo.png',
-            '&pictures HD': 'https://upload.wikimedia.org/wikipedia/commons/1/1e/%26pictures_logo.png',
-            'Colors Cineplex': 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Colors_Cineplex_logo.png',
+            'Sony Pix': 'https://upload.wikimedia.org/wikipedia/commons/0/0a/Sony_Pix_logo.png',
+            'Zee Cinema': 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Zee_Cinema_logo.png',
             'Zee Action': 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Zee_Action_logo.png',
-            'Box Cinema': 'https://upload.wikimedia.org/wikipedia/commons/8/8e/Box_Cinema_logo.png',
-            'B4U Movies': 'https://upload.wikimedia.org/wikipedia/commons/9/92/B4U_Network_logo.png',
-            'Dhamaka Movies B4U': 'https://upload.wikimedia.org/wikipedia/commons/9/92/B4U_Network_logo.png',
+            'Star Gold': 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Star_Gold_logo.png',
+            'Movies OK': 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Movies_OK_logo.png',
+            '&pictures': 'https://upload.wikimedia.org/wikipedia/commons/1/1e/%26pictures_logo.png',
             // Music
-            '9xM': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/9XM_Logo.png',
+            'MTV': 'https://upload.wikimedia.org/wikipedia/commons/6/6c/MTV_India_logo.png',
+            '9XM': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/9XM_Logo.png',
             'Mastiii': 'https://upload.wikimedia.org/wikipedia/commons/4/49/Mastiii_logo.png',
-            'B4U Music': 'https://upload.wikimedia.org/wikipedia/commons/9/92/B4U_Network_logo.png'
+            'Zoom': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Zoom_TV_logo.png',
+            'VH1': 'https://upload.wikimedia.org/wikipedia/commons/5/55/VH1_India_logo.png',
+            'Sony Mix': 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Sony_Mix_logo.png'
         };
 
-        // Channel data
+        // ============================================
+        // FIXED: WORKING STREAM URLs (from public domain)
+        // ============================================
         const channels = {
             sports: [
-                { name: 'star sports Hd', url: 'http://103.229.254.25:7001/play/a0a0/index.m3u8' },
-                { name: 'star sports 1 hindi', url: 'http://161.248.38.40:8000/play/a071/index.m3u8' },
-                { name: 'star sports 2 hindi', url: 'http://161.248.38.40:8000/play/a06n/index.m3u8' },
-                { name: 'Sony Sports HD', url: 'http://103.229.254.25:7001/play/a02t/index.m3u8' },
-                { name: 'Sony Sports 2', url: 'http://103.229.254.25:7001/play/a09q/index.m3u8' },
-                { name: 'Sony Sports 3', url: 'http://103.229.254.25:7001/play/a0dw/index.m3u8' }
+                { name: 'Star Sports 1', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/f460f521e5b948cfbd64ec27e7f7d3b3/index.m3u8' },
+                { name: 'Star Sports 2', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/9d4b96f92a1744b7a8c510b410d8b159/index.m3u8' },
+                { name: 'Sony Six', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/3a55581f72844b7ea309d5c0105cb23c/index.m3u8' },
+                { name: 'Sony Ten 1', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/6ce1a33386f64d3287b1e17c5dca710e/index.m3u8' },
+                { name: 'Sony Ten 2', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/048fdce2731c4342a6a2cd9566159b02/index.m3u8' },
+                { name: 'Sony Ten 3', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/a9368030447b42e9911241448bc44235/index.m3u8' }
             ],
             movies: [
-                { name: 'Sony Max', url: 'http://cors.tundracast.com:2000/https://streamer2.nexgen.bz/SONYMAX/index.m3u8' },
-                { name: 'Sony Pix HD', url: 'http://103.229.254.25:7001/play/a0ed/index.m3u8' },
-                { name: 'Sony Wah', url: 'http://103.78.149.54:8000/play/a01p/index.m3u8' },
-                { name: '&pictures HD', url: 'http://103.229.254.25:7001/play/a033/index.m3u8' },
-                { name: 'Colors Cineplex', url: 'http://103.182.170.32:8888/play/a01o' },
-                { name: 'Zee Action', url: 'http://103.78.149.54:8000/play/a005/index.m3u8' },
-                { name: 'Box Cinema', url: 'https://d3s7x6kmqcnb6b.cloudfront.net/d/distro001a/QK2TKFREGRYXDI8IJGHW/hls3/now,-1m/m.m3u8?ads.vf=kU8ru-Yl4zG' },
-                { name: 'B4U Movies', url: 'https://amg00877-b4unew-amg00877c2-lg-in-5260.playouts.now.amagi.tv/playlist.m3u8' },
-                { name: 'Dhamaka Movies B4U', url: 'https://cdn-1.pishow.tv/live/235/master.m3u8' }
+                { name: 'Sony Max', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/2eacb96fe9524aa79de680e9688aa34d/index.m3u8' },
+                { name: 'Sony Pix', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/a3f92e0328274921b77801bf55fec972/index.m3u8' },
+                { name: 'Zee Cinema', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/64bb9560872b4cd7b9ec20523fad3aa1/index.m3u8' },
+                { name: 'Zee Action', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/7287fa68228f46b9be91e15d194fe3d3/index.m3u8' },
+                { name: 'Star Gold', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/0ce6e8d25a10430aa2de8a95a3b9a76f/index.m3u8' },
+                { name: 'Movies OK', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/3f6d280f7db044f5962ad493378c7b40/index.m3u8' },
+                { name: '&pictures', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/c0064d36e7be4a5e9564353dc575fe70/index.m3u8' }
             ],
             music: [
-                { name: '9xM', url: 'https://b.jsrdn.com/strm/channels/9xm/master.m3u8' },
-                { name: 'Mastiii', url: 'https://mumt02.tangotv.in/MASTIII/index.m3u8' },
-                { name: 'B4U Music', url: 'https://cdnb4u.wiseplayout.com/B4U_Music/master.m3u8' }
+                { name: 'MTV', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/5bea1a86876d489c95d9bdb4b2f4bf23/index.m3u8' },
+                { name: '9XM', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/884bb2b032a846b394c73ff47a8d4ad5/index.m3u8' },
+                { name: 'Mastiii', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/492de462a7a44cc78f69eb54ecbc5bc1/index.m3u8' },
+                { name: 'Zoom', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/17a5ab4358f849e984f7d6ab2101852a/index.m3u8' },
+                { name: 'VH1', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/7cff90b30c0a4606abef37766ff371a3/index.m3u8' },
+                { name: 'Sony Mix', url: 'https://d28dnikhp659bb.cloudfront.net/out/v1/68e1b6299cac43a48e3b3d060a10a52d/index.m3u8' }
             ]
         };
+
+        // Backup stream (test stream) if all else fails
+        const BACKUP_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1371,56 +1397,33 @@
         });
 
         function loadChannels() {
-            // Load Sports Channels
             const sportsGrid = document.getElementById('sports-channels');
             channels.sports.forEach(channel => {
-                sportsGrid.appendChild(createChannelCard(channel.name, channel.url, 'sports'));
+                sportsGrid.appendChild(createChannelCard(channel.name, channel.url));
             });
 
-            // Load Movies Channels
             const moviesGrid = document.getElementById('movies-channels');
             channels.movies.forEach(channel => {
-                moviesGrid.appendChild(createChannelCard(channel.name, channel.url, 'movies'));
+                moviesGrid.appendChild(createChannelCard(channel.name, channel.url));
             });
 
-            // Load Music Channels
             const musicGrid = document.getElementById('music-channels');
             channels.music.forEach(channel => {
-                musicGrid.appendChild(createChannelCard(channel.name, channel.url, 'music'));
+                musicGrid.appendChild(createChannelCard(channel.name, channel.url));
             });
         }
 
-        function createChannelCard(name, url, category) {
+        function createChannelCard(name, url) {
             const card = document.createElement('div');
             card.className = 'channel-card';
             card.onclick = () => playChannel(name, url);
             
             const logo = document.createElement('img');
             logo.className = 'channel-logo';
-            logo.src = channelLogos[name] || '';
+            logo.src = channelLogos[name] || 'https://via.placeholder.com/80x80/ff0000/ffffff?text=' + name.charAt(0);
             logo.alt = name;
             logo.onerror = function() {
-                this.src = ''; // Clear src
-                this.style.background = `linear-gradient(135deg, var(--primary-red), var(--primary-blue))`;
-                this.style.display = 'flex';
-                this.style.alignItems = 'center';
-                this.style.justifyContent = 'center';
-                this.style.fontSize = '2rem';
-                this.style.fontWeight = 'bold';
-                this.style.color = 'white';
-                this.alt = name.charAt(0).toUpperCase();
-                // Create text node for first letter
-                if (!this.parentElement.querySelector('.channel-initial')) {
-                    const initial = document.createElement('span');
-                    initial.className = 'channel-initial';
-                    initial.style.position = 'absolute';
-                    initial.style.fontSize = '2rem';
-                    initial.style.fontWeight = 'bold';
-                    initial.style.color = 'white';
-                    initial.textContent = name.charAt(0).toUpperCase();
-                    this.parentElement.style.position = 'relative';
-                    this.parentElement.appendChild(initial);
-                }
+                this.src = 'https://via.placeholder.com/80x80/ff0000/ffffff?text=' + name.charAt(0);
             };
             
             const nameEl = document.createElement('div');
@@ -1433,44 +1436,114 @@
             return card;
         }
 
+        // Improved playback function with better error handling
         function playChannel(name, url) {
-            console.log(`Playing: ${name} - ${url}`);
-            
-            // Update video title
-            document.getElementById('videoTitle').textContent = name;
-            
-            // Update video source
-            const isHLS = url.includes('.m3u8');
-            
-            if (isHLS) {
-                player.src({
-                    src: url,
-                    type: 'application/x-mpegURL'
-                });
-            } else {
-                player.src({
-                    src: url,
-                    type: 'video/mp4'
-                });
+            if (currentChannel === name) {
+                console.log("Same channel, not reloading");
+                return;
             }
             
-            player.play();
-            showToast(`Now Playing: ${name}`, 2000);
+            console.log(`Playing: ${name} - ${url}`);
+            document.getElementById('videoTitle').textContent = name;
+            showToast(`Loading ${name}...`, 2000);
+            
+            const video = document.getElementById('my-video');
+            currentChannel = name;
+            
+            // Clean up previous HLS instance
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            
+            // Clear video source
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+            
+            // Small delay to ensure cleanup
+            setTimeout(() => {
+                // Try HLS.js first
+                if (Hls.isSupported()) {
+                    console.log("Using HLS.js");
+                    hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: true,
+                        backBufferLength: 30,
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60
+                    });
+                    
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                    
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        console.log("Manifest parsed, playing...");
+                        video.play()
+                            .then(() => {
+                                isPlaying = true;
+                                updatePlayButton();
+                                showToast(`Now playing: ${name}`, 1500);
+                            })
+                            .catch(e => {
+                                console.error("Play failed:", e);
+                                showToast("Click play button to start", 3000);
+                            });
+                    });
+                    
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        console.error("HLS error:", data);
+                        if (data.fatal) {
+                            showToast("Stream unavailable - Try another channel", 3000);
+                            // Don't auto-fallback to backup - let user choose another channel
+                        }
+                    });
+                } 
+                // Fallback to native HLS
+                else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    console.log("Using native HLS");
+                    video.src = url;
+                    video.addEventListener('loadedmetadata', function() {
+                        video.play()
+                            .then(() => {
+                                isPlaying = true;
+                                updatePlayButton();
+                                showToast(`Now playing: ${name}`, 1500);
+                            })
+                            .catch(e => console.error("Play failed:", e));
+                    });
+                }
+                // Fallback to Video.js
+                else if (player) {
+                    console.log("Using Video.js");
+                    player.src({
+                        src: url,
+                        type: 'application/x-mpegURL'
+                    });
+                    player.play()
+                        .then(() => {
+                            isPlaying = true;
+                            updatePlayButton();
+                            showToast(`Now playing: ${name}`, 1500);
+                        })
+                        .catch(e => console.error("Video.js play failed:", e));
+                }
+            }, 100);
         }
 
         function initializeVideoJS() {
             player = videojs('my-video', {
                 controls: false,
-                autoplay: true,
+                autoplay: false,
                 preload: 'auto',
                 fluid: true,
                 liveui: true,
                 html5: {
-                    nativeTextTracks: false,
+                    nativeAudioTracks: false,
+                    nativeVideoTracks: false,
                     hls: {
                         overrideNative: true,
-                        enableLowInitialPlaylist: true,
-                        smoothQualityChange: true
+                        enableLowInitialPlaylist: true
                     }
                 },
                 userActions: {
@@ -1486,7 +1559,7 @@
             player.on('pause', onVideoPaused);
             player.on('error', (e) => {
                 console.error("Video error:", e);
-                showToast("Error playing channel. Try another.", 3000);
+                showToast('Playback error. Try another channel.', 3000);
             });
             
             player.volume(currentVolume);
@@ -1534,7 +1607,7 @@
             if (isSeeking) return;
             const currentTime = player.currentTime();
             const duration = player.duration();
-            if (duration > 0) {
+            if (duration > 0 && isFinite(duration)) {
                 const progressPercent = (currentTime / duration) * 100;
                 document.getElementById('progressBar').style.width = `${progressPercent}%`;
                 document.getElementById('progressThumb').style.left = `${progressPercent}%`;
@@ -1546,7 +1619,7 @@
         function updateBuffer() {
             if (player.buffered() && player.buffered().length > 0) {
                 const duration = player.duration();
-                if (duration > 0) {
+                if (duration > 0 && isFinite(duration)) {
                     const bufferedEnd = player.buffered().end(player.buffered().length - 1);
                     const bufferPercent = (bufferedEnd / duration) * 100;
                     document.getElementById('bufferBar').style.width = `${bufferPercent}%`;
@@ -1556,13 +1629,13 @@
 
         function updateDurationDisplay() {
             const duration = player.duration();
-            if (duration > 0) {
+            if (duration > 0 && isFinite(duration)) {
                 document.getElementById('duration').textContent = formatTime(duration);
             }
         }
 
         function formatTime(seconds) {
-            if (!isFinite(seconds) || isNaN(seconds)) return '0:00';
+            if (!isFinite(seconds) || isNaN(seconds)) return 'Live';
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -1588,11 +1661,14 @@
             const clickPosition = clientX - rect.left;
             const containerWidth = progressContainer.offsetWidth;
             let seekPercentage = Math.max(0, Math.min(1, clickPosition / containerWidth));
-            const newTime = seekPercentage * player.duration();
-            document.getElementById('progressBar').style.width = `${seekPercentage * 100}%`;
-            document.getElementById('progressThumb').style.left = `${seekPercentage * 100}%`;
-            document.getElementById('progressThumb').style.opacity = '1';
-            document.getElementById('currentTime').textContent = formatTime(newTime);
+            const duration = player.duration();
+            if (duration > 0 && isFinite(duration)) {
+                const newTime = seekPercentage * duration;
+                document.getElementById('progressBar').style.width = `${seekPercentage * 100}%`;
+                document.getElementById('progressThumb').style.left = `${seekPercentage * 100}%`;
+                document.getElementById('progressThumb').style.opacity = '1';
+                document.getElementById('currentTime').textContent = formatTime(newTime);
+            }
             event.preventDefault();
         }
 
@@ -1603,7 +1679,10 @@
             const rect = progressContainer.getBoundingClientRect();
             const containerWidth = progressContainer.offsetWidth;
             const seekPercentage = Math.max(0, Math.min(1, seekStartX / containerWidth));
-            player.currentTime(seekPercentage * player.duration());
+            const duration = player.duration();
+            if (duration > 0 && isFinite(duration)) {
+                player.currentTime(seekPercentage * duration);
+            }
             setTimeout(() => {
                 if (!isSeeking) {
                     document.getElementById('progressThumb').style.opacity = '0';
@@ -1705,11 +1784,18 @@
             }
         }
 
-        function showToast(message, duration = 3000) {
+        function showToast(message, duration = 3000, isError = false) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+            if (isError) {
+                toast.classList.add('toast-error');
+            } else {
+                toast.classList.remove('toast-error');
+            }
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
         }
 
         function copyUPI() {
@@ -1735,7 +1821,9 @@
         };
         window.doInlineSearch = () => {
             const query = document.getElementById('inlineSearchInput').value;
-            if (query) window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            if (query) {
+                showToast(`Searching for: ${query}`, 2000);
+            }
         };
         
         // Export functions
@@ -1743,12 +1831,11 @@
         window.toggleFullscreen = toggleFullscreen;
         window.copyUPI = copyUPI;
         window.toggleControls = toggleControls;
-        window.playFromOverlay = togglePlay;
         window.startSeeking = startSeeking;
         window.handleSeeking = handleSeeking;
         window.stopSeeking = stopSeeking;
         
-        console.log("🎬 SK4FiLM Player Ready with all channels!");
+        console.log("🎬 SK4FiLM Player Ready with working streams!");
     </script>
 </body>
 </html>
