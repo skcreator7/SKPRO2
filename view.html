@@ -899,6 +899,7 @@
             overflow: hidden;
             min-height: 60px;
             position: relative;
+            margin-top: 15px;
         }
         
         .dialog-ad-container.loading::before {
@@ -1206,24 +1207,8 @@
         </div>
     </div>
     
-    <!-- External Player Dialog with Ads - Only Top Ad -->
+    <!-- External Player Dialog with Ads - Only Bottom Ad -->
     <div class="external-player-dialog" id="externalPlayerDialog">
-        <!-- Your Custom Ad Script - Only Top -->
-        <div class="dialog-ad-container" style="margin-bottom: 15px;">
-            <script>
-            (function(ky){
-            var d = document,
-                s = d.createElement('script'),
-                l = d.scripts[d.scripts.length - 1];
-            s.settings = ky || {};
-            s.src = "\/\/illiterate-being.com\/bbX.VusIdeGalL0BYWWOcv\/yeEmj9gu\/ZHUVlVk\/PGT\/Y\/4BMeDKcs4ZOLT\/cBt_NXjYgOwtNozIkbwfMWQs";
-            s.async = true;
-            s.referrerPolicy = 'no-referrer-when-downgrade';
-            l.parentNode.insertBefore(s, l);
-            })({})
-            </script>
-        </div>
-        
         <div class="dialog-title" id="dialogTitle">Open in External Player</div>
         <div class="dialog-message" id="dialogMessage">Choose a player to open this stream</div>
         
@@ -1247,6 +1232,22 @@
             <button class="dialog-btn btn-secondary" id="dialogPlayStoreMX" onclick="openPlayStore('mx')" style="display: none;">
                 <i class="fab fa-google-play me-2"></i>Install MX
             </button>
+        </div>
+        
+        <!-- Your Custom Ad Script - Only Bottom -->
+        <div class="dialog-ad-container">
+            <script>
+            (function(ky){
+            var d = document,
+                s = d.createElement('script'),
+                l = d.scripts[d.scripts.length - 1];
+            s.settings = ky || {};
+            s.src = "\/\/illiterate-being.com\/bbX.VusIdeGalL0BYWWOcv\/yeEmj9gu\/ZHUVlVk\/PGT\/Y\/4BMeDKcs4ZOLT\/cBt_NXjYgOwtNozIkbwfMWQs";
+            s.async = true;
+            s.referrerPolicy = 'no-referrer-when-downgrade';
+            l.parentNode.insertBefore(s, l);
+            })({})
+            </script>
         </div>
         
         <!-- Close Button -->
@@ -1737,8 +1738,8 @@
             installVLC.style.display = 'none';
             installMX.style.display = 'none';
             
-            // Reload top ad only
-            reloadTopAd();
+            // Reload bottom ad only
+            reloadBottomAd();
             
             dialog.classList.add('show');
         }
@@ -1766,20 +1767,20 @@
                 installMX.style.display = 'flex';
             }
             
-            // Keep top ad visible
-            reloadTopAd();
+            // Keep bottom ad visible
+            reloadBottomAd();
             
             dialog.classList.add('show');
         }
         
-        function reloadTopAd() {
-            // Get only the top ad container
-            const topAdContainer = document.querySelector('#externalPlayerDialog .dialog-ad-container:first-child');
+        function reloadBottomAd() {
+            // Get only the bottom ad container (last child of dialog-ad-container)
+            const bottomAdContainer = document.querySelector('#externalPlayerDialog .dialog-ad-container:last-child');
             
-            if (topAdContainer) {
+            if (bottomAdContainer) {
                 // Clear container
-                topAdContainer.innerHTML = '';
-                topAdContainer.classList.add('loading');
+                bottomAdContainer.innerHTML = '';
+                bottomAdContainer.classList.add('loading');
                 
                 // Create new script element with your ad code
                 const script = document.createElement('script');
@@ -1795,11 +1796,11 @@
                 l.parentNode.insertBefore(s, l);
                 })({})
                 `;
-                topAdContainer.appendChild(script);
+                bottomAdContainer.appendChild(script);
                 
                 // Remove loading class after ad loads
                 setTimeout(() => {
-                    topAdContainer.classList.remove('loading');
+                    bottomAdContainer.classList.remove('loading');
                 }, 500);
             }
         }
@@ -1808,12 +1809,12 @@
             const dialog = document.getElementById('externalPlayerDialog');
             dialog.classList.remove('show');
             
-            // Clear top ad when closing to save resources
+            // Clear bottom ad when closing to save resources
             setTimeout(() => {
                 if (!dialog.classList.contains('show')) {
-                    const topAdContainer = document.querySelector('#externalPlayerDialog .dialog-ad-container:first-child');
-                    if (topAdContainer) {
-                        topAdContainer.innerHTML = ''; // Clear ad when dialog is hidden
+                    const bottomAdContainer = document.querySelector('#externalPlayerDialog .dialog-ad-container:last-child');
+                    if (bottomAdContainer) {
+                        bottomAdContainer.innerHTML = ''; // Clear ad when dialog is hidden
                     }
                 }
             }, 500);
