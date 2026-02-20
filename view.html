@@ -8,11 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>SK4FiLM - Live Channels</title>
     
-    <!-- Video.js CSS -->
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
-    
-    <!-- HLS plugin for Video.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.0/dist/videojs-http-streaming.min.js"></script>
+    <!-- Shaka Player CSS & JS -->
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.min.js"></script>
     
     <!-- Existing Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -364,24 +362,20 @@
             overflow: hidden;
         }
         
-        /* Video.js Player Styling */
-        #my-video {
+        /* Shaka Player Styling */
+        #video-element {
             width: 100%;
             height: 100%;
             position: absolute;
             top: 0;
             left: 0;
             object-fit: contain;
+            background: #000;
         }
         
-        .video-js {
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-        }
-        
-        .video-js .vjs-control-bar {
-            display: none !important;
+        /* Hide Shaka's default controls - we'll use custom controls */
+        .shaka-text-container {
+            display: none;
         }
         
         /* Fullscreen styles */
@@ -424,10 +418,10 @@
             z-index: 999999 !important;
         }
         
-        :fullscreen #my-video,
-        :-webkit-full-screen #my-video,
-        :-moz-full-screen #my-video,
-        :-msfullscreen #my-video {
+        :fullscreen #video-element,
+        :-webkit-full-screen #video-element,
+        :-moz-full-screen #video-element,
+        :-msfullscreen #video-element {
             width: 100vw !important;
             height: 100vh !important;
             object-fit: contain !important;
@@ -1134,13 +1128,6 @@
             transform: translateY(0);
         }
     </style>
-
-<!-- Google IMA SDK -->
-<script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
-<!-- Video.js IMA Plugin -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/videojs-ima/1.9.0/videojs.ima.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/videojs-ima/1.9.0/videojs.ima.min.js"></script>
-
 </head>
 
 <body>
@@ -1312,21 +1299,15 @@
                         <div class="side-click-area left-click-area" onclick="toggleControls()"></div>
                         <div class="side-click-area right-click-area" onclick="toggleControls()"></div>
                         
-                        <!-- Video.js Player -->
-                        <video-js 
-                            id="my-video" 
-                            class="vjs-default-skin vjs-big-play-centered" 
-                            preload="auto" 
+                        <!-- Shaka Player Video Element -->
+                        <video 
+                            id="video-element"
+                            class="shaka-video" 
                             autoplay
-                            playsinline 
-                            controls="false"
+                            playsinline
                             crossorigin="anonymous"
-                            data-setup='{}'>
-                            <source src="https://cdn-2.pishow.tv/live/1461/master.m3u8" type="application/x-mpegURL">
-                            <p class="vjs-no-js">
-                                To view this video please enable JavaScript
-                            </p>
-                        </video-js>
+                            poster="https://iili.io/KOlfc41.png">
+                        </video>
                         
                         <!-- Play Overlay -->
                         <div class="play-overlay" id="playOverlay" onclick="togglePlay()">
@@ -1512,8 +1493,6 @@ l.parentNode.insertBefore(s, l);
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
 
-    <!-- JavaScript -->
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <script>
         // Initialize WOW.js
         if (typeof WOW !== 'undefined') {
@@ -1521,7 +1500,8 @@ l.parentNode.insertBefore(s, l);
         }
         
         // Global Variables
-        let player = null;
+        let player = null; // Shaka Player instance
+        let videoElement = null;
         let isPlaying = true;
         let controlsTimeout = null;
         let controlsVisible = false;
@@ -1599,16 +1579,124 @@ l.parentNode.insertBefore(s, l);
 
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player Initializing...");
+            console.log("🚀 SK4FiLM Player Initializing with Shaka Player...");
             
             fixIOSScrolling();
-            initializeVideoJS();
+            await initializeShakaPlayer();
             loadChannels();
             setupControls();
             setupFullscreenDetection();
             
             console.log("✅ Player Ready!");
         });
+
+        // Initialize Shaka Player
+        async function initializeShakaPlayer() {
+            videoElement = document.getElementById('video-element');
+            
+            // Install built-in polyfills to support HLS and other formats
+            shaka.polyfill.installAll();
+            
+            // Check if the browser supports the basic APIs
+            if (shaka.Player.isBrowserSupported()) {
+                // Create a Player instance
+                player = new shaka.Player(videoElement);
+                
+                // Attach event listeners
+                player.addEventListener('error', onShakaError);
+                player.addEventListener('buffering', onShakaBuffering);
+                
+                // Configure player for better HLS support
+                player.configure({
+                    streaming: {
+                        bufferingGoal: 30,
+                        rebufferingGoal: 15,
+                        bufferBehind: 30,
+                        ignoreTextStreamFailures: true,
+                        alwaysStreamText: false,
+                        startAtSegmentBoundary: false,
+                        accurateManifestUpdate: true,
+                        smallGapLimit: 0.5,
+                        jumpLargeGaps: true,
+                        durationBackoff: 1,
+                        retryParameters: {
+                            maxAttempts: 5,
+                            baseDelay: 1000,
+                            backoffFactor: 2,
+                            fuzzFactor: 0.5,
+                            timeout: 30000
+                        },
+                        updateIntervalSeconds: 1,
+                        dispatchAllEmsgBoxes: true
+                    },
+                    manifest: {
+                        dash: {
+                            ignoreMinBufferTime: true
+                        },
+                        hls: {
+                            ignoreManifestProgramDateTime: false,
+                            ignoreTextStreamFailures: true,
+                            defaultAudioCodec: 'mp4a.40.2',
+                            defaultVideoCodec: 'avc1.42E01E'
+                        }
+                    },
+                    drm: {
+                        retryParameters: {
+                            maxAttempts: 3,
+                            baseDelay: 500,
+                            backoffFactor: 2,
+                            fuzzFactor: 0.5,
+                            timeout: 10000
+                        }
+                    }
+                });
+                
+                // Set up media element event listeners
+                videoElement.addEventListener('play', onVideoPlaying);
+                videoElement.addEventListener('pause', onVideoPaused);
+                videoElement.addEventListener('timeupdate', updateProgress);
+                videoElement.addEventListener('loadedmetadata', updateDurationDisplay);
+                videoElement.addEventListener('progress', updateBuffer);
+                videoElement.addEventListener('volumechange', () => {
+                    currentVolume = videoElement.volume;
+                });
+                videoElement.addEventListener('waiting', () => {
+                    showToast('Buffering...', 2000);
+                });
+                
+                // Set initial volume
+                videoElement.volume = currentVolume;
+                
+                // Try to play the default stream
+                tryInternalPlayer('https://cdn-2.pishow.tv/live/1461/master.m3u8', 'SK4FiLM Live');
+            } else {
+                console.error('Browser not supported!');
+                showToast('Your browser does not support Shaka Player', 5000, 'error');
+            }
+        }
+
+        function onShakaError(event) {
+            console.error('Shaka Player error:', event.detail);
+            
+            // Try HTTPS version if current URL is HTTP
+            if (currentChannelUrl && currentChannelUrl.startsWith('http://') && !currentChannelUrl.includes('https')) {
+                showToast("Trying secure connection...", 2000);
+                let httpsUrl = 'https://' + currentChannelUrl.substring(7);
+                tryInternalPlayer(httpsUrl, currentChannelName);
+            }
+            // Show external player options
+            else if (currentChannelName && currentChannelUrl) {
+                showExternalPlayerDialog(currentChannelName, currentChannelUrl);
+            } else {
+                showToast('Stream not available. Try another channel.', 4000, 'error');
+            }
+        }
+
+        function onShakaBuffering(event) {
+            if (event.buffering) {
+                showToast('Buffering...', 2000);
+            }
+        }
 
         function loadChannels() {
             // Load Sports Channels
@@ -1668,7 +1756,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         // Smart Play Function - Tries internal player first, then external
-        function playChannel(name, url) {
+        async function playChannel(name, url) {
             console.log(`Playing: ${name} - ${url}`);
             
             currentChannelName = name;
@@ -1681,15 +1769,11 @@ l.parentNode.insertBefore(s, l);
             // Show loading state
             showToast(`Loading ${name}...`, 2000);
             
-            // Keep the original URL without modification
-            // Some streams need HTTP, some need HTTPS
-            // We'll try both if needed
-            
-            // STEP 1: Try internal player first with original URL
+            // Try internal player first
             tryInternalPlayer(url, name);
         }
         
-        function tryInternalPlayer(url, name, useHttps = false) {
+        async function tryInternalPlayer(url, name, useHttps = false) {
             let streamUrl = url;
             
             // Try HTTPS if specified and URL is HTTP
@@ -1698,67 +1782,30 @@ l.parentNode.insertBefore(s, l);
                 console.log("Trying HTTPS version:", streamUrl);
             }
             
-            // For HLS streams
-            if (streamUrl.includes('.m3u8')) {
-                player.src({
-                    src: streamUrl,
-                    type: 'application/x-mpegURL'
-                });
-            } else {
-                player.src({
-                    src: streamUrl,
-                    type: 'video/mp4'
-                });
-            }
-            
-            // Set timeout to detect if playback fails
-            const playTimeout = setTimeout(() => {
-                // If still loading after 5 seconds, try backup or external
-                if (player && player.paused && !player.playing) {
-                    console.log("Internal player taking too long, trying backup/external...");
-                    
-                    // Try HTTPS version if original was HTTP
-                    if (!useHttps && url.startsWith('http://')) {
-                        showToast("Trying secure connection...", 2000);
-                        tryInternalPlayer(url, name, true);
-                    }
-                    // Try backup if available
-                    else if (backupUrl) {
-                        showToast("Trying backup stream...", 2000);
-                        tryInternalPlayer(backupUrl, name);
-                    } else {
-                        showExternalPlayerDialog(name, url);
-                    }
+            try {
+                // Load the stream with Shaka Player
+                await player.load(streamUrl);
+                
+                // Start playback
+                videoElement.play();
+                
+                console.log("Internal player playing successfully");
+            } catch (error) {
+                console.error('Playback error:', error);
+                
+                // Try HTTPS version if original was HTTP and haven't tried yet
+                if (!useHttps && url.startsWith('http://')) {
+                    showToast("Trying secure connection...", 2000);
+                    tryInternalPlayer(url, name, true);
                 }
-            }, 8000); // Increased timeout to 8 seconds
-            
-            // Attempt to play
-            const playPromise = player.play();
-            
-            if (playPromise !== undefined) {
-                playPromise
-                    .then(() => {
-                        clearTimeout(playTimeout);
-                        console.log("Internal player playing successfully");
-                    })
-                    .catch(error => {
-                        clearTimeout(playTimeout);
-                        console.error('Playback error:', error);
-                        
-                        // Try HTTPS version if original was HTTP and haven't tried yet
-                        if (!useHttps && url.startsWith('http://')) {
-                            showToast("Trying secure connection...", 2000);
-                            tryInternalPlayer(url, name, true);
-                        }
-                        // Try backup if available
-                        else if (backupUrl) {
-                            showToast("Trying backup stream...", 2000);
-                            tryInternalPlayer(backupUrl, name);
-                        } else {
-                            // Show external player options
-                            showExternalPlayerDialog(name, url);
-                        }
-                    });
+                // Try backup if available
+                else if (backupUrl) {
+                    showToast("Trying backup stream...", 2000);
+                    tryInternalPlayer(backupUrl, name);
+                } else {
+                    // Show external player options
+                    showExternalPlayerDialog(name, url);
+                }
             }
         }
         
@@ -2018,72 +2065,6 @@ l.parentNode.insertBefore(s, l);
             closeExternalDialog();
         }
 
-        function initializeVideoJS() {
-            player = videojs('my-video', {
-                controls: false,
-                autoplay: true,
-                preload: 'auto',
-                fluid: true,
-                liveui: true,
-                html5: {
-                    nativeTextTracks: false,
-                    hls: {
-                        overrideNative: true,
-                        enableLowInitialPlaylist: true,
-                        smoothQualityChange: true,
-                        handleManifestRedirects: true
-                    }
-                },
-                userActions: {
-                    doubleClick: false,
-                    hotkeys: false
-                }
-            });
-            
-            player.on('loadedmetadata', () => updateDurationDisplay());
-            player.on('timeupdate', updateProgress);
-            player.on('progress', updateBuffer);
-            player.on('play', onVideoPlaying);
-            player.on('pause', onVideoPaused);
-            player.on('error', (e) => {
-                console.error("Video error:", e);
-                const error = player.error();
-                
-                // Try HTTPS version if current URL is HTTP
-                if (currentChannelUrl && currentChannelUrl.startsWith('http://') && !currentChannelUrl.includes('https')) {
-                    showToast("Trying secure connection...", 2000);
-                    let httpsUrl = 'https://' + currentChannelUrl.substring(7);
-                    tryInternalPlayer(httpsUrl, currentChannelName);
-                }
-                // Show external player options
-                else if (currentChannelName && currentChannelUrl) {
-                    showExternalPlayerDialog(currentChannelName, currentChannelUrl);
-                } else {
-                    showToast('Stream not available. Try another channel.', 4000);
-                }
-            });
-            
-            player.volume(currentVolume);
-
-// ✅ VAST Preroll Ad Setup
-player.ready(function() {
-    player.ima({
-        adTagUrl: "https://pubads.g.doubleclick.net/gampad/ads?sz=640x480&iu=/124319096/external/single_ad_samples&ciu_szs=300x250&impl=s&gdfp_req=1&env=vp&output=vast&unviewed_position_start=1&cust_params=deployment%3Ddevsite%26sample_ct%3Dlinear&correlator="
-    });
-
-    player.ima.initializeAdDisplayContainer();
-
-    player.on('play', function() {
-        player.ima.requestAds();
-    });
-});
-
-            
-            setTimeout(() => {
-                document.getElementById('playOverlay').classList.add('hidden');
-            }, 500);
-        }
-
         function onVideoPlaying() {
             isPlaying = true;
             updatePlayButton();
@@ -2098,11 +2079,11 @@ player.ready(function() {
         }
 
         function togglePlay() {
-            if (!player) return;
-            if (player.paused()) {
-                player.play();
+            if (!videoElement) return;
+            if (videoElement.paused) {
+                videoElement.play();
             } else {
-                player.pause();
+                videoElement.pause();
             }
             showControls();
         }
@@ -2120,8 +2101,8 @@ player.ready(function() {
 
         function updateProgress() {
             if (isSeeking) return;
-            const currentTime = player.currentTime();
-            const duration = player.duration();
+            const currentTime = videoElement.currentTime;
+            const duration = videoElement.duration;
             if (duration > 0 && isFinite(duration)) {
                 const progressPercent = (currentTime / duration) * 100;
                 document.getElementById('progressBar').style.width = `${progressPercent}%`;
@@ -2132,10 +2113,10 @@ player.ready(function() {
         }
 
         function updateBuffer() {
-            if (player.buffered() && player.buffered().length > 0) {
-                const duration = player.duration();
+            if (videoElement.buffered && videoElement.buffered.length > 0) {
+                const duration = videoElement.duration;
                 if (duration > 0 && isFinite(duration)) {
-                    const bufferedEnd = player.buffered().end(player.buffered().length - 1);
+                    const bufferedEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
                     const bufferPercent = (bufferedEnd / duration) * 100;
                     document.getElementById('bufferBar').style.width = `${bufferPercent}%`;
                 }
@@ -2143,7 +2124,7 @@ player.ready(function() {
         }
 
         function updateDurationDisplay() {
-            const duration = player.duration();
+            const duration = videoElement.duration;
             if (duration > 0 && isFinite(duration)) {
                 document.getElementById('duration').textContent = formatTime(duration);
             }
@@ -2157,7 +2138,7 @@ player.ready(function() {
         }
 
         function startSeeking(event) {
-            if (!player) return;
+            if (!videoElement) return;
             isSeeking = true;
             showControls();
             const progressContainer = document.getElementById('progressContainer');
@@ -2169,14 +2150,14 @@ player.ready(function() {
         }
 
         function handleSeeking(event) {
-            if (!isSeeking || !player) return;
+            if (!isSeeking || !videoElement) return;
             const progressContainer = document.getElementById('progressContainer');
             const rect = progressContainer.getBoundingClientRect();
             const clientX = event.clientX || (event.touches && event.touches[0].clientX);
             const clickPosition = clientX - rect.left;
             const containerWidth = progressContainer.offsetWidth;
             let seekPercentage = Math.max(0, Math.min(1, clickPosition / containerWidth));
-            const duration = player.duration();
+            const duration = videoElement.duration;
             if (duration > 0 && isFinite(duration)) {
                 const newTime = seekPercentage * duration;
                 document.getElementById('progressBar').style.width = `${seekPercentage * 100}%`;
@@ -2188,15 +2169,15 @@ player.ready(function() {
         }
 
         function stopSeeking() {
-            if (!isSeeking || !player) return;
+            if (!isSeeking || !videoElement) return;
             isSeeking = false;
             const progressContainer = document.getElementById('progressContainer');
             const rect = progressContainer.getBoundingClientRect();
             const containerWidth = progressContainer.offsetWidth;
             const seekPercentage = Math.max(0, Math.min(1, seekStartX / containerWidth));
-            const duration = player.duration();
+            const duration = videoElement.duration;
             if (duration > 0 && isFinite(duration)) {
-                player.currentTime(seekPercentage * duration);
+                videoElement.currentTime = seekPercentage * duration;
             }
             setTimeout(() => {
                 if (!isSeeking) {
@@ -2271,8 +2252,8 @@ player.ready(function() {
                 switch(e.key.toLowerCase()) {
                     case ' ': case 'k': e.preventDefault(); togglePlay(); break;
                     case 'f': e.preventDefault(); toggleFullscreen(); break;
-                    case 'arrowright': e.preventDefault(); if (player) player.currentTime(player.currentTime() + 10); showControls(); break;
-                    case 'arrowleft': e.preventDefault(); if (player) player.currentTime(player.currentTime() - 10); showControls(); break;
+                    case 'arrowright': e.preventDefault(); if (videoElement) videoElement.currentTime = videoElement.currentTime + 10; showControls(); break;
+                    case 'arrowleft': e.preventDefault(); if (videoElement) videoElement.currentTime = videoElement.currentTime - 10; showControls(); break;
                     case 'escape': if (isFullscreen) toggleFullscreen(); break;
                 }
             });
@@ -2363,7 +2344,7 @@ player.ready(function() {
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
         
-        console.log("🎬 SK4FiLM Player Ready with Smart Play Flow!");
+        console.log("🎬 SK4FiLM Player Ready with Shaka Player!");
     </script>
     <script>
 (function(crecv){
