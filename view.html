@@ -5,13 +5,17 @@
     <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
     <meta property="og:image" content="https://iili.io/KOlfc41.png" itemprop="thumbnailUrl">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>SK4FiLM - Live Channels</title>
+    <title>SK4FiLM - Live Channels with VAST Ads</title>
     
     <!-- Video.js CSS -->
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     
     <!-- HLS plugin for Video.js -->
     <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.0/dist/videojs-http-streaming.min.js"></script>
+    
+    <!-- VAST Plugin for Video.js - YEH IMPORTANT HAI -->
+    <link href="https://cdn.jsdelivr.net/npm/videojs-vast-vpaid@latest/dist/videojs-vast-vpaid.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/videojs-vast-vpaid@latest/dist/videojs-vast-vpaid.min.js"></script>
     
     <!-- Existing Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -21,7 +25,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Reset & Base */
+        /* Reset & Base - Aapka existing CSS yahan rahega */
         * {
             margin: 0;
             padding: 0;
@@ -637,6 +641,26 @@
             margin-left: auto;
         }
         
+        /* VAST Ad Skip Button - Custom Styling */
+        .vjs-vast-skip-button {
+            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue)) !important;
+            color: white !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            padding: 10px 25px !important;
+            border-radius: 25px !important;
+            border: none !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+            transition: all 0.3s ease !important;
+            z-index: 1000 !important;
+        }
+        
+        .vjs-vast-skip-button:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 6px 20px rgba(255,0,0,0.4) !important;
+        }
+        
         /* Ad Container */
         .ad-container {
             width: 100%;
@@ -1207,7 +1231,7 @@
         </div>
     </div>
     
-    <!-- External Player Dialog with Ads -->
+    <!-- External Player Dialog with Ads - Only Bottom Ad -->
     <div class="external-player-dialog" id="externalPlayerDialog">
         <div class="dialog-title" id="dialogTitle">Open in External Player</div>
         <div class="dialog-message" id="dialogMessage">Choose a player to open this stream</div>
@@ -1231,15 +1255,15 @@
             </button>
         </div>
         
-        <!-- Your Custom Ad Script - Only Bottom (Now FIXED) -->
+        <!-- Your Custom Ad Script - Only Bottom -->
         <div class="dialog-ad-container">
-            <script type="text/javascript">
+            <script>
             (function(ky){
             var d = document,
                 s = d.createElement('script'),
                 l = d.scripts[d.scripts.length - 1];
             s.settings = ky || {};
-            s.src = "//illiterate-being.com/bbX.VusIdeGalL0BYWWOcv/yeEmj9gu/ZHUVlVk/PGT/Y/4BMeDKcs4ZOLT/cBt_NXjYgOwtNozIkbwfMWQs";
+            s.src = "\/\/illiterate-being.com\/bbX.VusIdeGalL0BYWWOcv\/yeEmj9gu\/ZHUVlVk\/PGT\/Y\/4BMeDKcs4ZOLT\/cBt_NXjYgOwtNozIkbwfMWQs";
             s.async = true;
             s.referrerPolicy = 'no-referrer-when-downgrade';
             l.parentNode.insertBefore(s, l);
@@ -1254,7 +1278,7 @@
     </div>
     
     <div class="container-fluid px-0">
-        <!-- Top Ads - Now directly below navbar (FIXED: scripts are now active) -->
+        <!-- Top Ads - Now directly below navbar -->
         <div class="ad-container">
             <div class="ad-desktop">
                 <script type="text/javascript">
@@ -1374,20 +1398,29 @@
                     </div>
                 </div>
 
-                <!-- Ad 1 - After Video Info (FIXED: script restored) -->
+                <!-- Ad 1 - After Video Info -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
-                    (function(reha){
-                    var d = document,
-                        s = d.createElement('script'),
-                        l = d.scripts[d.scripts.length - 1];
-                    s.settings = reha || {};
-                    s.src = "//illiterate-being.com/boXEVhsnd.GqlF0fYrW/cd/PeKmX9XuRZUUplvkAPCTTYJ4/MHTaE/3BNBDUExtlNkjlg/xbMdT-cG0-N/Qe";
-                    s.async = true;
-                    s.referrerPolicy = 'no-referrer-when-downgrade';
-                    l.parentNode.insertBefore(s, l);
-                    })({})
+                        atOptions = {
+                            'key' : '567936a964b0784aedd11f237d26bee0',
+                            'format' : 'iframe',
+                            'height' : 250,
+                            'width' : 300,
+                            'params' : {}
+                        };
                     </script>
+                    <script>
+(function(reha){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = reha || {};
+s.src = "\/\/illiterate-being.com\/boXEVhsnd.GqlF0fYrW\/cd\/PeKmX9XuRZUUplvkAPCTTYJ4\/MHTaE\/3BNBDUExtlNkjlg\/xbMdT-cG0-N\/Qe";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>
                 </div>
 
                 <!-- Sports Category -->
@@ -1400,7 +1433,7 @@
                     </div>
                 </div>
 
-                <!-- Ad 2 - After Sports (FIXED: multiple ads now active) -->
+                <!-- Ad 2 - After Sports -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1424,20 +1457,29 @@
                     </div>
                 </div>
 
-                <!-- Ad 3 - After Movies (FIXED: script restored) -->
+                <!-- Ad 3 - After Movies -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
-                    (function(hxnsvbj){
-                    var d = document,
-                        s = d.createElement('script'),
-                        l = d.scripts[d.scripts.length - 1];
-                    s.settings = hxnsvbj || {};
-                    s.src = "//illiterate-being.com/bUX.VisrdCGQlh0-YOWUcX/depmJ9LuEZhUWlDkEPPTxYI3KN/jKIWxHM/jAkXtcNsjkc/2IMIjNEczQMDAb";
-                    s.async = true;
-                    s.referrerPolicy = 'no-referrer-when-downgrade';
-                    l.parentNode.insertBefore(s, l);
-                    })({})
+                        atOptions = {
+                            'key' : '567936a964b0784aedd11f237d26bee0',
+                            'format' : 'iframe',
+                            'height' : 250,
+                            'width' : 300,
+                            'params' : {}
+                        };
                     </script>
+                    <script>
+(function(hxnsvbj){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = hxnsvbj || {};
+s.src = "\/\/illiterate-being.com\/bUX.VisrdCGQlh0-YOWUcX\/depmJ9LuEZhUWlDkEPPTxYI3KN\/jKIWxHM\/jAkXtcNsjkc\/2IMIjNEczQMDAb";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>
                 </div>
 
                 <!-- Music Category -->
@@ -1655,85 +1697,123 @@
             // Show loading state
             showToast(`Loading ${name}...`, 2000);
             
-            // Keep the original URL without modification
-            // Some streams need HTTP, some need HTTPS
-            // We'll try both if needed
-            
-            // STEP 1: Try internal player first with original URL
-            tryInternalPlayer(url, name);
+            // Pehle VAST ad chalao, phir stream
+            playVASTAdThenStream(url, name);
         }
         
-        function tryInternalPlayer(url, name, useHttps = false) {
-            let streamUrl = url;
+        // Naya function: Pehle VAST ad chalega
+        function playVASTAdThenStream(streamUrl, streamName) {
+            if (!player) return;
             
-            // Try HTTPS if specified and URL is HTTP
-            if (useHttps && streamUrl.startsWith('http://')) {
-                streamUrl = 'https://' + streamUrl.substring(7);
-                console.log("Trying HTTPS version:", streamUrl);
-            }
+            // VAST ad ke liye settings
+            player.vastClient({
+                // Aapka VAST URL
+                adTagUrl: 'https://ancientsnow.com/dRm_FIz.dqGZNXvDZ/GXUF/Yemmh9YuVZSUNlxkCPiTZYG3bN/DkU/1YMnjzkRtFNAjAc/0/N/T/U/zTMkAU',
+                
+                // Har baar ad chalega
+                playAdAlways: true,
+                
+                // VPAID settings
+                vpaid: {
+                    timeout: 5000,
+                    allowed: true
+                },
+                
+                // Skip button settings (15 seconds baad)
+                skip: {
+                    enabled: true,
+                    skipButtonCaption: 'Skip Ad',
+                    skipButtonStyle: {
+                        background: 'linear-gradient(45deg, #ff0000, #0066ff)',
+                        color: 'white',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        padding: '10px 20px',
+                        borderRadius: '25px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                    }
+                },
+                
+                // Ad events
+                onAdStart: function() {
+                    console.log('✅ Ad shuru ho gaya');
+                    showToast('विज्ञापन आ रहा है...', 2000);
+                    document.getElementById('playOverlay').classList.add('hidden');
+                },
+                
+                onAdSkip: function() {
+                    console.log('⏭️ Ad skip kar diya');
+                    showToast('विज्ञापन छोड़ा', 2000);
+                },
+                
+                onAdFinish: function() {
+                    console.log('✅ Ad khatam hua, ab stream chalegi');
+                    showToast('Stream shuru ho rahi hai...', 1500);
+                    // Ad khatam hone par stream chalao
+                    playStreamDirectly(streamUrl, streamName);
+                },
+                
+                onAdError: function(error) {
+                    console.error('❌ Ad mein error:', error);
+                    showToast('Ad error, direct stream chalu...', 2000);
+                    // Error aaye to direct stream chalao
+                    playStreamDirectly(streamUrl, streamName);
+                }
+            });
+            
+            // Ad start karo
+            player.vastClient.start();
+        }
+        
+        // Stream chalane ka function
+        function playStreamDirectly(url, name) {
+            if (!player) return;
             
             // For HLS streams
-            if (streamUrl.includes('.m3u8')) {
+            if (url.includes('.m3u8')) {
                 player.src({
-                    src: streamUrl,
+                    src: url,
                     type: 'application/x-mpegURL'
                 });
             } else {
                 player.src({
-                    src: streamUrl,
+                    src: url,
                     type: 'video/mp4'
                 });
             }
             
-            // Set timeout to detect if playback fails
-            const playTimeout = setTimeout(() => {
-                // If still loading after 5 seconds, try backup or external
-                if (player && player.paused && !player.playing) {
-                    console.log("Internal player taking too long, trying backup/external...");
-                    
-                    // Try HTTPS version if original was HTTP
-                    if (!useHttps && url.startsWith('http://')) {
-                        showToast("Trying secure connection...", 2000);
-                        tryInternalPlayer(url, name, true);
-                    }
-                    // Try backup if available
-                    else if (backupUrl) {
-                        showToast("Trying backup stream...", 2000);
-                        tryInternalPlayer(backupUrl, name);
-                    } else {
-                        showExternalPlayerDialog(name, url);
-                    }
-                }
-            }, 8000); // Increased timeout to 8 seconds
-            
-            // Attempt to play
+            // Play stream
             const playPromise = player.play();
             
             if (playPromise !== undefined) {
                 playPromise
                     .then(() => {
-                        clearTimeout(playTimeout);
-                        console.log("Internal player playing successfully");
+                        console.log("✅ Stream playing successfully");
                     })
                     .catch(error => {
-                        clearTimeout(playTimeout);
-                        console.error('Playback error:', error);
+                        console.error('❌ Stream playback error:', error);
                         
-                        // Try HTTPS version if original was HTTP and haven't tried yet
-                        if (!useHttps && url.startsWith('http://')) {
-                            showToast("Trying secure connection...", 2000);
-                            tryInternalPlayer(url, name, true);
+                        // Try HTTPS version if original was HTTP
+                        if (url.startsWith('http://')) {
+                            let httpsUrl = 'https://' + url.substring(7);
+                            playStreamDirectly(httpsUrl, name);
                         }
                         // Try backup if available
                         else if (backupUrl) {
                             showToast("Trying backup stream...", 2000);
-                            tryInternalPlayer(backupUrl, name);
+                            playStreamDirectly(backupUrl, name);
                         } else {
-                            // Show external player options
                             showExternalPlayerDialog(name, url);
                         }
                     });
             }
+        }
+        
+        // Purane function ko update karo
+        function tryInternalPlayer(url, name, useHttps = false) {
+            playVASTAdThenStream(url, name);
         }
         
         function showExternalPlayerDialog(name, url) {
@@ -1803,7 +1883,6 @@
                 
                 // Create new script element with your ad code
                 const script = document.createElement('script');
-                script.setAttribute('type', 'text/javascript');
                 script.innerHTML = `
                 (function(ky){
                 var d = document,
@@ -2028,7 +2107,7 @@
                 if (currentChannelUrl && currentChannelUrl.startsWith('http://') && !currentChannelUrl.includes('https')) {
                     showToast("Trying secure connection...", 2000);
                     let httpsUrl = 'https://' + currentChannelUrl.substring(7);
-                    tryInternalPlayer(httpsUrl, currentChannelName);
+                    playStreamDirectly(httpsUrl, currentChannelName);
                 }
                 // Show external player options
                 else if (currentChannelName && currentChannelUrl) {
@@ -2324,21 +2403,19 @@
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
         
-        console.log("🎬 SK4FiLM Player Ready with Smart Play Flow!");
+        console.log("🎬 SK4FiLM Player Ready with VAST Ads!");
     </script>
-    
-    <!-- Final footer ad (if any) - FIXED: also active -->
-    <script type="text/javascript">
-    (function(crecv){
-    var d = document,
-        s = d.createElement('script'),
-        l = d.scripts[d.scripts.length - 1];
-    s.settings = crecv || {};
-    s.src = "//illiterate-being.com/brXwVls.dmGzlw0aY/WUcv/oeumK9/u/ZcUplvkRPPTGYL3_N/jMIkzkNFzSkZtSNXj/cD2lMajzMq4VMhAp";
-    s.async = true;
-    s.referrerPolicy = 'no-referrer-when-downgrade';
-    l.parentNode.insertBefore(s, l);
-    })({})
+    <script>
+(function(crecv){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = crecv || {};
+s.src = "\/\/illiterate-being.com\/brXwVls.dmGzlw0aY\/WUcv\/oeumK9\/u\/ZcUplvkRPPTGYL3_N\/jMIkzkNFzSkZtSNXj\/cD2lMajzMq4VMhAp";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
     </script>
 </body>
 </html>
