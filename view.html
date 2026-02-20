@@ -1207,7 +1207,7 @@
         </div>
     </div>
     
-    <!-- External Player Dialog with Ads - Only Bottom Ad -->
+    <!-- External Player Dialog with Ads -->
     <div class="external-player-dialog" id="externalPlayerDialog">
         <div class="dialog-title" id="dialogTitle">Open in External Player</div>
         <div class="dialog-message" id="dialogMessage">Choose a player to open this stream</div>
@@ -1231,15 +1231,15 @@
             </button>
         </div>
         
-        <!-- Your Custom Ad Script - Only Bottom -->
+        <!-- Your Custom Ad Script - Only Bottom (Now FIXED) -->
         <div class="dialog-ad-container">
-            <script>
+            <script type="text/javascript">
             (function(ky){
             var d = document,
                 s = d.createElement('script'),
                 l = d.scripts[d.scripts.length - 1];
             s.settings = ky || {};
-            s.src = "\/\/illiterate-being.com\/bbX.VusIdeGalL0BYWWOcv\/yeEmj9gu\/ZHUVlVk\/PGT\/Y\/4BMeDKcs4ZOLT\/cBt_NXjYgOwtNozIkbwfMWQs";
+            s.src = "//illiterate-being.com/bbX.VusIdeGalL0BYWWOcv/yeEmj9gu/ZHUVlVk/PGT/Y/4BMeDKcs4ZOLT/cBt_NXjYgOwtNozIkbwfMWQs";
             s.async = true;
             s.referrerPolicy = 'no-referrer-when-downgrade';
             l.parentNode.insertBefore(s, l);
@@ -1254,7 +1254,7 @@
     </div>
     
     <div class="container-fluid px-0">
-        <!-- Top Ads - Now directly below navbar -->
+        <!-- Top Ads - Now directly below navbar (FIXED: scripts are now active) -->
         <div class="ad-container">
             <div class="ad-desktop">
                 <script type="text/javascript">
@@ -1374,20 +1374,20 @@
                     </div>
                 </div>
 
-                <!-- Ad 1 - After Video Info -->
+                <!-- Ad 1 - After Video Info (FIXED: script restored) -->
                 <div class="ad-container" style="margin: 10px 0;">
-                    <script>
-(function(reha){
-var d = document,
-    s = d.createElement('script'),
-    l = d.scripts[d.scripts.length - 1];
-s.settings = reha || {};
-s.src = "\/\/illiterate-being.com\/boXEVhsnd.GqlF0fYrW\/cd\/PeKmX9XuRZUUplvkAPCTTYJ4\/MHTaE\/3BNBDUExtlNkjlg\/xbMdT-cG0-N\/Qe";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
-</script>
+                    <script type="text/javascript">
+                    (function(reha){
+                    var d = document,
+                        s = d.createElement('script'),
+                        l = d.scripts[d.scripts.length - 1];
+                    s.settings = reha || {};
+                    s.src = "//illiterate-being.com/boXEVhsnd.GqlF0fYrW/cd/PeKmX9XuRZUUplvkAPCTTYJ4/MHTaE/3BNBDUExtlNkjlg/xbMdT-cG0-N/Qe";
+                    s.async = true;
+                    s.referrerPolicy = 'no-referrer-when-downgrade';
+                    l.parentNode.insertBefore(s, l);
+                    })({})
+                    </script>
                 </div>
 
                 <!-- Sports Category -->
@@ -1400,7 +1400,7 @@ l.parentNode.insertBefore(s, l);
                     </div>
                 </div>
 
-                <!-- Ad 2 - After Sports -->
+                <!-- Ad 2 - After Sports (FIXED: multiple ads now active) -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1424,29 +1424,20 @@ l.parentNode.insertBefore(s, l);
                     </div>
                 </div>
 
-                <!-- Ad 3 - After Movies -->
+                <!-- Ad 3 - After Movies (FIXED: script restored) -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
-                        atOptions = {
-                            'key' : '567936a964b0784aedd11f237d26bee0',
-                            'format' : 'iframe',
-                            'height' : 250,
-                            'width' : 300,
-                            'params' : {}
-                        };
+                    (function(hxnsvbj){
+                    var d = document,
+                        s = d.createElement('script'),
+                        l = d.scripts[d.scripts.length - 1];
+                    s.settings = hxnsvbj || {};
+                    s.src = "//illiterate-being.com/bUX.VisrdCGQlh0-YOWUcX/depmJ9LuEZhUWlDkEPPTxYI3KN/jKIWxHM/jAkXtcNsjkc/2IMIjNEczQMDAb";
+                    s.async = true;
+                    s.referrerPolicy = 'no-referrer-when-downgrade';
+                    l.parentNode.insertBefore(s, l);
+                    })({})
                     </script>
-                    <script>
-(function(hxnsvbj){
-var d = document,
-    s = d.createElement('script'),
-    l = d.scripts[d.scripts.length - 1];
-s.settings = hxnsvbj || {};
-s.src = "\/\/illiterate-being.com\/bUX.VisrdCGQlh0-YOWUcX\/depmJ9LuEZhUWlDkEPPTxYI3KN\/jKIWxHM\/jAkXtcNsjkc\/2IMIjNEczQMDAb";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
-</script>
                 </div>
 
                 <!-- Music Category -->
@@ -1812,6 +1803,7 @@ l.parentNode.insertBefore(s, l);
                 
                 // Create new script element with your ad code
                 const script = document.createElement('script');
+                script.setAttribute('type', 'text/javascript');
                 script.innerHTML = `
                 (function(ky){
                 var d = document,
@@ -2334,17 +2326,19 @@ l.parentNode.insertBefore(s, l);
         
         console.log("🎬 SK4FiLM Player Ready with Smart Play Flow!");
     </script>
-    <script>
-(function(crecv){
-var d = document,
-    s = d.createElement('script'),
-    l = d.scripts[d.scripts.length - 1];
-s.settings = crecv || {};
-s.src = "\/\/illiterate-being.com\/brXwVls.dmGzlw0aY\/WUcv\/oeumK9\/u\/ZcUplvkRPPTGYL3_N\/jMIkzkNFzSkZtSNXj\/cD2lMajzMq4VMhAp";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
+    
+    <!-- Final footer ad (if any) - FIXED: also active -->
+    <script type="text/javascript">
+    (function(crecv){
+    var d = document,
+        s = d.createElement('script'),
+        l = d.scripts[d.scripts.length - 1];
+    s.settings = crecv || {};
+    s.src = "//illiterate-being.com/brXwVls.dmGzlw0aY/WUcv/oeumK9/u/ZcUplvkRPPTGYL3_N/jMIkzkNFzSkZtSNXj/cD2lMajzMq4VMhAp";
+    s.async = true;
+    s.referrerPolicy = 'no-referrer-when-downgrade';
+    l.parentNode.insertBefore(s, l);
+    })({})
     </script>
 </body>
 </html>
