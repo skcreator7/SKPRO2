@@ -628,7 +628,7 @@ function renderResults(results, pagination) {
         html += `<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${thumbUrl}" alt="${title}" loading="lazy"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hasFile ? '<div class="video-file-badge">SK4FiLM</div>' : ''}</div></div><h3 class="result-title">${title}</h3>`;
         if (hasPostContent) html += `<div class="result-post-content">${formatPostContent(postContent)}</div>`;
         if (hasFile) {
-            html += `<div class="action-buttons-container"><a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>Stream Now</a>`;
+            html += `<div class="action-buttons-container"><a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>Live Stream</a>`;
             if (hasQualities) {
                 html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button></div><div class="quality-dropdown" id="download-quality-${index}" style="display: none;">${generateQualityOptions(qualityOptions, result)}</div>`;
             } else {
