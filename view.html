@@ -13,9 +13,8 @@
     <!-- HLS plugin for Video.js -->
     <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.0/dist/videojs-http-streaming.min.js"></script>
     
-    <!-- VAST Plugin for Video.js - YEH IMPORTANT HAI -->
-    <link href="https://cdn.jsdelivr.net/npm/videojs-vast-vpaid@latest/dist/videojs-vast-vpaid.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/videojs-vast-vpaid@latest/dist/videojs-vast-vpaid.min.js"></script>
+    <!-- VAST Plugin for Video.js - CORRECT VERSION -->
+    <script src="https://cdn.jsdelivr.net/npm/videojs-vast-plugin@1.2.1/dist/videojs.vast.min.js"></script>
     
     <!-- Existing Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -25,7 +24,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Reset & Base - Aapka existing CSS yahan rahega */
+        /* Reset & Base - same as before */
         * {
             margin: 0;
             padding: 0;
@@ -61,7 +60,7 @@
             padding-top: 70px;
         }
         
-        /* Navigation */
+        /* Navigation - same as before */
         .top-navbar {
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(15px);
@@ -387,6 +386,55 @@
             display: none !important;
         }
         
+        /* VAST Ad Container */
+        .vjs-vast-ad-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            background: #000;
+        }
+        
+        /* VAST Skip Button */
+        .vjs-vast-skip-button {
+            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue)) !important;
+            color: white !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            padding: 10px 25px !important;
+            border-radius: 25px !important;
+            border: none !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+            transition: all 0.3s ease !important;
+            z-index: 2000 !important;
+            position: absolute !important;
+            bottom: 70px !important;
+            right: 20px !important;
+        }
+        
+        .vjs-vast-skip-button:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 6px 20px rgba(255,0,0,0.4) !important;
+        }
+        
+        /* Loading overlay for ads */
+        .ad-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.2rem;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 30px;
+            border-radius: 50px;
+            z-index: 1500;
+            border: 2px solid var(--accent);
+        }
+        
         /* Fullscreen styles */
         :fullscreen .video-wrapper,
         :-webkit-full-screen .video-wrapper,
@@ -639,26 +687,6 @@
         
         .fullscreen-btn {
             margin-left: auto;
-        }
-        
-        /* VAST Ad Skip Button - Custom Styling */
-        .vjs-vast-skip-button {
-            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue)) !important;
-            color: white !important;
-            font-size: 16px !important;
-            font-weight: bold !important;
-            padding: 10px 25px !important;
-            border-radius: 25px !important;
-            border: none !important;
-            cursor: pointer !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-            transition: all 0.3s ease !important;
-            z-index: 1000 !important;
-        }
-        
-        .vjs-vast-skip-button:hover {
-            transform: scale(1.05) !important;
-            box-shadow: 0 6px 20px rgba(255,0,0,0.4) !important;
         }
         
         /* Ad Container */
@@ -1160,7 +1188,7 @@
 </head>
 
 <body>
-    <!-- Navigation -->
+    <!-- Navigation - same as before -->
     <nav class="top-navbar">
         <div class="container-fluid">
             <div class="navbar-content">
@@ -1231,7 +1259,7 @@
         </div>
     </div>
     
-    <!-- External Player Dialog with Ads - Only Bottom Ad -->
+    <!-- External Player Dialog with Ads -->
     <div class="external-player-dialog" id="externalPlayerDialog">
         <div class="dialog-title" id="dialogTitle">Open in External Player</div>
         <div class="dialog-message" id="dialogMessage">Choose a player to open this stream</div>
@@ -1255,7 +1283,7 @@
             </button>
         </div>
         
-        <!-- Your Custom Ad Script - Only Bottom -->
+        <!-- Ad Script -->
         <div class="dialog-ad-container">
             <script>
             (function(ky){
@@ -1278,7 +1306,7 @@
     </div>
     
     <div class="container-fluid px-0">
-        <!-- Top Ads - Now directly below navbar -->
+        <!-- Top Ads -->
         <div class="ad-container">
             <div class="ad-desktop">
                 <script type="text/javascript">
@@ -1327,6 +1355,11 @@
                         <!-- Side Click Areas -->
                         <div class="side-click-area left-click-area" onclick="toggleControls()"></div>
                         <div class="side-click-area right-click-area" onclick="toggleControls()"></div>
+                        
+                        <!-- Loading overlay for ads -->
+                        <div class="ad-loading" id="adLoading" style="display: none;">
+                            <i class="fas fa-ad me-2"></i> Loading Ad...
+                        </div>
                         
                         <!-- Video.js Player -->
                         <video-js 
@@ -1398,7 +1431,7 @@
                     </div>
                 </div>
 
-                <!-- Ad 1 - After Video Info -->
+                <!-- Ad 1 -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1429,11 +1462,11 @@ l.parentNode.insertBefore(s, l);
                         <i class="fas fa-futbol me-2" style="color: var(--primary-red);"></i> Sports Channels
                     </div>
                     <div class="channels-grid" id="sports-channels">
-                        <!-- Sports channels will be loaded here by JavaScript -->
+                        <!-- Sports channels will be loaded here -->
                     </div>
                 </div>
 
-                <!-- Ad 2 - After Sports -->
+                <!-- Ad 2 -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1453,11 +1486,11 @@ l.parentNode.insertBefore(s, l);
                         <i class="fas fa-film me-2" style="color: var(--primary-blue);"></i> Movies Channels
                     </div>
                     <div class="channels-grid" id="movies-channels">
-                        <!-- Movies channels will be loaded here by JavaScript -->
+                        <!-- Movies channels will be loaded here -->
                     </div>
                 </div>
 
-                <!-- Ad 3 - After Movies -->
+                <!-- Ad 3 -->
                 <div class="ad-container" style="margin: 10px 0;">
                     <script type="text/javascript">
                         atOptions = {
@@ -1488,7 +1521,7 @@ l.parentNode.insertBefore(s, l);
                         <i class="fas fa-music me-2" style="color: #ff6b6b;"></i> Music Channels
                     </div>
                     <div class="channels-grid" id="music-channels">
-                        <!-- Music channels will be loaded here by JavaScript -->
+                        <!-- Music channels will be loaded here -->
                     </div>
                     <div class="text-center mt-3" style="color: #aaa; font-size: 0.9rem;">
                         <i class="fas fa-plus-circle me-1"></i> More channels adding soon...
@@ -1548,11 +1581,9 @@ l.parentNode.insertBefore(s, l);
         let currentChannelUrl = '';
         let currentChannelName = '';
         let backupUrl = '';
+        let adInProgress = false; // Track if ad is playing
         
-        // CORS Proxy to fix mixed content and CORS issues
-        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
-        
-        // Channel logos mapping
+        // Channel logos mapping - same as before
         const channelLogos = {
             // Sports
             'star sports Hd': 'https://i.ibb.co/ywrgTyZ/star-sports-live-cricket-matches-guide-screenshot.png',
@@ -1577,7 +1608,7 @@ l.parentNode.insertBefore(s, l);
             'B4U Music': 'https://upload.wikimedia.org/wikipedia/commons/9/92/B4U_Network_logo.png'
         };
 
-        // Channel data
+        // Channel data - same as before
         const channels = {
             sports: [
                 { name: 'star sports Hd', url: 'http://103.229.254.25:7001/play/a0a0/index.m3u8' },
@@ -1605,7 +1636,7 @@ l.parentNode.insertBefore(s, l);
             ]
         };
 
-        // Working backup streams (in case main streams fail)
+        // Working backup streams
         const backupStreams = {
             'star sports Hd': 'https://cdn-2.pishow.tv/live/1461/master.m3u8',
             'Sony Sports HD': 'https://cdn-2.pishow.tv/live/1461/master.m3u8',
@@ -1683,7 +1714,7 @@ l.parentNode.insertBefore(s, l);
             return card;
         }
 
-        // Smart Play Function - Tries internal player first, then external
+        // MAIN FUNCTION: Play channel with VAST ad
         function playChannel(name, url) {
             console.log(`Playing: ${name} - ${url}`);
             
@@ -1694,23 +1725,37 @@ l.parentNode.insertBefore(s, l);
             // Update video title
             document.getElementById('videoTitle').textContent = name;
             
-            // Show loading state
+            // Show loading
             showToast(`Loading ${name}...`, 2000);
             
-            // Pehle VAST ad chalao, phir stream
+            // Pehle VAST ad chalao
             playVASTAdThenStream(url, name);
         }
         
-        // Naya function: Pehle VAST ad chalega
+        // VAST Ad Playback Function - FIXED VERSION
         function playVASTAdThenStream(streamUrl, streamName) {
-            if (!player) return;
+            if (!player) {
+                console.error("Player not initialized");
+                return;
+            }
             
-            // VAST ad ke liye settings
-            player.vastClient({
-                // Aapka VAST URL
-                adTagUrl: 'https://ancientsnow.com/dRm_FIz.dqGZNXvDZ/GXUF/Yemmh9YuVZSUNlxkCPiTZYG3bN/DkU/1YMnjzkRtFNAjAc/0/N/T/U/zTMkAU',
+            // Stop any current playback
+            player.pause();
+            player.reset(); // Clear current source
+            
+            // Show ad loading indicator
+            document.getElementById('adLoading').style.display = 'flex';
+            document.getElementById('playOverlay').classList.add('hidden');
+            
+            // VAST ad URL (your working VAST tag)
+            const vastUrl = 'https://ancientsnow.com/dRm_FIz.dqGZNXvDZ/GXUF/Yemmh9YuVZSUNlxkCPiTZYG3bN/DkU/1YMnjzkRtFNAjAc/0/N/T/U/zTMkAU';
+            
+            // VAST plugin options
+            const vastOptions = {
+                // AD TAG URL - IMPORTANT
+                adTagUrl: vastUrl,
                 
-                // Har baar ad chalega
+                // Play ad every time
                 playAdAlways: true,
                 
                 // VPAID settings
@@ -1719,9 +1764,9 @@ l.parentNode.insertBefore(s, l);
                     allowed: true
                 },
                 
-                // Skip button settings (15 seconds baad)
+                // Skip button
                 skip: {
-                    enabled: true,
+                    enabled: true, // Enable skip after certain time
                     skipButtonCaption: 'Skip Ad',
                     skipButtonStyle: {
                         background: 'linear-gradient(45deg, #ff0000, #0066ff)',
@@ -1736,40 +1781,62 @@ l.parentNode.insertBefore(s, l);
                     }
                 },
                 
-                // Ad events
+                // Callbacks
                 onAdStart: function() {
-                    console.log('✅ Ad shuru ho gaya');
-                    showToast('विज्ञापन आ रहा है...', 2000);
-                    document.getElementById('playOverlay').classList.add('hidden');
+                    console.log('✅ Ad started');
+                    adInProgress = true;
+                    document.getElementById('adLoading').style.display = 'none';
+                    showToast('🎬 Ad playing...', 2000);
                 },
                 
                 onAdSkip: function() {
-                    console.log('⏭️ Ad skip kar diya');
-                    showToast('विज्ञापन छोड़ा', 2000);
+                    console.log('⏭️ Ad skipped');
+                    adInProgress = false;
+                    showToast('Ad skipped', 1500);
+                    // Play stream after skip
+                    playStreamDirectly(streamUrl, streamName);
                 },
                 
                 onAdFinish: function() {
-                    console.log('✅ Ad khatam hua, ab stream chalegi');
-                    showToast('Stream shuru ho rahi hai...', 1500);
-                    // Ad khatam hone par stream chalao
+                    console.log('✅ Ad finished');
+                    adInProgress = false;
+                    showToast('Stream starting...', 1500);
+                    // Play stream after ad
                     playStreamDirectly(streamUrl, streamName);
                 },
                 
                 onAdError: function(error) {
-                    console.error('❌ Ad mein error:', error);
-                    showToast('Ad error, direct stream chalu...', 2000);
-                    // Error aaye to direct stream chalao
+                    console.error('❌ Ad error:', error);
+                    adInProgress = false;
+                    document.getElementById('adLoading').style.display = 'none';
+                    showToast('Ad error, playing stream directly', 2000);
+                    // On error, play stream directly
                     playStreamDirectly(streamUrl, streamName);
                 }
-            });
+            };
             
-            // Ad start karo
-            player.vastClient.start();
+            // Initialize VAST with options
+            try {
+                player.vast(vastOptions);
+                
+                // Start playing the ad
+                player.vast.playAd();
+            } catch (e) {
+                console.error("VAST initialization error:", e);
+                document.getElementById('adLoading').style.display = 'none';
+                // Fallback to direct stream
+                playStreamDirectly(streamUrl, streamName);
+            }
         }
         
-        // Stream chalane ka function
+        // Direct stream playback
         function playStreamDirectly(url, name) {
             if (!player) return;
+            
+            adInProgress = false;
+            
+            // Hide ad loading
+            document.getElementById('adLoading').style.display = 'none';
             
             // For HLS streams
             if (url.includes('.m3u8')) {
@@ -1811,11 +1878,6 @@ l.parentNode.insertBefore(s, l);
             }
         }
         
-        // Purane function ko update karo
-        function tryInternalPlayer(url, name, useHttps = false) {
-            playVASTAdThenStream(url, name);
-        }
-        
         function showExternalPlayerDialog(name, url) {
             currentChannelUrl = url;
             currentChannelName = name;
@@ -1837,9 +1899,6 @@ l.parentNode.insertBefore(s, l);
             installVLC.style.display = 'none';
             installMX.style.display = 'none';
             
-            // Reload bottom ad only
-            reloadBottomAd();
-            
             dialog.classList.add('show');
         }
         
@@ -1853,7 +1912,7 @@ l.parentNode.insertBefore(s, l);
             const installMX = document.getElementById('dialogPlayStoreMX');
             
             title.textContent = `📱 ${app.toUpperCase()} Player Not Found`;
-            message.innerHTML = `🔍 Install ${app.toUpperCase()} player from Play Store?<br><small style="color: #ffaa00;">⬇️ Free download • Supports us</small>`;
+            message.innerHTML = `🔍 Install ${app.toUpperCase()} player from Play Store?<br><small style="color: #ffaa00;">⬇️ Free download</small>`;
             
             vlcBtn.style.display = 'none';
             mxBtn.style.display = 'none';
@@ -1866,201 +1925,54 @@ l.parentNode.insertBefore(s, l);
                 installMX.style.display = 'flex';
             }
             
-            // Keep bottom ad visible
-            reloadBottomAd();
-            
             dialog.classList.add('show');
-        }
-        
-        function reloadBottomAd() {
-            // Get only the bottom ad container (last child of dialog-ad-container)
-            const bottomAdContainer = document.querySelector('#externalPlayerDialog .dialog-ad-container:last-child');
-            
-            if (bottomAdContainer) {
-                // Clear container
-                bottomAdContainer.innerHTML = '';
-                bottomAdContainer.classList.add('loading');
-                
-                // Create new script element with your ad code
-                const script = document.createElement('script');
-                script.innerHTML = `
-                (function(ky){
-                var d = document,
-                    s = d.createElement('script'),
-                    l = d.scripts[d.scripts.length - 1];
-                s.settings = ky || {};
-                s.src = "\\/\\/illiterate-being.com\\/bbX.VusIdeGalL0BYWWOcv\\/yeEmj9gu\\/ZHUVlVk\\/PGT\\/Y\\/4BMeDKcs4ZOLT\\/cBt_NXjYgOwtNozIkbwfMWQs";
-                s.async = true;
-                s.referrerPolicy = 'no-referrer-when-downgrade';
-                l.parentNode.insertBefore(s, l);
-                })({})
-                `;
-                bottomAdContainer.appendChild(script);
-                
-                // Remove loading class after ad loads
-                setTimeout(() => {
-                    bottomAdContainer.classList.remove('loading');
-                }, 500);
-            }
         }
         
         function closeExternalDialog() {
             const dialog = document.getElementById('externalPlayerDialog');
             dialog.classList.remove('show');
-            
-            // Clear bottom ad when closing to save resources
-            setTimeout(() => {
-                if (!dialog.classList.contains('show')) {
-                    const bottomAdContainer = document.querySelector('#externalPlayerDialog .dialog-ad-container:last-child');
-                    if (bottomAdContainer) {
-                        bottomAdContainer.innerHTML = ''; // Clear ad when dialog is hidden
-                    }
-                }
-            }, 500);
         }
         
-        // Fixed function to open in VLC with proper URL handling
+        // External player functions
         function openWithVLC() {
             showToast("Opening in VLC...", 2000);
             closeExternalDialog();
             
             let streamUrl = currentChannelUrl;
             
-            // Ensure URL is properly encoded for intent
-            const encodedUrl = encodeURIComponent(streamUrl);
-            
-            // For Android - Using multiple methods
             if (/Android/i.test(navigator.userAgent)) {
-                // Method 1: Direct intent for VLC (most reliable)
                 const vlcIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end`;
-                
-                // Method 2: VLC custom scheme
-                const vlcScheme = `vlc://${streamUrl}`;
-                
-                // Method 3: HTTP intent
-                const httpIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;end`;
-                
-                // Try all methods in sequence with small delays
-                try {
-                    // Try intent first
-                    window.location.href = vlcIntent;
-                    
-                    // After a short delay, try scheme if still here
-                    setTimeout(() => {
-                        try {
-                            window.location.href = vlcScheme;
-                        } catch(e) {}
-                    }, 300);
-                    
-                    // After another delay, try http intent
-                    setTimeout(() => {
-                        try {
-                            window.location.href = httpIntent;
-                        } catch(e) {}
-                    }, 600);
-                    
-                } catch(e) {
-                    console.error("Error opening VLC:", e);
-                }
-                
-                // Check if VLC opened (if not, show install dialog)
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        // Page is still visible, app probably not opened
-                        showInstallDialog('vlc');
-                    }
-                }, 1500);
-            } 
-            // For iOS
-            else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                // Try VLC for iOS URL scheme
-                const iosVlcUrl = `vlc-x-callback://x-callback-url/stream?url=${encodedUrl}`;
-                const iosVlcUrl2 = `vlc://${encodedUrl}`;
-                
-                try {
-                    window.location.href = iosVlcUrl;
-                    
-                    setTimeout(() => {
-                        try {
-                            window.location.href = iosVlcUrl2;
-                        } catch(e) {}
-                    }, 300);
-                } catch(e) {}
+                window.location.href = vlcIntent;
                 
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
                         showInstallDialog('vlc');
                     }
                 }, 1500);
-            }
-            // For desktop - open in new tab
-            else {
+            } else {
                 window.open(streamUrl, '_blank');
             }
         }
         
-        // Fixed function to open in MX Player with proper URL handling
         function openWithMX() {
             showToast("Opening in MX Player...", 2000);
             closeExternalDialog();
             
             let streamUrl = currentChannelUrl;
             
-            // MX Player only works on Android
             if (/Android/i.test(navigator.userAgent)) {
-                // Method 1: Direct intent for MX Player
                 const mxIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
-                
-                // Method 2: MX Player custom scheme
-                const mxScheme = `mxplayer://${streamUrl}`;
-                
-                // Method 3: HTTP intent
-                const mxHttpIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;end`;
-                
-                try {
-                    // Try intent first
-                    window.location.href = mxIntent;
-                    
-                    setTimeout(() => {
-                        try {
-                            window.location.href = mxScheme;
-                        } catch(e) {}
-                    }, 300);
-                    
-                    setTimeout(() => {
-                        try {
-                            window.location.href = mxHttpIntent;
-                        } catch(e) {}
-                    }, 600);
-                    
-                } catch(e) {
-                    console.error("Error opening MX Player:", e);
-                }
+                window.location.href = mxIntent;
                 
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
                         showInstallDialog('mx');
                     }
                 }, 1500);
-            } 
-            // For non-Android, try VLC instead
-            else {
+            } else {
                 showToast("MX Player is only available on Android. Trying VLC...", 2000);
-                setTimeout(() => {
-                    openWithVLC();
-                }, 1500);
+                setTimeout(() => openWithVLC(), 1500);
             }
-        }
-        
-        // Function to open in browser as fallback
-        function openInBrowser() {
-            showToast("Opening in browser...", 2000);
-            closeExternalDialog();
-            
-            let streamUrl = currentChannelUrl;
-            
-            // Open in new tab/window
-            window.open(streamUrl, '_blank');
         }
         
         function openPlayStore(app) {
@@ -2072,6 +1984,7 @@ l.parentNode.insertBefore(s, l);
             closeExternalDialog();
         }
 
+        // Initialize Video.js player
         function initializeVideoJS() {
             player = videojs('my-video', {
                 controls: false,
@@ -2101,16 +2014,14 @@ l.parentNode.insertBefore(s, l);
             player.on('pause', onVideoPaused);
             player.on('error', (e) => {
                 console.error("Video error:", e);
-                const error = player.error();
                 
-                // Try HTTPS version if current URL is HTTP
-                if (currentChannelUrl && currentChannelUrl.startsWith('http://') && !currentChannelUrl.includes('https')) {
-                    showToast("Trying secure connection...", 2000);
+                // Don't show external dialog if ad is playing
+                if (adInProgress) return;
+                
+                if (currentChannelUrl && currentChannelUrl.startsWith('http://')) {
                     let httpsUrl = 'https://' + currentChannelUrl.substring(7);
                     playStreamDirectly(httpsUrl, currentChannelName);
-                }
-                // Show external player options
-                else if (currentChannelName && currentChannelUrl) {
+                } else if (currentChannelName && currentChannelUrl) {
                     showExternalPlayerDialog(currentChannelName, currentChannelUrl);
                 } else {
                     showToast('Stream not available. Try another channel.', 4000);
@@ -2125,6 +2036,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function onVideoPlaying() {
+            if (adInProgress) return; // Don't update if ad is playing
             isPlaying = true;
             updatePlayButton();
             document.getElementById('playOverlay').classList.add('hidden');
@@ -2132,13 +2044,14 @@ l.parentNode.insertBefore(s, l);
         }
 
         function onVideoPaused() {
+            if (adInProgress) return; // Don't update if ad is playing
             isPlaying = false;
             updatePlayButton();
             showControls();
         }
 
         function togglePlay() {
-            if (!player) return;
+            if (!player || adInProgress) return; // Don't toggle during ad
             if (player.paused()) {
                 player.play();
             } else {
@@ -2159,7 +2072,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function updateProgress() {
-            if (isSeeking) return;
+            if (isSeeking || adInProgress) return;
             const currentTime = player.currentTime();
             const duration = player.duration();
             if (duration > 0 && isFinite(duration)) {
@@ -2172,6 +2085,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function updateBuffer() {
+            if (adInProgress) return;
             if (player.buffered() && player.buffered().length > 0) {
                 const duration = player.duration();
                 if (duration > 0 && isFinite(duration)) {
@@ -2197,7 +2111,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function startSeeking(event) {
-            if (!player) return;
+            if (!player || adInProgress) return; // No seeking during ad
             isSeeking = true;
             showControls();
             const progressContainer = document.getElementById('progressContainer');
@@ -2209,7 +2123,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function handleSeeking(event) {
-            if (!isSeeking || !player) return;
+            if (!isSeeking || !player || adInProgress) return;
             const progressContainer = document.getElementById('progressContainer');
             const rect = progressContainer.getBoundingClientRect();
             const clientX = event.clientX || (event.touches && event.touches[0].clientX);
@@ -2228,7 +2142,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function stopSeeking() {
-            if (!isSeeking || !player) return;
+            if (!isSeeking || !player || adInProgress) return;
             isSeeking = false;
             const progressContainer = document.getElementById('progressContainer');
             const rect = progressContainer.getBoundingClientRect();
@@ -2261,7 +2175,7 @@ l.parentNode.insertBefore(s, l);
             container.classList.remove('controls-hidden');
             controlsVisible = true;
             if (controlsTimeout) clearTimeout(controlsTimeout);
-            if (isPlaying) {
+            if (isPlaying && !adInProgress) {
                 controlsTimeout = setTimeout(() => {
                     if (isPlaying) hideControls();
                 }, 3000);
@@ -2271,7 +2185,7 @@ l.parentNode.insertBefore(s, l);
         function hideControls() {
             const controls = document.getElementById('videoControls');
             const container = document.getElementById('videoContainer');
-            if (isPlaying && !isFullscreen) {
+            if (isPlaying && !isFullscreen && !adInProgress) {
                 controls.classList.remove('visible');
                 container.classList.add('controls-hidden');
                 controlsVisible = false;
@@ -2280,9 +2194,11 @@ l.parentNode.insertBefore(s, l);
 
         function hideControlsWithDelay() {
             if (controlsTimeout) clearTimeout(controlsTimeout);
-            controlsTimeout = setTimeout(() => {
-                if (isPlaying) hideControls();
-            }, 3000);
+            if (isPlaying && !adInProgress) {
+                controlsTimeout = setTimeout(() => {
+                    if (isPlaying) hideControls();
+                }, 3000);
+            }
         }
 
         function toggleFullscreen() {
@@ -2307,12 +2223,12 @@ l.parentNode.insertBefore(s, l);
             videoContainer.addEventListener('mouseleave', hideControls);
             
             document.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || adInProgress) return;
                 switch(e.key.toLowerCase()) {
                     case ' ': case 'k': e.preventDefault(); togglePlay(); break;
                     case 'f': e.preventDefault(); toggleFullscreen(); break;
-                    case 'arrowright': e.preventDefault(); if (player) player.currentTime(player.currentTime() + 10); showControls(); break;
-                    case 'arrowleft': e.preventDefault(); if (player) player.currentTime(player.currentTime() - 10); showControls(); break;
+                    case 'arrowright': e.preventDefault(); if (player && !adInProgress) player.currentTime(player.currentTime() + 10); showControls(); break;
+                    case 'arrowleft': e.preventDefault(); if (player && !adInProgress) player.currentTime(player.currentTime() - 10); showControls(); break;
                     case 'escape': if (isFullscreen) toggleFullscreen(); break;
                 }
             });
@@ -2344,7 +2260,6 @@ l.parentNode.insertBefore(s, l);
             toast.textContent = message;
             toast.classList.add('show');
             
-            // Remove existing type classes
             toast.classList.remove('toast-error', 'toast-warning', 'toast-success');
             
             if (type === 'error') {
@@ -2385,7 +2300,6 @@ l.parentNode.insertBefore(s, l);
             const query = document.getElementById('inlineSearchInput').value;
             if (query) {
                 showToast(`Searching for: ${query}`, 2000);
-                // Implement search functionality as needed
             }
         };
         
@@ -2399,23 +2313,10 @@ l.parentNode.insertBefore(s, l);
         window.stopSeeking = stopSeeking;
         window.openWithVLC = openWithVLC;
         window.openWithMX = openWithMX;
-        window.openInBrowser = openInBrowser;
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
         
         console.log("🎬 SK4FiLM Player Ready with VAST Ads!");
-    </script>
-    <script>
-(function(crecv){
-var d = document,
-    s = d.createElement('script'),
-    l = d.scripts[d.scripts.length - 1];
-s.settings = crecv || {};
-s.src = "\/\/illiterate-being.com\/brXwVls.dmGzlw0aY\/WUcv\/oeumK9\/u\/ZcUplvkRPPTGYL3_N\/jMIkzkNFzSkZtSNXj\/cD2lMajzMq4VMhAp";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
     </script>
 </body>
 </html>
