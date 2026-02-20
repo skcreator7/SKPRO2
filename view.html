@@ -1219,7 +1219,7 @@
             <button class="dialog-btn btn-primary" id="dialogMXBtn" onclick="openWithMX()">
                 <i class="fas fa-play me-2"></i>MX Player
             </button>
-            <!-- New PlayerJet Button -->
+            <!-- PlayerJet Button - Direct URL Open -->
             <button class="dialog-btn btn-primary" id="dialogPlayerJetBtn" onclick="openWithPlayerJet()">
                 <i class="fas fa-play-circle me-2"></i>PlayerJet
             </button>
@@ -1239,7 +1239,7 @@
             <button class="dialog-btn btn-secondary" id="dialogPlayStoreMX" onclick="openPlayStore('mx')" style="display: none;">
                 <i class="fab fa-google-play me-2"></i>Install MX
             </button>
-            <!-- New Install PlayerJet Button -->
+            <!-- Install PlayerJet Button -->
             <button class="dialog-btn btn-secondary" id="dialogPlayStorePlayerJet" onclick="openPlayStore('playerjet')" style="display: none;">
                 <i class="fab fa-google-play me-2"></i>Install PlayerJet
             </button>
@@ -1916,63 +1916,31 @@
             }
         }
         
-        // FIXED: PlayerJet with better intent handling
+        // PLAYERJET - DIRECT URL ONLY (NO INTENTS) as per special instruction
         function openWithPlayerJet() {
             showToast("Opening in PlayerJet...", 2000);
             closeExternalDialog();
             
             let streamUrl = currentChannelUrl;
-            const playerJetPackage = 'com.rs.playerjet';
             
+            // DIRECT OPEN ONLY - NO INTENTS
             if (/Android/i.test(navigator.userAgent)) {
-                // FIX: Use multiple intent variations for better compatibility
-                
-                // Method 1: Standard intent with video type
-                const intent1 = `intent:${streamUrl}#Intent;package=${playerJetPackage};action=android.intent.action.VIEW;type=video/*;end`;
-                
-                // Method 2: Intent without type (some players prefer this)
-                const intent2 = `intent:${streamUrl}#Intent;package=${playerJetPackage};action=android.intent.action.VIEW;end`;
-                
-                // Method 3: Intent with component (most reliable for installed apps)
-                const intent3 = `intent:${streamUrl}#Intent;package=${playerJetPackage};component=${playerJetPackage}/.PlayerActivity;action=android.intent.action.VIEW;type=video/*;end`;
-                
-                // Method 4: Direct URL (fallback)
-                const directUrl = streamUrl;
-                
-                let appOpened = false;
-                
                 try {
-                    // Try all intents with delays
-                    window.location.href = intent1;
+                    // DIRECT URL OPEN - PlayerJet should handle this
+                    window.location.href = streamUrl;
                     
+                    // Check if opened
                     setTimeout(() => {
                         if (document.visibilityState === 'visible') {
-                            window.location.href = intent2;
-                        }
-                    }, 500);
-                    
-                    setTimeout(() => {
-                        if (document.visibilityState === 'visible') {
-                            window.location.href = intent3;
-                        }
-                    }, 1000);
-                    
-                    setTimeout(() => {
-                        if (document.visibilityState === 'visible') {
-                            window.location.href = directUrl;
+                            // App probably not installed or didn't handle URL
+                            showInstallDialog('playerjet');
                         }
                     }, 1500);
                     
                 } catch(e) {
                     console.error("Error opening PlayerJet:", e);
+                    showInstallDialog('playerjet');
                 }
-                
-                // Check if app opened
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showInstallDialog('playerjet');
-                    }
-                }, 2500);
             }
             // For iOS, suggest VLC instead
             else {
@@ -2421,7 +2389,7 @@
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
         
-        console.log("🎬 SK4FiLM Player Ready - MX Audio Fixed + PlayerJet Working!");
+        console.log("🎬 SK4FiLM Player Ready - PlayerJet DIRECT OPEN only!");
     </script>
 </body>
 </html>
