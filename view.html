@@ -1219,6 +1219,9 @@
             <button class="dialog-btn btn-primary" id="dialogMXBtn" onclick="openWithMX()">
                 <i class="fas fa-play me-2"></i>MX Player
             </button>
+            <button class="dialog-btn btn-secondary" onclick="openInBrowser()">
+                <i class="fas fa-globe me-2"></i>Browser
+            </button>
             <button class="dialog-btn btn-secondary" onclick="closeExternalDialog()">
                 <i class="fas fa-times me-2"></i>Cancel
             </button>
@@ -1654,26 +1657,32 @@
             // Show loading state
             showToast(`Loading ${name}...`, 2000);
             
-            // Convert HTTP to HTTPS if needed
-            let secureUrl = url;
-            if (secureUrl.startsWith('http://')) {
-                secureUrl = 'https://' + secureUrl.substring(7);
-            }
+            // Keep the original URL without modification
+            // Some streams need HTTP, some need HTTPS
+            // We'll try both if needed
             
-            // STEP 1: Try internal player first
-            tryInternalPlayer(secureUrl, name);
+            // STEP 1: Try internal player first with original URL
+            tryInternalPlayer(url, name);
         }
         
-        function tryInternalPlayer(url, name) {
+        function tryInternalPlayer(url, name, useHttps = false) {
+            let streamUrl = url;
+            
+            // Try HTTPS if specified and URL is HTTP
+            if (useHttps && streamUrl.startsWith('http://')) {
+                streamUrl = 'https://' + streamUrl.substring(7);
+                console.log("Trying HTTPS version:", streamUrl);
+            }
+            
             // For HLS streams
-            if (url.includes('.m3u8')) {
+            if (streamUrl.includes('.m3u8')) {
                 player.src({
-                    src: url,
+                    src: streamUrl,
                     type: 'application/x-mpegURL'
                 });
             } else {
                 player.src({
-                    src: url,
+                    src: streamUrl,
                     type: 'video/mp4'
                 });
             }
@@ -1683,14 +1692,21 @@
                 // If still loading after 5 seconds, try backup or external
                 if (player && player.paused && !player.playing) {
                     console.log("Internal player taking too long, trying backup/external...");
-                    if (backupUrl) {
+                    
+                    // Try HTTPS version if original was HTTP
+                    if (!useHttps && url.startsWith('http://')) {
+                        showToast("Trying secure connection...", 2000);
+                        tryInternalPlayer(url, name, true);
+                    }
+                    // Try backup if available
+                    else if (backupUrl) {
                         showToast("Trying backup stream...", 2000);
                         tryInternalPlayer(backupUrl, name);
                     } else {
                         showExternalPlayerDialog(name, url);
                     }
                 }
-            }, 5000);
+            }, 8000); // Increased timeout to 8 seconds
             
             // Attempt to play
             const playPromise = player.play();
@@ -1705,12 +1721,17 @@
                         clearTimeout(playTimeout);
                         console.error('Playback error:', error);
                         
-                        // STEP 2: If internal player fails, try backup if available
-                        if (backupUrl) {
+                        // Try HTTPS version if original was HTTP and haven't tried yet
+                        if (!useHttps && url.startsWith('http://')) {
+                            showToast("Trying secure connection...", 2000);
+                            tryInternalPlayer(url, name, true);
+                        }
+                        // Try backup if available
+                        else if (backupUrl) {
                             showToast("Trying backup stream...", 2000);
                             tryInternalPlayer(backupUrl, name);
                         } else {
-                            // STEP 3: If no backup, show external player options
+                            // Show external player options
                             showExternalPlayerDialog(name, url);
                         }
                     });
@@ -1820,51 +1841,229 @@
             }, 500);
         }
         
+        // Fixed function to open in VLC with proper URL handling
         function openWithVLC() {
-            // Show loading state with ad
-            showToast("Opening VLC...", 2000);
+            showToast("Opening in VLC...", 2000);
             closeExternalDialog();
             
-            // Your existing VLC opening code
-            const vlcIntent = `vlc://${currentChannelUrl}`;
-            const vlcPackage = 'org.videolan.vlc';
+            let streamUrl = currentChannelUrl;
             
+            // Ensure URL is properly encoded for intent
+            const encodedUrl = encodeURIComponent(streamUrl);
+            
+            // For Android - Using multiple methods
             if (/Android/i.test(navigator.userAgent)) {
-                const intentUrl = `intent://${currentChannelUrl}#Intent;scheme=vlc;package=${vlcPackage};action=android.intent.action.VIEW;end`;
-                window.location.href = intentUrl;
+                // Method 1: Direct intent for VLC (most reliable)
+                const vlcIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end`;
+                
+                // Method 2: VLC custom scheme
+                const vlcScheme = `vlc://${streamUrl}`;
+                
+                // Method 3: HTTP intent
+                const httpIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;end`;
+                
+                // Try all methods in sequence with small delays
+                try {
+                    // Try intent first
+                    window.location.href = vlcIntent;
+                    
+                    // After a short delay, try scheme if still here
+                    setTimeout(() => {
+                        try {
+                            window.location.href = vlcScheme;
+                        } catch(e) {}
+                    }, 300);
+                    
+                    // After another delay, try http intent
+                    setTimeout(() => {
+                        try {
+                            window.location.href = httpIntent;
+                        } catch(e) {}
+                    }, 600);
+                    
+                } catch(e) {
+                    console.error("Error opening VLC:", e);
+                }
+                
+                // Check if VLC opened (if not, show install dialog)
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        // Page is still visible, app probably not opened
+                        showInstallDialog('vlc');
+                    }
+                }, 1500);
+            } 
+            // For iOS
+            else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                // Try VLC for iOS URL scheme
+                const iosVlcUrl = `vlc-x-callback://x-callback-url/stream?url=${encodedUrl}`;
+                const iosVlcUrl2 = `vlc://${encodedUrl}`;
+                
+                try {
+                    window.location.href = iosVlcUrl;
+                    
+                    setTimeout(() => {
+                        try {
+                            window.location.href = iosVlcUrl2;
+                        } catch(e) {}
+                    }, 300);
+                } catch(e) {}
                 
                 setTimeout(() => {
-                    showInstallDialog('vlc');
-                }, 500);
-            } 
-            else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                window.location.href = `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(currentChannelUrl)}`;
-                setTimeout(() => {
-                    showInstallDialog('vlc');
-                }, 500);
+                    if (document.visibilityState === 'visible') {
+                        showInstallDialog('vlc');
+                    }
+                }, 1500);
             }
+            // For desktop - open in new tab
             else {
-                window.open(currentChannelUrl, '_blank');
+                window.open(streamUrl, '_blank');
             }
         }
         
-        function openWithMX() {
-            // Show loading state with ad
-            showToast("Opening MX Player...", 2000);
-            closeExternalDialog();
+        // Fixed function to open in MX Player with proper URL handling
+function openWithMX() {
+    showToast("Opening in MX Player...", 2000);
+    closeExternalDialog();
+    
+    let streamUrl = currentChannelUrl;
+    
+    // MX Player only works on Android
+    if (/Android/i.test(navigator.userAgent)) {
+        
+        // First, try to open with direct intent but with proper formatting
+        // The key is to NOT encode the entire URL, just special characters
+        
+        // Method 1: Direct intent with proper action and type (Most reliable)
+        try {
+            // Create intent with proper format
+            // For MX Player, we need to use the exact URL without over-encoding
+            const intentUrl = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
             
-            if (/Android/i.test(navigator.userAgent)) {
-                const mxPackage = 'com.mxtech.videoplayer.ad';
-                const intentUrl = `intent:${currentChannelUrl}#Intent;package=${mxPackage};action=android.intent.action.VIEW;type=video/*;end`;
-                window.location.href = intentUrl;
-                
-                setTimeout(() => {
-                    showInstallDialog('mx');
-                }, 500);
-            } else {
-                openWithVLC();
-            }
+            console.log("Opening MX with intent:", intentUrl);
+            window.location.href = intentUrl;
+        } catch(e) {
+            console.error("Error with intent method:", e);
         }
+        
+        // Method 2: Try with custom scheme if intent fails
+        setTimeout(() => {
+            try {
+                // Some versions of MX Player support this
+                const mxUrl = `mxplayer://${streamUrl}`;
+                console.log("Opening MX with scheme:", mxUrl);
+                window.location.href = mxUrl;
+            } catch(e) {}
+        }, 500);
+        
+        // Method 3: Alternative intent format
+        setTimeout(() => {
+            try {
+                // Alternative intent format
+                const altIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;end`;
+                console.log("Opening MX with alt intent:", altIntent);
+                window.location.href = altIntent;
+            } catch(e) {}
+        }, 1000);
+        
+        // Method 4: Try with encoded parameters only (not the whole URL)
+        setTimeout(() => {
+            try {
+                // Only encode the URL for the data parameter
+                const encodedUrl = encodeURIComponent(streamUrl);
+                const dataIntent = `intent:#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;data=${encodedUrl};type=video/*;end`;
+                console.log("Opening MX with data intent:", dataIntent);
+                window.location.href = dataIntent;
+            } catch(e) {}
+        }, 1500);
+        
+        // Check if MX Player opened (if not, show install dialog)
+        setTimeout(() => {
+            if (document.visibilityState === 'visible') {
+                // Page is still visible, app probably not opened
+                // But sometimes MX Player takes time, so double check
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        showInstallDialog('mx');
+                    }
+                }, 1000);
+            }
+        }, 2500);
+    } 
+    // For non-Android, try VLC instead
+    else {
+        showToast("MX Player is only available on Android. Trying VLC...", 2000);
+        setTimeout(() => {
+            openWithVLC();
+        }, 1500);
+    }
+}
+
+// Also update the VLC function for consistency
+function openWithVLC() {
+    showToast("Opening in VLC...", 2000);
+    closeExternalDialog();
+    
+    let streamUrl = currentChannelUrl;
+    
+    // For Android - Using multiple methods
+    if (/Android/i.test(navigator.userAgent)) {
+        
+        // Method 1: Direct intent (Most reliable)
+        try {
+            const vlcIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end`;
+            console.log("Opening VLC with intent:", vlcIntent);
+            window.location.href = vlcIntent;
+        } catch(e) {}
+        
+        // Method 2: VLC custom scheme
+        setTimeout(() => {
+            try {
+                const vlcScheme = `vlc://${streamUrl}`;
+                console.log("Opening VLC with scheme:", vlcScheme);
+                window.location.href = vlcScheme;
+            } catch(e) {}
+        }, 500);
+        
+        // Method 3: Data intent
+        setTimeout(() => {
+            try {
+                const encodedUrl = encodeURIComponent(streamUrl);
+                const dataIntent = `intent:#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;data=${encodedUrl};type=video/*;end`;
+                console.log("Opening VLC with data intent:", dataIntent);
+                window.location.href = dataIntent;
+            } catch(e) {}
+        }, 1000);
+        
+        // Check if VLC opened
+        setTimeout(() => {
+            if (document.visibilityState === 'visible') {
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        showInstallDialog('vlc');
+                    }
+                }, 1000);
+            }
+        }, 2500);
+    } 
+    // For iOS
+    else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        try {
+            const iosVlcUrl = `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
+            window.location.href = iosVlcUrl;
+            
+            setTimeout(() => {
+                if (document.visibilityState === 'visible') {
+                    showInstallDialog('vlc');
+                }
+            }, 1500);
+        } catch(e) {}
+    }
+    // For desktop - open in new tab
+    else {
+        window.open(streamUrl, '_blank');
+    }
+}
         
         function openPlayStore(app) {
             const playStoreUrl = app === 'vlc' 
@@ -1905,15 +2104,18 @@
             player.on('error', (e) => {
                 console.error("Video error:", e);
                 const error = player.error();
-                if (error && error.code === 4) {
-                    // Show external player options on error
-                    if (currentChannelName && currentChannelUrl) {
-                        showExternalPlayerDialog(currentChannelName, currentChannelUrl);
-                    } else {
-                        showToast('Stream not available. Try another channel.', 4000);
-                    }
+                
+                // Try HTTPS version if current URL is HTTP
+                if (currentChannelUrl && currentChannelUrl.startsWith('http://') && !currentChannelUrl.includes('https')) {
+                    showToast("Trying secure connection...", 2000);
+                    let httpsUrl = 'https://' + currentChannelUrl.substring(7);
+                    tryInternalPlayer(httpsUrl, currentChannelName);
+                }
+                // Show external player options
+                else if (currentChannelName && currentChannelUrl) {
+                    showExternalPlayerDialog(currentChannelName, currentChannelUrl);
                 } else {
-                    showToast('Playback error. Try again.', 3000);
+                    showToast('Stream not available. Try another channel.', 4000);
                 }
             });
             
@@ -2199,6 +2401,7 @@
         window.stopSeeking = stopSeeking;
         window.openWithVLC = openWithVLC;
         window.openWithMX = openWithMX;
+        window.openInBrowser = openInBrowser;
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
         
