@@ -1207,7 +1207,7 @@
         </div>
     </div>
     
-    <!-- External Player Dialog with Ads - Added PlayerJet -->
+    <!-- External Player Dialog with Ads - Only Bottom Ad -->
     <div class="external-player-dialog" id="externalPlayerDialog">
         <div class="dialog-title" id="dialogTitle">Open in External Player</div>
         <div class="dialog-message" id="dialogMessage">Choose a player to open this stream</div>
@@ -1219,16 +1219,6 @@
             <button class="dialog-btn btn-primary" id="dialogMXBtn" onclick="openWithMX()">
                 <i class="fas fa-play me-2"></i>MX Player
             </button>
-            <!-- PlayerJet Button - Direct URL Open -->
-            <button class="dialog-btn btn-primary" id="dialogPlayerJetBtn" onclick="openWithPlayerJet()">
-                <i class="fas fa-play-circle me-2"></i>PlayerJet
-            </button>
-            <button class="dialog-btn btn-secondary" onclick="openInBrowser()">
-                <i class="fas fa-globe me-2"></i>Browser
-            </button>
-            <button class="dialog-btn btn-secondary" onclick="closeExternalDialog()">
-                <i class="fas fa-times me-2"></i>Cancel
-            </button>
         </div>
         
         <!-- Install buttons -->
@@ -1238,10 +1228,6 @@
             </button>
             <button class="dialog-btn btn-secondary" id="dialogPlayStoreMX" onclick="openPlayStore('mx')" style="display: none;">
                 <i class="fab fa-google-play me-2"></i>Install MX
-            </button>
-            <!-- Install PlayerJet Button -->
-            <button class="dialog-btn btn-secondary" id="dialogPlayStorePlayerJet" onclick="openPlayStore('playerjet')" style="display: none;">
-                <i class="fab fa-google-play me-2"></i>Install PlayerJet
             </button>
         </div>
         
@@ -1383,7 +1369,7 @@
                             <i class="fas fa-wifi me-1"></i> Direct HLS
                         </span>
                         <span class="badge badge-green">
-                            <i class="fas fa-tachometer-alt me-1"></i> Fast Server
+                            <i class="fas fa-tachometer-alt me-1"></i> Fast
                         </span>
                     </div>
                 </div>
@@ -1399,7 +1385,18 @@
                             'params' : {}
                         };
                     </script>
-                    <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+                    <script>
+(function(reha){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = reha || {};
+s.src = "\/\/illiterate-being.com\/boXEVhsnd.GqlF0fYrW\/cd\/PeKmX9XuRZUUplvkAPCTTYJ4\/MHTaE\/3BNBDUExtlNkjlg\/xbMdT-cG0-N\/Qe";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>
                 </div>
 
                 <!-- Sports Category -->
@@ -1447,7 +1444,18 @@
                             'params' : {}
                         };
                     </script>
-                    <script type="text/javascript" src="//marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+                    <script>
+(function(hxnsvbj){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = hxnsvbj || {};
+s.src = "\/\/illiterate-being.com\/bUX.VisrdCGQlh0-YOWUcX\/depmJ9LuEZhUWlDkEPPTxYI3KN\/jKIWxHM\/jAkXtcNsjkc\/2IMIjNEczQMDAb";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>
                 </div>
 
                 <!-- Music Category -->
@@ -1486,7 +1494,7 @@
                     </div>
                     
                     <a href="https://cfpe.me/skfilmbox" target="_blank" class="btn btn-warning px-4">
-                        <i class="fas fa-donate me-2"></i> SUPPORT US
+                        <i class="fas fa-donate me-2"></i> DONATE NOW
                     </a>
                 </div>
             </div>
@@ -1755,10 +1763,8 @@
             const message = document.getElementById('dialogMessage');
             const vlcBtn = document.getElementById('dialogVLCBtn');
             const mxBtn = document.getElementById('dialogMXBtn');
-            const playerJetBtn = document.getElementById('dialogPlayerJetBtn');
             const installVLC = document.getElementById('dialogPlayStoreVLC');
             const installMX = document.getElementById('dialogPlayStoreMX');
-            const installPlayerJet = document.getElementById('dialogPlayStorePlayerJet');
             
             title.textContent = `🎬 Play "${name}"`;
             message.innerHTML = `⚠️ Internal player failed.<br>📺 Open in external player?<br><small style="color: #ffaa00;">📢 Ads help us keep this free!</small>`;
@@ -1766,10 +1772,8 @@
             // Show main buttons
             vlcBtn.style.display = 'flex';
             mxBtn.style.display = 'flex';
-            playerJetBtn.style.display = 'flex'; // Show PlayerJet button
             installVLC.style.display = 'none';
             installMX.style.display = 'none';
-            installPlayerJet.style.display = 'none';
             
             // Reload bottom ad only
             reloadBottomAd();
@@ -1783,30 +1787,21 @@
             const message = document.getElementById('dialogMessage');
             const vlcBtn = document.getElementById('dialogVLCBtn');
             const mxBtn = document.getElementById('dialogMXBtn');
-            const playerJetBtn = document.getElementById('dialogPlayerJetBtn');
             const installVLC = document.getElementById('dialogPlayStoreVLC');
             const installMX = document.getElementById('dialogPlayStoreMX');
-            const installPlayerJet = document.getElementById('dialogPlayStorePlayerJet');
             
-            title.textContent = `📱 ${app === 'playerjet' ? 'PlayerJet' : app.toUpperCase()} Not Found`;
-            message.innerHTML = `🔍 Install ${app === 'playerjet' ? 'PlayerJet' : app.toUpperCase()} from Play Store?<br><small style="color: #ffaa00;">⬇️ Free download • Supports us</small>`;
+            title.textContent = `📱 ${app.toUpperCase()} Player Not Found`;
+            message.innerHTML = `🔍 Install ${app.toUpperCase()} player from Play Store?<br><small style="color: #ffaa00;">⬇️ Free download • Supports us</small>`;
             
             vlcBtn.style.display = 'none';
             mxBtn.style.display = 'none';
-            playerJetBtn.style.display = 'none';
             
             if (app === 'vlc') {
                 installVLC.style.display = 'flex';
                 installMX.style.display = 'none';
-                installPlayerJet.style.display = 'none';
-            } else if (app === 'mx') {
+            } else {
                 installVLC.style.display = 'none';
                 installMX.style.display = 'flex';
-                installPlayerJet.style.display = 'none';
-            } else if (app === 'playerjet') {
-                installVLC.style.display = 'none';
-                installMX.style.display = 'none';
-                installPlayerJet.style.display = 'flex';
             }
             
             // Keep bottom ad visible
@@ -1860,95 +1855,6 @@
                     }
                 }
             }, 500);
-        }
-        
-        // FIXED: MX Player with Audio Support
-        function openWithMX() {
-            showToast("Opening in MX Player...", 2000);
-            closeExternalDialog();
-            
-            let streamUrl = currentChannelUrl;
-            
-            // MX Player only works on Android
-            if (/Android/i.test(navigator.userAgent)) {
-                // FIX: Add audio codec hint for better audio support
-                // Method 1: Direct intent for MX Player with audio codec hint
-                const mxIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
-                
-                // Method 2: MX Player custom scheme with audio parameters
-                const mxScheme = `mxplayer://${streamUrl}?audio=1`;
-                
-                // Method 3: HTTP intent with audio focus
-                const mxHttpIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;end`;
-                
-                try {
-                    // Try intent first
-                    window.location.href = mxIntent;
-                    
-                    setTimeout(() => {
-                        try {
-                            window.location.href = mxScheme;
-                        } catch(e) {}
-                    }, 300);
-                    
-                    setTimeout(() => {
-                        try {
-                            window.location.href = mxHttpIntent;
-                        } catch(e) {}
-                    }, 600);
-                    
-                } catch(e) {
-                    console.error("Error opening MX Player:", e);
-                }
-                
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showInstallDialog('mx');
-                    }
-                }, 1500);
-            } 
-            // For non-Android, try VLC instead
-            else {
-                showToast("MX Player is only available on Android. Trying VLC...", 2000);
-                setTimeout(() => {
-                    openWithVLC();
-                }, 1500);
-            }
-        }
-        
-        // PLAYERJET - DIRECT URL ONLY (NO INTENTS) as per special instruction
-        function openWithPlayerJet() {
-            showToast("Opening in PlayerJet...", 2000);
-            closeExternalDialog();
-            
-            let streamUrl = currentChannelUrl;
-            
-            // DIRECT OPEN ONLY - NO INTENTS
-            if (/Android/i.test(navigator.userAgent)) {
-                try {
-                    // DIRECT URL OPEN - PlayerJet should handle this
-                    window.location.href = streamUrl;
-                    
-                    // Check if opened
-                    setTimeout(() => {
-                        if (document.visibilityState === 'visible') {
-                            // App probably not installed or didn't handle URL
-                            showInstallDialog('playerjet');
-                        }
-                    }, 1500);
-                    
-                } catch(e) {
-                    console.error("Error opening PlayerJet:", e);
-                    showInstallDialog('playerjet');
-                }
-            }
-            // For iOS, suggest VLC instead
-            else {
-                showToast("PlayerJet is for Android. Trying VLC...", 2000);
-                setTimeout(() => {
-                    openWithVLC();
-                }, 1500);
-            }
         }
         
         // Fixed function to open in VLC with proper URL handling
@@ -2031,6 +1937,59 @@
             }
         }
         
+        // Fixed function to open in MX Player with proper URL handling
+        function openWithMX() {
+            showToast("Opening in MX Player...", 2000);
+            closeExternalDialog();
+            
+            let streamUrl = currentChannelUrl;
+            
+            // MX Player only works on Android
+            if (/Android/i.test(navigator.userAgent)) {
+                // Method 1: Direct intent for MX Player
+                const mxIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
+                
+                // Method 2: MX Player custom scheme
+                const mxScheme = `mxplayer://${streamUrl}`;
+                
+                // Method 3: HTTP intent
+                const mxHttpIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;end`;
+                
+                try {
+                    // Try intent first
+                    window.location.href = mxIntent;
+                    
+                    setTimeout(() => {
+                        try {
+                            window.location.href = mxScheme;
+                        } catch(e) {}
+                    }, 300);
+                    
+                    setTimeout(() => {
+                        try {
+                            window.location.href = mxHttpIntent;
+                        } catch(e) {}
+                    }, 600);
+                    
+                } catch(e) {
+                    console.error("Error opening MX Player:", e);
+                }
+                
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        showInstallDialog('mx');
+                    }
+                }, 1500);
+            } 
+            // For non-Android, try VLC instead
+            else {
+                showToast("MX Player is only available on Android. Trying VLC...", 2000);
+                setTimeout(() => {
+                    openWithVLC();
+                }, 1500);
+            }
+        }
+        
         // Function to open in browser as fallback
         function openInBrowser() {
             showToast("Opening in browser...", 2000);
@@ -2043,15 +2002,9 @@
         }
         
         function openPlayStore(app) {
-            let playStoreUrl;
-            if (app === 'vlc') {
-                playStoreUrl = 'https://play.google.com/store/apps/details?id=org.videolan.vlc';
-            } else if (app === 'mx') {
-                playStoreUrl = 'https://play.google.com/store/apps/details?id=com.mxtech.videoplayer.ad';
-            } else if (app === 'playerjet') {
-                // PlayerJet Play Store link from user request
-                playStoreUrl = 'https://play.google.com/store/apps/details?id=com.rs.playerjet';
-            }
+            const playStoreUrl = app === 'vlc' 
+                ? 'https://play.google.com/store/apps/details?id=org.videolan.vlc'
+                : 'https://play.google.com/store/apps/details?id=com.mxtech.videoplayer.ad';
             
             window.open(playStoreUrl, '_blank');
             closeExternalDialog();
@@ -2384,12 +2337,23 @@
         window.stopSeeking = stopSeeking;
         window.openWithVLC = openWithVLC;
         window.openWithMX = openWithMX;
-        window.openWithPlayerJet = openWithPlayerJet;
         window.openInBrowser = openInBrowser;
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
         
-        console.log("🎬 SK4FiLM Player Ready - PlayerJet DIRECT OPEN only!");
+        console.log("🎬 SK4FiLM Player Ready with Smart Play Flow!");
+    </script>
+    <script>
+(function(crecv){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = crecv || {};
+s.src = "\/\/illiterate-being.com\/brXwVls.dmGzlw0aY\/WUcv\/oeumK9\/u\/ZcUplvkRPPTGYL3_N\/jMIkzkNFzSkZtSNXj\/cD2lMajzMq4VMhAp";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
     </script>
 </body>
 </html>
