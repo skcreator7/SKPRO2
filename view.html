@@ -1922,148 +1922,68 @@
         }
         
         // Fixed function to open in MX Player with proper URL handling
-function openWithMX() {
-    showToast("Opening in MX Player...", 2000);
-    closeExternalDialog();
-    
-    let streamUrl = currentChannelUrl;
-    
-    // MX Player only works on Android
-    if (/Android/i.test(navigator.userAgent)) {
-        
-        // First, try to open with direct intent but with proper formatting
-        // The key is to NOT encode the entire URL, just special characters
-        
-        // Method 1: Direct intent with proper action and type (Most reliable)
-        try {
-            // Create intent with proper format
-            // For MX Player, we need to use the exact URL without over-encoding
-            const intentUrl = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
+        function openWithMX() {
+            showToast("Opening in MX Player...", 2000);
+            closeExternalDialog();
             
-            console.log("Opening MX with intent:", intentUrl);
-            window.location.href = intentUrl;
-        } catch(e) {
-            console.error("Error with intent method:", e);
-        }
-        
-        // Method 2: Try with custom scheme if intent fails
-        setTimeout(() => {
-            try {
-                // Some versions of MX Player support this
-                const mxUrl = `mxplayer://${streamUrl}`;
-                console.log("Opening MX with scheme:", mxUrl);
-                window.location.href = mxUrl;
-            } catch(e) {}
-        }, 500);
-        
-        // Method 3: Alternative intent format
-        setTimeout(() => {
-            try {
-                // Alternative intent format
-                const altIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;end`;
-                console.log("Opening MX with alt intent:", altIntent);
-                window.location.href = altIntent;
-            } catch(e) {}
-        }, 1000);
-        
-        // Method 4: Try with encoded parameters only (not the whole URL)
-        setTimeout(() => {
-            try {
-                // Only encode the URL for the data parameter
-                const encodedUrl = encodeURIComponent(streamUrl);
-                const dataIntent = `intent:#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;data=${encodedUrl};type=video/*;end`;
-                console.log("Opening MX with data intent:", dataIntent);
-                window.location.href = dataIntent;
-            } catch(e) {}
-        }, 1500);
-        
-        // Check if MX Player opened (if not, show install dialog)
-        setTimeout(() => {
-            if (document.visibilityState === 'visible') {
-                // Page is still visible, app probably not opened
-                // But sometimes MX Player takes time, so double check
+            let streamUrl = currentChannelUrl;
+            
+            // MX Player only works on Android
+            if (/Android/i.test(navigator.userAgent)) {
+                // Method 1: Direct intent for MX Player
+                const mxIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
+                
+                // Method 2: MX Player custom scheme
+                const mxScheme = `mxplayer://${streamUrl}`;
+                
+                // Method 3: HTTP intent
+                const mxHttpIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;end`;
+                
+                try {
+                    // Try intent first
+                    window.location.href = mxIntent;
+                    
+                    setTimeout(() => {
+                        try {
+                            window.location.href = mxScheme;
+                        } catch(e) {}
+                    }, 300);
+                    
+                    setTimeout(() => {
+                        try {
+                            window.location.href = mxHttpIntent;
+                        } catch(e) {}
+                    }, 600);
+                    
+                } catch(e) {
+                    console.error("Error opening MX Player:", e);
+                }
+                
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
                         showInstallDialog('mx');
                     }
-                }, 1000);
-            }
-        }, 2500);
-    } 
-    // For non-Android, try VLC instead
-    else {
-        showToast("MX Player is only available on Android. Trying VLC...", 2000);
-        setTimeout(() => {
-            openWithVLC();
-        }, 1500);
-    }
-}
-
-// Also update the VLC function for consistency
-function openWithVLC() {
-    showToast("Opening in VLC...", 2000);
-    closeExternalDialog();
-    
-    let streamUrl = currentChannelUrl;
-    
-    // For Android - Using multiple methods
-    if (/Android/i.test(navigator.userAgent)) {
-        
-        // Method 1: Direct intent (Most reliable)
-        try {
-            const vlcIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end`;
-            console.log("Opening VLC with intent:", vlcIntent);
-            window.location.href = vlcIntent;
-        } catch(e) {}
-        
-        // Method 2: VLC custom scheme
-        setTimeout(() => {
-            try {
-                const vlcScheme = `vlc://${streamUrl}`;
-                console.log("Opening VLC with scheme:", vlcScheme);
-                window.location.href = vlcScheme;
-            } catch(e) {}
-        }, 500);
-        
-        // Method 3: Data intent
-        setTimeout(() => {
-            try {
-                const encodedUrl = encodeURIComponent(streamUrl);
-                const dataIntent = `intent:#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;data=${encodedUrl};type=video/*;end`;
-                console.log("Opening VLC with data intent:", dataIntent);
-                window.location.href = dataIntent;
-            } catch(e) {}
-        }, 1000);
-        
-        // Check if VLC opened
-        setTimeout(() => {
-            if (document.visibilityState === 'visible') {
+                }, 1500);
+            } 
+            // For non-Android, try VLC instead
+            else {
+                showToast("MX Player is only available on Android. Trying VLC...", 2000);
                 setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showInstallDialog('vlc');
-                    }
-                }, 1000);
+                    openWithVLC();
+                }, 1500);
             }
-        }, 2500);
-    } 
-    // For iOS
-    else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        try {
-            const iosVlcUrl = `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
-            window.location.href = iosVlcUrl;
+        }
+        
+        // Function to open in browser as fallback
+        function openInBrowser() {
+            showToast("Opening in browser...", 2000);
+            closeExternalDialog();
             
-            setTimeout(() => {
-                if (document.visibilityState === 'visible') {
-                    showInstallDialog('vlc');
-                }
-            }, 1500);
-        } catch(e) {}
-    }
-    // For desktop - open in new tab
-    else {
-        window.open(streamUrl, '_blank');
-    }
-}
+            let streamUrl = currentChannelUrl;
+            
+            // Open in new tab/window
+            window.open(streamUrl, '_blank');
+        }
         
         function openPlayStore(app) {
             const playStoreUrl = app === 'vlc' 
