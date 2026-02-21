@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.5 - FIXED FILE CHANNEL ID & MESSAGE ID
+# 🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT WITH FILE SENDING
 # ============================================================================
 
 import asyncio
@@ -236,7 +236,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.5-FIXED-IDS'
+    response.headers['X-SK4FiLM-Version'] = '9.5-FIXED-BOT'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -254,7 +254,9 @@ posters_col = None
 
 # Telegram Sessions
 try:
-    from pyrogram import Client
+    from pyrogram import Client, filters
+    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
+    from pyrogram.errors import FloodWait, BadRequest, MessageDeleteForbidden
     PYROGRAM_AVAILABLE = True
     User = None
     Bot = None
@@ -264,6 +266,18 @@ except ImportError:
     PYROGRAM_AVAILABLE = False
     User = None
     Bot = None
+    # Dummy classes
+    class filters:
+        @staticmethod
+        def command(cmd): return lambda x: x
+        @staticmethod
+        def private(): return lambda x: x
+    class InlineKeyboardMarkup:
+        def __init__(self, buttons): pass
+    class InlineKeyboardButton:
+        def __init__(self, text, url=None, callback_data=None): pass
+    class CallbackQuery: pass
+    class Message: pass
 
 # System Components
 cache_manager = None
@@ -282,7 +296,7 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ CONFIGURATION - v9.5 WITH FIXED IDs
+# ✅ CONFIGURATION - v9.5 WITH FIXED IDs AND BOT
 # ============================================================================
 
 class Config:
@@ -318,14 +332,14 @@ class Config:
     UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
     
     # Verification
-    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "False").lower() == "true"
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "False").lower() == "True"
     VERIFICATION_DURATION = 6 * 60 * 60
     
     # Application
     WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
     BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
     ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
-    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "5"))
+    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "5"))  # 5 minutes default
     WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
     BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
     
@@ -338,7 +352,7 @@ class Config:
     POSTER_CACHE_TTL = 86400  # 24 hours
     POSTER_FETCH_TIMEOUT = 3  # 3 seconds
     MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "20"))
-    CACHE_TTL = int(os.environ.get("CACHE_TTL", "600"))  # 10 minutes
+    CACHE_TTL = int(os.environ.get("CACHE_TTL", "1200"))  # 10 minutes
     REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "5"))  # 5 seconds
     
     # Sync Management Settings
@@ -355,19 +369,19 @@ class Config:
     THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
     THUMBNAIL_RETRY_LIMIT = 1
     THUMBNAIL_MAX_SIZE_KB = 200
-    THUMBNAIL_TTL_DAYS = 30
+    THUMBNAIL_TTL_DAYS = 365
     
     # 🔥 FILE CHANNEL INDEXING SETTINGS
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "300"))
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))
-    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"
-    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"
+    AUTO_INDEX_INTERVAL = 3600  # 1 hour
+    BATCH_INDEX_SIZE = 50
+    MAX_INDEX_LIMIT = 500
+    INDEX_ALL_HISTORY = False
+    INSTANT_AUTO_INDEX = True
     
     # 🔥 SEARCH SETTINGS - OPTIMIZED
     SEARCH_MIN_QUERY_LENGTH = 2
     SEARCH_RESULTS_PER_PAGE = 12
-    SEARCH_CACHE_TTL = 600  # 10 minutes cache
+    SEARCH_CACHE_TTL = 1800  # 10 minutes cache
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -472,11 +486,11 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ BOT HANDLER MODULE
+# ✅ BOT HANDLER MODULE - WITH FILE SENDING
 # ============================================================================
 
 class BotHandler:
-    """Bot handler for Telegram bot operations"""
+    """Bot handler for Telegram bot operations - ENHANCED with file sending"""
     
     def __init__(self, bot_token=None, api_id=None, api_hash=None):
         self.bot_token = bot_token or Config.BOT_TOKEN
@@ -486,6 +500,10 @@ class BotHandler:
         self.initialized = False
         self.last_update = None
         self.bot_username = None
+        
+        # Auto-delete tracking
+        self.auto_delete_tasks = {}
+        self.auto_delete_messages = {}
         
     async def initialize(self):
         """Initialize bot handler"""
@@ -527,6 +545,7 @@ class BotHandler:
             self.last_update = datetime.now()
             
             asyncio.create_task(self._periodic_tasks())
+            asyncio.create_task(self._cleanup_old_auto_delete_tasks())
             return True
             
         except Exception as e:
@@ -551,6 +570,263 @@ class BotHandler:
             except Exception as e:
                 logger.error(f"❌ Bot handler periodic task error: {e}")
                 await asyncio.sleep(60)
+    
+    # ============================================================================
+    # ✅ FILE SENDING METHODS
+    # ============================================================================
+    
+    async def send_file_to_user(self, user_id: int, channel_id: int, message_id: int, quality: str = "480p") -> Tuple[bool, Dict, int]:
+        """
+        🚀 Send file directly to user
+        Returns: (success, result_data, file_size)
+        """
+        try:
+            if not self.initialized:
+                return False, {'message': 'Bot not initialized'}, 0
+            
+            logger.info(f"📤 Sending file to user {user_id}: channel={channel_id}, msg={message_id}, quality={quality}")
+            
+            # Get message from channel
+            message = await self.bot.get_messages(channel_id, message_id)
+            if not message:
+                return False, {'message': 'File not found in channel'}, 0
+            
+            if not message.document and not message.video:
+                return False, {'message': 'Not a downloadable file'}, 0
+            
+            # Prepare file info
+            if message.document:
+                file_name = message.document.file_name or "file.bin"
+                file_size = message.document.file_size or 0
+                file_id = message.document.file_id
+                mime_type = message.document.mime_type or "application/octet-stream"
+                is_video = False
+            else:  # video
+                file_name = message.video.file_name or "video.mp4"
+                file_size = message.video.file_size or 0
+                file_id = message.video.file_id
+                mime_type = "video/mp4"
+                is_video = True
+            
+            # Create caption
+            caption = (
+                f"📁 **File:** `{file_name}`\n"
+                f"📦 **Size:** {format_size(file_size)}\n"
+                f"📹 **Quality:** {quality}\n"
+                f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME} minutes\n\n"
+                f"🔗 **More movies:** {Config.WEBSITE_URL}\n"
+                f"🎬 **@SK4FiLM**"
+            )
+            
+            # Create buttons
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
+                [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)],
+                [InlineKeyboardButton("🔄 GET ANOTHER", callback_data="back_to_start")]
+            ])
+            
+            # Send file
+            try:
+                if is_video:
+                    sent = await self.bot.send_video(
+                        user_id,
+                        file_id,
+                        caption=caption,
+                        reply_markup=buttons,
+                        supports_streaming=True
+                    )
+                else:
+                    sent = await self.bot.send_document(
+                        user_id,
+                        file_id,
+                        caption=caption,
+                        reply_markup=buttons
+                    )
+                
+                logger.info(f"✅ File sent to user {user_id}: {file_name} ({format_size(file_size)})")
+                
+                # Schedule auto-delete
+                task_id = f"{user_id}_{sent.id}"
+                task = asyncio.create_task(
+                    self._auto_delete_file(user_id, sent.id, file_name, Config.AUTO_DELETE_TIME)
+                )
+                self.auto_delete_tasks[task_id] = task
+                self.auto_delete_messages[task_id] = {
+                    'user_id': user_id,
+                    'message_id': sent.id,
+                    'file_name': file_name,
+                    'scheduled_time': datetime.now() + timedelta(minutes=Config.AUTO_DELETE_TIME),
+                    'status': 'pending'
+                }
+                
+                return True, {
+                    'success': True,
+                    'file_name': file_name,
+                    'file_size': file_size,
+                    'quality': quality,
+                    'message_id': sent.id,
+                    'auto_delete_minutes': Config.AUTO_DELETE_TIME
+                }, file_size
+                
+            except FloodWait as e:
+                logger.warning(f"⏳ Flood wait: {e.value}s")
+                await asyncio.sleep(e.value)
+                # Retry after flood wait
+                return await self.send_file_to_user(user_id, channel_id, message_id, quality)
+                
+            except BadRequest as e:
+                if "FILE_REFERENCE_EXPIRED" in str(e):
+                    # Try to get fresh message
+                    fresh_msg = await self.bot.get_messages(channel_id, message_id)
+                    if fresh_msg and (fresh_msg.document or fresh_msg.video):
+                        # Update file_id
+                        if fresh_msg.document:
+                            file_id = fresh_msg.document.file_id
+                        else:
+                            file_id = fresh_msg.video.file_id
+                        
+                        # Retry with fresh file_id
+                        if is_video:
+                            sent = await self.bot.send_video(
+                                user_id, file_id, caption=caption, reply_markup=buttons
+                            )
+                        else:
+                            sent = await self.bot.send_document(
+                                user_id, file_id, caption=caption, reply_markup=buttons
+                            )
+                        
+                        logger.info(f"✅ File sent with refreshed reference to user {user_id}")
+                        return True, {
+                            'success': True,
+                            'file_name': file_name,
+                            'file_size': file_size,
+                            'quality': quality,
+                            'message_id': sent.id,
+                            'refreshed': True
+                        }, file_size
+                raise e
+                
+        except Exception as e:
+            logger.error(f"❌ Send file error: {e}")
+            return False, {'message': f'Error: {str(e)}'}, 0
+    
+    async def _auto_delete_file(self, user_id: int, message_id: int, file_name: str, minutes: int):
+        """Auto-delete file after specified minutes"""
+        try:
+            task_id = f"{user_id}_{message_id}"
+            logger.info(f"⏰ Auto-delete scheduled for user {user_id}, message {message_id} in {minutes} minutes")
+            
+            await asyncio.sleep(minutes * 60)
+            
+            # Delete the message
+            try:
+                await self.bot.delete_messages(user_id, message_id)
+                logger.info(f"🗑️ Auto-deleted file for user {user_id}: {file_name}")
+                
+                # Update status
+                if task_id in self.auto_delete_messages:
+                    self.auto_delete_messages[task_id]['status'] = 'completed'
+                    self.auto_delete_messages[task_id]['completed_at'] = datetime.now()
+                
+                # Send notification
+                await self.bot.send_message(
+                    user_id,
+                    f"🗑️ **File Auto-Deleted**\n\n"
+                    f"✅ Security measure completed\n\n"
+                    f"🌐 Visit website to download again: {Config.WEBSITE_URL}",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
+                    ])
+                )
+                
+            except MessageDeleteForbidden:
+                logger.warning(f"❌ Cannot delete message {message_id}: Message delete forbidden")
+            except BadRequest as e:
+                if "MESSAGE_ID_INVALID" in str(e):
+                    logger.info(f"Message {message_id} already deleted")
+                else:
+                    logger.error(f"Delete error: {e}")
+                    
+        except asyncio.CancelledError:
+            logger.info(f"⏹️ Auto-delete cancelled for user {user_id}, message {message_id}")
+            task_id = f"{user_id}_{message_id}"
+            if task_id in self.auto_delete_messages:
+                self.auto_delete_messages[task_id]['status'] = 'cancelled'
+        except Exception as e:
+            logger.error(f"❌ Auto-delete error: {e}")
+        finally:
+            # Clean up task
+            task_id = f"{user_id}_{message_id}"
+            if task_id in self.auto_delete_tasks:
+                del self.auto_delete_tasks[task_id]
+    
+    async def cancel_auto_delete(self, user_id: int, message_id: int):
+        """Cancel auto-delete for a specific file"""
+        task_id = f"{user_id}_{message_id}"
+        if task_id in self.auto_delete_tasks:
+            task = self.auto_delete_tasks[task_id]
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            del self.auto_delete_tasks[task_id]
+            if task_id in self.auto_delete_messages:
+                self.auto_delete_messages[task_id]['status'] = 'cancelled_by_user'
+            logger.info(f"✅ Auto-delete cancelled for user {user_id}, message {message_id}")
+            return True
+        return False
+    
+    async def _cleanup_old_auto_delete_tasks(self):
+        """Clean up old auto-delete task data"""
+        while self.initialized:
+            try:
+                await asyncio.sleep(3600)  # Run every hour
+                
+                now = datetime.now()
+                to_remove = []
+                
+                for task_id, data in self.auto_delete_messages.items():
+                    completed_at = data.get('completed_at')
+                    if completed_at and (now - completed_at).total_seconds() > 24 * 3600:
+                        to_remove.append(task_id)
+                
+                for task_id in to_remove:
+                    self.auto_delete_messages.pop(task_id, None)
+                
+                if to_remove:
+                    logger.info(f"🧹 Cleaned up {len(to_remove)} old auto-delete records")
+                    
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Auto-delete cleanup error: {e}")
+    
+    async def get_auto_delete_stats(self):
+        """Get auto-delete statistics"""
+        stats = {
+            'total_tasks': len(self.auto_delete_messages),
+            'active_tasks': len(self.auto_delete_tasks),
+            'pending': 0,
+            'completed': 0,
+            'cancelled': 0
+        }
+        
+        for data in self.auto_delete_messages.values():
+            status = data.get('status', 'unknown')
+            if status == 'pending':
+                stats['pending'] += 1
+            elif status == 'completed':
+                stats['completed'] += 1
+            elif 'cancelled' in status:
+                stats['cancelled'] += 1
+        
+        return stats
+    
+    # ============================================================================
+    # ✅ OTHER BOT METHODS
+    # ============================================================================
     
     async def get_file_info(self, channel_id, message_id):
         """Get file information from message"""
@@ -656,13 +932,15 @@ class BotHandler:
         
         try:
             bot_info = await self.bot.get_me()
+            auto_delete_stats = await self.get_auto_delete_stats()
             return {
                 'initialized': True,
                 'bot_username': bot_info.username,
                 'bot_id': bot_info.id,
                 'first_name': bot_info.first_name,
                 'last_update': self.last_update.isoformat() if self.last_update else None,
-                'is_connected': True
+                'is_connected': True,
+                'auto_delete': auto_delete_stats
             }
         except Exception as e:
             logger.error(f"Error getting bot status: {e}")
@@ -674,6 +952,19 @@ class BotHandler:
     async def shutdown(self):
         """Shutdown bot handler"""
         logger.info("Shutting down bot handler...")
+        
+        # Cancel all auto-delete tasks
+        for task_id, task in list(self.auto_delete_tasks.items()):
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        
+        self.auto_delete_tasks.clear()
+        self.auto_delete_messages.clear()
+        
         self.initialized = False
         if self.bot:
             try:
@@ -1322,7 +1613,7 @@ async def search_movies_optimized(query, limit=15, page=1):
     }
 
 # ============================================================================
-# ✅ THUMBNAIL MANAGER
+# ✅ THUMBNAIL MANAGER - FIXED CHANNEL IDS
 # ============================================================================
 
 class ThumbnailManager:
@@ -1379,7 +1670,7 @@ class ThumbnailManager:
                 "title_idx": [("normalized_title", 1)],
                 "has_thumbnail_idx": [("has_thumbnail", 1)],
                 "extracted_at_idx": [("extracted_at", -1)],
-                "channel_msg_idx": [("channel_id", 1), ("message_id", 1)]  # ✅ Added for faster lookups
+                "channel_msg_idx": [("channel_id", 1), ("message_id", 1)]
             }
 
             for name, keys in indexes.items():
@@ -1536,7 +1827,7 @@ class ThumbnailManager:
         logger.info(f"✅ Stats - Movies with thumbnails: {self.stats['total_movies_with_thumbnails']}")
 
 # ============================================================================
-# ✅ OPTIMIZED FILE INDEXING MANAGER - FIXED CHANNEL ID
+# ✅ OPTIMIZED FILE INDEXING MANAGER - LIMITED
 # ============================================================================
 
 class OptimizedFileIndexingManager:
@@ -1544,7 +1835,6 @@ class OptimizedFileIndexingManager:
         self.is_running = False
         self.indexing_task = None
         self.last_run = None
-        self.next_run = None
         self.total_indexed = 0
         self.movies_with_thumbnails = 0
         self.indexing_stats = {
@@ -1609,14 +1899,15 @@ class OptimizedFileIndexingManager:
             logger.error(f"❌ Cannot access file channel: {e}")
             return
         
-        # Fetch messages
+        # Fetch only recent messages (limit 500)
         all_messages = []
         offset_id = 0
-        batch_size = 200
+        batch_size = 50
+        max_messages = 500
         
-        logger.info("📥 Fetching messages from file channel...")
+        logger.info(f"📥 Fetching up to {max_messages} messages from file channel...")
         
-        while self.is_running:
+        while self.is_running and len(all_messages) < max_messages:
             try:
                 messages = []
                 async for msg in client.get_chat_history(Config.FILE_CHANNEL_ID, limit=batch_size, offset_id=offset_id):
@@ -1629,17 +1920,18 @@ class OptimizedFileIndexingManager:
                 
                 all_messages.extend(messages)
                 offset_id = messages[-1].id
-                logger.info(f"📥 Fetched {len(all_messages)} messages...")
+                logger.info(f"📥 Fetched {len(all_messages)}/{max_messages} messages...")
                 self.indexing_stats['total_messages_fetched'] = len(all_messages)
                 
                 if len(messages) < batch_size:
                     break
                 
-                await asyncio.sleep(0.5)
+                # Rate limiting
+                await asyncio.sleep(2)
                 
             except Exception as e:
                 logger.error(f"❌ Error fetching messages: {e}")
-                await asyncio.sleep(2)
+                await asyncio.sleep(5)
                 continue
         
         logger.info(f"✅ Total messages fetched: {len(all_messages)}")
@@ -1676,8 +1968,7 @@ class OptimizedFileIndexingManager:
                 'message': msg,
                 'file_name': file_name,
                 'has_thumbnail': has_telegram_thumbnail(msg),
-                'message_id': msg.id,
-                'channel_id': Config.FILE_CHANNEL_ID
+                'message_id': msg.id
             })
             
             if has_telegram_thumbnail(msg):
@@ -1743,12 +2034,11 @@ class OptimizedFileIndexingManager:
             
             for movie in batch:
                 try:
-                    result = await try_store_real_thumbnail(
+                    await try_store_real_thumbnail(
                         movie['normalized'],
                         movie['title'],
                         movie['message']
                     )
-                    
                     successful += 1
                     logger.info(f"✅ Thumbnail stored for: {movie['title']} (Msg: {movie['message_id']})")
                     
@@ -1909,7 +2199,7 @@ class OptimizedSyncManager:
             
             batch_size = 100
             cursor = thumbnails_col.find(
-                {"channel_id": Config.FILE_CHANNEL_ID},  # ✅ FIXED: Use Config.FILE_CHANNEL_ID
+                {"channel_id": Config.FILE_CHANNEL_ID},
                 {"message_id": 1, "_id": 1, "title": 1}
             ).sort("message_id", -1).limit(batch_size)
             
@@ -1929,7 +2219,7 @@ class OptimizedSyncManager:
             message_ids = [item['message_id'] for item in message_data]
             
             try:
-                messages = await User.get_messages(Config.FILE_CHANNEL_ID, message_ids)  # ✅ FIXED
+                messages = await User.get_messages(Config.FILE_CHANNEL_ID, message_ids)
                 
                 existing_ids = set()
                 if isinstance(messages, list):
@@ -1996,7 +2286,7 @@ async def get_home_movies(limit=25):
                     formatted_content = format_post(msg.text, max_length=500)
                     norm_title = normalize_title(clean_title)
                     
-                    # ========== STEP 1: TRY POSTER FIRST (TMDB/OMDB) ==========
+                    # ========== STEP 1: TRY POSTER FIRST ==========
                     thumbnail_url = None
                     thumbnail_source = None
                     poster_data = None
@@ -2011,7 +2301,7 @@ async def get_home_movies(limit=25):
                         except Exception as e:
                             logger.debug(f"Poster error for {clean_title}: {e}")
                     
-                    # ========== STEP 2: IF NO POSTER, TRY MONGODB THUMBNAIL ==========
+                    # ========== STEP 2: IF NO POSTER, TRY MONGODB ==========
                     if not thumbnail_url and thumbnails_col is not None:
                         try:
                             thumb_doc = await thumbnails_col.find_one({
@@ -2081,6 +2371,241 @@ async def get_home_movies(limit=25):
         return []
 
 # ============================================================================
+# ✅ TELEGRAM BOT SETUP - WITH ALL HANDLERS
+# ============================================================================
+
+async def setup_telegram_bot_handlers(bot):
+    """Setup all bot command handlers"""
+    
+    @bot.on_message(filters.command("start"))
+    async def start_command(client, message):
+        """Handle /start command"""
+        try:
+            user_name = message.from_user.first_name or "User"
+            
+            # Check if it's a file request
+            if len(message.command) > 1:
+                file_param = message.command[1]
+                parts = file_param.split('_')
+                
+                if len(parts) >= 2:
+                    try:
+                        channel_id = int(parts[0])
+                        message_id = int(parts[1])
+                        quality = parts[2] if len(parts) > 2 else "480p"
+                        
+                        # Send processing message
+                        processing = await message.reply_text("⏳ **Sending your file...**")
+                        
+                        # Send file using bot handler
+                        success, result, size = await bot_handler.send_file_to_user(
+                            message.chat.id,
+                            channel_id,
+                            message_id,
+                            quality
+                        )
+                        
+                        if success:
+                            await processing.delete()
+                            await message.reply_text(
+                                f"✅ **File sent successfully!**\n\n"
+                                f"📁 **File:** `{result['file_name']}`\n"
+                                f"📦 **Size:** {format_size(size)}\n"
+                                f"📹 **Quality:** {quality}\n"
+                                f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME} minutes",
+                                reply_markup=InlineKeyboardMarkup([
+                                    [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
+                                    [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)]
+                                ])
+                            )
+                        else:
+                            await processing.edit_text(f"❌ {result.get('message', 'Error sending file')}")
+                        return
+                        
+                    except Exception as e:
+                        logger.error(f"File request error: {e}")
+                        await message.reply_text("❌ Invalid file request")
+                        return
+            
+            # Normal start message
+            welcome_text = (
+                f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
+                f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
+                f"**How to download:**\n"
+                f"1. Visit website\n"
+                f"2. Search movie\n"
+                f"3. Click download\n"
+                f"4. File appears here\n\n"
+                f"⏰ Files auto-delete in {Config.AUTO_DELETE_TIME} minutes\n\n"
+                f"🎬 **Happy watching!**"
+            )
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)],
+                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+            ])
+            
+            await message.reply_text(welcome_text, reply_markup=keyboard)
+            
+        except Exception as e:
+            logger.error(f"Start command error: {e}")
+            await message.reply_text("❌ Error. Please try again.")
+    
+    @bot.on_callback_query()
+    async def handle_callbacks(client, callback_query):
+        """Handle all callback queries"""
+        try:
+            data = callback_query.data
+            
+            if data == "back_to_start":
+                user_name = callback_query.from_user.first_name or "User"
+                text = (
+                    f"🎬 **Welcome back, {user_name}!**\n\n"
+                    f"Visit {Config.WEBSITE_URL} to download movies."
+                )
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
+                    [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)],
+                    [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+                ])
+                await callback_query.message.edit_text(text, reply_markup=keyboard)
+                await callback_query.answer()
+                
+            elif data == "buy_premium":
+                text = (
+                    "💎 **Premium Plans** 💎\n\n"
+                    f"**Basic** - ₹50\n"
+                    f"📅 30 days\n\n"
+                    f"**Premium** - ₹100\n"
+                    f"📅 90 days\n\n"
+                    f"**Gold** - ₹200\n"
+                    f"📅 180 days\n\n"
+                    f"**Diamond** - ₹500\n"
+                    f"📅 365 days\n\n"
+                    f"**UPI ID:** `{Config.UPI_ID_BASIC}`\n\n"
+                    f"📸 Send payment screenshot here to activate"
+                )
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+                ])
+                await callback_query.message.edit_text(text, reply_markup=keyboard)
+                await callback_query.answer()
+                
+        except Exception as e:
+            logger.error(f"Callback error: {e}")
+            await callback_query.answer("❌ Error", show_alert=True)
+    
+    @bot.on_message(filters.private & filters.photo)
+    async def handle_screenshot(client, message):
+        """Forward payment screenshots to admins"""
+        try:
+            user_id = message.from_user.id
+            
+            # Skip if admin
+            if user_id in Config.ADMIN_IDS:
+                return
+            
+            # Get user info
+            user = await client.get_users(user_id)
+            user_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"User {user_id}"
+            username = f"@{user.username}" if user.username else "No username"
+            
+            # Alert text for admins
+            alert = (
+                f"📸 **Payment Screenshot**\n\n"
+                f"👤 **User:** {user_name}\n"
+                f"🆔 **ID:** `{user_id}`\n"
+                f"📛 **Username:** {username}\n"
+                f"🕒 **Time:** {datetime.now().strftime('%H:%M:%S')}"
+            )
+            
+            # Forward to all admins
+            for admin_id in Config.ADMIN_IDS:
+                try:
+                    await message.copy(admin_id, caption=alert)
+                    logger.info(f"✅ Screenshot forwarded to admin {admin_id}")
+                except Exception as e:
+                    logger.error(f"Failed to forward to admin {admin_id}: {e}")
+            
+            # Acknowledge user
+            await message.reply_text(
+                "✅ **Screenshot received!**\n\n"
+                "Admin will verify and activate your premium within 24 hours.\n"
+                "Thank you for choosing SK4FiLM! 🎬",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 BACK TO START", callback_data="back_to_start")]
+                ])
+            )
+            
+        except Exception as e:
+            logger.error(f"Screenshot handler error: {e}")
+    
+    # Admin commands
+    @bot.on_message(filters.command("autodelete") & filters.user(Config.ADMIN_IDS))
+    async def autodelete_status(client, message):
+        """Check auto-delete status (admin only)"""
+        try:
+            stats = await bot_handler.get_auto_delete_stats()
+            text = (
+                f"⏰ **Auto-Delete System Status**\n\n"
+                f"📊 **Total Tasks:** {stats.get('total_tasks', 0)}\n"
+                f"⏳ **Pending:** {stats.get('pending', 0)}\n"
+                f"✅ **Completed:** {stats.get('completed', 0)}\n"
+                f"⏹️ **Cancelled:** {stats.get('cancelled', 0)}\n"
+                f"⚡ **Active Tasks:** {stats.get('active_tasks', 0)}\n\n"
+                f"⏱️ **Delete Time:** {Config.AUTO_DELETE_TIME} minutes"
+            )
+            await message.reply_text(text)
+        except Exception as e:
+            await message.reply_text(f"❌ Error: {e}")
+    
+    logger.info("✅ Bot handlers setup complete")
+
+# ============================================================================
+# ✅ TELEGRAM BOT START FUNCTION
+# ============================================================================
+
+async def start_telegram_bot():
+    """Start the Telegram bot with all handlers"""
+    try:
+        if not PYROGRAM_AVAILABLE:
+            logger.warning("❌ Pyrogram not available")
+            return None
+        
+        if not Config.BOT_TOKEN:
+            logger.warning("❌ Bot token not configured")
+            return None
+        
+        logger.info("🤖 Starting Telegram Bot...")
+        
+        # Ensure bot handler is initialized
+        if not bot_handler.initialized:
+            await bot_handler.initialize()
+        
+        # Create bot client
+        bot = Client(
+            "sk4film_bot",
+            api_id=Config.API_ID,
+            api_hash=Config.API_HASH,
+            bot_token=Config.BOT_TOKEN
+        )
+        
+        # Start bot
+        await bot.start()
+        logger.info("✅ Bot client started")
+        
+        # Setup handlers
+        await setup_telegram_bot_handlers(bot)
+        
+        logger.info("✅ Telegram Bot fully initialized with handlers")
+        return bot
+        
+    except Exception as e:
+        logger.error(f"❌ Bot startup error: {e}")
+        return None
+
+# ============================================================================
 # ✅ TELEGRAM SESSION INITIALIZATION
 # ============================================================================
 
@@ -2137,7 +2662,7 @@ async def init_telegram_sessions():
             me = await User.get_me()
             logger.info(f"✅ USER Session Ready: {me.first_name}")
             
-            # ✅ Test access to FILE_CHANNEL
+            # Test access to FILE_CHANNEL
             try:
                 chat = await User.get_chat(Config.FILE_CHANNEL_ID)
                 logger.info(f"✅ File Channel Access: {chat.title} (ID: {Config.FILE_CHANNEL_ID})")
@@ -2163,7 +2688,7 @@ async def init_telegram_sessions():
     return bot_session_ready or user_session_ready
 
 # ============================================================================
-# ✅ FIXED MONGODB INITIALIZATION - HANDLES DUPLICATES
+# ✅ MONGODB INITIALIZATION
 # ============================================================================
 
 @performance_monitor.measure("mongodb_init")
@@ -2192,23 +2717,20 @@ async def init_mongodb():
         thumbnails_col = db.thumbnails
         posters_col = db.posters
 
-        # ---------- SAFE INDEX CREATION ----------
+        # Safe index creation
         async def safe_index_creation():
             try:
-                # Check existing indexes
-                existing_indexes = await thumbnails_col.index_information()
-                logger.info(f"📊 Existing indexes: {list(existing_indexes.keys())}")
+                existing = await thumbnails_col.index_information()
                 
                 # Drop problematic unique index if exists
-                if "normalized_title_1" in existing_indexes:
+                if "normalized_title_1" in existing:
                     try:
                         await thumbnails_col.drop_index("normalized_title_1")
                         logger.info("✅ Dropped problematic unique index")
                     except Exception as e:
                         logger.warning(f"⚠️ Could not drop index: {e}")
                 
-                # Handle duplicate documents
-                logger.info("🔍 Checking for duplicate documents...")
+                # Handle duplicates
                 pipeline = [
                     {"$group": {
                         "_id": "$normalized_title",
@@ -2223,35 +2745,18 @@ async def init_mongodb():
                 if duplicates:
                     logger.warning(f"⚠️ Found {len(duplicates)} duplicate titles")
                     for dup in duplicates:
-                        # Keep first document, delete others
                         keep_id = dup['docs'][0]
                         delete_ids = dup['docs'][1:]
                         if delete_ids:
                             await thumbnails_col.delete_many({"_id": {"$in": delete_ids}})
                             logger.info(f"🧹 Cleaned duplicates for: {dup['_id']}")
                 
-                # Create new non-unique index
-                await thumbnails_col.create_index(
-                    [("normalized_title", 1)],
-                    name="title_idx",
-                    background=True
-                )
-                logger.info("✅ Created title_idx (non-unique)")
+                # Create new indexes
+                await thumbnails_col.create_index([("normalized_title", 1)], name="title_idx", background=True)
+                await thumbnails_col.create_index([("has_thumbnail", 1)], name="has_thumbnail_idx", background=True)
+                await thumbnails_col.create_index([("channel_id", 1), ("message_id", 1)], name="channel_msg_idx", background=True)
                 
-                # Create other indexes
-                await thumbnails_col.create_index(
-                    [("has_thumbnail", 1)],
-                    name="has_thumbnail_idx",
-                    background=True
-                )
-                
-                # ✅ Create channel+message index for faster lookups
-                await thumbnails_col.create_index(
-                    [("channel_id", 1), ("message_id", 1)],
-                    name="channel_msg_idx",
-                    background=True
-                )
-                logger.info("✅ Created channel_msg_idx")
+                logger.info("✅ Indexes created")
                 
             except Exception as e:
                 logger.error(f"❌ Index creation error: {e}")
@@ -2356,43 +2861,6 @@ async def initial_indexing_optimized():
         logger.error(f"❌ Initial indexing error: {e}")
 
 # ============================================================================
-# ✅ BOT INITIALIZATION
-# ============================================================================
-
-async def start_telegram_bot():
-    """Start the Telegram bot"""
-    try:
-        if not PYROGRAM_AVAILABLE:
-            logger.warning("❌ Pyrogram not available")
-            return None
-        
-        if not Config.BOT_TOKEN:
-            logger.warning("❌ Bot token not configured")
-            return None
-        
-        logger.info("🤖 Starting Telegram Bot...")
-        
-        try:
-            from bot_handlers import SK4FiLMBot
-        except ImportError as e:
-            logger.error(f"❌ Bot handler import error: {e}")
-            return None
-        
-        bot_instance = SK4FiLMBot(Config, db_manager=None)
-        bot_started = await bot_instance.initialize()
-        
-        if bot_started:
-            logger.info("✅ Telegram Bot started!")
-            return bot_instance
-        else:
-            logger.error("❌ Failed to start Telegram Bot")
-            return None
-            
-    except Exception as e:
-        logger.error(f"❌ Bot startup error: {e}")
-        return None
-
-# ============================================================================
 # ✅ MAIN INITIALIZATION
 # ============================================================================
 
@@ -2402,7 +2870,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.5 - FIXED CHANNEL IDs")
+        logger.info("🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2450,25 +2918,24 @@ async def init_system():
         global telegram_bot
         telegram_bot = await start_telegram_bot()
         if telegram_bot:
-            logger.info("✅ Telegram Bot started")
+            logger.info("✅ Telegram Bot started with all handlers")
         else:
             logger.warning("⚠️ Telegram Bot failed to start")
         
-        # Start indexing
+        # Start indexing (limited)
         if (user_session_ready or bot_session_ready) and thumbnails_col is not None:
-            logger.info("🔍 Starting thumbnail indexing...")
+            logger.info("🔍 Starting thumbnail indexing (limited to 500 messages)...")
             asyncio.create_task(initial_indexing_optimized())
         
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
-        logger.info("🔧 CONFIGURATION:")
+        logger.info("🔧 FEATURES:")
         logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
         logger.info(f"   • Main Channel ID: {Config.MAIN_CHANNEL_ID}")
-        logger.info(f"   • Text Channels: {Config.TEXT_CHANNEL_IDS}")
         logger.info(f"   • Poster Fetching: ✅ ENABLED")
-        logger.info(f"   • ONE Thumbnail Per Movie: ✅ ENABLED")
-        logger.info(f"   • All Qualities Shown: ✅ ENABLED")
+        logger.info(f"   • File Sending: ✅ ENABLED")
+        logger.info(f"   • Auto-Delete: ✅ {Config.AUTO_DELETE_TIME} minutes")
         logger.info("=" * 60)
         
         return True
@@ -2511,12 +2978,13 @@ async def root():
         except Exception as e:
             bot_status = {'initialized': False, 'error': str(e)}
     
-    bot_running = telegram_bot is not None and hasattr(telegram_bot, 'bot_started') and telegram_bot.bot_started
+    bot_running = telegram_bot is not None
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.5 - FIXED CHANNEL IDs',
+        'service': 'SK4FiLM v9.5 - COMPLETE FIXED BOT',
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
+        'auto_delete_minutes': Config.AUTO_DELETE_TIME,
         'storage_stats': {
             'movies_with_thumbnails': movies_with_thumb,
             'movies_without_thumbnails': movies_without_thumb,
@@ -2551,7 +3019,6 @@ async def root():
     })
 
 @app.route('/health')
-@performance_monitor.measure("health_endpoint")
 async def health():
     return jsonify({
         'status': 'ok',
@@ -2562,12 +3029,11 @@ async def health():
             'telegram_bot': telegram_bot is not None
         },
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
-        'file_channel_id': Config.FILE_CHANNEL_ID,
+        'auto_delete_minutes': Config.AUTO_DELETE_TIME,
         'timestamp': datetime.now().isoformat()
     })
 
 @app.route('/api/movies', methods=['GET'])
-@performance_monitor.measure("movies_endpoint")
 async def api_movies():
     try:
         movies = await get_home_movies(limit=25)
@@ -2579,7 +3045,6 @@ async def api_movies():
             'limit': 25,
             'source': 'telegram',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
-            'file_channel_id': Config.FILE_CHANNEL_ID,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2587,9 +3052,8 @@ async def api_movies():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/search', methods=['GET'])
-@performance_monitor.measure("search_endpoint")
 async def api_search():
-    """Fast search with one thumbnail per movie - FIXED CHANNEL IDs"""
+    """Fast search with one thumbnail per movie"""
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
@@ -2611,7 +3075,6 @@ async def api_search():
             'search_metadata': result_data.get('search_metadata', {}),
             'bot_username': Config.BOT_USERNAME,
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
-            'file_channel_id': Config.FILE_CHANNEL_ID,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -2667,7 +3130,7 @@ async def api_stats():
             },
             'bot_handler': bot_status,
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
-            'file_channel_id': Config.FILE_CHANNEL_ID,
+            'auto_delete_minutes': Config.AUTO_DELETE_TIME,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2683,7 +3146,8 @@ async def debug_channel_info():
             'main_channel_id': Config.MAIN_CHANNEL_ID,
             'text_channels': Config.TEXT_CHANNEL_IDS,
             'user_session_ready': user_session_ready,
-            'bot_session_ready': bot_session_ready
+            'bot_session_ready': bot_session_ready,
+            'bot_handler_initialized': bot_handler.initialized if bot_handler else False
         }
         
         if user_session_ready and User:
@@ -2713,6 +3177,14 @@ async def debug_channel_info():
             except Exception as e:
                 result['file_channel_error'] = str(e)
         
+        # Bot info
+        if bot_handler and bot_handler.initialized:
+            try:
+                bot_info = await bot_handler.get_bot_status()
+                result['bot_info'] = bot_info
+            except:
+                pass
+        
         return jsonify(result)
         
     except Exception as e:
@@ -2732,8 +3204,12 @@ async def startup():
 async def shutdown():
     logger.info("🛑 Shutting down SK4FiLM v9.5...")
     
-    if telegram_bot and hasattr(telegram_bot, 'shutdown'):
-        await telegram_bot.shutdown()
+    if telegram_bot:
+        try:
+            await telegram_bot.stop()
+            logger.info("✅ Telegram bot stopped")
+        except:
+            pass
     
     await file_indexing_manager.stop_indexing()
     await sync_manager.stop_sync_monitoring()
@@ -2781,13 +3257,13 @@ if __name__ == "__main__":
     
     logger.info(f"🌐 Starting SK4FiLM v9.5 on port {Config.WEB_SERVER_PORT}...")
     logger.info(f"📁 File Channel ID: {Config.FILE_CHANNEL_ID}")
-    logger.info(f"📢 Main Channel ID: {Config.MAIN_CHANNEL_ID}")
-    logger.info(f"📝 Text Channels: {Config.TEXT_CHANNEL_IDS}")
+    logger.info(f"🤖 Bot Token: {'✅ Configured' if Config.BOT_TOKEN else '❌ Missing'}")
+    logger.info(f"⏰ Auto-Delete Time: {Config.AUTO_DELETE_TIME} minutes")
     logger.info(f"🎬 Poster Fetching: {'ENABLED' if Config.POSTER_FETCHING_ENABLED else 'DISABLED'}")
     logger.info(f"🖼️ ONE Thumbnail Per Movie: ENABLED")
     logger.info(f"🎞️ All Qualities Shown: ENABLED")
-    logger.info(f"💾 MongoDB: One document per movie")
-    logger.info(f"🔄 Auto-indexing every {Config.AUTO_INDEX_INTERVAL}s")
+    logger.info(f"📤 File Sending: ENABLED")
+    logger.info(f"🔄 Auto-indexing: LIMITED (500 messages)")
     
     try:
         asyncio.run(serve(app, config))
