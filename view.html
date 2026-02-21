@@ -444,7 +444,7 @@
             display: block;
         }
         
-        /* Ad Label */
+        /* Ad Label - Only shows when ad is playing */
         .ad-label {
             position: absolute;
             top: 20px;
@@ -1481,7 +1481,7 @@
                             autoplay
                             playsinline
                             crossorigin="anonymous"
-                            poster="https://iili.io/KOlfc41.png">
+                            poster="https://i.ibb.co/My6p4wTm/file-0000000009c87206b22a94177df5dabd.png">
                         </video>
                         
                         <!-- Play Overlay -->
@@ -1695,13 +1695,12 @@ l.parentNode.insertBefore(s, l);
         let adsInitialized = false;
         let currentAd = null;
         let adPlaying = false;
-        let adSkippableTime = 5; // Can skip after 5 seconds
-        let adSkipInterval = null;
+        let adSkippableTime = 15; // Can skip after 15 seconds (from VAST)
         let pendingChannelLoad = null;
         let isFirstLoad = true;
         
-        // VAST Ad URL from Hilltop
-        const VAST_AD_URL = 'https://ancientsnow.com/dBmoFTzTd.GBNYvjZlGSUn/RevmG9suDZ/UYlUkdP_T/Y/4dMBTFUl1UMKTaM/t/NIjIgnxENOTkUExNNXyLZzsRaAW/1hpkdRDJ0txV';
+        // Hilltop VAST Ad URL
+        const VAST_AD_URL = 'https://ancientsnow.com/d.mRFTzad_GsNHvVZkGCUf/YeDmr9hu/ZLUAldk/PZTgYB4/M/TVUy1tMTT_MBtlNejsgZxFNLTGU_xeNdwt';
         
         // Anti-Adblock detection
         let adblockDetected = false;
@@ -1772,7 +1771,7 @@ l.parentNode.insertBefore(s, l);
 
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player Initializing with Shaka Player and VAST Ads...");
+            console.log("🚀 SK4FiLM Player Initializing with Shaka Player and Hilltop VAST Ads...");
             
             fixIOSScrolling();
             await initializeShakaPlayer();
@@ -1835,19 +1834,21 @@ l.parentNode.insertBefore(s, l);
             if (adblockDetected) return;
             
             try {
+                // Initialize display container
+                imaAdDisplayContainer.initialize();
+                
                 // Hide content controls during ads
                 hideContentControls();
                 
-                // Show ad UI elements
-                document.getElementById('adLabel').classList.add('show');
-                document.getElementById('adContainer').classList.add('show');
+                // Show ad container
+                document.getElementById('ad-container').classList.add('show');
                 
                 const adsRequest = new google.ima.AdsRequest();
                 adsRequest.adTagUrl = VAST_AD_URL;
                 
                 // Specify the linear and nonlinear slot sizes
-                adsRequest.linearAdSlotWidth = videoElement.clientWidth;
-                adsRequest.linearAdSlotHeight = videoElement.clientHeight;
+                adsRequest.linearAdSlotWidth = videoElement.clientWidth || 640;
+                adsRequest.linearAdSlotHeight = videoElement.clientHeight || 360;
                 
                 // Request ads
                 adsLoader.requestAds(adsRequest);
@@ -1893,10 +1894,30 @@ l.parentNode.insertBefore(s, l);
                     onAdComplete
                 );
                 
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.STARTED,
+                    onAdStarted
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.FIRST_QUARTILE,
+                    onAdFirstQuartile
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.MIDPOINT,
+                    onAdMidpoint
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.THIRD_QUARTILE,
+                    onAdThirdQuartile
+                );
+                
                 // Initialize the ads manager
                 adsManager.init(
-                    videoElement.clientWidth,
-                    videoElement.clientHeight,
+                    videoElement.clientWidth || 640,
+                    videoElement.clientHeight || 360,
                     google.ima.ViewMode.NORMAL
                 );
                 
@@ -1910,15 +1931,34 @@ l.parentNode.insertBefore(s, l);
             }
         }
 
+        // Ad started event - show ad label only when ad actually starts playing
+        function onAdStarted(event) {
+            document.getElementById('adLabel').classList.add('show');
+            console.log('Ad started playing - showing label');
+        }
+
+        function onAdFirstQuartile(event) {
+            console.log('Ad first quartile reached');
+        }
+
+        function onAdMidpoint(event) {
+            console.log('Ad midpoint reached');
+        }
+
+        function onAdThirdQuartile(event) {
+            console.log('Ad third quartile reached');
+        }
+
         function onAdError(event) {
             console.error('Ad error:', event);
             if (adsManager) {
                 adsManager.destroy();
             }
+            // Hide all ad UI elements
             document.getElementById('adLabel').classList.remove('show');
             document.getElementById('adTimer').classList.remove('show');
             document.getElementById('adSkipButton').classList.remove('show');
-            document.getElementById('adContainer').classList.remove('show');
+            document.getElementById('ad-container').classList.remove('show');
             adPlaying = false;
             
             // Load the content after ad error
@@ -1933,10 +1973,11 @@ l.parentNode.insertBefore(s, l);
 
         function onContentResumeRequested() {
             console.log('Ad finished - content resumed');
+            // Hide all ad UI elements
             document.getElementById('adLabel').classList.remove('show');
             document.getElementById('adTimer').classList.remove('show');
             document.getElementById('adSkipButton').classList.remove('show');
-            document.getElementById('adContainer').classList.remove('show');
+            document.getElementById('ad-container').classList.remove('show');
             adPlaying = false;
             
             // Resume content
@@ -1953,13 +1994,15 @@ l.parentNode.insertBefore(s, l);
         }
 
         function onSkippableStateChanged(event) {
-            if (adsManager.getAdSkippableState()) {
+            if (adsManager && adsManager.getAdSkippableState()) {
                 document.getElementById('adSkipButton').classList.add('show');
             }
         }
 
         function onAdComplete(event) {
             console.log('Ad completed');
+            // Hide ad label when ad completes
+            document.getElementById('adLabel').classList.remove('show');
             // Ad will automatically resume content
         }
 
@@ -1967,6 +2010,7 @@ l.parentNode.insertBefore(s, l);
             if (adsManager && adsManager.getAdSkippableState()) {
                 adsManager.skip();
                 document.getElementById('adSkipButton').classList.remove('show');
+                document.getElementById('adLabel').classList.remove('show');
             }
         }
 
@@ -2797,7 +2841,7 @@ l.parentNode.insertBefore(s, l);
         window.skipAd = skipAd;
         window.checkAdblock = checkAdblock;
         
-        console.log("🎬 SK4FiLM Player Ready with Shaka Player and VAST Ads!");
+        console.log("🎬 SK4FiLM Player Ready with Shaka Player and Hilltop VAST Ads!");
     </script>
     <script>
 (function(crecv){
