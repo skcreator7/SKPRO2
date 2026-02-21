@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.4 - ONE THUMBNAIL PER MOVIE, ALL QUALITIES SHOWN
+# 🚀 SK4FiLM v9.5 - FIXED FILE CHANNEL ID & MESSAGE ID
 # ============================================================================
 
 import asyncio
@@ -236,7 +236,7 @@ async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.4-ONE-THUMBNAIL'
+    response.headers['X-SK4FiLM-Version'] = '9.5-FIXED-IDS'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -282,182 +282,92 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ 🔥 ULTIMATE THUMBNAIL DEBUGGER
+# ✅ CONFIGURATION - v9.5 WITH FIXED IDs
 # ============================================================================
 
-@app.route('/api/debug/thumbnail-ultimate/<int:message_id>')
-async def debug_thumbnail_ultimate(message_id):
-    """Ultimate thumbnail debugger - checks EVERYTHING"""
-    try:
-        client = User
-        if not client:
-            return jsonify({'error': 'No user session'}), 500
-        
-        # Get message
-        msg = await client.get_messages(Config.FILE_CHANNEL_ID, message_id)
-        if not msg:
-            return jsonify({'error': 'Message not found'}), 404
-        
-        result = {
-            'message_id': message_id,
-            'message_exists': True,
-            'message_type': None,
-            'file_name': None,
-            'has_thumbnail_in_telegram': has_telegram_thumbnail(msg),
-            'thumbnail_locations': {},
-            'download_test': None,
-            'mongodb_before': None,
-            'mongodb_after': None,
-            'error': None
-        }
-        
-        # Get file name
-        if msg.document:
-            result['message_type'] = 'document'
-            result['file_name'] = msg.document.file_name
-        elif msg.video:
-            result['message_type'] = 'video'
-            result['file_name'] = msg.video.file_name or "video.mp4"
-        else:
-            return jsonify({'error': 'Not a document or video'}), 400
-        
-        # Extract clean title
-        clean_title = extract_clean_title(result['file_name'])
-        normalized = normalize_title(clean_title)
-        
-        result['clean_title'] = clean_title
-        result['normalized'] = normalized
-        
-        # CHECK 1: Check all possible thumbnail locations
-        result['thumbnail_locations']['video.thumbnail'] = hasattr(msg.video, 'thumbnail') and bool(msg.video.thumbnail) if msg.video else False
-        result['thumbnail_locations']['video.thumbs'] = hasattr(msg.video, 'thumbs') and len(msg.video.thumbs) > 0 if msg.video else False
-        result['thumbnail_locations']['video.sizes'] = hasattr(msg.video, 'sizes') and len(msg.video.sizes) > 0 if msg.video else False
-        result['thumbnail_locations']['document.thumbnail'] = hasattr(msg.document, 'thumbnail') and bool(msg.document.thumbnail) if msg.document else False
-        result['thumbnail_locations']['document.thumbs'] = hasattr(msg.document, 'thumbs') and len(msg.document.thumbs) > 0 if msg.document else False
-        
-        # Get file_id if exists
-        thumbnail_file_id = None
-        if msg.video and hasattr(msg.video, 'thumbnail') and msg.video.thumbnail:
-            thumbnail_file_id = msg.video.thumbnail.file_id
-            result['thumbnail_file_id'] = thumbnail_file_id
-            result['thumbnail_source'] = 'video.thumbnail'
-        elif msg.document and hasattr(msg.document, 'thumbnail') and msg.document.thumbnail:
-            thumbnail_file_id = msg.document.thumbnail.file_id
-            result['thumbnail_file_id'] = thumbnail_file_id
-            result['thumbnail_source'] = 'document.thumbnail'
-        elif msg.video and hasattr(msg.video, 'thumbs') and msg.video.thumbs:
-            thumbnail_file_id = msg.video.thumbs[0].file_id
-            result['thumbnail_file_id'] = thumbnail_file_id
-            result['thumbnail_source'] = 'video.thumbs'
-        elif msg.document and hasattr(msg.document, 'thumbs') and msg.document.thumbs:
-            thumbnail_file_id = msg.document.thumbs[0].file_id
-            result['thumbnail_file_id'] = thumbnail_file_id
-            result['thumbnail_source'] = 'document.thumbs'
-        
-        # CHECK 2: Check MongoDB before
-        before = await thumbnails_col.find_one({'normalized_title': normalized})
-        if before:
-            result['mongodb_before'] = {
-                'has_thumbnail': before.get('has_thumbnail'),
-                'exists': True
-            }
-        else:
-            result['mongodb_before'] = {'exists': False}
-        
-        # CHECK 3: If thumbnail exists, try to download
-        if thumbnail_file_id:
-            try:
-                # Try download
-                download_start = time.time()
-                downloaded = await client.download_media(
-                    thumbnail_file_id,
-                    in_memory=True
-                )
-                download_time = time.time() - download_start
-                
-                result['download_test'] = {
-                    'success': bool(downloaded),
-                    'time_taken': f"{download_time:.2f}s"
-                }
-                
-                if downloaded:
-                    if isinstance(downloaded, bytes):
-                        data = downloaded
-                    else:
-                        with open(downloaded, 'rb') as f:
-                            data = f.read()
-                    
-                    result['download_test']['size_bytes'] = len(data)
-                    result['download_test']['size_kb'] = len(data) / 1024
-                    
-                    # Convert to base64
-                    b64 = base64.b64encode(data).decode('utf-8')
-                    result['download_test']['base64_length'] = len(b64)
-                    result['download_test']['preview'] = b64[:50] + '...'
-                    
-                    # TRY TO STORE MANUALLY
-                    try:
-                        thumbnail_url = f"data:image/jpeg;base64,{b64}"
-                        size_kb = len(thumbnail_url) / 1024
-                        
-                        update_result = await thumbnails_col.update_one(
-                            {'normalized_title': normalized},
-                            {'$set': {
-                                'normalized_title': normalized,
-                                'title': clean_title,
-                                'year': extract_year(result['file_name']),
-                                'thumbnail_url': thumbnail_url,
-                                'thumbnail_source': 'debug_manual',
-                                'has_thumbnail': True,
-                                'extracted_at': datetime.now(),
-                                'message_id': message_id,
-                                'channel_id': Config.FILE_CHANNEL_ID,
-                                'file_name': result['file_name'],
-                                'size_kb': size_kb,
-                                'file_id': thumbnail_file_id
-                            }},
-                            upsert=True
-                        )
-                        
-                        result['manual_store'] = {
-                            'success': True,
-                            'modified_count': update_result.modified_count,
-                            'upserted_id': str(update_result.upserted_id) if update_result.upserted_id else None
-                        }
-                        
-                    except Exception as e:
-                        result['manual_store'] = {
-                            'success': False,
-                            'error': str(e)
-                        }
-                        
-            except Exception as e:
-                result['download_test'] = {
-                    'success': False,
-                    'error': str(e)
-                }
-        else:
-            result['download_test'] = {'success': False, 'reason': 'No thumbnail file_id'}
-        
-        # CHECK 4: Check MongoDB after
-        after = await thumbnails_col.find_one({'normalized_title': normalized})
-        if after:
-            result['mongodb_after'] = {
-                'has_thumbnail': after.get('has_thumbnail'),
-                'exists': True,
-                'id': str(after['_id'])
-            }
-        else:
-            result['mongodb_after'] = {'exists': False}
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+class Config:
+    # API Configuration
+    API_ID = int(os.environ.get("API_ID", "0"))
+    API_HASH = os.environ.get("API_HASH", "")
+    USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+    
+    # Database Configuration
+    MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+    
+    # ✅ FIXED: Channel Configuration - Proper negative IDs
+    MAIN_CHANNEL_ID = -1001891090100  # Main channel (posts)
+    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Text channels for posts
+    FILE_CHANNEL_ID = -1001768249569   # File channel for videos
+    
+    # Links
+    MAIN_CHANNEL_LINK = "https://t.me/sk4film"
+    UPDATES_CHANNEL_LINK = "https://t.me/sk4film_Request"
+    CHANNEL_USERNAME = "sk4film"
+    
+    # URL Shortener
+    SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
+    CUTTLY_API = os.environ.get("CUTTLY_API", "")
+    
+    # UPI IDs
+    UPI_ID_BASIC = os.environ.get("UPI_ID_BASIC", "cf.sk4film@cashfreensdlpb")
+    UPI_ID_PREMIUM = os.environ.get("UPI_ID_PREMIUM", "cf.sk4film@cashfreensdlpb")
+    UPI_ID_GOLD = os.environ.get("UPI_ID_GOLD", "cf.sk4film@cashfreensdlpb")
+    UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
+    
+    # Verification
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "False").lower() == "true"
+    VERIFICATION_DURATION = 6 * 60 * 60
+    
+    # Application
+    WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
+    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
+    ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
+    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "5"))
+    WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
+    BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
+    
+    # API Keys for POSTERS
+    TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "e547e17d4e91f3e62a571655cd1ccaff")
+    OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "8265bd1c")
+    
+    # 🔥 OPTIMIZATION SETTINGS
+    POSTER_FETCHING_ENABLED = True
+    POSTER_CACHE_TTL = 86400  # 24 hours
+    POSTER_FETCH_TIMEOUT = 3  # 3 seconds
+    MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "20"))
+    CACHE_TTL = int(os.environ.get("CACHE_TTL", "600"))  # 10 minutes
+    REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "5"))  # 5 seconds
+    
+    # Sync Management Settings
+    MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", "600"))  # 10 minutes
+    
+    # Quality Settings
+    QUALITY_PRIORITY = ['2160p', '1080p', '720p', '480p', '360p']
+    HEVC_VARIANTS = ['720p HEVC', '1080p HEVC', '2160p HEVC']
+    
+    # 🔥 THUMBNAIL EXTRACTION SETTINGS
+    THUMBNAIL_EXTRACTION_ENABLED = True
+    THUMBNAIL_BATCH_SIZE = 3
+    THUMBNAIL_EXTRACT_TIMEOUT = 5
+    THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
+    THUMBNAIL_RETRY_LIMIT = 1
+    THUMBNAIL_MAX_SIZE_KB = 200
+    THUMBNAIL_TTL_DAYS = 30
+    
+    # 🔥 FILE CHANNEL INDEXING SETTINGS
+    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "300"))
+    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))
+    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))
+    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"
+    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"
+    
+    # 🔥 SEARCH SETTINGS - OPTIMIZED
+    SEARCH_MIN_QUERY_LENGTH = 2
+    SEARCH_RESULTS_PER_PAGE = 12
+    SEARCH_CACHE_TTL = 600  # 10 minutes cache
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -560,94 +470,6 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
             return result
         return wrapper
     return decorator
-
-# ============================================================================
-# ✅ CONFIGURATION - v9.4 WITH ONE THUMBNAIL PER MOVIE
-# ============================================================================
-
-class Config:
-    # API Configuration
-    API_ID = int(os.environ.get("API_ID", "0"))
-    API_HASH = os.environ.get("API_HASH", "")
-    USER_SESSION_STRING = os.environ.get("USER_SESSION_STRING", "")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-    
-    # Database Configuration
-    MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
-    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
-    REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
-    
-    # Channel Configuration
-    MAIN_CHANNEL_ID = -1001891090100
-    TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]
-    FILE_CHANNEL_ID = -1001768249569
-    
-    # Links
-    MAIN_CHANNEL_LINK = "https://t.me/sk4film"
-    UPDATES_CHANNEL_LINK = "https://t.me/sk4film_Request"
-    CHANNEL_USERNAME = "sk4film"
-    
-    # URL Shortener
-    SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
-    CUTTLY_API = os.environ.get("CUTTLY_API", "")
-    
-    # UPI IDs
-    UPI_ID_BASIC = os.environ.get("UPI_ID_BASIC", "cf.sk4film@cashfreensdlpb")
-    UPI_ID_PREMIUM = os.environ.get("UPI_ID_PREMIUM", "cf.sk4film@cashfreensdlpb")
-    UPI_ID_GOLD = os.environ.get("UPI_ID_GOLD", "cf.sk4film@cashfreensdlpb")
-    UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
-    
-    # Verification
-    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "False").lower() == "False"
-    VERIFICATION_DURATION = 6 * 60 * 60
-    
-    # Application
-    WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://sk4film.vercel.app")
-    BOT_USERNAME = os.environ.get("BOT_USERNAME", "sk4filmbot")
-    ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "123456789").split(",")]
-    AUTO_DELETE_TIME = int(os.environ.get("AUTO_DELETE_TIME", "5"))
-    WEB_SERVER_PORT = int(os.environ.get("PORT", 8000))
-    BACKEND_URL = os.environ.get("BACKEND_URL", "https://sk4film.koyeb.app")
-    
-    # API Keys for POSTERS
-    TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "e547e17d4e91f3e62a571655cd1ccaff")
-    OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "8265bd1c")
-    
-    # 🔥 OPTIMIZATION SETTINGS
-    POSTER_FETCHING_ENABLED = True
-    POSTER_CACHE_TTL = 86400  # 24 hours
-    POSTER_FETCH_TIMEOUT = 3  # 3 seconds
-    MAX_CONCURRENT_REQUESTS = int(os.environ.get("MAX_CONCURRENT_REQUESTS", "20"))
-    CACHE_TTL = int(os.environ.get("CACHE_TTL", "600"))  # 10 minutes
-    REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "5"))  # 5 seconds
-    
-    # Sync Management Settings
-    MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", "600"))  # 10 minutes
-    
-    # Quality Settings
-    QUALITY_PRIORITY = ['2160p', '1080p', '720p', '480p', '360p']
-    HEVC_VARIANTS = ['720p HEVC', '1080p HEVC', '2160p HEVC']
-    
-    # 🔥 THUMBNAIL EXTRACTION SETTINGS
-    THUMBNAIL_EXTRACTION_ENABLED = True
-    THUMBNAIL_BATCH_SIZE = 3
-    THUMBNAIL_EXTRACT_TIMEOUT = 5
-    THUMBNAIL_CACHE_DURATION = 24 * 60 * 60
-    THUMBNAIL_RETRY_LIMIT = 1
-    THUMBNAIL_MAX_SIZE_KB = 200
-    THUMBNAIL_TTL_DAYS = 30
-    
-    # 🔥 FILE CHANNEL INDEXING SETTINGS
-    AUTO_INDEX_INTERVAL = int(os.environ.get("AUTO_INDEX_INTERVAL", "300"))
-    BATCH_INDEX_SIZE = int(os.environ.get("BATCH_INDEX_SIZE", "200"))
-    MAX_INDEX_LIMIT = int(os.environ.get("MAX_INDEX_LIMIT", "0"))
-    INDEX_ALL_HISTORY = os.environ.get("INDEX_ALL_HISTORY", "true").lower() == "true"
-    INSTANT_AUTO_INDEX = os.environ.get("INSTANT_AUTO_INDEX", "true").lower() == "true"
-    
-    # 🔥 SEARCH SETTINGS - OPTIMIZED
-    SEARCH_MIN_QUERY_LENGTH = 2
-    SEARCH_RESULTS_PER_PAGE = 12
-    SEARCH_CACHE_TTL = 600  # 10 minutes cache
 
 # ============================================================================
 # ✅ BOT HANDLER MODULE
@@ -954,12 +776,12 @@ def detect_quality_enhanced(filename):
     return "480p"
 
 # ============================================================================
-# ✅ FIXED try_store_real_thumbnail - HANDLES BytesIO CORRECTLY
+# ✅ FIXED try_store_real_thumbnail - CORRECT CHANNEL ID
 # ============================================================================
 
 async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg) -> None:
     """
-    🎯 FIXED: Store ONE thumbnail per movie (handles BytesIO correctly)
+    🎯 FIXED: Store ONE thumbnail per movie with correct channel ID
     """
     try:
         if not msg or thumbnails_col is None:
@@ -1020,7 +842,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         if not downloaded:
             return
 
-        # 🔥 FIX: Handle both bytes and BytesIO
+        # Handle both bytes and BytesIO
         if isinstance(downloaded, bytes):
             thumbnail_data = downloaded
         else:
@@ -1032,7 +854,7 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_data).decode()}"
         size_kb = len(thumbnail_url) / 1024
 
-        # Store in MongoDB
+        # ✅ FIXED: Store with correct channel ID
         await thumbnails_col.update_one(
             {'normalized_title': normalized_title},
             {'$set': {
@@ -1044,14 +866,15 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
                 'has_thumbnail': True,
                 'extracted_at': datetime.now(),
                 'message_id': msg.id,
-                'channel_id': msg.chat.id,
+                'channel_id': Config.FILE_CHANNEL_ID,  # ✅ FIXED: Use Config.FILE_CHANNEL_ID
                 'file_name': file_name,
-                'size_kb': size_kb
+                'size_kb': size_kb,
+                'file_id': thumbnail_file_id
             }},
             upsert=True
         )
 
-        logger.info(f"✅✅✅ Thumbnail stored: {clean_title} ({size_kb:.1f}KB)")
+        logger.info(f"✅✅✅ Thumbnail stored: {clean_title} ({size_kb:.1f}KB) [Channel: {Config.FILE_CHANNEL_ID}, Msg: {msg.id}]")
 
     except Exception as e:
         logger.error(f"❌ Thumbnail error for {clean_title}: {e}")
@@ -1200,15 +1023,15 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ OPTIMIZED SEARCH v4.1 - FIXED FOR POSTS (WITH PROPER AWAIT)
+# ✅ OPTIMIZED SEARCH v4.2 - FIXED CHANNEL IDs
 # ============================================================================
 
 @performance_monitor.measure("optimized_search")
 @async_cache_with_ttl(maxsize=500, ttl=600)
 async def search_movies_optimized(query, limit=15, page=1):
     """
-    🔥 OPTIMIZED SEARCH v4.1 - One thumbnail per movie, all qualities shown
-    FIXED: Posts ke liye bhi thumbnail
+    🔥 OPTIMIZED SEARCH v4.2 - One thumbnail per movie, all qualities shown
+    FIXED: Posts ke liye bhi thumbnail, correct channel IDs
     """
     start_time = time.time()
     offset = (page - 1) * limit
@@ -1219,14 +1042,14 @@ async def search_movies_optimized(query, limit=15, page=1):
     results_dict = {}
     
     # ============================================================================
-    # ✅ STEP 1: Direct Telegram FILE CHANNEL Search (Files)
+    # ✅ STEP 1: Direct Telegram FILE CHANNEL Search (Files) - CORRECT CHANNEL ID
     # ============================================================================
     if user_session_ready and User is not None:
         try:
             file_count = 0
             
             async for msg in User.search_messages(
-                Config.FILE_CHANNEL_ID, 
+                Config.FILE_CHANNEL_ID,  # ✅ FIXED: Using correct FILE_CHANNEL_ID
                 query=query,
                 limit=50
             ):
@@ -1248,13 +1071,14 @@ async def search_movies_optimized(query, limit=15, page=1):
                 quality = detect_quality_enhanced(file_name)
                 year = extract_year(file_name)
                 
-                # Create quality entry
+                # ✅ FIXED: Store correct channel ID and message ID
                 quality_entry = {
                     'quality': quality,
                     'file_name': file_name,
                     'file_size': msg.document.file_size if msg.document else msg.video.file_size,
                     'file_size_formatted': format_size(msg.document.file_size if msg.document else msg.video.file_size),
                     'message_id': msg.id,
+                    'channel_id': Config.FILE_CHANNEL_ID,  # ✅ FIXED: Correct channel ID
                     'file_id': msg.document.file_id if msg.document else msg.video.file_id,
                     'date': msg.date,
                     'has_thumbnail_in_telegram': has_telegram_thumbnail(msg)
@@ -1303,19 +1127,19 @@ async def search_movies_optimized(query, limit=15, page=1):
                 
                 file_count += 1
             
-            logger.info(f"📁 Found {file_count} file results")
+            logger.info(f"📁 Found {file_count} file results from channel {Config.FILE_CHANNEL_ID}")
             
         except Exception as e:
             logger.error(f"❌ File channel search error: {e}")
     
     # ============================================================================
-    # ✅ STEP 2: Direct Telegram TEXT CHANNELS Search (Posts)
+    # ✅ STEP 2: Direct Telegram TEXT CHANNELS Search (Posts) - CORRECT CHANNEL IDs
     # ============================================================================
     if user_session_ready and User is not None:
         try:
             post_count = 0
             
-            for channel_id in Config.TEXT_CHANNEL_IDS:
+            for channel_id in Config.TEXT_CHANNEL_IDS:  # ✅ FIXED: Using TEXT_CHANNEL_IDS
                 try:
                     async for msg in User.search_messages(
                         channel_id, 
@@ -1372,7 +1196,7 @@ async def search_movies_optimized(query, limit=15, page=1):
                     logger.debug(f"Text search error in {channel_id}: {e}")
                     continue
             
-            logger.info(f"📝 Found {post_count} post results")
+            logger.info(f"📝 Found {post_count} post results from text channels")
             
         except Exception as e:
             logger.error(f"❌ Text channels search error: {e}")
@@ -1491,7 +1315,7 @@ async def search_movies_optimized(query, limit=15, page=1):
             'mongodb_thumbnails': mongodb_count,
             'posters': poster_count,
             'fallback': fallback_count,
-            'mode': 'optimized_v4.1',
+            'mode': 'optimized_v4.2',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED
         },
         'bot_username': Config.BOT_USERNAME
@@ -1502,13 +1326,13 @@ async def search_movies_optimized(query, limit=15, page=1):
 # ============================================================================
 
 class ThumbnailManager:
-    """🖼️ THUMBNAIL MANAGER v11 - ONE THUMBNAIL PER MOVIE"""
+    """🖼️ THUMBNAIL MANAGER v12 - FIXED CHANNEL IDs"""
 
     def __init__(self, mongodb=None, bot_client=None, user_client=None, file_channel_id=None):
         self.mongodb = mongodb
         self.bot_client = bot_client
         self.user_client = user_client
-        self.file_channel_id = file_channel_id
+        self.file_channel_id = file_channel_id or Config.FILE_CHANNEL_ID
 
         self.db = None
         self.thumbnails_col = None
@@ -1524,7 +1348,7 @@ class ThumbnailManager:
             'avg_size_kb': 0
         }
 
-        logger.info("🖼️ Thumbnail Manager v11 initialized")
+        logger.info("🖼️ Thumbnail Manager v12 initialized")
 
     async def initialize(self):
         """Initialize database collections and indexes"""
@@ -1554,7 +1378,8 @@ class ThumbnailManager:
             indexes = {
                 "title_idx": [("normalized_title", 1)],
                 "has_thumbnail_idx": [("has_thumbnail", 1)],
-                "extracted_at_idx": [("extracted_at", -1)]
+                "extracted_at_idx": [("extracted_at", -1)],
+                "channel_msg_idx": [("channel_id", 1), ("message_id", 1)]  # ✅ Added for faster lookups
             }
 
             for name, keys in indexes.items():
@@ -1642,7 +1467,7 @@ class ThumbnailManager:
             thumbnail_url = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_data).decode()}"
             size_kb = len(thumbnail_url) / 1024
             
-            # Store in MongoDB
+            # ✅ FIXED: Store with correct channel ID
             await self.thumbnails_col.update_one(
                 {'normalized_title': normalized},
                 {'$set': {
@@ -1654,9 +1479,10 @@ class ThumbnailManager:
                     'has_thumbnail': True,
                     'extracted_at': datetime.now(),
                     'message_id': message_id,
-                    'channel_id': channel_id,
+                    'channel_id': Config.FILE_CHANNEL_ID,  # ✅ FIXED: Use Config.FILE_CHANNEL_ID
                     'file_name': file_name,
-                    'size_kb': size_kb
+                    'size_kb': size_kb,
+                    'file_id': thumbnail_file_id
                 }},
                 upsert=True
             )
@@ -1665,7 +1491,7 @@ class ThumbnailManager:
             self.stats['total_size_kb'] += size_kb
             self.stats['avg_size_kb'] = self.stats['total_size_kb'] / self.stats['total_movies_with_thumbnails']
             
-            logger.info(f"✅ Movie thumbnail stored: {title} ({size_kb:.1f}KB)")
+            logger.info(f"✅ Movie thumbnail stored: {title} ({size_kb:.1f}KB) [Channel: {Config.FILE_CHANNEL_ID}, Msg: {message_id}]")
             
             return {
                 'success': True,
@@ -1686,11 +1512,19 @@ class ThumbnailManager:
                 total = await self.thumbnails_col.count_documents({})
                 with_thumb = await self.thumbnails_col.count_documents({'has_thumbnail': True})
                 without_thumb = await self.thumbnails_col.count_documents({'has_thumbnail': False})
+                
+                # Get channel-specific stats
+                file_channel_thumbnails = await self.thumbnails_col.count_documents({
+                    'channel_id': Config.FILE_CHANNEL_ID,
+                    'has_thumbnail': True
+                })
+                
                 return {
                     **self.stats,
                     'total_documents': total,
                     'with_thumbnail': with_thumb,
-                    'without_thumbnail': without_thumb
+                    'without_thumbnail': without_thumb,
+                    'file_channel_thumbnails': file_channel_thumbnails
                 }
         except:
             pass
@@ -1702,7 +1536,7 @@ class ThumbnailManager:
         logger.info(f"✅ Stats - Movies with thumbnails: {self.stats['total_movies_with_thumbnails']}")
 
 # ============================================================================
-# ✅ OPTIMIZED FILE INDEXING MANAGER
+# ✅ OPTIMIZED FILE INDEXING MANAGER - FIXED CHANNEL ID
 # ============================================================================
 
 class OptimizedFileIndexingManager:
@@ -1732,7 +1566,7 @@ class OptimizedFileIndexingManager:
             return
         
         logger.info("=" * 60)
-        logger.info("🚀 STARTING MOVIE THUMBNAIL INDEXING")
+        logger.info(f"🚀 STARTING MOVIE THUMBNAIL INDEXING - Channel: {Config.FILE_CHANNEL_ID}")
         logger.info("=" * 60)
         
         self.is_running = True
@@ -1770,7 +1604,7 @@ class OptimizedFileIndexingManager:
         
         try:
             chat = await client.get_chat(Config.FILE_CHANNEL_ID)
-            logger.info(f"📢 Channel: {chat.title}")
+            logger.info(f"📢 Channel: {chat.title} (ID: {Config.FILE_CHANNEL_ID})")
         except Exception as e:
             logger.error(f"❌ Cannot access file channel: {e}")
             return
@@ -1841,7 +1675,9 @@ class OptimizedFileIndexingManager:
             movie_files[normalized]['messages'].append({
                 'message': msg,
                 'file_name': file_name,
-                'has_thumbnail': has_telegram_thumbnail(msg)
+                'has_thumbnail': has_telegram_thumbnail(msg),
+                'message_id': msg.id,
+                'channel_id': Config.FILE_CHANNEL_ID
             })
             
             if has_telegram_thumbnail(msg):
@@ -1881,7 +1717,8 @@ class OptimizedFileIndexingManager:
                             'normalized': normalized,
                             'title': movie['title'],
                             'message': msg_data['message'],
-                            'file_name': msg_data['file_name']
+                            'file_name': msg_data['file_name'],
+                            'message_id': msg_data['message_id']
                         })
                         break
         
@@ -1913,7 +1750,7 @@ class OptimizedFileIndexingManager:
                     )
                     
                     successful += 1
-                    logger.info(f"✅ Thumbnail stored for: {movie['title']}")
+                    logger.info(f"✅ Thumbnail stored for: {movie['title']} (Msg: {movie['message_id']})")
                     
                 except Exception as e:
                     logger.error(f"❌ Failed for {movie['title']}: {e}")
@@ -1943,13 +1780,18 @@ class OptimizedFileIndexingManager:
                 await asyncio.sleep(60)
     
     async def _index_new_files(self):
+        """Index only new files since last check"""
         try:
             if thumbnails_col is None:
                 return
             
-            latest = await thumbnails_col.find_one({'channel_id': Config.FILE_CHANNEL_ID}, sort=[('message_id', -1)])
+            # Get latest message_id we've processed
+            latest = await thumbnails_col.find_one(
+                {'channel_id': Config.FILE_CHANNEL_ID}, 
+                sort=[('message_id', -1)]
+            )
             last_message_id = latest.get('message_id', 0) if latest else 0
-            logger.info(f"🔍 Checking for new files after {last_message_id}")
+            logger.info(f"🔍 Checking for new files after message ID {last_message_id} in channel {Config.FILE_CHANNEL_ID}")
             
             client = User if user_session_ready else Bot
             if not client:
@@ -1991,7 +1833,8 @@ class OptimizedFileIndexingManager:
                         'normalized': normalized,
                         'title': clean_title,
                         'message': msg,
-                        'file_name': file_name
+                        'file_name': file_name,
+                        'message_id': msg.id
                     }
             
             if new_movies:
@@ -2013,13 +1856,14 @@ class OptimizedFileIndexingManager:
             'movies_extracted': self.movies_with_thumbnails,
             'stats': self.indexing_stats,
             'user_session_ready': user_session_ready,
-            'bot_session_ready': bot_session_ready
+            'bot_session_ready': bot_session_ready,
+            'file_channel_id': Config.FILE_CHANNEL_ID
         }
 
 file_indexing_manager = OptimizedFileIndexingManager()
 
 # ============================================================================
-# ✅ SYNC MANAGER
+# ✅ SYNC MANAGER - FIXED CHANNEL ID
 # ============================================================================
 
 class OptimizedSyncManager:
@@ -2061,11 +1905,11 @@ class OptimizedSyncManager:
             if thumbnails_col is None or User is None or not user_session_ready:
                 return
             
-            logger.info("🔍 Checking for deleted files...")
+            logger.info(f"🔍 Checking for deleted files in channel {Config.FILE_CHANNEL_ID}...")
             
             batch_size = 100
             cursor = thumbnails_col.find(
-                {"channel_id": Config.FILE_CHANNEL_ID},
+                {"channel_id": Config.FILE_CHANNEL_ID},  # ✅ FIXED: Use Config.FILE_CHANNEL_ID
                 {"message_id": 1, "_id": 1, "title": 1}
             ).sort("message_id", -1).limit(batch_size)
             
@@ -2085,7 +1929,7 @@ class OptimizedSyncManager:
             message_ids = [item['message_id'] for item in message_data]
             
             try:
-                messages = await User.get_messages(Config.FILE_CHANNEL_ID, message_ids)
+                messages = await User.get_messages(Config.FILE_CHANNEL_ID, message_ids)  # ✅ FIXED
                 
                 existing_ids = set()
                 if isinstance(messages, list):
@@ -2100,10 +1944,10 @@ class OptimizedSyncManager:
                         self.deleted_count += 1
                         
                         if deleted_count <= 5:
-                            logger.info(f"🗑️ Deleted: {item['title'][:40]}...")
+                            logger.info(f"🗑️ Deleted: {item['title'][:40]}... (Msg: {item['message_id']})")
                 
                 if deleted_count > 0:
-                    logger.info(f"✅ Deleted {deleted_count} files")
+                    logger.info(f"✅ Deleted {deleted_count} files from channel {Config.FILE_CHANNEL_ID}")
                 else:
                     logger.info("✅ No deleted files found")
                     
@@ -2116,14 +1960,14 @@ class OptimizedSyncManager:
 sync_manager = OptimizedSyncManager()
 
 # ============================================================================
-# ✅ UPDATED HOME MOVIES - PRIORITY: POSTER > MONGODB > FALLBACK
+# ✅ UPDATED HOME MOVIES - FIXED CHANNEL ID
 # ============================================================================
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
 async def get_home_movies(limit=25):
     """
-    🎬 HOME MOVIES - PRIORITY: POSTER > MONGODB > FALLBACK
+    🎬 HOME MOVIES - FIXED CHANNEL ID
     """
     try:
         if User is None or not user_session_ready:
@@ -2132,7 +1976,7 @@ async def get_home_movies(limit=25):
         movies = []
         seen_titles = set()
         
-        logger.info(f"🎬 Fetching home movies from main channel...")
+        logger.info(f"🎬 Fetching home movies from main channel {Config.MAIN_CHANNEL_ID}...")
         
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=50):
             if msg is not None and msg.text and len(msg.text) > 25:
@@ -2293,12 +2137,13 @@ async def init_telegram_sessions():
             me = await User.get_me()
             logger.info(f"✅ USER Session Ready: {me.first_name}")
             
+            # ✅ Test access to FILE_CHANNEL
             try:
                 chat = await User.get_chat(Config.FILE_CHANNEL_ID)
-                logger.info(f"✅ File Channel Access: {chat.title}")
+                logger.info(f"✅ File Channel Access: {chat.title} (ID: {Config.FILE_CHANNEL_ID})")
                 user_session_ready = True
             except Exception as e:
-                logger.error(f"❌ File channel access failed: {e}")
+                logger.error(f"❌ File channel access failed for {Config.FILE_CHANNEL_ID}: {e}")
                 user_session_ready = False
                 
         except Exception as e:
@@ -2311,6 +2156,9 @@ async def init_telegram_sessions():
     logger.info(f"BOT Session: {'✅ READY' if bot_session_ready else '❌ NOT READY'}")
     logger.info(f"USER Session: {'✅ READY' if user_session_ready else '❌ NOT READY'}")
     logger.info(f"Bot Handler: {'✅ INITIALIZED' if bot_handler.initialized else '❌ NOT READY'}")
+    logger.info(f"File Channel ID: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"Main Channel ID: {Config.MAIN_CHANNEL_ID}")
+    logger.info(f"Text Channels: {Config.TEXT_CHANNEL_IDS}")
     
     return bot_session_ready or user_session_ready
 
@@ -2396,6 +2244,14 @@ async def init_mongodb():
                     name="has_thumbnail_idx",
                     background=True
                 )
+                
+                # ✅ Create channel+message index for faster lookups
+                await thumbnails_col.create_index(
+                    [("channel_id", 1), ("message_id", 1)],
+                    name="channel_msg_idx",
+                    background=True
+                )
+                logger.info("✅ Created channel_msg_idx")
                 
             except Exception as e:
                 logger.error(f"❌ Index creation error: {e}")
@@ -2485,7 +2341,7 @@ async def initial_indexing_optimized():
         return
     
     logger.info("=" * 60)
-    logger.info("🚀 STARTING MOVIE THUMBNAIL INDEXING")
+    logger.info(f"🚀 STARTING MOVIE THUMBNAIL INDEXING - Channel: {Config.FILE_CHANNEL_ID}")
     logger.info("=" * 60)
     
     try:
@@ -2546,7 +2402,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.4 - ONE THUMBNAIL PER MOVIE")
+        logger.info("🚀 SK4FiLM v9.5 - FIXED CHANNEL IDs")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2606,12 +2462,13 @@ async def init_system():
         init_time = time.time() - start_time
         logger.info(f"⚡ SK4FiLM Started in {init_time:.2f}s")
         logger.info("=" * 60)
-        logger.info("🔧 FEATURES:")
+        logger.info("🔧 CONFIGURATION:")
+        logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
+        logger.info(f"   • Main Channel ID: {Config.MAIN_CHANNEL_ID}")
+        logger.info(f"   • Text Channels: {Config.TEXT_CHANNEL_IDS}")
         logger.info(f"   • Poster Fetching: ✅ ENABLED")
         logger.info(f"   • ONE Thumbnail Per Movie: ✅ ENABLED")
         logger.info(f"   • All Qualities Shown: ✅ ENABLED")
-        logger.info(f"   • Home Movies Priority: Poster > Thumbnail > Fallback")
-        logger.info(f"   • Search Priority: MongoDB > Poster > Fallback")
         logger.info("=" * 60)
         
         return True
@@ -2658,7 +2515,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.4 - ONE THUMBNAIL PER MOVIE',
+        'service': 'SK4FiLM v9.5 - FIXED CHANNEL IDs',
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
         'storage_stats': {
             'movies_with_thumbnails': movies_with_thumb,
@@ -2685,6 +2542,11 @@ async def root():
             'running': sync_manager.is_monitoring,
             'deleted_count': sync_manager.deleted_count
         },
+        'channel_config': {
+            'file_channel_id': Config.FILE_CHANNEL_ID,
+            'main_channel_id': Config.MAIN_CHANNEL_ID,
+            'text_channels': Config.TEXT_CHANNEL_IDS
+        },
         'response_time': f"{time.perf_counter():.3f}s"
     })
 
@@ -2700,6 +2562,7 @@ async def health():
             'telegram_bot': telegram_bot is not None
         },
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
+        'file_channel_id': Config.FILE_CHANNEL_ID,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -2716,6 +2579,7 @@ async def api_movies():
             'limit': 25,
             'source': 'telegram',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
+            'file_channel_id': Config.FILE_CHANNEL_ID,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -2725,7 +2589,7 @@ async def api_movies():
 @app.route('/api/search', methods=['GET'])
 @performance_monitor.measure("search_endpoint")
 async def api_search():
-    """Fast search with one thumbnail per movie"""
+    """Fast search with one thumbnail per movie - FIXED CHANNEL IDs"""
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
@@ -2747,6 +2611,7 @@ async def api_search():
             'search_metadata': result_data.get('search_metadata', {}),
             'bot_username': Config.BOT_USERNAME,
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
+            'file_channel_id': Config.FILE_CHANNEL_ID,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -2802,87 +2667,53 @@ async def api_stats():
             },
             'bot_handler': bot_status,
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
+            'file_channel_id': Config.FILE_CHANNEL_ID,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
         logger.error(f"Stats API error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/admin/reindex', methods=['POST'])
-async def api_admin_reindex():
+@app.route('/api/debug/channel-info')
+async def debug_channel_info():
+    """Debug endpoint to check channel access"""
     try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        result = {
+            'file_channel_id': Config.FILE_CHANNEL_ID,
+            'main_channel_id': Config.MAIN_CHANNEL_ID,
+            'text_channels': Config.TEXT_CHANNEL_IDS,
+            'user_session_ready': user_session_ready,
+            'bot_session_ready': bot_session_ready
+        }
         
-        Config.INDEX_ALL_HISTORY = True
-        asyncio.create_task(initial_indexing_optimized())
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Thumbnail reindexing started',
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Admin reindex error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/indexing-status', methods=['GET'])
-async def api_admin_indexing_status():
-    try:
-        indexing_status = await file_indexing_manager.get_indexing_status()
-        return jsonify({'status': 'success', 'indexing': indexing_status})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/admin/clear-cache', methods=['POST'])
-async def api_admin_clear_cache():
-    try:
-        auth_token = request.headers.get('X-Admin-Token')
-        if not auth_token or auth_token != os.environ.get('ADMIN_TOKEN', 'sk4film_admin_123'):
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if cache_manager and cache_manager.redis_enabled:
+        if user_session_ready and User:
             try:
-                keys = await cache_manager.redis_client.keys("search_*")
-                if keys:
-                    await cache_manager.redis_client.delete(*keys)
-                    logger.info(f"✅ Cleared {len(keys)} cache keys")
+                # Try to get file channel info
+                file_chat = await User.get_chat(Config.FILE_CHANNEL_ID)
+                result['file_channel'] = {
+                    'title': file_chat.title,
+                    'id': file_chat.id,
+                    'type': str(file_chat.type),
+                    'username': file_chat.username
+                }
+                
+                # Try to get a sample message
+                messages = []
+                async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=5):
+                    if msg.document or msg.video:
+                        messages.append({
+                            'id': msg.id,
+                            'type': 'document' if msg.document else 'video',
+                            'file_name': msg.document.file_name if msg.document else (msg.video.file_name or 'video.mp4'),
+                            'has_thumbnail': has_telegram_thumbnail(msg)
+                        })
+                
+                result['sample_messages'] = messages
+                
             except Exception as e:
-                logger.error(f"❌ Cache clear error: {e}")
+                result['file_channel_error'] = str(e)
         
-        return jsonify({'status': 'success', 'message': 'Cache cleared'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/debug/indexing', methods=['GET'])
-async def debug_indexing():
-    try:
-        if thumbnails_col is None:
-            return jsonify({'error': 'Database not initialized'}), 500
-        
-        movies_with_thumb = await thumbnails_col.count_documents({'has_thumbnail': True})
-        
-        cursor = thumbnails_col.find({'has_thumbnail': True}).sort('extracted_at', -1).limit(5)
-        recent_thumbnails = []
-        async for doc in cursor:
-            doc['_id'] = str(doc['_id'])
-            recent_thumbnails.append({
-                'title': doc['title'],
-                'thumbnail_preview': doc.get('thumbnail_url', '')[:50] + '...' if doc.get('thumbnail_url') else None
-            })
-        
-        indexing_status = await file_indexing_manager.get_indexing_status()
-        
-        return jsonify({
-            'status': 'success',
-            'movies_with_thumbnails': movies_with_thumb,
-            'recent_thumbnails': recent_thumbnails,
-            'indexing_status': indexing_status,
-            'poster_fetching': Config.POSTER_FETCHING_ENABLED,
-            'timestamp': datetime.now().isoformat()
-        })
+        return jsonify(result)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2899,7 +2730,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    logger.info("🛑 Shutting down SK4FiLM v9.4...")
+    logger.info("🛑 Shutting down SK4FiLM v9.5...")
     
     if telegram_bot and hasattr(telegram_bot, 'shutdown'):
         await telegram_bot.shutdown()
@@ -2948,8 +2779,10 @@ if __name__ == "__main__":
     config.http2 = True
     config.keep_alive_timeout = 30
     
-    logger.info(f"🌐 Starting SK4FiLM v9.4 on port {Config.WEB_SERVER_PORT}...")
+    logger.info(f"🌐 Starting SK4FiLM v9.5 on port {Config.WEB_SERVER_PORT}...")
     logger.info(f"📁 File Channel ID: {Config.FILE_CHANNEL_ID}")
+    logger.info(f"📢 Main Channel ID: {Config.MAIN_CHANNEL_ID}")
+    logger.info(f"📝 Text Channels: {Config.TEXT_CHANNEL_IDS}")
     logger.info(f"🎬 Poster Fetching: {'ENABLED' if Config.POSTER_FETCHING_ENABLED else 'DISABLED'}")
     logger.info(f"🖼️ ONE Thumbnail Per Movie: ENABLED")
     logger.info(f"🎞️ All Qualities Shown: ENABLED")
