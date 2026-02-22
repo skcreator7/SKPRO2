@@ -2127,15 +2127,13 @@ l.parentNode.insertBefore(s, l);
                 // Set initial volume
                 videoElement.volume = currentVolume;
                 
-                // Try to play the default stream with ad on first load
-                if (isFirstLoad) {
-                    isFirstLoad = true;
-                    playChannel('SK4FiLM Live', 'https://cdn-2.pishow.tv/live/1461/master.m3u8');
-                }
+                // Try to play the default stream
+                tryInternalPlayer('https://cdn-2.pishow.tv/live/1461/master.m3u8', 'SK4FiLM Live');
             } else {
                 console.error('Browser not supported!');
                 showToast('Your browser does not support Shaka Player', 5000, 'error');
             }
+
         }
 
         function onShakaError(event) {
