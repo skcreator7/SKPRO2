@@ -12,6 +12,9 @@
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.min.js"></script>
     
+    <!-- IMA SDK for VAST ads -->
+    <script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
+    
     <!-- Existing Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"></script>    
@@ -373,9 +376,161 @@
             background: #000;
         }
         
-        /* Hide Shaka's default controls - we'll use custom controls */
+        /* IMA Ad Container */
+        #ad-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 300;
+            display: none;
+            pointer-events: none;
+        }
+        
+        #ad-container.show {
+            display: block;
+        }
+        
+        /* Hide Shaka's default controls */
         .shaka-text-container {
             display: none;
+        }
+        
+        /* Ad Skip Button */
+        .ad-skip-button {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: 2px solid var(--accent);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 400;
+            display: none;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+        
+        .ad-skip-button:hover {
+            background: var(--accent);
+            color: black;
+        }
+        
+        .ad-skip-button.show {
+            display: block;
+        }
+        
+        /* Ad Timer */
+        .ad-timer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 400;
+            display: none;
+            border: 1px solid var(--accent);
+        }
+        
+        .ad-timer.show {
+            display: block;
+        }
+        
+        /* Ad Label - Only shows when ad is playing */
+        .ad-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--primary-red);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 400;
+            display: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .ad-label.show {
+            display: block;
+        }
+        
+        /* Anti-Adblock Overlay */
+        .anti-adblock-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .anti-adblock-overlay.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .anti-adblock-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 3px solid var(--accent);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 0 50px rgba(0, 204, 255, 0.3);
+        }
+        
+        .anti-adblock-content i {
+            font-size: 60px;
+            color: #ffaa00;
+            margin-bottom: 20px;
+        }
+        
+        .anti-adblock-content h3 {
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+        
+        .anti-adblock-content p {
+            margin-bottom: 25px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        
+        .anti-adblock-button {
+            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue));
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .anti-adblock-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
         }
         
         /* Fullscreen styles */
@@ -1131,6 +1286,18 @@
 </head>
 
 <body>
+    <!-- Anti-Adblock Overlay -->
+    <div class="anti-adblock-overlay" id="antiAdblockOverlay">
+        <div class="anti-adblock-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Ad Blocker Detected!</h3>
+            <p>We've detected that you're using an ad blocker. This website relies on ads to provide free content. Please disable your ad blocker to continue watching.</p>
+            <button class="anti-adblock-button" onclick="checkAdblock()">
+                <i class="fas fa-sync-alt me-2"></i>I've Disabled Ad Blocker
+            </button>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="top-navbar">
         <div class="container-fluid">
@@ -1299,6 +1466,14 @@
                         <div class="side-click-area left-click-area" onclick="toggleControls()"></div>
                         <div class="side-click-area right-click-area" onclick="toggleControls()"></div>
                         
+                        <!-- IMA Ad Container -->
+                        <div id="ad-container"></div>
+                        
+                        <!-- Ad UI Elements -->
+                        <div class="ad-label" id="adLabel">Advertisement</div>
+                        <div class="ad-timer" id="adTimer"></div>
+                        <button class="ad-skip-button" id="adSkipButton" onclick="skipAd()">Skip Ad</button>
+                        
                         <!-- Shaka Player Video Element -->
                         <video 
                             id="video-element"
@@ -1352,10 +1527,10 @@
                     <div class="video-title" id="videoTitle">SK4FiLM Live Stream</div>
                     <div class="video-badges">
                         <span class="badge badge-red">
-                            <i class="fas fa-file me-1"></i> Live Stream
+                            <i class="fas fa-file me-1"></i> Live
                         </span>
                         <span class="badge badge-blue">
-                            <i class="fas fa-wifi me-1"></i> Direct HLS
+                            <i class="fas fa-wifi me-1"></i> Direct
                         </span>
                         <span class="badge badge-green">
                             <i class="fas fa-tachometer-alt me-1"></i> Fast
@@ -1467,7 +1642,7 @@ l.parentNode.insertBefore(s, l);
                     </h4>
                     <p class="mb-3">Help us maintain this streaming service and add more features.</p>
                     
-                    <img src="https://i.ibb.co/60HWrpFt/file-0000000034d472078cea683cd0ecbae0.png" 
+                    <img src="https://i.ibb.co/LzstL1hn/QR.jpg" 
                          alt="Donation QR Code" 
                          class="donation-qr">
                     
@@ -1512,6 +1687,23 @@ l.parentNode.insertBefore(s, l);
         let currentChannelUrl = '';
         let currentChannelName = '';
         let backupUrl = '';
+        
+        // IMA Variables
+        let imaAdDisplayContainer = null;
+        let adsLoader = null;
+        let adsManager = null;
+        let adsInitialized = false;
+        let currentAd = null;
+        let adPlaying = false;
+        let adSkippableTime = 15; // Can skip after 15 seconds (from VAST)
+        let pendingChannelLoad = null;
+        let isFirstLoad = true;
+        
+        // Hilltop VAST Ad URL
+        const VAST_AD_URL = 'https://ancientsnow.com/d.mRFTzad_GsNHvVZkGCUf/YeDmr9hu/ZLUAldk/PZTgYB4/M/TVUy1tMTT_MBtlNejsgZxFNLTGU_xeNdwt';
+        
+        // Anti-Adblock detection
+        let adblockDetected = false;
         
         // CORS Proxy to fix mixed content and CORS issues
         const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
@@ -1579,16 +1771,282 @@ l.parentNode.insertBefore(s, l);
 
         // Initialize on DOM Load
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("🚀 SK4FiLM Player Initializing with Shaka Player...");
+            console.log("🚀 SK4FiLM Player Initializing with Shaka Player and Hilltop VAST Ads...");
             
             fixIOSScrolling();
             await initializeShakaPlayer();
+            initializeIMA();
             loadChannels();
             setupControls();
             setupFullscreenDetection();
             
+            // Check for adblock on first load
+            checkAdblock();
+            
             console.log("✅ Player Ready!");
         });
+
+        // Check for adblock
+        function checkAdblock() {
+            // Create a bait element
+            const bait = document.createElement('div');
+            bait.className = 'adsbox';
+            bait.innerHTML = '&nbsp;';
+            bait.style.position = 'absolute';
+            bait.style.left = '-9999px';
+            document.body.appendChild(bait);
+            
+            // Check if bait is blocked
+            setTimeout(() => {
+                if (bait.offsetHeight === 0 || bait.offsetWidth === 0) {
+                    adblockDetected = true;
+                    document.getElementById('antiAdblockOverlay').classList.add('show');
+                    pauseVideo();
+                }
+                bait.remove();
+            }, 100);
+        }
+
+        // Initialize IMA SDK
+        function initializeIMA() {
+            try {
+                imaAdDisplayContainer = new google.ima.AdDisplayContainer(
+                    document.getElementById('ad-container'),
+                    videoElement
+                );
+                
+                adsLoader = new google.ima.AdsLoader(imaAdDisplayContainer);
+                adsLoader.addEventListener(
+                    google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
+                    onAdsManagerLoaded
+                );
+                adsLoader.addEventListener(
+                    google.ima.AdErrorEvent.Type.AD_ERROR,
+                    onAdError
+                );
+            } catch (e) {
+                console.error("IMA initialization error:", e);
+            }
+        }
+
+        // Request video ads
+        function requestAds() {
+            if (adblockDetected) return;
+            
+            try {
+                // Initialize display container
+                imaAdDisplayContainer.initialize();
+                
+                // Hide content controls during ads
+                hideContentControls();
+                
+                // Show ad container
+                document.getElementById('ad-container').classList.add('show');
+                
+                const adsRequest = new google.ima.AdsRequest();
+                adsRequest.adTagUrl = VAST_AD_URL;
+                
+                // Specify the linear and nonlinear slot sizes
+                adsRequest.linearAdSlotWidth = videoElement.clientWidth || 640;
+                adsRequest.linearAdSlotHeight = videoElement.clientHeight || 360;
+                
+                // Request ads
+                adsLoader.requestAds(adsRequest);
+            } catch (e) {
+                console.error("Error requesting ads:", e);
+                loadContent();
+            }
+        }
+
+        function onAdsManagerLoaded(event) {
+            try {
+                adsManager = event.getAdsManager(videoElement, {
+                    autoPlayAdBreaks: true
+                });
+                
+                adsManager.addEventListener(
+                    google.ima.AdErrorEvent.Type.AD_ERROR,
+                    onAdError
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED,
+                    onContentPauseRequested
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,
+                    onContentResumeRequested
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.AD_PROGRESS,
+                    onAdProgress
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.SKIPPABLE_STATE_CHANGED,
+                    onSkippableStateChanged
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.COMPLETE,
+                    onAdComplete
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.STARTED,
+                    onAdStarted
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.FIRST_QUARTILE,
+                    onAdFirstQuartile
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.MIDPOINT,
+                    onAdMidpoint
+                );
+                
+                adsManager.addEventListener(
+                    google.ima.AdEvent.Type.THIRD_QUARTILE,
+                    onAdThirdQuartile
+                );
+                
+                // Initialize the ads manager
+                adsManager.init(
+                    videoElement.clientWidth || 640,
+                    videoElement.clientHeight || 360,
+                    google.ima.ViewMode.NORMAL
+                );
+                
+                // Start playing the ad
+                adsManager.start();
+                adPlaying = true;
+                
+            } catch (e) {
+                console.error("Error loading ads manager:", e);
+                loadContent();
+            }
+        }
+
+        // Ad started event - show ad label only when ad actually starts playing
+        function onAdStarted(event) {
+            document.getElementById('adLabel').classList.add('show');
+            console.log('Ad started playing - showing label');
+        }
+
+        function onAdFirstQuartile(event) {
+            console.log('Ad first quartile reached');
+        }
+
+        function onAdMidpoint(event) {
+            console.log('Ad midpoint reached');
+        }
+
+        function onAdThirdQuartile(event) {
+            console.log('Ad third quartile reached');
+        }
+
+        function onAdError(event) {
+            console.error('Ad error:', event);
+            if (adsManager) {
+                adsManager.destroy();
+            }
+            // Hide all ad UI elements
+            document.getElementById('adLabel').classList.remove('show');
+            document.getElementById('adTimer').classList.remove('show');
+            document.getElementById('adSkipButton').classList.remove('show');
+            document.getElementById('ad-container').classList.remove('show');
+            adPlaying = false;
+            
+            // Load the content after ad error
+            loadContent();
+        }
+
+        function onContentPauseRequested() {
+            console.log('Ad playing - content paused');
+            videoElement.pause();
+            showContentControls(false);
+        }
+
+        function onContentResumeRequested() {
+            console.log('Ad finished - content resumed');
+            // Hide all ad UI elements
+            document.getElementById('adLabel').classList.remove('show');
+            document.getElementById('adTimer').classList.remove('show');
+            document.getElementById('adSkipButton').classList.remove('show');
+            document.getElementById('ad-container').classList.remove('show');
+            adPlaying = false;
+            
+            // Resume content
+            loadContent();
+        }
+
+        function onAdProgress(event) {
+            const adData = event.getAdData();
+            if (adData.duration && adData.currentTime) {
+                const remaining = Math.max(0, Math.ceil(adData.duration - adData.currentTime));
+                document.getElementById('adTimer').textContent = `Ad ends in ${remaining}s`;
+                document.getElementById('adTimer').classList.add('show');
+            }
+        }
+
+        function onSkippableStateChanged(event) {
+            if (adsManager && adsManager.getAdSkippableState()) {
+                document.getElementById('adSkipButton').classList.add('show');
+            }
+        }
+
+        function onAdComplete(event) {
+            console.log('Ad completed');
+            // Hide ad label when ad completes
+            document.getElementById('adLabel').classList.remove('show');
+            // Ad will automatically resume content
+        }
+
+        function skipAd() {
+            if (adsManager && adsManager.getAdSkippableState()) {
+                adsManager.skip();
+                document.getElementById('adSkipButton').classList.remove('show');
+                document.getElementById('adLabel').classList.remove('show');
+            }
+        }
+
+        function hideContentControls(hide = true) {
+            const controls = document.getElementById('videoControls');
+            const playOverlay = document.getElementById('playOverlay');
+            
+            if (hide) {
+                controls.style.pointerEvents = 'none';
+                playOverlay.style.pointerEvents = 'none';
+            } else {
+                controls.style.pointerEvents = 'auto';
+                playOverlay.style.pointerEvents = 'auto';
+            }
+        }
+
+        function showContentControls(show = true) {
+            const controls = document.getElementById('videoControls');
+            const playOverlay = document.getElementById('playOverlay');
+            
+            if (show) {
+                controls.style.pointerEvents = 'auto';
+                playOverlay.style.pointerEvents = 'auto';
+            } else {
+                controls.style.pointerEvents = 'none';
+                playOverlay.style.pointerEvents = 'none';
+            }
+        }
+
+        function pauseVideo() {
+            if (videoElement && !videoElement.paused) {
+                videoElement.pause();
+                isPlaying = false;
+                updatePlayButton();
+            }
+        }
 
         // Initialize Shaka Player
         async function initializeShakaPlayer() {
@@ -1661,14 +2119,19 @@ l.parentNode.insertBefore(s, l);
                     currentVolume = videoElement.volume;
                 });
                 videoElement.addEventListener('waiting', () => {
-                    showToast('Buffering...', 2000);
+                    if (!adPlaying) {
+                        showToast('Buffering...', 2000);
+                    }
                 });
                 
                 // Set initial volume
                 videoElement.volume = currentVolume;
                 
-                // Try to play the default stream
-                tryInternalPlayer('https://cdn-2.pishow.tv/live/1461/master.m3u8', 'SK4FiLM Live');
+                // Try to play the default stream with ad on first load
+                if (isFirstLoad) {
+                    isFirstLoad = false;
+                    playChannel('SK4FiLM Live', 'https://cdn-2.pishow.tv/live/1461/master.m3u8');
+                }
             } else {
                 console.error('Browser not supported!');
                 showToast('Your browser does not support Shaka Player', 5000, 'error');
@@ -1693,7 +2156,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function onShakaBuffering(event) {
-            if (event.buffering) {
+            if (event.buffering && !adPlaying) {
                 showToast('Buffering...', 2000);
             }
         }
@@ -1755,8 +2218,13 @@ l.parentNode.insertBefore(s, l);
             return card;
         }
 
-        // Smart Play Function - Tries internal player first, then external
-        async function playChannel(name, url) {
+        // Smart Play Function - Shows ad first, then plays channel
+        function playChannel(name, url) {
+            if (adblockDetected) {
+                document.getElementById('antiAdblockOverlay').classList.add('show');
+                return;
+            }
+            
             console.log(`Playing: ${name} - ${url}`);
             
             currentChannelName = name;
@@ -1766,11 +2234,28 @@ l.parentNode.insertBefore(s, l);
             // Update video title
             document.getElementById('videoTitle').textContent = name;
             
-            // Show loading state
-            showToast(`Loading ${name}...`, 2000);
+            // Show ad first
+            if (adsManager && adsManager.getCurrentAd()) {
+                // If there's already an ad playing, stop it
+                adsManager.stop();
+            }
             
-            // Try internal player first
-            tryInternalPlayer(url, name);
+            // Request and play ad
+            requestAds();
+            
+            // Store the channel to load after ad
+            pendingChannelLoad = { name, url };
+        }
+        
+        // Load the actual content (after ad or directly)
+        async function loadContent() {
+            if (!pendingChannelLoad) return;
+            
+            const { name, url } = pendingChannelLoad;
+            pendingChannelLoad = null;
+            
+            showToast(`Loading ${name}...`, 2000);
+            await tryInternalPlayer(url, name);
         }
         
         async function tryInternalPlayer(url, name, useHttps = false) {
@@ -2066,19 +2551,25 @@ l.parentNode.insertBefore(s, l);
         }
 
         function onVideoPlaying() {
-            isPlaying = true;
-            updatePlayButton();
-            document.getElementById('playOverlay').classList.add('hidden');
-            hideControlsWithDelay();
+            if (!adPlaying) {
+                isPlaying = true;
+                updatePlayButton();
+                document.getElementById('playOverlay').classList.add('hidden');
+                hideControlsWithDelay();
+            }
         }
 
         function onVideoPaused() {
-            isPlaying = false;
-            updatePlayButton();
-            showControls();
+            if (!adPlaying) {
+                isPlaying = false;
+                updatePlayButton();
+                showControls();
+            }
         }
 
         function togglePlay() {
+            if (adPlaying) return;
+            
             if (!videoElement) return;
             if (videoElement.paused) {
                 videoElement.play();
@@ -2100,7 +2591,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function updateProgress() {
-            if (isSeeking) return;
+            if (adPlaying || isSeeking) return;
             const currentTime = videoElement.currentTime;
             const duration = videoElement.duration;
             if (duration > 0 && isFinite(duration)) {
@@ -2113,6 +2604,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function updateBuffer() {
+            if (adPlaying) return;
             if (videoElement.buffered && videoElement.buffered.length > 0) {
                 const duration = videoElement.duration;
                 if (duration > 0 && isFinite(duration)) {
@@ -2138,6 +2630,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function startSeeking(event) {
+            if (adPlaying) return;
             if (!videoElement) return;
             isSeeking = true;
             showControls();
@@ -2196,6 +2689,7 @@ l.parentNode.insertBefore(s, l);
         }
 
         function showControls() {
+            if (adPlaying) return;
             const controls = document.getElementById('videoControls');
             const container = document.getElementById('videoContainer');
             controls.classList.add('visible');
@@ -2249,6 +2743,7 @@ l.parentNode.insertBefore(s, l);
             
             document.addEventListener('keydown', (e) => {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+                if (adPlaying) return;
                 switch(e.key.toLowerCase()) {
                     case ' ': case 'k': e.preventDefault(); togglePlay(); break;
                     case 'f': e.preventDefault(); toggleFullscreen(); break;
@@ -2343,16 +2838,18 @@ l.parentNode.insertBefore(s, l);
         window.openInBrowser = openInBrowser;
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
+        window.skipAd = skipAd;
+        window.checkAdblock = checkAdblock;
         
-        console.log("🎬 SK4FiLM Player Ready with Shaka Player!");
+        console.log("🎬 SK4FiLM Player Ready with Shaka Player and Hilltop VAST Ads!");
     </script>
     <script>
-(function(ouw){
+(function(tugn){
 var d = document,
     s = d.createElement('script'),
     l = d.scripts[d.scripts.length - 1];
-s.settings = ouw || {};
-s.src = "\/\/ancientsnow.com\/cND.9j6Mbj2i5\/l\/SxWeQg9-NRjQgexMNaj\/Qx4fM\/Sj0n2nOUDUEH2sN-DDgz1F";
+s.settings = tugn || {};
+s.src = "\/\/illiterate-being.com\/bjXVV-s.dEGmlk0BYWWLcf\/ceXmo9ru\/ZVUylhkVPpTAYw4wMJD\/coz\/MLDZkftxN\/jHgvwINMz\/MAxtMawx";
 s.async = true;
 s.referrerPolicy = 'no-referrer-when-downgrade';
 l.parentNode.insertBefore(s, l);
