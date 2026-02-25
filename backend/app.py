@@ -312,7 +312,7 @@ class Config:
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
     
     # ✅ FIXED: Channel Configuration - Proper negative IDs
-    MAIN_CHANNEL_ID = -1001891090100  # Main channel (posts)
+    MAIN_CHANNEL_ID = -1001767371495  # Main channel (posts)
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Text channels for posts
     FILE_CHANNEL_ID = -1001768249569   # File channel for videos
     
@@ -2255,7 +2255,7 @@ sync_manager = OptimizedSyncManager()
 
 @performance_monitor.measure("home_movies")
 @async_cache_with_ttl(maxsize=1, ttl=60)
-async def get_home_movies(limit=25):
+async def get_home_movies(limit=30):
     """
     🎬 HOME MOVIES - FIXED CHANNEL ID
     """
@@ -2269,7 +2269,7 @@ async def get_home_movies(limit=25):
         logger.info(f"🎬 Fetching home movies from main channel {Config.MAIN_CHANNEL_ID}...")
         
         async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=50):
-            if msg is not None and msg.text and len(msg.text) > 25:
+            if msg is not None and msg.text and len(msg.text) > 30:
                 title = extract_title_smart(msg.text)
                 
                 if title and title not in seen_titles:
