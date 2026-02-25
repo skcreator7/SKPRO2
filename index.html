@@ -685,33 +685,80 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* ===== Ad Containers - Optimized (Popup Ads Removed) ===== */
+        /* ===== Ad Containers - NO REDIRECTS ===== */
         .ad-container {
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 10px auto;
             overflow: hidden;
+            pointer-events: none; /* DISABLE ALL CLICKS ON ADS */
+        }
+
+        /* Make ad iframes non-interactive */
+        .ad-container iframe {
+            pointer-events: none !important;
+            max-width: 100%;
+            border: none;
+        }
+
+        /* Hide any popup/redirect scripts visually but keep layout */
+        .ad-container script {
+            display: none;
         }
 
         #adTopDesktop {
             height: 90px;
             width: 728px;
+            background: rgba(0, 0, 0, 0.3); /* Optional: show placeholder */
+            border: 1px dashed var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
         }
 
         #adTopMobile {
             height: 50px;
             width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px dashed var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.7rem;
         }
 
         #adInlineContent {
             height: 300px;
             width: 160px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px dashed var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.7rem;
         }
 
         #adFooterDesktop {
             height: 90px;
             width: 728px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px dashed var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
+        }
+
+        /* Ad placeholder text */
+        .ad-placeholder {
+            text-align: center;
+            width: 100%;
         }
 
         @media (max-width: 991px) {
@@ -727,7 +774,7 @@
             }
         }
 
-        /* Popup Styles - REMOVED (kept only for reference, but display none) */
+        /* Popup Styles - Completely removed */
         .popup-overlay, .popup-container, .popup-close, .popup-content, .popup-ad-container,
         .second-popup-overlay, .second-popup-container, .second-popup-content, .second-popup-ad-container {
             display: none !important;
@@ -764,18 +811,6 @@
                 padding: 15px 8px;
             }
             
-            .popup-container,
-            .second-popup-container {
-                width: 300px;
-                height: 250px;
-            }
-            
-            .popup-ad-container,
-            .second-popup-ad-container {
-                width: 300px;
-                height: 250px;
-            }
-            
             .hq-info {
                 min-height: 65px;
                 padding: 10px 6px;
@@ -797,24 +832,6 @@
                 padding-right: 4px;
             }
             
-            .popup-container,
-            .second-popup-container {
-                width: 280px;
-                height: 230px;
-                transform: translateX(-50%) translateY(100%) scale(0.9);
-            }
-            
-            .popup-container.active,
-            .second-popup-container.active {
-                transform: translateX(-50%) translateY(0) scale(0.9);
-            }
-            
-            .popup-ad-container,
-            .second-popup-ad-container {
-                width: 280px;
-                height: 230px;
-            }
-            
             #homeMoviesContainer {
                 gap: 3px;
             }
@@ -826,7 +843,7 @@
     </style>
 </head>
 <body>
-    <!-- Audio tag removed as per request -->
+    <!-- Audio removed -->
     
     <!-- Navigation -->
     <nav class="top-navbar">
@@ -900,31 +917,18 @@
     </div>
     
     <div class="container">
-        <!-- Top Ads (Keep as per original) -->
+        <!-- Top Ads - NO REDIRECT / STATIC PLACEHOLDERS -->
         <div class="ad-container">
             <div id="adTopDesktop">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                        'format' : 'iframe',
-                        'height' : 90,
-                        'width' : 728,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad me-2"></i>Advertisement Space (728x90)
+                </div>
+                <!-- Original script removed to prevent redirects -->
             </div>
             <div id="adTopMobile">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
-                        'format' : 'iframe',
-                        'height' : 50,
-                        'width' : 320,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad me-2"></i>Ad (320x50)
+                </div>
             </div>
         </div>
 
@@ -948,19 +952,12 @@
             </div>
         </div>
 
-        <!-- Inline Content Ad -->
+        <!-- Inline Content Ad - NO REDIRECT -->
         <div class="ad-container">
             <div id="adInlineContent">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
-                        'format' : 'iframe',
-                        'height' : 300,
-                        'width' : 160,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
+                <div class="ad-placeholder" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                    <i class="fas fa-ad me-2"></i>Ad (160x300)
+                </div>
             </div>
         </div>
 
@@ -1005,20 +1002,13 @@
         </div>
     </div>
 
-    <!-- Footer Desktop Ad -->
+    <!-- Footer Desktop Ad - NO REDIRECT -->
     <footer class="mt-5 pb-4">
         <div class="ad-container">
             <div id="adFooterDesktop">
-                <script type="text/javascript">
-                    atOptions = {
-                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
-                        'format' : 'iframe',
-                        'height' : 90,
-                        'width' : 728,
-                        'params' : {}
-                    };
-                </script>
-                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+                <div class="ad-placeholder">
+                    <i class="fas fa-ad me-2"></i>Advertisement Space (728x90)
+                </div>
             </div>
         </div>
     </footer>
@@ -1033,13 +1023,13 @@
         </div>
     </div>
 
-    <!-- Popup HTML elements completely removed (both first and second popup) -->
+    <!-- All popup HTML removed -->
 
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         
-        console.log('🎬 SK4FiLM v6.1 - MINIMAL GAP PROGRESSIVE LOADING (Ads & Audio Removed)');
+        console.log('🎬 SK4FiLM - NO REDIRECTS, ALL ADS DISABLED');
 
         // ==== BATCH LOADING VARIABLES ====
         let currentBatch = 0;
@@ -1248,9 +1238,6 @@
             `;
         }
 
-        // ==== POPUP FUNCTIONS (Removed) ====
-        // All popup functions are removed as per request
-
         // ==== NAVIGATION FUNCTIONS ====
         function toggleSearch() {
             const searchContainer = document.getElementById('searchContainer');
@@ -1342,14 +1329,19 @@
                 .replace(/"/g, '\\"');
         }
 
+        // ==== DISABLE ALL EXTERNAL SCRIPT LOADING ====
+        // Override document.write to prevent ad scripts
+        document.write = function() { 
+            console.warn('document.write blocked'); 
+            return '';
+        };
+
         // ==== INITIALIZATION ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM - MINIMAL GAP LAYOUT INITIALIZED');
+            console.log('🚀 SK4FiLM - NO REDIRECTS, ALL ADS DISABLED');
             
             // Generate initial skeleton grid
             generateSkeletonGrid();
-            
-            // No popup event listeners needed
             
             // Load movies with minimal gap layout
             setTimeout(loadHomeMovies, 800);
@@ -1363,14 +1355,28 @@
                 }
             }, 35000);
             
-            // Background audio removed
-            
             // Smooth scroll
             document.documentElement.style.scrollBehavior = 'smooth';
+            
+            // Prevent any click on ad containers from doing anything
+            document.querySelectorAll('.ad-container').forEach(ad => {
+                ad.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                });
+            });
         });
         
         window.addEventListener('load', function() {
             document.body.classList.add('loaded');
+            
+            // Final safety: remove any iframes that might have been injected
+            setTimeout(() => {
+                document.querySelectorAll('iframe[src*="marksdespitelinear"], iframe[src*="illiterate"]').forEach(iframe => {
+                    iframe.remove();
+                });
+            }, 1000);
         });
     </script>
 </body>
