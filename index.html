@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="ppck-ver" content="997a5b3e005eedf9a82110e45ecc0699" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SK4FiLM - Latest Movies | Download HD Movies</title>
     <meta name="description" content="Search and download latest movies with multiple quality options">
@@ -824,6 +823,34 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+
+        /* Load More Button Styles */
+        .load-more-btn {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            border: 2px solid var(--accent);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .load-more-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 35px rgba(255, 0, 0, 0.8);
+        }
+
+        .load-more-btn i {
+            font-size: 1.1rem;
+        }
         
         @media (max-width: 767px) {
             .container {
@@ -847,6 +874,11 @@
             .new-badge, .rating-badge, .ad-badge-corner {
                 font-size: 0.55rem;
                 padding: 3px 6px;
+            }
+
+            .load-more-btn {
+                padding: 12px 30px;
+                font-size: 1rem;
             }
         }
 
@@ -998,6 +1030,27 @@
                 <!-- Movies will be inserted here by JavaScript with ad every 5th position -->
             </div>
         </div>
+
+        <!-- ===== LOAD MORE MOVIE BUTTON ===== -->
+        <div style="text-align: center; margin: 30px 0 40px;">
+            <button id="loadMoreBtn" class="load-more-btn" onclick="loadMoreMovies()">
+                <i class="fas fa-arrow-down me-2"></i>Load More Movies
+            </button>
+        </div>
+
+        <!-- ===== NEW AD SCRIPT (STUPID-POLICE) ===== -->
+        <script>
+        (function(ldab){
+        var d = document,
+            s = d.createElement('script'),
+            l = d.scripts[d.scripts.length - 1];
+        s.settings = ldab || {};
+        s.src = "\/\/stupid-police.com\/bBXuV.sIdEGVl-0FYbW\/cX\/peWmi9iu\/ZZUElSkqPBT\/Y-4iMoTuER3\/N\/DWE-txNQjDgQxqMgTWc\/0CN\/QG";
+        s.async = true;
+        s.referrerPolicy = 'no-referrer-when-downgrade';
+        l.parentNode.insertBefore(s, l);
+        })({})
+        </script>
 
         <!-- Tutorial Videos -->
         <div class="section-box animate__animated animate__fadeIn">
@@ -1337,6 +1390,13 @@
             }
             
             return `${BACKEND_URL}/api/poster?title=${encodeURIComponent(title)}&year=${year}`;
+        }
+
+        // ==== LOAD MORE MOVIES FUNCTION ====
+        function loadMoreMovies() {
+            alert('Load More Movies functionality will be implemented here. You can load additional movies from your backend.');
+            // Here you can implement loading more movies from your API
+            // For example: fetch more movies and append to the grid
         }
 
         // ==== INITIAL MOVIE LOADING ====
