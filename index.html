@@ -406,7 +406,7 @@
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(5px);
             border-radius: 12px;
-            padding: 20px 12px; /* Reduced side padding */
+            padding: 20px 12px;
             margin-bottom: 25px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.1);
@@ -465,7 +465,7 @@
         #homeMoviesContainer {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 6px; /* Minimal gap for border visibility */
+            gap: 6px;
             margin: 0;
             padding: 0;
             width: 100%;
@@ -492,10 +492,10 @@
             }
         }
         
-        /* Movie card styles - MINIMAL GAP VERSION */
+        /* Movie card styles */
         .movie-card {
             background: #000000;
-            border: 2px solid rgba(0, 204, 255, 0.15); /* Thin border for separation */
+            border: 2px solid rgba(0, 204, 255, 0.15);
             border-radius: 12px;
             overflow: hidden;
             transition: all 0.4s ease;
@@ -602,7 +602,6 @@
             z-index: 5;
         }
         
-        /* TITLE ON PURE BLACK BACKGROUND */
         .hq-info {
             padding: 12px 8px;
             text-align: center;
@@ -626,7 +625,6 @@
             padding: 0 5px;
         }
         
-        /* Skeleton card - MINIMAL GAP */
         .skeleton-movie-card {
             background: #000;
             border: 2px solid rgba(255,255,255,0.05);
@@ -685,80 +683,42 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* ===== Ad Containers - NO REDIRECTS ===== */
+        /* ===== Ad Containers - Normal behavior, no blocking ===== */
         .ad-container {
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 10px auto;
             overflow: hidden;
-            pointer-events: none; /* DISABLE ALL CLICKS ON ADS */
+            position: relative;
+            z-index: 1;
         }
 
-        /* Make ad iframes non-interactive */
+        /* No overlay protection - ads work normally */
         .ad-container iframe {
-            pointer-events: none !important;
             max-width: 100%;
             border: none;
-        }
-
-        /* Hide any popup/redirect scripts visually but keep layout */
-        .ad-container script {
-            display: none;
+            display: block;
         }
 
         #adTopDesktop {
             height: 90px;
             width: 728px;
-            background: rgba(0, 0, 0, 0.3); /* Optional: show placeholder */
-            border: 1px dashed var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.8rem;
         }
 
         #adTopMobile {
             height: 50px;
             width: 320px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px dashed var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.7rem;
         }
 
         #adInlineContent {
             height: 300px;
             width: 160px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px dashed var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.7rem;
         }
 
         #adFooterDesktop {
             height: 90px;
             width: 728px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px dashed var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.8rem;
-        }
-
-        /* Ad placeholder text */
-        .ad-placeholder {
-            text-align: center;
-            width: 100%;
         }
 
         @media (max-width: 991px) {
@@ -800,7 +760,6 @@
             to { opacity: 1; }
         }
         
-        /* Mobile-specific adjustments */
         @media (max-width: 767px) {
             .container {
                 padding-left: 6px;
@@ -917,18 +876,31 @@
     </div>
     
     <div class="container">
-        <!-- Top Ads - NO REDIRECT / STATIC PLACEHOLDERS -->
+        <!-- Top Ads - Original scripts, normal behavior -->
         <div class="ad-container">
             <div id="adTopDesktop">
-                <div class="ad-placeholder">
-                    <i class="fas fa-ad me-2"></i>Advertisement Space (728x90)
-                </div>
-                <!-- Original script removed to prevent redirects -->
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+                        'format' : 'iframe',
+                        'height' : 90,
+                        'width' : 728,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
             </div>
             <div id="adTopMobile">
-                <div class="ad-placeholder">
-                    <i class="fas fa-ad me-2"></i>Ad (320x50)
-                </div>
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : 'c628de75b51e4c70d2f3bebebbaaf335',
+                        'format' : 'iframe',
+                        'height' : 50,
+                        'width' : 320,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
             </div>
         </div>
 
@@ -952,12 +924,19 @@
             </div>
         </div>
 
-        <!-- Inline Content Ad - NO REDIRECT -->
+        <!-- Inline Content Ad - Original script, normal behavior -->
         <div class="ad-container">
             <div id="adInlineContent">
-                <div class="ad-placeholder" style="writing-mode: vertical-rl; transform: rotate(180deg);">
-                    <i class="fas fa-ad me-2"></i>Ad (160x300)
-                </div>
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : 'dd8949e06e88ce3bb397fd3159be4e3e',
+                        'format' : 'iframe',
+                        'height' : 300,
+                        'width' : 160,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
             </div>
         </div>
 
@@ -1002,13 +981,20 @@
         </div>
     </div>
 
-    <!-- Footer Desktop Ad - NO REDIRECT -->
+    <!-- Footer Desktop Ad - Original script, normal behavior -->
     <footer class="mt-5 pb-4">
         <div class="ad-container">
             <div id="adFooterDesktop">
-                <div class="ad-placeholder">
-                    <i class="fas fa-ad me-2"></i>Advertisement Space (728x90)
-                </div>
+                <script type="text/javascript">
+                    atOptions = {
+                        'key' : '3118cf3c0d1d908e59d96fac6de40e1f',
+                        'format' : 'iframe',
+                        'height' : 90,
+                        'width' : 728,
+                        'params' : {}
+                    };
+                </script>
+                <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
             </div>
         </div>
     </footer>
@@ -1029,7 +1015,7 @@
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         
-        console.log('🎬 SK4FiLM - NO REDIRECTS, ALL ADS DISABLED');
+        console.log('🎬 SK4FiLM - ADS WORKING NORMALLY WITH REDIRECTS');
 
         // ==== BATCH LOADING VARIABLES ====
         let currentBatch = 0;
@@ -1043,7 +1029,6 @@
             const container = document.getElementById('homeMoviesContainer');
             let skeletonHTML = '';
             
-            // Generate 12 skeleton cards
             for (let i = 0; i < 12; i++) {
                 skeletonHTML += `
                     <div class="skeleton-movie-card">
@@ -1147,15 +1132,12 @@
             
             const title = movie.title || 'Unknown';
             
-            // Start with blurred placeholder
             img.src = FALLBACK_IMAGE;
             img.style.filter = 'blur(15px)';
             img.style.opacity = '0.8';
             
-            // Get poster URL
             const posterURL = buildPosterURL(movie);
             
-            // Load in background
             const highQualityImg = new Image();
             
             const loadTimeout = setTimeout(() => {
@@ -1186,7 +1168,6 @@
             console.log(`✅ Loaded: ${title}`);
         }
 
-        // ==== POSTER URL BUILDER ====
         function buildPosterURL(movie) {
             const title = movie.title || '';
             const year = movie.year || '';
@@ -1209,10 +1190,8 @@
                     allMovies = data.movies.slice(0, TOTAL_MOVIES_TO_LOAD);
                     console.log(`📊 Loaded ${allMovies.length} movies`);
                     
-                    // Display movies with minimal gap layout
                     displayHomeMovies(allMovies);
                     
-                    // Start progressive batch loading
                     setTimeout(loadMoviesInBatches, 500);
                 } else {
                     showError();
@@ -1223,7 +1202,6 @@
             }
         }
 
-        // ==== ERROR HANDLING ====
         function showError() {
             const container = document.getElementById('homeMoviesContainer');
             container.innerHTML = `
@@ -1310,7 +1288,6 @@
             window.location.href = `search.html?query=${encodeURIComponent(movieTitle)}`;
         }
         
-        // ==== UTILITY FUNCTIONS ====
         function escapeHTML(text) {
             if (!text) return '';
             return text
@@ -1329,24 +1306,14 @@
                 .replace(/"/g, '\\"');
         }
 
-        // ==== DISABLE ALL EXTERNAL SCRIPT LOADING ====
-        // Override document.write to prevent ad scripts
-        document.write = function() { 
-            console.warn('document.write blocked'); 
-            return '';
-        };
-
         // ==== INITIALIZATION ====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SK4FiLM - NO REDIRECTS, ALL ADS DISABLED');
+            console.log('🚀 SK4FiLM - ADS WORKING NORMALLY');
             
-            // Generate initial skeleton grid
             generateSkeletonGrid();
             
-            // Load movies with minimal gap layout
             setTimeout(loadHomeMovies, 800);
             
-            // Visitor counter animation
             setInterval(() => {
                 const counter = document.getElementById('visitorCount');
                 if (counter) {
@@ -1355,28 +1322,11 @@
                 }
             }, 35000);
             
-            // Smooth scroll
             document.documentElement.style.scrollBehavior = 'smooth';
-            
-            // Prevent any click on ad containers from doing anything
-            document.querySelectorAll('.ad-container').forEach(ad => {
-                ad.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                });
-            });
         });
         
         window.addEventListener('load', function() {
             document.body.classList.add('loaded');
-            
-            // Final safety: remove any iframes that might have been injected
-            setTimeout(() => {
-                document.querySelectorAll('iframe[src*="marksdespitelinear"], iframe[src*="illiterate"]').forEach(iframe => {
-                    iframe.remove();
-                });
-            }, 1000);
         });
     </script>
 </body>
