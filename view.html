@@ -1577,15 +1577,21 @@
                 </div>
 
                 <!-- Ad 3 - After Movies -->
-                <div class="ad-container" style="margin:10px 0; text-align:center;">
-    <div>
-    <script type="text/javascript">
-        aclib.runBanner({
-            zoneId: '11014854',
-        });
-    </script>
-           </div>
-
+<div class="ad-container" style="margin:10px 0; text-align:center;">
+    <div id="ad-11014854">
+        <script type="text/javascript">
+            try {
+                aclib.runBanner({
+                    zoneId: '11014854',
+                });
+            } catch(e) {
+                console.error('Ad failed to load:', e);
+                document.getElementById('ad-11014854').innerHTML = 
+                    '<div class="ad-placeholder p-3 bg-light">Advertisement</div>';
+            }
+        </script>
+    </div>
+</div>
                 <!-- Music Category -->
                 <div class="category-section">
                     <div class="category-title">
