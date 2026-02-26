@@ -6,6 +6,7 @@
     <title>SK4FiLM — one-time redirect per user</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <!-- AdSense (legacy) -->
+    <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
     <script>(function(s){s.dataset.zone='10656201',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -473,8 +474,11 @@
     <div class="popup-cinematic">
         <div class="film-reel"><i class="fas fa-film"></i></div>
         <div class="popup-ad-box">
-            <script type="text/javascript">atOptions={'key':'dd8949e06e88ce3bb397fd3159be4e3e','format':'iframe','height':250,'width':300,'params':{}};</script>
-            <script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"></script>
+            <script type="text/javascript">
+        aclib.runBanner({
+            zoneId: '11016178',
+        });
+    </script>
         </div>
     </div>
 </div>
