@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SK4FiLM — 2-click quality (ad then download)</title>
+    <title>SK4FiLM — one-time redirect per user</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <!-- AdSense (legacy) -->
     <script>(function(s){s.dataset.zone='10656201',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
@@ -212,7 +212,7 @@
         .quality-dropdown.show { display: block; }
         .quality-buttons-row { display: flex; flex-wrap: wrap; gap: 8px; }
         
-        /* 🔥 NEW STYLE: quality options as 2-click buttons */
+        /* 🔥 quality options as 2-click buttons */
         .quality-option-2click {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             padding: 10px 12px;
@@ -338,10 +338,10 @@
             .film-reel i { font-size: 36px; }
         }
 
-        /* 🔥 Redirect page styling (simple overlay) */
+        /* 🔥 REDIRECT PAGE - one time per user */
         .redirect-overlay {
             position: fixed;
-            top: 70px; /* below navbar */
+            top: 70px;
             left: 0;
             width: 100%;
             height: calc(100% - 70px);
@@ -396,6 +396,18 @@
             cursor: pointer;
         }
         .redirect-close:hover { border-color: #00ccff; color: white; }
+        
+        /* one-time badge */
+        .one-time-badge {
+            background: rgba(255,215,0,0.2);
+            border: 1px solid gold;
+            color: gold;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -467,11 +479,11 @@
     </div>
 </div>
 
-<!-- 🔥 REDIRECT PAGE (before Telegram) -->
+<!-- 🔥 REDIRECT PAGE - one time per user (first time only) -->
 <div id="redirectOverlay" class="redirect-overlay">
     <div class="redirect-box">
         <i class="fab fa-telegram"></i>
-        <h3>Preparing Download</h3>
+        <h3>First Time Redirect</h3>
         <p>You will be redirected to Telegram in</p>
         <div class="redirect-timer" id="redirectTimer">3</div>
         <div class="redirect-progress">
@@ -497,9 +509,13 @@ document.addEventListener('click', function(event) {
 const API_ENDPOINTS = [ 'https://sk4film.koyeb.app', 'https://sk4film-backup.herokuapp.com', 'https://sk4film-alternate.onrender.com' ];
 const FALLBACK_THUMBNAIL = 'https://iili.io/fAeIwv9.th.png';
 const RESULTS_PER_PAGE = 10;
-const AD_LINK = 'https://marksdespitelinear.com/kcmxy41xse?key=7a55effcd016f9cb0c43d1775c4a73f1'; // ad link for 1st click
+const AD_LINK = 'https://marksdespitelinear.com/kcmxy41xse?key=7a55effcd016f9cb0c43d1775c4a73f1';
 const FILE_CHANNEL_ID = "-1001768249569";
 const BOT_USERNAME = 'sk4filmbot';
+
+// 🔥 ONE-TIME REDIRECT TRACKING
+const REDIRECT_KEY = 'sk4film_redirect_shown';
+let hasUserSeenRedirect = localStorage.getItem(REDIRECT_KEY) === 'true';
 
 let currentQuery = '';
 let currentPage = 1;
@@ -515,7 +531,7 @@ const redirectProgressBar = document.getElementById('redirectProgressBar');
 
 let redirectTimeout = null;
 let redirectCountdown = 3;
-let pendingTelegramLink = ''; // store link to open after ad
+let pendingTelegramLink = '';
 
 const searchCache = new Map();
 
@@ -524,12 +540,23 @@ function openSearchPopup() { searchPopup.classList.add('active'); }
 function closeSearchPopup() { searchPopup.classList.remove('active'); }
 function autoClosePopupIfOpen() { if (searchPopup.classList.contains('active')) closeSearchPopup(); }
 
-// ========== REDIRECT PAGE FUNCTIONS ==========
+// ========== ONE-TIME REDIRECT FUNCTION ==========
 function showRedirect(telegramLink) {
     // Pehle ad open karo (1st click)
     window.open(AD_LINK, '_blank');
     
-    // Phir redirect page dikhao (2nd click flow)
+    // 🔥 Check if user has already seen redirect page
+    if (hasUserSeenRedirect) {
+        // Directly open telegram link (no redirect page)
+        window.open(telegramLink, '_blank');
+        return;
+    }
+    
+    // Mark that user has seen redirect (for future clicks)
+    localStorage.setItem(REDIRECT_KEY, 'true');
+    hasUserSeenRedirect = true;
+    
+    // Show redirect page (first time only)
     pendingTelegramLink = telegramLink;
     redirectCountdown = 3;
     redirectTimerEl.textContent = redirectCountdown;
@@ -621,12 +648,11 @@ async function fetchAPI(query, page) {
     return null;
 }
 
-// helper functions
 function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
 function formatSize(bytes) { if (!bytes || bytes === 0) return '0 B'; const k = 1024; const sizes = ['B','KB','MB','GB']; const i = Math.floor(Math.log(bytes)/Math.log(k)); return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; }
 function formatPostContent(content) { if (!content) return ''; let f = escapeHtml(content); f = f.replace(/\n/g,'<br>'); f = f.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$&" target="_blank" rel="noopener noreferrer">$&</a>'); f = f.replace(/(t\.me\/[^\s<]+)/g,'<a href="https://$&" target="_blank" rel="noopener noreferrer">$&</a>'); f = f.replace(/@([a-zA-Z0-9_]+)/g,'<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer">@$1</a>'); return f; }
 
-// 🔥 NEW: generate 2-click quality options (1st click ad, 2nd click redirect + telegram)
+// 🔥 generate quality options with one-time redirect logic
 function generateQualityOptions(qualityOptions, result) {
     if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options</p>';
     
@@ -646,22 +672,25 @@ function generateQualityOptions(qualityOptions, result) {
                 const size = data.file_size ? formatSize(data.file_size) : '';
                 const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
                 
-                // 🔥 2-click button: pehle showRedirect call karega (jo ad open karega phir redirect page)
-                html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')">${quality} ${size}</button>`;
+                // Add one-time badge if user hasn't seen redirect yet
+                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
+                
+                html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')">${quality} ${size} ${badge}</button>`;
                 count++;
             }
         }
     }
     
     if (count === 0) {
-        html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')">Get from Bot</button>`;
+        const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
+        html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')">Get from Bot ${badge}</button>`;
     }
     
     html += '</div>';
     return html;
 }
 
-// 🔥 handle quality click: 1st click ad, then show redirect page (which will open telegram after countdown)
+// 🔥 handle quality click with one-time redirect
 function handleQualityClick(telegramLink) {
     showRedirect(telegramLink);
 }
@@ -733,7 +762,8 @@ function renderResults(results, pagination) {
                 html += `</div>`;
             } else {
                 const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`;
-                html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i>Download</button>`;
+                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
+                html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i>Download ${badge}</button>`;
                 html += `</div>`;
             }
         } else { 
