@@ -6,7 +6,7 @@
     <meta http-equiv="Delegate-CH" content="Sec-CH-UA https://s.magsrv.com; Sec-CH-UA-Mobile https://s.magsrv.com; Sec-CH-UA-Platform https://s.magsrv.com">
     <meta property="og:image" content="https://iili.io/KOlfc41.png" itemprop="thumbnailUrl">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>SK4FiLM - Live Channels</title>
+    <title>SK4FiLM - Live Channels (Clean Player)</title>
     
     <!-- Shaka Player CSS & JS -->
     <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
@@ -399,72 +399,9 @@
             display: none;
         }
         
-        /* Ad Skip Button */
-        .ad-skip-button {
-            position: absolute;
-            bottom: 80px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            border: 2px solid var(--accent);
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 400;
-            display: none;
-            backdrop-filter: blur(5px);
-            transition: all 0.3s ease;
-        }
-        
-        .ad-skip-button:hover {
-            background: var(--accent);
-            color: black;
-        }
-        
-        .ad-skip-button.show {
-            display: block;
-        }
-        
-        /* Ad Timer */
-        .ad-timer {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            z-index: 400;
-            display: none;
-            border: 1px solid var(--accent);
-        }
-        
-        .ad-timer.show {
-            display: block;
-        }
-        
-        /* Ad Label - Only shows when ad is playing */
-        .ad-label {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: var(--primary-red);
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 400;
-            display: none;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .ad-label.show {
-            display: block;
+        /* Completely remove custom ad UI - not needed as IMA provides its own */
+        .ad-label, .ad-timer, .ad-skip-button {
+            display: none !important;
         }
         
         /* Anti-Adblock Overlay */
@@ -1464,11 +1401,6 @@
                         <!-- IMA Ad Container -->
                         <div id="ad-container"></div>
                         
-                        <!-- Ad UI Elements -->
-                        <div class="ad-label" id="adLabel">Advertisement</div>
-                        <div class="ad-timer" id="adTimer"></div>
-                        <button class="ad-skip-button" id="adSkipButton" onclick="skipAd()">Skip Ad</button>
-                        
                         <!-- Shaka Player Video Element -->
                         <video 
                             id="video-element"
@@ -1534,18 +1466,19 @@
                 </div>
 
                 <!-- Ad 3 - After video info (336x280) -->
-<div class="ad-section my-4">
-    <div class="text-center mb-2" style="font-size: 12px; color: #6c757d;">- Advertisement -</div>
-    <div style="display: flex; justify-content: center;">
-        <script type="text/javascript">
-            aclib.runBanner({
-                zoneId: '11015090',
-                width: 336,
-                height: 280
-            });
-        </script>
-    </div>
-</div>
+                <div class="ad-section my-4">
+                    <div class="text-center mb-2" style="font-size: 12px; color: #6c757d;">- Advertisement -</div>
+                    <div style="display: flex; justify-content: center;">
+                        <script type="text/javascript">
+                            aclib.runBanner({
+                                zoneId: '11015090',
+                                width: 336,
+                                height: 280
+                            });
+                        </script>
+                    </div>
+                </div>
+                
                 <!-- Sports Category -->
                 <div class="category-section">
                     <div class="category-title">
@@ -1557,15 +1490,15 @@
                 </div>
 
                 <!-- Adsterra Referral Banner (700x90) -->
-<div class="ad-container" style="margin: 10px 0; text-align: center;">
-    <a href="https://beta.publishers.adsterra.com/referral/wnMsyuNtfT" 
-       target="_blank" 
-       rel="nofollow noopener noreferrer">
-        <img src="https://landings-cdn.adsterratech.com/referralBanners/gif/700x90_adsterra_reff.gif" 
-             alt="Adsterra Referral Banner" 
-             style="max-width:100%; height:auto; border:0;">
-    </a>
-</div>
+                <div class="ad-container" style="margin: 10px 0; text-align: center;">
+                    <a href="https://beta.publishers.adsterra.com/referral/wnMsyuNtfT" 
+                       target="_blank" 
+                       rel="nofollow noopener noreferrer">
+                        <img src="https://landings-cdn.adsterratech.com/referralBanners/gif/700x90_adsterra_reff.gif" 
+                             alt="Adsterra Referral Banner" 
+                             style="max-width:100%; height:auto; border:0;">
+                    </a>
+                </div>
 
                 <!-- Movies Category -->
                 <div class="category-section">
@@ -1578,21 +1511,22 @@
                 </div>
 
                 <!-- Ad 3 - After Movies -->
-<div class="ad-container" style="margin:10px 0; text-align:center;">
-    <div id="ad-11015090">
-        <script type="text/javascript">
-            try {
-                aclib.runBanner({
-                    zoneId: '11015090',
-                });
-            } catch(e) {
-                console.error('Ad failed to load:', e);
-                document.getElementById('ad-11015090').innerHTML = 
-                    '<div class="ad-placeholder p-3 bg-light">Advertisement</div>';
-            }
-        </script>
-    </div>
-</div>
+                <div class="ad-container" style="margin:10px 0; text-align:center;">
+                    <div id="ad-11015090">
+                        <script type="text/javascript">
+                            try {
+                                aclib.runBanner({
+                                    zoneId: '11015090',
+                                });
+                            } catch(e) {
+                                console.error('Ad failed to load:', e);
+                                document.getElementById('ad-11015090').innerHTML = 
+                                    '<div class="ad-placeholder p-3 bg-light">Advertisement</div>';
+                            }
+                        </script>
+                    </div>
+                </div>
+                
                 <!-- Music Category -->
                 <div class="category-section">
                     <div class="category-title">
@@ -1666,18 +1600,13 @@
         let adsInitialized = false;
         let currentAd = null;
         let adPlaying = false;
-        let adSkippableTime = 15; // Can skip after 15 seconds (from VAST)
         let pendingChannelLoad = null;
-        let isFirstLoad = true;
         
         // Hilltop VAST Ad URL
         const VAST_AD_URL = 'https://youradexchange.com/video/select.php?r=11015086';
         
         // Anti-Adblock detection
         let adblockDetected = false;
-        
-        // CORS Proxy to fix mixed content and CORS issues
-        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
         
         // Channel logos mapping
         const channelLogos = {
@@ -1808,9 +1737,6 @@
                 // Initialize display container
                 imaAdDisplayContainer.initialize();
                 
-                // Hide content controls during ads
-                hideContentControls();
-                
                 // Show ad container
                 document.getElementById('ad-container').classList.add('show');
                 
@@ -1902,10 +1828,9 @@
             }
         }
 
-        // Ad started event - show ad label only when ad actually starts playing
+        // Ad started event
         function onAdStarted(event) {
-            document.getElementById('adLabel').classList.add('show');
-            console.log('Ad started playing - showing label');
+            console.log('Ad started playing');
         }
 
         function onAdFirstQuartile(event) {
@@ -1925,90 +1850,33 @@
             if (adsManager) {
                 adsManager.destroy();
             }
-            // Hide all ad UI elements
-            document.getElementById('adLabel').classList.remove('show');
-            document.getElementById('adTimer').classList.remove('show');
-            document.getElementById('adSkipButton').classList.remove('show');
             document.getElementById('ad-container').classList.remove('show');
             adPlaying = false;
-            
-            // Load the content after ad error
             loadContent();
         }
 
         function onContentPauseRequested() {
             console.log('Ad playing - content paused');
             videoElement.pause();
-            showContentControls(false);
         }
 
         function onContentResumeRequested() {
             console.log('Ad finished - content resumed');
-            // Hide all ad UI elements
-            document.getElementById('adLabel').classList.remove('show');
-            document.getElementById('adTimer').classList.remove('show');
-            document.getElementById('adSkipButton').classList.remove('show');
             document.getElementById('ad-container').classList.remove('show');
             adPlaying = false;
-            
-            // Resume content
             loadContent();
         }
 
         function onAdProgress(event) {
-            const adData = event.getAdData();
-            if (adData.duration && adData.currentTime) {
-                const remaining = Math.max(0, Math.ceil(adData.duration - adData.currentTime));
-                document.getElementById('adTimer').textContent = `Ad ends in ${remaining}s`;
-                document.getElementById('adTimer').classList.add('show');
-            }
+            // IMA handles its own UI - no need to do anything
         }
 
         function onSkippableStateChanged(event) {
-            if (adsManager && adsManager.getAdSkippableState()) {
-                document.getElementById('adSkipButton').classList.add('show');
-            }
+            // IMA handles skip button UI automatically
         }
 
         function onAdComplete(event) {
             console.log('Ad completed');
-            // Hide ad label when ad completes
-            document.getElementById('adLabel').classList.remove('show');
-            // Ad will automatically resume content
-        }
-
-        function skipAd() {
-            if (adsManager && adsManager.getAdSkippableState()) {
-                adsManager.skip();
-                document.getElementById('adSkipButton').classList.remove('show');
-                document.getElementById('adLabel').classList.remove('show');
-            }
-        }
-
-        function hideContentControls(hide = true) {
-            const controls = document.getElementById('videoControls');
-            const playOverlay = document.getElementById('playOverlay');
-            
-            if (hide) {
-                controls.style.pointerEvents = 'none';
-                playOverlay.style.pointerEvents = 'none';
-            } else {
-                controls.style.pointerEvents = 'auto';
-                playOverlay.style.pointerEvents = 'auto';
-            }
-        }
-
-        function showContentControls(show = true) {
-            const controls = document.getElementById('videoControls');
-            const playOverlay = document.getElementById('playOverlay');
-            
-            if (show) {
-                controls.style.pointerEvents = 'auto';
-                playOverlay.style.pointerEvents = 'auto';
-            } else {
-                controls.style.pointerEvents = 'none';
-                playOverlay.style.pointerEvents = 'none';
-            }
         }
 
         function pauseVideo() {
@@ -2807,7 +2675,6 @@
         window.openInBrowser = openInBrowser;
         window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
-        window.skipAd = skipAd;
         window.checkAdblock = checkAdblock;
         
         console.log("🎬 SK4FiLM Player Ready with Shaka Player and Hilltop VAST Ads!");
