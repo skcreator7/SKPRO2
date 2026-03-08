@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SK4FiLM — one-time redirect per user</title>
+    <title>SK4FiLM — latest movies</title>
     <meta name="description" content="Search and download latest movies in HD quality">
     <!-- Adsterra (legacy) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -191,13 +191,77 @@
         }
         .thumbnail-source-badge { left: 8px; background: rgba(0,0,0,0.8); color: white; }
         .video-file-badge { right: 8px; background: var(--primary); color: white; }
-        .result-title { font-size: 18px; font-weight: 700; color: #00ccff; margin-bottom: 10px; }
+        .result-title { 
+            font-size: 18px; 
+            font-weight: 700; 
+            color: #00ccff; 
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+        .result-title a {
+            color: #00ccff;
+            text-decoration: none;
+        }
+        .result-title a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Post content styles */
         .result-post-content {
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px; padding: 12px; margin: 10px 0;
-            font-size: 14px; max-height: 200px; overflow-y: auto;
+            border-radius: 10px; 
+            padding: 12px; 
+            margin: 10px 0;
+            font-size: 14px; 
+            position: relative;
+            line-height: 1.6;
         }
+        .post-text {
+            transition: max-height 0.4s ease-in-out;
+            overflow: hidden;
+        }
+        .post-text a {
+            color: #00ccff !important;
+            text-decoration: underline !important;
+            word-break: break-all;
+            font-weight: 500;
+        }
+        .post-text a:hover {
+            color: #ff0000 !important;
+        }
+        .fade-effect {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, rgba(15, 23, 42, 0.95));
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .show-more-btn {
+            background: transparent;
+            border: none;
+            color: #00ccff;
+            font-weight: 600;
+            margin-top: 5px;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 2;
+        }
+        .show-more-btn:hover {
+            background: rgba(0,204,255,0.1);
+        }
+        .show-more-btn i {
+            margin-right: 5px;
+        }
+        
         .action-buttons-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         @media (min-width: 480px) { .action-buttons-container { flex-direction: row; } }
         .btn-stream-now, .btn-download-main {
@@ -655,11 +719,127 @@ async function fetchAPI(query, page) {
     return null;
 }
 
-function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
-function formatSize(bytes) { if (!bytes || bytes === 0) return '0 B'; const k = 1024; const sizes = ['B','KB','MB','GB']; const i = Math.floor(Math.log(bytes)/Math.log(k)); return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; }
-function formatPostContent(content) { if (!content) return ''; let f = escapeHtml(content); f = f.replace(/\n/g,'<br>'); f = f.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$&" target="_blank" rel="noopener noreferrer">$&</a>'); f = f.replace(/(t\.me\/[^\s<]+)/g,'<a href="https://$&" target="_blank" rel="noopener noreferrer">$&</a>'); f = f.replace(/@([a-zA-Z0-9_]+)/g,'<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer">@$1</a>'); return f; }
+function escapeHtml(text) { 
+    if (!text) return ''; 
+    const div = document.createElement('div'); 
+    div.textContent = text; 
+    return div.innerHTML; 
+}
 
-// 🔥 generate quality options with one-time redirect logic
+function formatSize(bytes) { 
+    if (!bytes || bytes === 0) return '0 B'; 
+    const k = 1024; 
+    const sizes = ['B','KB','MB','GB']; 
+    const i = Math.floor(Math.log(bytes)/Math.log(k)); 
+    return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; 
+}
+
+// ✅ Format title with username replacement (but keep @sk4film as is)
+function formatTitle(title) {
+    if (!title) return '';
+    
+    let formatted = escapeHtml(title);
+    
+    // Replace @anyusername with @sk4film (but don't replace if it's already @sk4film)
+    formatted = formatted.replace(
+        /@(?!sk4film\b)([a-zA-Z0-9_]+)/g,
+        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
+    );
+    
+    // If @sk4film exists, keep it as is but make it clickable
+    formatted = formatted.replace(
+        /@sk4film\b/g,
+        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
+    );
+    
+    return formatted;
+}
+
+// ✅ Format post content with all replacements
+function formatPostContent(content) {
+    if (!content) return '';
+    
+    // First escape HTML
+    let formatted = escapeHtml(content);
+    
+    // Replace newlines with <br>
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // STEP 1: Replace all Telegram links (t.me, telegram.me, telegram.dog) with https://t.me/sk4film link
+    // Remove original link completely and add sk4film link
+    formatted = formatted.replace(
+        /(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g,
+        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">https://t.me/sk4film</a>'
+    );
+    
+    // STEP 2: Replace all @anyusername with @sk4film (but don't replace if it's already @sk4film)
+    formatted = formatted.replace(
+        /@(?!sk4film\b)([a-zA-Z0-9_]+)/g,
+        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
+    );
+    
+    // STEP 3: If @sk4film exists, keep it as is but make it clickable
+    formatted = formatted.replace(
+        /@sk4film\b/g,
+        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
+    );
+    
+    // STEP 4: Make other non-Telegram URLs clickable with original text
+    formatted = formatted.replace(
+        /(https?:\/\/[^\s<]+)(?![^<]*>|[^<>]*<\/)/g,
+        '<a href="$&" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">$&</a>'
+    );
+    
+    return formatted;
+}
+
+// ✅ Function to create post content with show more/less (1000 chars threshold)
+function createPostContent(content, index) {
+    if (!content || !content.trim()) return '';
+    
+    const contentId = `post-content-${index}`;
+    const toggleId = `post-toggle-${index}`;
+    const isLong = content.length > 1000;
+    
+    let html = `<div class="result-post-content" id="${contentId}" style="position: relative;">`;
+    html += `<div class="post-text" style="max-height: ${isLong ? '150px' : 'none'}; overflow: hidden; transition: max-height 0.4s ease-in-out;">`;
+    html += formatPostContent(content);
+    html += `</div>`;
+    
+    if (isLong) {
+        html += `
+            <div class="fade-effect" style="position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, rgba(15, 23, 42, 0.95)); pointer-events: none;"></div>
+            <button class="show-more-btn" onclick="togglePostContent(${index})" id="${toggleId}">
+                <i class="fas fa-chevron-down"></i> Show More ↓
+            </button>
+        `;
+    }
+    
+    html += `</div>`;
+    return html;
+}
+
+// ✅ Toggle post content with proper button text
+function togglePostContent(index) {
+    const contentDiv = document.getElementById(`post-content-${index}`);
+    const toggleBtn = document.getElementById(`post-toggle-${index}`);
+    const textDiv = contentDiv.querySelector('.post-text');
+    const fadeEffect = contentDiv.querySelector('.fade-effect');
+    
+    if (textDiv.style.maxHeight === 'none') {
+        // Collapse
+        textDiv.style.maxHeight = '150px';
+        if (fadeEffect) fadeEffect.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show More ↓';
+    } else {
+        // Expand
+        textDiv.style.maxHeight = 'none';
+        if (fadeEffect) fadeEffect.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑';
+    }
+}
+
+// generate quality options with one-time redirect logic
 function generateQualityOptions(qualityOptions, result) {
     if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options</p>';
     
@@ -726,13 +906,12 @@ function renderResults(results, pagination) {
     
     let html = '';
     results.forEach((result, index) => {
-        const title = escapeHtml(result.title || 'Untitled');
+        const title = result.title || 'Untitled';
         const thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
         const hasFile = result.has_file === true;
         const qualityOptions = result.qualities || result.quality_options || {};
         const hasQualities = Object.keys(qualityOptions).length > 0;
         const postContent = result.post_content || result.content || '';
-        const hasPostContent = postContent && postContent.trim().length > 0;
         
         let msgIdForStream = result.real_message_id || result.message_id || result.id || '0';
         msgIdForStream = String(msgIdForStream).replace(/\D/g, '');
@@ -753,9 +932,12 @@ function renderResults(results, pagination) {
         html += `<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
         if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
         html += `</div></div>`;
-        html += `<h3 class="result-title">${title}</h3>`;
+        html += `<h3 class="result-title">${formatTitle(title)}</h3>`;
         
-        if (hasPostContent) html += `<div class="result-post-content">${formatPostContent(postContent)}</div>`;
+        // ✅ Use the post content system with all replacements
+        if (postContent && postContent.trim().length > 0) {
+            html += createPostContent(postContent, index);
+        }
         
         if (hasFile) {
             html += `<div class="action-buttons-container">`;
@@ -820,6 +1002,7 @@ window.toggleDownload = toggleDownload;
 window.closeSearchPopup = function() { searchPopup.classList.remove('active'); };
 window.handleQualityClick = handleQualityClick;
 window.closeRedirect = closeRedirect;
+window.togglePostContent = togglePostContent;
 </script>
     <script src="https://marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js"></script>
     <script>
@@ -829,7 +1012,7 @@ window.onload = function(){
       s.dataset.zone='10206831',
       s.src='https://n6wxm.com/vignette.min.js'
     })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
-  }, 2000); // 2 second baad ad show
+  }, 2000);
 }
 </script>
 </body>
