@@ -759,7 +759,7 @@ function renderResults(results, pagination) {
         
         if (hasFile) {
             html += `<div class="action-buttons-container">`;
-            html += `<a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>Live Stream</a>`;
+            html += `<a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>🏏 Watch Live Cricket</a>`;
             
             if (hasQualities) {
                 html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button>`;
@@ -774,7 +774,7 @@ function renderResults(results, pagination) {
                 html += `</div>`;
             }
         } else { 
-            html += `<div class="action-buttons-container"><button class="btn-stream-now" disabled style="opacity: 0.5;">No File Available</button></div>`; 
+            html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>🏏 Watch Live Cricket</a></div>`;
         }
         
         html += `</div>`;
