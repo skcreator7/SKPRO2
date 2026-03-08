@@ -9,6 +9,7 @@
     <title>SK4FiLM - Live Channels</title>
     
     <!-- Shaka Player CSS & JS -->
+    <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.min.js"></script>
     
@@ -1681,7 +1682,7 @@ l.parentNode.insertBefore(s, l);
         let isFirstLoad = true;
         
         // Hilltop VAST Ad URL
-        const VAST_AD_URL = 'https://ancientsnow.com/d.mRFTzad_GsNHvVZkGCUf/YeDmr9hu/ZLUAldk/PZTgYB4/M/TVUy1tMTT_MBtlNejsgZxFNLTGU_xeNdwt';
+        const VAST_AD_URL = 'https://youradexchange.com/video/select.php?r=11047650';
         
         // Anti-Adblock detection
         let adblockDetected = false;
@@ -2821,6 +2822,11 @@ l.parentNode.insertBefore(s, l);
         window.checkAdblock = checkAdblock;
         
         console.log("🎬 SK4FiLM Player Ready with Shaka Player and Hilltop VAST Ads!");
+    </script>
+    <script type="text/javascript">
+    aclib.runVideoSlider({
+        zoneId: '11047646',
+    });
     </script>
 </body>
 </html>
