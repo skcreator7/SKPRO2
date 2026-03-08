@@ -9,6 +9,7 @@
     <title>SK4FiLM - Live Channels (Clean Player)</title>
     
     <!-- Shaka Player CSS & JS -->
+    <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.min.js"></script>
     
@@ -2648,17 +2649,11 @@
         
         console.log("🎬 SK4FiLM Player Ready with Shaka Player and Hilltop VAST Ads!");
         </script>
-    <script>
-(function(sstay){
-var d = document,
-    s = d.createElement('script'),
-    l = d.scripts[d.scripts.length - 1];
-s.settings = sstay || {};
-s.src = "\/\/stupid-police.com\/b.XyVqs\/dWGjlf0PYGW-cy\/AeJmA9wu\/ZmU\/lfkZPwTrYU3qN\/jPIjzvNbzCkPtcNzjsc\/2XMAjeM_4OMjAh";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
+    <script type="text/javascript">
+    aclib.runInPagePush({
+        zoneId: '11047638',
+        maxAds: 2,
+    });
 </script>
 </body>
 </html>
