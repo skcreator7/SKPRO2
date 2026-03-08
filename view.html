@@ -352,7 +352,7 @@
             overflow: hidden;
         }
         
-        /* Video.js Custom Styling */
+        /* Video.js Player Customization */
         #video-element {
             width: 100%;
             height: 100%;
@@ -363,7 +363,6 @@
             background: #000;
         }
         
-        /* Video.js Player Customization */
         .video-js {
             width: 100%;
             height: 100%;
@@ -679,117 +678,151 @@
             object-fit: contain !important;
         }
         
-        /* External player dialog */
-        .external-player-dialog {
+        /* External Player Modal - बीच में */
+        .external-player-modal {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 10001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .external-player-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             border: 2px solid var(--accent);
             border-radius: 20px;
-            padding: 20px;
-            z-index: 10001;
-            width: 95%;
+            padding: 25px;
+            width: 90%;
             max-width: 380px;
-            text-align: center;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            display: none;
-            max-height: 90vh;
-            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            position: relative;
+            text-align: center;
         }
         
-        .external-player-dialog.show {
-            display: block;
-            animation: fadeIn 0.3s ease;
+        .external-player-modal.show .modal-content {
+            transform: scale(1);
         }
         
-        .dialog-title {
-            font-size: 1.3rem;
-            color: var(--accent);
-            margin: 10px 0;
-            font-weight: bold;
-        }
-        
-        .dialog-message {
-            color: #fff;
-            margin-bottom: 15px;
-            font-size: 1rem;
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 10px;
-        }
-        
-        .dialog-buttons {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 10px 0;
-        }
-        
-        .dialog-btn {
-            padding: 12px 15px;
-            border: none;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-            min-width: 110px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue));
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        
-        .btn-primary:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 20px rgba(255,0,0,0.4);
-        }
-        
-        .btn-secondary:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .dialog-close {
+        .modal-close {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 12px;
+            right: 12px;
             background: rgba(255,255,255,0.1);
             border: none;
             color: white;
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
-        .dialog-close:hover {
+        .modal-close:hover {
             background: rgba(255,255,255,0.2);
             transform: rotate(90deg);
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, -60%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
+        .modal-icon {
+            font-size: 3rem;
+            color: var(--accent);
+            margin-bottom: 15px;
+            background: rgba(0, 204, 255, 0.1);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            border: 2px solid var(--accent);
+        }
+        
+        .modal-title {
+            font-size: 1.4rem;
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .modal-message {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        
+        .modal-btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 120px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .modal-btn-primary {
+            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue));
+            color: white;
+        }
+        
+        .modal-btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .modal-btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(255,0,0,0.4);
+        }
+        
+        .modal-btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .modal-install-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
         }
         
         /* Mobile Optimizations */
@@ -817,11 +850,57 @@
             .channel-name {
                 font-size: 0.7rem;
             }
+            
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+            
+            .modal-icon {
+                width: 70px;
+                height: 70px;
+                font-size: 2.5rem;
+            }
+            
+            .modal-title {
+                font-size: 1.3rem;
+            }
+            
+            .modal-message {
+                font-size: 1rem;
+                padding: 10px;
+            }
+            
+            .modal-btn {
+                padding: 12px 15px;
+                font-size: 1rem;
+                min-width: 100px;
+            }
         }
         
         @media (max-width: 480px) {
             .channels-grid {
                 grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .modal-content {
+                padding: 18px;
+            }
+            
+            .modal-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+            
+            .modal-title {
+                font-size: 1.2rem;
+            }
+            
+            .modal-btn {
+                padding: 10px 12px;
+                font-size: 0.95rem;
+                min-width: 90px;
             }
         }
     </style>
@@ -899,34 +978,39 @@
         </div>
     </div>
     
-    <!-- External Player Dialog -->
-    <div class="external-player-dialog" id="externalPlayerDialog">
-        <div class="dialog-title" id="dialogTitle">Open in External Player</div>
-        <div class="dialog-message" id="dialogMessage">Choose a player to open this stream</div>
-        
-        <div class="dialog-buttons">
-            <button class="dialog-btn btn-primary" id="dialogVLCBtn" onclick="openWithVLC()">
-                <i class="fab fa-vlc me-2"></i>VLC
+    <!-- External Player Modal - बीच में दिखेगा -->
+    <div class="external-player-modal" id="externalPlayerModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeExternalModal()">
+                <i class="fas fa-times"></i>
             </button>
-            <button class="dialog-btn btn-primary" id="dialogMXBtn" onclick="openWithMX()">
-                <i class="fas fa-play me-2"></i>MX Player
-            </button>
+            
+            <div class="modal-icon">
+                <i class="fas fa-external-link-alt"></i>
+            </div>
+            
+            <div class="modal-title" id="modalTitle">External Player</div>
+            <div class="modal-message" id="modalMessage">Choose a player</div>
+            
+            <div class="modal-buttons" id="mainPlayerButtons">
+                <button class="modal-btn modal-btn-primary" onclick="openWithVLC()">
+                    <i class="fab fa-vlc"></i> VLC
+                </button>
+                <button class="modal-btn modal-btn-primary" onclick="openWithMX()">
+                    <i class="fas fa-play"></i> MX
+                </button>
+            </div>
+            
+            <!-- Install buttons (hidden by default) -->
+            <div class="modal-install-buttons" id="installButtonsContainer">
+                <button class="modal-btn modal-btn-secondary" id="installVLCBtn" onclick="openPlayStore('vlc')" style="display: none;">
+                    <i class="fab fa-google-play"></i> Install VLC
+                </button>
+                <button class="modal-btn modal-btn-secondary" id="installMXBtn" onclick="openPlayStore('mx')" style="display: none;">
+                    <i class="fab fa-google-play"></i> Install MX
+                </button>
+            </div>
         </div>
-        
-        <!-- Install buttons -->
-        <div class="dialog-buttons" style="margin-top: 10px;" id="installButtonsContainer">
-            <button class="dialog-btn btn-secondary" id="dialogPlayStoreVLC" onclick="openPlayStore('vlc')" style="display: none;">
-                <i class="fab fa-google-play me-2"></i>Install VLC
-            </button>
-            <button class="dialog-btn btn-secondary" id="dialogPlayStoreMX" onclick="openPlayStore('mx')" style="display: none;">
-                <i class="fab fa-google-play me-2"></i>Install MX
-            </button>
-        </div>
-        
-        <!-- Close Button -->
-        <button class="dialog-close" onclick="closeExternalDialog()" title="Close">
-            <i class="fas fa-times"></i>
-        </button>
     </div>
     
     <div class="container-fluid px-0">
@@ -1146,6 +1230,16 @@
             initializeVideoJS();
             loadChannels();
             
+            // Close modal when clicking outside
+            document.addEventListener('click', (e) => {
+                const modal = document.getElementById('externalPlayerModal');
+                const modalContent = document.querySelector('.modal-content');
+                
+                if (e.target === modal && modal.classList.contains('show')) {
+                    closeExternalModal();
+                }
+            });
+            
             console.log("✅ Player Ready!");
         });
 
@@ -1180,7 +1274,7 @@
                 
                 // Show external player options on error
                 if (currentChannelName && currentChannelUrl) {
-                    showExternalPlayerDialog(currentChannelName, currentChannelUrl);
+                    showExternalModal(currentChannelName);
                 }
             });
             
@@ -1310,48 +1404,46 @@
                 loadStream(backupUrl, currentChannelName);
             } else {
                 // Show external player options
-                showExternalPlayerDialog(currentChannelName, currentChannelUrl);
+                showExternalModal(currentChannelName);
             }
         }
         
-        function showExternalPlayerDialog(name, url) {
-            currentChannelUrl = url;
-            currentChannelName = name;
+        // External Player Modal Functions - बीच में दिखेगा
+        function showExternalModal(channelName) {
+            const modal = document.getElementById('externalPlayerModal');
+            const title = document.getElementById('modalTitle');
+            const message = document.getElementById('modalMessage');
+            const mainButtons = document.getElementById('mainPlayerButtons');
+            const installVLC = document.getElementById('installVLCBtn');
+            const installMX = document.getElementById('installMXBtn');
             
-            const dialog = document.getElementById('externalPlayerDialog');
-            const title = document.getElementById('dialogTitle');
-            const message = document.getElementById('dialogMessage');
-            const vlcBtn = document.getElementById('dialogVLCBtn');
-            const mxBtn = document.getElementById('dialogMXBtn');
-            const installVLC = document.getElementById('dialogPlayStoreVLC');
-            const installMX = document.getElementById('dialogPlayStoreMX');
+            title.textContent = channelName;
+            message.innerHTML = 'Open in external player?';
             
-            title.textContent = `🎬 Play "${name}"`;
-            message.innerHTML = `⚠️ Stream not playing in browser.<br>📺 Open in external player?`;
-            
-            // Show main buttons
-            vlcBtn.style.display = 'flex';
-            mxBtn.style.display = 'flex';
+            // Show main buttons, hide install buttons
+            mainButtons.style.display = 'flex';
             installVLC.style.display = 'none';
             installMX.style.display = 'none';
             
-            dialog.classList.add('show');
+            modal.classList.add('show');
         }
         
-        function showInstallDialog(app) {
-            const dialog = document.getElementById('externalPlayerDialog');
-            const title = document.getElementById('dialogTitle');
-            const message = document.getElementById('dialogMessage');
-            const vlcBtn = document.getElementById('dialogVLCBtn');
-            const mxBtn = document.getElementById('dialogMXBtn');
-            const installVLC = document.getElementById('dialogPlayStoreVLC');
-            const installMX = document.getElementById('dialogPlayStoreMX');
+        function closeExternalModal() {
+            const modal = document.getElementById('externalPlayerModal');
+            modal.classList.remove('show');
+        }
+        
+        function showInstallModal(app) {
+            const title = document.getElementById('modalTitle');
+            const message = document.getElementById('modalMessage');
+            const mainButtons = document.getElementById('mainPlayerButtons');
+            const installVLC = document.getElementById('installVLCBtn');
+            const installMX = document.getElementById('installMXBtn');
             
-            title.textContent = `📱 ${app.toUpperCase()} Player Not Found`;
-            message.innerHTML = `🔍 Install ${app.toUpperCase()} player from Play Store?`;
+            title.textContent = `${app.toUpperCase()} Player`;
+            message.innerHTML = `Install ${app.toUpperCase()} player from Play Store?`;
             
-            vlcBtn.style.display = 'none';
-            mxBtn.style.display = 'none';
+            mainButtons.style.display = 'none';
             
             if (app === 'vlc') {
                 installVLC.style.display = 'flex';
@@ -1360,94 +1452,67 @@
                 installVLC.style.display = 'none';
                 installMX.style.display = 'flex';
             }
-            
-            dialog.classList.add('show');
         }
         
-        function closeExternalDialog() {
-            const dialog = document.getElementById('externalPlayerDialog');
-            dialog.classList.remove('show');
-        }
-        
-        // Open in VLC
+        // Open in VLC - सभी प्लेटफॉर्म के लिए VLC रीडायरेक्ट
         function openWithVLC() {
             showToast("Opening in VLC...", 2000);
-            closeExternalDialog();
             
             let streamUrl = currentChannelUrl;
             
-            // For Android
+            // सभी प्लेटफॉर्म के लिए VLC प्रोटोकॉल
             if (/Android/i.test(navigator.userAgent)) {
+                // Android VLC Intent
                 const vlcIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end`;
-                const vlcScheme = `vlc://${streamUrl}`;
-                
-                try {
-                    window.location.href = vlcIntent;
-                    
-                    setTimeout(() => {
-                        try {
-                            window.location.href = vlcScheme;
-                        } catch(e) {}
-                    }, 300);
-                    
-                } catch(e) {
-                    console.error("Error opening VLC:", e);
-                }
+                window.location.href = vlcIntent;
                 
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
-                        showInstallDialog('vlc');
+                        showInstallModal('vlc');
                     }
                 }, 1500);
             } 
-            // For iOS
             else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                // iOS VLC URL Scheme
                 const iosVlcUrl = `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
-                
-                try {
-                    window.location.href = iosVlcUrl;
-                } catch(e) {}
+                window.location.href = iosVlcUrl;
                 
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
-                        showInstallDialog('vlc');
+                        showInstallModal('vlc');
                     }
                 }, 1500);
             }
-            // For desktop
             else {
-                window.open(streamUrl, '_blank');
+                // Desktop के लिए VLC प्रोटोकॉल (vlc://)
+                const desktopVlcUrl = `vlc://${streamUrl}`;
+                window.location.href = desktopVlcUrl;
+                
+                // Fallback for desktop if VLC not installed
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        showInstallModal('vlc');
+                    }
+                }, 1500);
             }
+            
+            closeExternalModal();
         }
         
         // Open in MX Player
         function openWithMX() {
             showToast("Opening in MX Player...", 2000);
-            closeExternalDialog();
             
             let streamUrl = currentChannelUrl;
             
             // MX Player only works on Android
             if (/Android/i.test(navigator.userAgent)) {
                 const mxIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
-                const mxScheme = `mxplayer://${streamUrl}`;
-                
-                try {
-                    window.location.href = mxIntent;
-                    
-                    setTimeout(() => {
-                        try {
-                            window.location.href = mxScheme;
-                        } catch(e) {}
-                    }, 300);
-                    
-                } catch(e) {
-                    console.error("Error opening MX Player:", e);
-                }
+                window.location.href = mxIntent;
                 
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
-                        showInstallDialog('mx');
+                        showInstallModal('mx');
                     }
                 }, 1500);
             } 
@@ -1458,6 +1523,8 @@
                     openWithVLC();
                 }, 1500);
             }
+            
+            closeExternalModal();
         }
         
         function openPlayStore(app) {
@@ -1466,7 +1533,7 @@
                 : 'https://play.google.com/store/apps/details?id=com.mxtech.videoplayer.ad';
             
             window.open(playStoreUrl, '_blank');
-            closeExternalDialog();
+            closeExternalModal();
         }
 
         function showToast(message, duration = 3000, type = '') {
@@ -1520,13 +1587,14 @@
         
         // Export functions
         window.playChannel = playChannel;
+        window.showExternalModal = showExternalModal;
+        window.closeExternalModal = closeExternalModal;
         window.openWithVLC = openWithVLC;
         window.openWithMX = openWithMX;
-        window.closeExternalDialog = closeExternalDialog;
         window.openPlayStore = openPlayStore;
         window.copyUPI = copyUPI;
         
-        console.log("🎬 SK4FiLM Player Ready with Video.js!");
+        console.log("🎬 SK4FiLM Player Ready with Video.js and External Player Modal!");
     </script>
 </body>
 </html>
