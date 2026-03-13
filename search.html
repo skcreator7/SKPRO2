@@ -404,104 +404,132 @@
             margin-left: 8px;
         }
 
-        /* 🔥 REDIRECT PAGE - one time per user (first time only) */
-        .redirect-overlay {
+        /* 🔥 FULL SCREEN INTERSTITIAL AD UI */
+        #interstitialAd {
             position: fixed;
-            top: 70px;
+            top: 0;
             left: 0;
             width: 100%;
-            height: calc(100% - 70px);
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(5px);
-            z-index: 20000;
-            display: flex;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: white;
+            display: none;
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            padding: 20px;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease;
+            z-index: 999999;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
         }
-        .redirect-overlay.active { opacity: 1; visibility: visible; }
-        .redirect-box {
+        
+        .interstitial-content {
             max-width: 350px;
-            width: 100%;
-            background: linear-gradient(145deg, #0f172a, #1e293b);
+            width: 90%;
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(15, 23, 42, 0.95);
             border: 2px solid #00ccff;
             border-radius: 40px;
-            padding: 30px 20px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0,204,255,0.4);
+            box-shadow: 0 20px 40px rgba(0,204,255,0.3);
+            z-index: 9999999;
+            position: relative;
         }
-        .redirect-box i { font-size: 60px; color: #00ccff; margin-bottom: 20px; text-shadow: 0 0 20px cyan; }
-        .redirect-box h3 { color: white; font-weight: 700; margin-bottom: 10px; }
-        .redirect-box p { color: #aaa; font-size: 14px; margin-bottom: 25px; }
-        .redirect-timer { font-size: 48px; font-weight: 800; color: #00ccff; margin-bottom: 20px; }
-        .redirect-progress {
+        
+        .interstitial-content i {
+            font-size: 60px;
+            color: #00ccff;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px cyan;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .interstitial-content h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, #ff0000, #0066ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .interstitial-content p {
+            color: #aaa;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+        
+        .interstitial-loader {
             width: 100%;
             height: 6px;
             background: #334155;
             border-radius: 10px;
             overflow: hidden;
+            margin-bottom: 20px;
         }
-        .redirect-progress-bar {
+        
+        .interstitial-progress {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #ff0000, #0066ff);
-            transition: width 1s linear;
+            background: linear-gradient(90deg, #ff0000, #0066ff, #00ccff);
+            animation: progressLoad 2s ease-in-out forwards;
         }
-        .redirect-close {
-            margin-top: 20px;
+        
+        @keyframes progressLoad {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        
+        .interstitial-timer {
+            font-size: 36px;
+            font-weight: 800;
+            color: #00ccff;
+            margin-bottom: 10px;
+        }
+        
+        .interstitial-close {
             background: transparent;
-            border: 2px solid #aaa;
-            color: #ccc;
-            padding: 8px 30px;
+            border: 2px solid #00ccff;
+            color: white;
+            padding: 10px 30px;
             border-radius: 40px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-        }
-        .redirect-close:hover { border-color: #00ccff; color: white; }
-        
-        .skeleton {
-            background: linear-gradient(90deg, #1e293b 25%, #2d3a4f 50%, #1e293b 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 8px;
+            transition: all 0.3s;
+            margin-top: 20px;
         }
         
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        
-        .error-state {
-            text-align: center;
-            padding: 30px 15px;
-            background: rgba(255,0,0,0.1);
-            border-radius: 16px;
+        .interstitial-close:hover {
+            background: #00ccff;
+            color: #0a0a0f;
         }
 
-        /* Smartlink Container - Hidden (Same Tab - No Navigation) */
+        /* Smartlink iframe - full screen under the content */
+        #smartlinkIframe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            z-index: 999998;
+            background: white;
+        }
+
+        /* Hidden container for background smartlink (for download/thumbnail) */
         #smartlinkContainer {
             position: absolute;
-            width: 0;
-            height: 0;
+            width: 1px;
+            height: 1px;
             opacity: 0;
             pointer-events: none;
             overflow: hidden;
             z-index: -1;
-        }
-        
-        /* Hide all iframes inside smartlink container */
-        #smartlinkContainer iframe {
-            width: 0;
-            height: 0;
-            border: none;
-            opacity: 0;
-            position: absolute;
-            pointer-events: none;
         }
     </style>
 </head>
@@ -574,7 +602,23 @@
     </div>
 </div>
 
-<!-- Hidden Smartlink Container (Same Tab - No Navigation) -->
+<!-- 🔥 FULL SCREEN INTERSTITIAL AD UI (Sirf Search ke liye) -->
+<div id="interstitialAd">
+    <!-- Smartlink iframe will be inserted here by JavaScript (only for search) -->
+    <div class="interstitial-content">
+        <i class="fas fa-film"></i>
+        <h2>Loading Results</h2>
+        <p>Please wait while we fetch the best quality movies for you...</p>
+        <div class="interstitial-loader">
+            <div class="interstitial-progress"></div>
+        </div>
+        <div class="interstitial-timer" id="interstitialTimer">2</div>
+        <div>Preparing your content</div>
+        <button class="interstitial-close" onclick="closeInterstitial()">Skip</button>
+    </div>
+</div>
+
+<!-- Hidden Smartlink Container (Background Tab for Download/Thumbnail) -->
 <div id="smartlinkContainer"></div>
 
 <!-- 🔥 REDIRECT PAGE - one time per user (first time only) -->
@@ -607,7 +651,7 @@ document.addEventListener('click', function(event) {
 const API_ENDPOINTS = [ 'https://sk4film.koyeb.app', 'https://sk4film-backup.herokuapp.com', 'https://sk4film-alternate.onrender.com' ];
 const FALLBACK_THUMBNAIL = 'https://iili.io/fAeIwv9.th.png';
 const RESULTS_PER_PAGE = 10;
-const AD_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb';
+const SMARTLINK_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb'; // Smartlink
 const FILE_CHANNEL_ID = "-1001768249569";
 const BOT_USERNAME = 'sk4filmbot';
 
@@ -625,13 +669,17 @@ const redirectTimerEl = document.getElementById('redirectTimer');
 const searchLoader = document.getElementById('searchLoader');
 const loaderTimer = document.getElementById('loaderTimer');
 const redirectProgressBar = document.getElementById('redirectProgressBar');
+const interstitialAd = document.getElementById('interstitialAd');
+const interstitialTimer = document.getElementById('interstitialTimer');
 const smartlinkContainer = document.getElementById('smartlinkContainer');
 
 let redirectTimeout = null;
 let redirectCountdown = 3;
+let interstitialCountdown = 2;
 let pendingTelegramLink = '';
 let loaderInterval = null;
 let startTime = null;
+let interstitialInterval = null;
 
 const searchCache = new Map();
 
@@ -640,7 +688,6 @@ function showLoader() {
     searchLoader.classList.add('active');
     startTime = Date.now();
     
-    // Update timer every second
     if (loaderInterval) clearInterval(loaderInterval);
     loaderInterval = setInterval(() => {
         if (searchLoader.classList.contains('active')) {
@@ -661,55 +708,110 @@ function hideLoader() {
     loaderTimer.textContent = '0s';
 }
 
-// ========== SMARTLINK TRIGGER - SAME TAB (KOI TAB CHANGE NAHI HOGA) ==========
-function triggerSmartlink() {
+// ========== SMARTLINK INSIDE INTERSTITIAL (SIRF SEARCH KE LIYE) ==========
+function triggerInterstitialSmartlink() {
     try {
-        // Clear previous iframes
-        smartlinkContainer.innerHTML = '';
+        // Remove existing iframe if any
+        const existingIframe = document.getElementById('smartlinkIframe');
+        if (existingIframe) existingIframe.remove();
         
-        // Create multiple iframes for better load (all hidden)
-        for (let i = 0; i < 2; i++) {
-            const iframe = document.createElement('iframe');
-            iframe.src = AD_LINK;
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = 'none';
-            iframe.style.opacity = '0';
-            iframe.style.position = 'absolute';
-            iframe.style.pointerEvents = 'none';
-            iframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-forms';
-            iframe.loading = 'eager';
-            smartlinkContainer.appendChild(iframe);
-        }
+        // Create new iframe for smartlink
+        const iframe = document.createElement('iframe');
+        iframe.src = SMARTLINK_LINK;
+        iframe.id = 'smartlinkIframe';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.zIndex = '999998';
+        iframe.style.backgroundColor = 'white';
         
-        // Also try with image prefetch (additional method)
-        const img = new Image();
-        img.src = AD_LINK;
-        img.style.display = 'none';
-        document.body.appendChild(img);
-        setTimeout(() => document.body.removeChild(img), 1000);
+        // Add to interstitial div (behind the content)
+        interstitialAd.appendChild(iframe);
         
-        // Try with link prefetch
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.href = AD_LINK;
-        document.head.appendChild(link);
-        setTimeout(() => document.head.removeChild(link), 1000);
-        
-        console.log('✅ Smartlink loaded in SAME TAB - Koi tab change nahi hua');
+        console.log('✅ Smartlink loaded inside iframe (Interstitial for Search)');
     } catch (e) {
         console.error('Smartlink error:', e);
-        // Fallback - still same tab iframe
-        try {
-            const fallbackIframe = document.createElement('iframe');
-            fallbackIframe.src = AD_LINK;
-            fallbackIframe.style.display = 'none';
-            smartlinkContainer.appendChild(fallbackIframe);
-        } catch (e2) {}
     }
 }
 
-// ========== SEARCH ==========
+// ========== BACKGROUND SMARTLINK (DOWNLOAD/THUMBNAIL KE LIYE - ORIGINAL) ==========
+function triggerBackgroundSmartlink() {
+    try {
+        // Create a temporary anchor and click it (background tab)
+        const link = document.createElement('a');
+        link.href = SMARTLINK_LINK;
+        link.target = '_blank';  // New tab mein open (background)
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();  // Programmatic click - background tab open
+        document.body.removeChild(link);
+        
+        // Also load in hidden iframe as backup
+        const iframe = document.createElement('iframe');
+        iframe.src = SMARTLINK_LINK;
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.style.opacity = '0';
+        iframe.style.position = 'absolute';
+        iframe.style.pointerEvents = 'none';
+        smartlinkContainer.innerHTML = '';
+        smartlinkContainer.appendChild(iframe);
+        
+        console.log('✅ Background Smartlink triggered - New tab open');
+    } catch (e) {
+        console.error('Smartlink error:', e);
+        window.open(SMARTLINK_LINK, '_blank');
+    }
+}
+
+// ========== INTERSTITIAL CONTROL ==========
+function showInterstitial() {
+    // Show full screen interstitial
+    interstitialAd.style.display = 'flex';
+    
+    // Load smartlink in iframe (sirf search ke liye)
+    triggerInterstitialSmartlink();
+    
+    // Countdown
+    interstitialCountdown = 2;
+    interstitialTimer.textContent = interstitialCountdown;
+    
+    // Start countdown
+    if (interstitialInterval) clearInterval(interstitialInterval);
+    interstitialInterval = setInterval(() => {
+        interstitialCountdown--;
+        interstitialTimer.textContent = interstitialCountdown;
+        
+        if (interstitialCountdown <= 0) {
+            clearInterval(interstitialInterval);
+            closeInterstitial();
+        }
+    }, 1000);
+    
+    // Auto close after 2 seconds
+    setTimeout(() => {
+        closeInterstitial();
+    }, 2000);
+}
+
+function closeInterstitial() {
+    interstitialAd.style.display = 'none';
+    if (interstitialInterval) {
+        clearInterval(interstitialInterval);
+        interstitialInterval = null;
+    }
+    
+    // Remove smartlink iframe
+    const iframe = document.getElementById('smartlinkIframe');
+    if (iframe) iframe.remove();
+}
+
+// ========== SEARCH WITH INTERSTITIAL ==========
 async function performSearchWithPopup(page = 1) {
     const query = searchInput.value.trim();
     if (!query) {
@@ -724,34 +826,31 @@ async function performSearchWithPopup(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
 
-    // Step 1: Show expanding loader
-    showLoader();
+    // Step 1: Show full screen interstitial with smartlink iframe (sirf search ke liye)
+    showInterstitial();
     
     // Clear previous results
     resultsContainer.innerHTML = '';
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
 
-    // Step 2: Trigger Smartlink in SAME TAB (koi tab change nahi hoga)
-    triggerSmartlink();
-
     const cacheKey = `${query}-${page}`;
     
     // Check cache
     if (searchCache.has(cacheKey)) {
         const cached = searchCache.get(cacheKey);
-        // Small delay to show loader
+        // Wait for interstitial to finish then show results
         setTimeout(() => {
             renderResults(cached.results, cached.pagination);
             hideLoader();
-        }, 800);
+        }, 2000);
         return;
     }
 
-    // Step 3: Fetch results
+    // Step 2: Fetch results (will continue in background)
     const data = await fetchAPI(query, page);
     
-    // Step 4: Hide loader and show results
+    // Step 3: Results after interstitial
     if (data && data.results) {
         searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
         renderResults(data.results, data.pagination);
@@ -799,82 +898,44 @@ function formatSize(bytes) {
     return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; 
 }
 
-// Format title with username replacement
 function formatTitle(title) {
     if (!title) return '';
-    
     let formatted = escapeHtml(title);
-    
-    formatted = formatted.replace(
-        /@(?!sk4film\b)([a-zA-Z0-9_]+)/g,
-        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
-    );
-    
-    formatted = formatted.replace(
-        /@sk4film\b/g,
-        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
-    );
-    
+    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
+    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
     return formatted;
 }
 
-// Format post content
 function formatPostContent(content) {
     if (!content) return '';
-    
     let formatted = escapeHtml(content);
     formatted = formatted.replace(/\n/g, '<br>');
-    
-    formatted = formatted.replace(
-        /(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g,
-        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">https://t.me/sk4film</a>'
-    );
-    
-    formatted = formatted.replace(
-        /@(?!sk4film\b)([a-zA-Z0-9_]+)/g,
-        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
-    );
-    
-    formatted = formatted.replace(
-        /@sk4film\b/g,
-        '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
-    );
-    
-    formatted = formatted.replace(
-        /(https?:\/\/[^\s<]+)(?![^<]*>|[^<>]*<\/)/g,
-        '<a href="$&" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">$&</a>'
-    );
-    
+    formatted = formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">https://t.me/sk4film</a>');
+    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
+    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)(?![^<]*>|[^<>]*<\/)/g, '<a href="$&" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">$&</a>');
     return formatted;
 }
 
-// Create post content with show more/less
 function createPostContent(content, index) {
     if (!content || !content.trim()) return '';
-    
-    const contentId = `post-content-${index}`;
-    const toggleId = `post-toggle-${index}`;
     const isLong = content.length > 1000;
-    
-    let html = `<div class="result-post-content" id="${contentId}" style="position: relative;">`;
+    let html = `<div class="result-post-content" id="post-content-${index}" style="position: relative;">`;
     html += `<div class="post-text" style="max-height: ${isLong ? '150px' : 'none'}; overflow: hidden; transition: max-height 0.4s ease-in-out;">`;
     html += formatPostContent(content);
     html += `</div>`;
-    
     if (isLong) {
         html += `
             <div class="fade-effect" style="position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, rgba(15, 23, 42, 0.95)); pointer-events: none;"></div>
-            <button class="show-more-btn" onclick="togglePostContent(${index})" id="${toggleId}">
+            <button class="show-more-btn" onclick="togglePostContent(${index})" id="post-toggle-${index}">
                 <i class="fas fa-chevron-down"></i> Show More ↓
             </button>
         `;
     }
-    
     html += `</div>`;
     return html;
 }
 
-// Toggle post content
 function togglePostContent(index) {
     const contentDiv = document.getElementById(`post-content-${index}`);
     const toggleBtn = document.getElementById(`post-toggle-${index}`);
@@ -892,7 +953,6 @@ function togglePostContent(index) {
     }
 }
 
-// Generate quality options
 function generateQualityOptions(qualityOptions, result) {
     if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options</p>';
     
@@ -929,49 +989,44 @@ function generateQualityOptions(qualityOptions, result) {
     return html;
 }
 
-// Handle quality click with one-time redirect
 function handleQualityClick(telegramLink) {
-    // 🔥 Trigger Smartlink in SAME TAB (koi tab change nahi hoga)
-    triggerSmartlink();
+    // Step 1: Trigger Background Smartlink (new tab) for download clicks
+    triggerBackgroundSmartlink();
     
-    // 🔥 Check if user has already seen redirect page
+    // Step 2: Check if user has already seen redirect page
     if (hasUserSeenRedirect) {
-        // Directly open telegram link (new tab for Telegram)
         window.open(telegramLink, '_blank');
         return;
     }
     
-    // Mark that user has seen redirect (for future clicks)
+    // Step 3: Mark that user has seen redirect
     localStorage.setItem(REDIRECT_KEY, 'true');
     hasUserSeenRedirect = true;
     
-    // Show redirect page (first time only)
+    // Step 4: Show redirect page
     pendingTelegramLink = telegramLink;
     redirectCountdown = 3;
     redirectTimerEl.textContent = redirectCountdown;
     redirectProgressBar.style.width = '0%';
     redirectOverlay.classList.add('active');
     
-    // Progress bar animation
     setTimeout(() => { redirectProgressBar.style.width = '100%'; }, 50);
     
-    // Countdown
     redirectTimeout = setInterval(() => {
         redirectCountdown--;
         redirectTimerEl.textContent = redirectCountdown;
         
         if (redirectCountdown <= 0) {
             clearInterval(redirectTimeout);
-            // open telegram link
             window.open(pendingTelegramLink, '_blank');
             closeRedirect();
         }
     }, 1000);
 }
 
-// Thumbnail click par smartlink trigger
 function triggerAdLink() { 
-    triggerSmartlink();
+    // Thumbnail click - Background Smartlink (new tab)
+    triggerBackgroundSmartlink();
 }
 
 function toggleDownload(index) { 
@@ -1103,6 +1158,7 @@ window.toggleDownload = toggleDownload;
 window.handleQualityClick = handleQualityClick;
 window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
+window.closeInterstitial = closeInterstitial;
 </script>
 </body>
 </html>
