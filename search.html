@@ -531,23 +531,21 @@
     </div>
 </div>
 
-<!-- cinematic search popup -->
+<!-- Auto Fake Interstitial System -->
 <div id="searchPopup" class="search-popup">
-    <div class="popup-cinematic">
-        <div class="film-reel"><i class="fas fa-film"></i></div>
-        <div class="popup-ad-box">
-            <script>
-  atOptions = {
-    'key' : '567936a964b0784aedd11f237d26bee0',
-    'format' : 'iframe',
-    'height' : 250,
-    'width' : 300,
-    'params' : {}
-  };
-</script>
-<script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-        </div>
-    </div>
+<div class="popup-cinematic">
+
+<div class="film-reel">
+<i class="fas fa-film"></i>
+</div>
+
+<h3 style="color:white">Finding Movies...</h3>
+
+<p style="color:#aaa;font-size:14px">
+Please wait while we prepare results
+</p>
+
+</div>
 </div>
 
 <!-- 🔥 REDIRECT PAGE - one time per user (first time only) -->
@@ -593,9 +591,29 @@ let currentPage = 1;
 const resultsContainer = document.getElementById('resultsContainer');
 const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
-const searchInput = document.getElementById('searchInput');
-const searchButton = document.getElementById('searchButton');
-const searchPopup = document.getElementById('searchPopup');
+searchButton.addEventListener('click', () => {
+
+    showAutoInterstitial();
+
+    setTimeout(function(){
+        performSearchWithPopup(1);
+    },2000);
+
+});
+
+searchInput.addEventListener('keypress', (e) => {
+
+    if (e.key === 'Enter') {
+
+        showAutoInterstitial();
+
+        setTimeout(function(){
+            performSearchWithPopup(1);
+        },2000);
+
+    }
+
+});
 const redirectOverlay = document.getElementById('redirectOverlay');
 const redirectTimerEl = document.getElementById('redirectTimer');
 const redirectProgressBar = document.getElementById('redirectProgressBar');
@@ -607,9 +625,23 @@ let pendingTelegramLink = '';
 const searchCache = new Map();
 
 // ========== POPUP CONTROL ==========
-function openSearchPopup() { searchPopup.classList.add('active'); }
-function closeSearchPopup() { searchPopup.classList.remove('active'); }
-function autoClosePopupIfOpen() { if (searchPopup.classList.contains('active')) closeSearchPopup(); }
+let interstitialShown = false;
+
+function showAutoInterstitial() {
+
+    if(interstitialShown) return;
+    interstitialShown = true;
+
+    openSearchPopup();
+
+    setTimeout(function(){
+
+        window.open(AD_LINK, '_blank'); // Smartlink ad
+
+        closeSearchPopup();
+
+    },2000); // 2 second interstitial
+}
 
 // ========== ONE-TIME REDIRECT FUNCTION ==========
 function showRedirect(telegramLink) {
