@@ -130,8 +130,13 @@
             font-size: 16px;
             width: 100%;
             height: 50px;
+            transition: all 0.3s ease;
         }
-        .search-box:focus { border-color: #00ccff; outline: none; }
+        .search-box:focus { 
+            border-color: #00ccff; 
+            outline: none;
+            box-shadow: 0 0 15px rgba(0,204,255,0.3);
+        }
         .search-btn {
             position: absolute;
             right: 5px;
@@ -146,6 +151,69 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: transform 0.2s;
+        }
+        .search-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Expanding Loader - Search ke Neeche */
+        .search-loader-container {
+            width: 100%;
+            margin: 5px 0 15px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+        
+        .search-loader-container.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .expanding-loader {
+            background: linear-gradient(90deg, #ff0000, #0066ff, #00ccff, #ffaa00);
+            height: 3px;
+            width: 0%;
+            border-radius: 10px;
+            animation: expandWidth 2s infinite ease-in-out;
+            box-shadow: 0 0 15px rgba(0,204,255,0.7);
+            margin-bottom: 5px;
+        }
+        
+        @keyframes expandWidth {
+            0% { width: 0%; opacity: 0.6; }
+            50% { width: 100%; opacity: 1; }
+            100% { width: 0%; opacity: 0.6; }
+        }
+        
+        .loader-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #aaa;
+            font-size: 13px;
+        }
+        
+        .loader-text {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .loader-text i {
+            color: #00ccff;
+            animation: spin 1s infinite linear;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .loader-timer {
+            color: #00ccff;
+            font-weight: 600;
         }
         
         #resultsContainer { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; width: 100%; }
@@ -156,7 +224,14 @@
             padding: 16px;
             width: 100%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: fadeIn 0.5s ease;
         }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         .result-thumbnail-top {
             width: 100%;
             aspect-ratio: 16/9;
@@ -171,7 +246,8 @@
             position: relative;
             cursor: pointer;
         }
-        .thumbnail-container img { width: 100%; height: 100%; object-fit: cover; }
+        .thumbnail-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        .thumbnail-container:hover img { transform: scale(1.05); }
         .play-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -268,6 +344,10 @@
             flex: 1; padding: 12px 16px; border: none; border-radius: 10px; font-weight: 600;
             font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;
             color: white; text-decoration: none; min-height: 48px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-stream-now:active, .btn-download-main:active {
+            transform: scale(0.98);
         }
         .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
         .btn-download-main { background: linear-gradient(45deg, #28a745, #20c997); }
@@ -299,109 +379,32 @@
         .page-link {
             background: rgba(0,204,255,0.1); color: var(--accent); border: 1px solid var(--accent);
             padding: 8px 12px; font-size: 14px; border-radius: 8px; text-decoration: none; display: inline-block;
+            transition: all 0.2s;
+        }
+        .page-link:hover {
+            background: rgba(0,204,255,0.2);
         }
         .page-item.active .page-link { background: var(--accent); color: #0a0a0f; }
         .results-info { text-align: center; margin: 10px 0; font-size: 14px; color: rgba(255,255,255,0.7); }
         .disclaimer {
             background: rgba(255,0,0,0.1); border-radius: 10px; padding: 12px; margin-top: 15px;
             font-size: 13px; text-align: center;
+            border-left: 3px solid var(--primary);
         }
-        .skeleton {
-            background: linear-gradient(90deg, #1e293b 25%, #2d3a4f 50%, #1e293b 75%);
-            background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 8px;
-        }
-        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        .error-state { text-align: center; padding: 30px 15px; background: rgba(255,0,0,0.1); border-radius: 16px; }
 
-        /* search popup (cinematic) */
-        .search-popup {
-            position: fixed;
-            top: 70px;
-            left: 0;
-            width: 100%;
-            height: calc(100% - 70px);
-            background: rgba(2, 6, 20, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            padding: 20px;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.4s ease, visibility 0.4s;
-        }
-        .search-popup.active { opacity: 1; visibility: visible; }
-        .popup-cinematic {
-            max-width: 320px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 25px;
-        }
-        .film-reel {
-            width: 110px;
-            height: 110px;
-            border: 5px solid rgba(0,204,255,0.25);
-            border-top: 5px solid #ff0000;
-            border-right: 5px solid #0066ff;
-            border-bottom: 5px solid #00ccff;
-            border-left: 5px solid #ffaa00;
-            border-radius: 50%;
-            animation: spin 1.1s infinite linear;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 25px rgba(0,204,255,0.5);
-        }
-        .film-reel i {
-            font-size: 42px;
-            color: #ffffff;
-            text-shadow: 0 0 20px cyan, 0 0 40px blue;
-            animation: flicker 1.4s infinite alternate;
-        }
-        .film-reel::after {
-            content: "🎬";
-            position: absolute;
-            font-size: 28px;
-            top: -10px;
-            right: -10px;
-            filter: drop-shadow(0 0 8px gold);
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes flicker {
-            0% { opacity: 0.6; text-shadow: 0 0 5px cyan; }
-            100% { opacity: 1; text-shadow: 0 0 30px deepskyblue, 0 0 60px #0066ff; }
-        }
-        .popup-ad-box {
-            background: rgba(0,0,0,0.2);
-            border-radius: 24px;
-            padding: 8px;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(0,204,255,0.2);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .popup-ad-box iframe {
-            max-width: 100%;
-            border: none;
+        /* one-time badge */
+        .one-time-badge {
+            background: rgba(255,215,0,0.2);
+            border: 1px solid gold;
+            color: gold;
+            font-size: 11px;
+            padding: 2px 8px;
             border-radius: 20px;
-            background: transparent;
-        }
-        @media (max-width: 480px) {
-            .popup-cinematic { max-width: 280px; gap: 20px; }
-            .film-reel { width: 100px; height: 100px; }
-            .film-reel i { font-size: 36px; }
+            display: inline-block;
+            margin-left: 8px;
         }
 
-        /* 🔥 REDIRECT PAGE - one time per user */
+        /* 🔥 REDIRECT PAGE - one time per user (first time only) */
         .redirect-overlay {
             position: fixed;
             top: 70px;
@@ -457,19 +460,38 @@
             border-radius: 40px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s;
         }
         .redirect-close:hover { border-color: #00ccff; color: white; }
         
-        /* one-time badge */
-        .one-time-badge {
-            background: rgba(255,215,0,0.2);
-            border: 1px solid gold;
-            color: gold;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-left: 8px;
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #2d3a4f 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .error-state {
+            text-align: center;
+            padding: 30px 15px;
+            background: rgba(255,0,0,0.1);
+            border-radius: 16px;
+        }
+
+        /* Smartlink Container - Hidden */
+        #smartlinkContainer {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: -1;
         }
     </style>
 </head>
@@ -514,6 +536,17 @@
         <button class="search-btn" id="searchButton"><i class="fas fa-search"></i></button>
     </div>
 
+    <!-- Expanding Loader - Search ke Neeche -->
+    <div id="searchLoader" class="search-loader-container">
+        <div class="expanding-loader"></div>
+        <div class="loader-status">
+            <span class="loader-text">
+                <i class="fas fa-spinner"></i> Searching movies...
+            </span>
+            <span class="loader-timer" id="loaderTimer">0s</span>
+        </div>
+    </div>
+
     <div class="ad-container">
         <div id="adBottomDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
     </div>
@@ -531,22 +564,8 @@
     </div>
 </div>
 
-<!-- Auto Fake Interstitial System -->
-<div id="searchPopup" class="search-popup">
-<div class="popup-cinematic">
-
-<div class="film-reel">
-<i class="fas fa-film"></i>
-</div>
-
-<h3 style="color:white">Finding Movies...</h3>
-
-<p style="color:#aaa;font-size:14px">
-Please wait while we prepare results
-</p>
-
-</div>
-</div>
+<!-- Hidden Smartlink Container (Same Tab) -->
+<div id="smartlinkContainer"></div>
 
 <!-- 🔥 REDIRECT PAGE - one time per user (first time only) -->
 <div id="redirectOverlay" class="redirect-overlay">
@@ -593,82 +612,66 @@ const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
 const redirectOverlay = document.getElementById('redirectOverlay');
 const redirectTimerEl = document.getElementById('redirectTimer');
-const searchPopup = document.getElementById('searchPopup');
+const searchLoader = document.getElementById('searchLoader');
+const loaderTimer = document.getElementById('loaderTimer');
 const redirectProgressBar = document.getElementById('redirectProgressBar');
+const smartlinkContainer = document.getElementById('smartlinkContainer');
 
 let redirectTimeout = null;
 let redirectCountdown = 3;
 let pendingTelegramLink = '';
+let loaderInterval = null;
+let startTime = null;
 
 const searchCache = new Map();
 
-// ========== POPUP CONTROL ==========
-let interstitialShown = false;
-
-function openSearchPopup(){
-    searchPopup.classList.add('active');
-}
-
-function showAutoInterstitial() {
-
-    if(interstitialShown) return;
-    interstitialShown = true;
-
-    openSearchPopup();
-
-    setTimeout(function(){
-
-        window.open(AD_LINK, '_blank');
-
-        closeSearchPopup();
-
-    },2000);
-}
+// ========== LOADER CONTROL ==========
+function showLoader() {
+    searchLoader.classList.add('active');
+    startTime = Date.now();
     
-// ========== ONE-TIME REDIRECT FUNCTION ==========
-function showRedirect(telegramLink) {
-    // Pehle ad open karo (1st click)
-    window.open(AD_LINK, '_blank');
-    
-    // 🔥 Check if user has already seen redirect page
-    if (hasUserSeenRedirect) {
-        // Directly open telegram link (no redirect page)
-        window.open(telegramLink, '_blank');
-        return;
-    }
-    
-    // Mark that user has seen redirect (for future clicks)
-    localStorage.setItem(REDIRECT_KEY, 'true');
-    hasUserSeenRedirect = true;
-    
-    // Show redirect page (first time only)
-    pendingTelegramLink = telegramLink;
-    redirectCountdown = 3;
-    redirectTimerEl.textContent = redirectCountdown;
-    redirectProgressBar.style.width = '0%';
-    redirectOverlay.classList.add('active');
-    
-    // Progress bar animation
-    setTimeout(() => { redirectProgressBar.style.width = '100%'; }, 50);
-    
-    // Countdown
-    redirectTimeout = setInterval(() => {
-        redirectCountdown--;
-        redirectTimerEl.textContent = redirectCountdown;
-        
-        if (redirectCountdown <= 0) {
-            clearInterval(redirectTimeout);
-            // open telegram link
-            window.open(pendingTelegramLink, '_blank');
-            closeRedirect();
+    // Update timer every second
+    if (loaderInterval) clearInterval(loaderInterval);
+    loaderInterval = setInterval(() => {
+        if (searchLoader.classList.contains('active')) {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            loaderTimer.textContent = elapsed + 's';
+        } else {
+            clearInterval(loaderInterval);
         }
     }, 1000);
 }
 
-function closeRedirect() {
-    clearInterval(redirectTimeout);
-    redirectOverlay.classList.remove('active');
-    pendingTelegramLink = '';
+function hideLoader() {
+    searchLoader.classList.remove('active');
+    if (loaderInterval) {
+        clearInterval(loaderInterval);
+        loaderInterval = null;
+    }
+    loaderTimer.textContent = '0s';
+}
+
+// ========== SMARTLINK IN SAME TAB ==========
+function triggerSmartlinkSameTab() {
+    try {
+        // Create iframe for smartlink (same tab, no navigation)
+        const iframe = document.createElement('iframe');
+        iframe.src = AD_LINK;
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.style.opacity = '0';
+        iframe.style.position = 'absolute';
+        iframe.style.pointerEvents = 'none';
+        
+        // Clear previous iframes
+        smartlinkContainer.innerHTML = '';
+        smartlinkContainer.appendChild(iframe);
+        
+        console.log('Smartlink loaded in same tab at:', new Date().toLocaleTimeString());
+    } catch (e) {
+        console.error('Smartlink error:', e);
+    }
 }
 
 // ========== SEARCH ==========
@@ -686,24 +689,37 @@ async function performSearchWithPopup(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
 
-    openSearchPopup();
-    showSkeleton();
+    // Step 1: Show expanding loader
+    showLoader();
+    
+    // Clear previous results
+    resultsContainer.innerHTML = '';
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
 
+    // Step 2: Trigger Smartlink in same tab (no new window)
+    triggerSmartlinkSameTab();
+
     const cacheKey = `${query}-${page}`;
+    
+    // Check cache
     if (searchCache.has(cacheKey)) {
         const cached = searchCache.get(cacheKey);
-        renderResults(cached.results, cached.pagination);
-        autoClosePopupIfOpen(); 
+        // Small delay to show loader
+        setTimeout(() => {
+            renderResults(cached.results, cached.pagination);
+            hideLoader();
+        }, 800);
         return;
     }
 
+    // Step 3: Fetch results
     const data = await fetchAPI(query, page);
+    
+    // Step 4: Hide loader and show results
     if (data && data.results) {
         searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
         renderResults(data.results, data.pagination);
-        autoClosePopupIfOpen();
     } else {
         resultsContainer.innerHTML = `
             <div class="error-state">
@@ -712,8 +728,8 @@ async function performSearchWithPopup(page = 1) {
                 <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer;">Retry</button>
             </div>
         `;
-        autoClosePopupIfOpen();
     }
+    hideLoader();
 }
 
 async function fetchAPI(query, page) {
@@ -748,19 +764,17 @@ function formatSize(bytes) {
     return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; 
 }
 
-// ✅ Format title with username replacement (but keep @sk4film as is)
+// Format title with username replacement
 function formatTitle(title) {
     if (!title) return '';
     
     let formatted = escapeHtml(title);
     
-    // Replace @anyusername with @sk4film (but don't replace if it's already @sk4film)
     formatted = formatted.replace(
         /@(?!sk4film\b)([a-zA-Z0-9_]+)/g,
         '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
     );
     
-    // If @sk4film exists, keep it as is but make it clickable
     formatted = formatted.replace(
         /@sk4film\b/g,
         '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
@@ -769,36 +783,28 @@ function formatTitle(title) {
     return formatted;
 }
 
-// ✅ Format post content with all replacements
+// Format post content
 function formatPostContent(content) {
     if (!content) return '';
     
-    // First escape HTML
     let formatted = escapeHtml(content);
-    
-    // Replace newlines with <br>
     formatted = formatted.replace(/\n/g, '<br>');
     
-    // STEP 1: Replace all Telegram links (t.me, telegram.me, telegram.dog) with https://t.me/sk4film link
-    // Remove original link completely and add sk4film link
     formatted = formatted.replace(
         /(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g,
         '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">https://t.me/sk4film</a>'
     );
     
-    // STEP 2: Replace all @anyusername with @sk4film (but don't replace if it's already @sk4film)
     formatted = formatted.replace(
         /@(?!sk4film\b)([a-zA-Z0-9_]+)/g,
         '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
     );
     
-    // STEP 3: If @sk4film exists, keep it as is but make it clickable
     formatted = formatted.replace(
         /@sk4film\b/g,
         '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>'
     );
     
-    // STEP 4: Make other non-Telegram URLs clickable with original text
     formatted = formatted.replace(
         /(https?:\/\/[^\s<]+)(?![^<]*>|[^<>]*<\/)/g,
         '<a href="$&" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">$&</a>'
@@ -807,7 +813,7 @@ function formatPostContent(content) {
     return formatted;
 }
 
-// ✅ Function to create post content with show more/less (1000 chars threshold)
+// Create post content with show more/less
 function createPostContent(content, index) {
     if (!content || !content.trim()) return '';
     
@@ -833,7 +839,7 @@ function createPostContent(content, index) {
     return html;
 }
 
-// ✅ Toggle post content with proper button text
+// Toggle post content
 function togglePostContent(index) {
     const contentDiv = document.getElementById(`post-content-${index}`);
     const toggleBtn = document.getElementById(`post-toggle-${index}`);
@@ -841,19 +847,17 @@ function togglePostContent(index) {
     const fadeEffect = contentDiv.querySelector('.fade-effect');
     
     if (textDiv.style.maxHeight === 'none') {
-        // Collapse
         textDiv.style.maxHeight = '150px';
         if (fadeEffect) fadeEffect.style.display = 'block';
         toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show More ↓';
     } else {
-        // Expand
         textDiv.style.maxHeight = 'none';
         if (fadeEffect) fadeEffect.style.display = 'none';
         toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑';
     }
 }
 
-// generate quality options with one-time redirect logic
+// Generate quality options
 function generateQualityOptions(qualityOptions, result) {
     if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options</p>';
     
@@ -873,7 +877,6 @@ function generateQualityOptions(qualityOptions, result) {
                 const size = data.file_size ? formatSize(data.file_size) : '';
                 const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
                 
-                // Add one-time badge if user hasn't seen redirect yet
                 const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
                 
                 html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')">${quality} ${size} ${badge}</button>`;
@@ -891,23 +894,70 @@ function generateQualityOptions(qualityOptions, result) {
     return html;
 }
 
-// 🔥 handle quality click with one-time redirect
+// Handle quality click with one-time redirect
 function handleQualityClick(telegramLink) {
-    showRedirect(telegramLink);
+    // Open ad in same tab via iframe
+    const iframe = document.createElement('iframe');
+    iframe.src = AD_LINK;
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    iframe.style.opacity = '0';
+    iframe.style.position = 'absolute';
+    smartlinkContainer.innerHTML = '';
+    smartlinkContainer.appendChild(iframe);
+    
+    // 🔥 Check if user has already seen redirect page
+    if (hasUserSeenRedirect) {
+        // Directly open telegram link (new tab for Telegram)
+        window.open(telegramLink, '_blank');
+        return;
+    }
+    
+    // Mark that user has seen redirect (for future clicks)
+    localStorage.setItem(REDIRECT_KEY, 'true');
+    hasUserSeenRedirect = true;
+    
+    // Show redirect page (first time only)
+    pendingTelegramLink = telegramLink;
+    redirectCountdown = 3;
+    redirectTimerEl.textContent = redirectCountdown;
+    redirectProgressBar.style.width = '0%';
+    redirectOverlay.classList.add('active');
+    
+    // Progress bar animation
+    setTimeout(() => { redirectProgressBar.style.width = '100%'; }, 50);
+    
+    // Countdown
+    redirectTimeout = setInterval(() => {
+        redirectCountdown--;
+        redirectTimerEl.textContent = redirectCountdown;
+        
+        if (redirectCountdown <= 0) {
+            clearInterval(redirectTimeout);
+            // open telegram link
+            window.open(pendingTelegramLink, '_blank');
+            closeRedirect();
+        }
+    }, 1000);
 }
 
-function triggerAdLink() { window.open(AD_LINK, '_blank'); }
+function triggerAdLink() { 
+    // Open ad in same tab via iframe
+    const iframe = document.createElement('iframe');
+    iframe.src = AD_LINK;
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    iframe.style.opacity = '0';
+    iframe.style.position = 'absolute';
+    smartlinkContainer.innerHTML = '';
+    smartlinkContainer.appendChild(iframe);
+}
+
 function toggleDownload(index) { 
     const d = document.getElementById(`download-quality-${index}`); 
     if (d) d.style.display = (d.style.display === 'none' || d.style.display === '') ? 'block' : 'none'; 
-}
-
-function showSkeleton() { 
-    let h=''; 
-    for(let i=0;i<5;i++) { 
-        h+=`<div class="result-card"><div class="skeleton" style="height:180px;"></div><div class="skeleton" style="height:24px;width:70%;margin:12px 0;"></div><div class="skeleton" style="height:48px;width:100%;"></div></div>`; 
-    } 
-    resultsContainer.innerHTML = h; 
 }
 
 function renderResults(results, pagination) {
@@ -948,7 +998,6 @@ function renderResults(results, pagination) {
         html += `</div></div>`;
         html += `<h3 class="result-title">${formatTitle(title)}</h3>`;
         
-        // ✅ Use the post content system with all replacements
         if (postContent && postContent.trim().length > 0) {
             html += createPostContent(postContent, index);
         }
@@ -995,34 +1044,33 @@ function renderPagination(pag) {
 }
 
 window.changePage = function(page) { if (page>0) performSearchWithPopup(page); };
+
+function closeRedirect() {
+    clearInterval(redirectTimeout);
+    redirectOverlay.classList.remove('active');
+    pendingTelegramLink = '';
+}
+
+// ========== EVENT LISTENERS ==========
 searchButton.addEventListener('click', () => {
-
-    showAutoInterstitial();
-
-    setTimeout(function(){
-        performSearchWithPopup(1);
-    },2000);
-
+    performSearchWithPopup(1);
 });
 
 searchInput.addEventListener('keypress', (e) => {
-
     if (e.key === 'Enter') {
-
-        showAutoInterstitial();
-
-        setTimeout(function(){
-            performSearchWithPopup(1);
-        },2000);
-
+        e.preventDefault();
+        performSearchWithPopup(1);
     }
-
 });
+
 window.addEventListener('load', () => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('query');
     const page = parseInt(params.get('page')) || 1;
-    if (query) { searchInput.value = query; performSearchWithPopup(page); }
+    if (query) { 
+        searchInput.value = query; 
+        performSearchWithPopup(page); 
+    }
 });
 
 document.addEventListener('click', function(event) {
@@ -1033,7 +1081,6 @@ document.addEventListener('click', function(event) {
 
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
-window.closeSearchPopup = function() { searchPopup.classList.remove('active'); };
 window.handleQualityClick = handleQualityClick;
 window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
