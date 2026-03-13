@@ -591,29 +591,6 @@ let currentPage = 1;
 const resultsContainer = document.getElementById('resultsContainer');
 const resultsInfo = document.getElementById('resultsInfo');
 const paginationContainer = document.getElementById('paginationContainer');
-searchButton.addEventListener('click', () => {
-
-    showAutoInterstitial();
-
-    setTimeout(function(){
-        performSearchWithPopup(1);
-    },2000);
-
-});
-
-searchInput.addEventListener('keypress', (e) => {
-
-    if (e.key === 'Enter') {
-
-        showAutoInterstitial();
-
-        setTimeout(function(){
-            performSearchWithPopup(1);
-        },2000);
-
-    }
-
-});
 const redirectOverlay = document.getElementById('redirectOverlay');
 const redirectTimerEl = document.getElementById('redirectTimer');
 const redirectProgressBar = document.getElementById('redirectProgressBar');
@@ -627,6 +604,10 @@ const searchCache = new Map();
 // ========== POPUP CONTROL ==========
 let interstitialShown = false;
 
+function openSearchPopup(){
+    searchPopup.classList.add('active');
+}
+
 function showAutoInterstitial() {
 
     if(interstitialShown) return;
@@ -636,13 +617,13 @@ function showAutoInterstitial() {
 
     setTimeout(function(){
 
-        window.open(AD_LINK, '_blank'); // Smartlink ad
+        window.open(AD_LINK, '_blank');
 
         closeSearchPopup();
 
-    },2000); // 2 second interstitial
+    },2000);
 }
-
+    
 // ========== ONE-TIME REDIRECT FUNCTION ==========
 function showRedirect(telegramLink) {
     // Pehle ad open karo (1st click)
