@@ -564,7 +564,7 @@
     </div>
 </div>
 
-<!-- Hidden Smartlink Container (Same Tab) -->
+<!-- Hidden Smartlink Container (Same Tab - No Navigation) -->
 <div id="smartlinkContainer"></div>
 
 <!-- 🔥 REDIRECT PAGE - one time per user (first time only) -->
@@ -651,10 +651,21 @@ function hideLoader() {
     loaderTimer.textContent = '0s';
 }
 
-// ========== SMARTLINK IN SAME TAB ==========
-function triggerSmartlinkSameTab() {
+// ========== SMARTLINK TRIGGER - BACKGROUND TAB (User Site Par Hi Rahega) ==========
+function triggerSmartlink() {
     try {
-        // Create iframe for smartlink (same tab, no navigation)
+        // Create a temporary anchor and click it (background tab)
+        // User site par hi rahega - new tab background mein open hoga
+        const link = document.createElement('a');
+        link.href = AD_LINK;
+        link.target = '_blank';  // New tab mein open (background)
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();  // Click programmatically - background tab open
+        document.body.removeChild(link);
+        
+        // Also load in hidden iframe as backup (same tab)
         const iframe = document.createElement('iframe');
         iframe.src = AD_LINK;
         iframe.style.width = '0';
@@ -663,14 +674,14 @@ function triggerSmartlinkSameTab() {
         iframe.style.opacity = '0';
         iframe.style.position = 'absolute';
         iframe.style.pointerEvents = 'none';
-        
-        // Clear previous iframes
         smartlinkContainer.innerHTML = '';
         smartlinkContainer.appendChild(iframe);
         
-        console.log('Smartlink loaded in same tab at:', new Date().toLocaleTimeString());
+        console.log('✅ Smartlink triggered - Background tab open, user site par hai');
     } catch (e) {
         console.error('Smartlink error:', e);
+        // Fallback - still background tab
+        window.open(AD_LINK, '_blank');
     }
 }
 
@@ -697,8 +708,8 @@ async function performSearchWithPopup(page = 1) {
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
 
-    // Step 2: Trigger Smartlink in same tab (no new window)
-    triggerSmartlinkSameTab();
+    // Step 2: Trigger Smartlink in background tab (user site par hi rahega)
+    triggerSmartlink();
 
     const cacheKey = `${query}-${page}`;
     
@@ -896,16 +907,8 @@ function generateQualityOptions(qualityOptions, result) {
 
 // Handle quality click with one-time redirect
 function handleQualityClick(telegramLink) {
-    // Open ad in same tab via iframe
-    const iframe = document.createElement('iframe');
-    iframe.src = AD_LINK;
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    iframe.style.opacity = '0';
-    iframe.style.position = 'absolute';
-    smartlinkContainer.innerHTML = '';
-    smartlinkContainer.appendChild(iframe);
+    // 🔥 Trigger Smartlink in background tab (user site par hi rahega)
+    triggerSmartlink();
     
     // 🔥 Check if user has already seen redirect page
     if (hasUserSeenRedirect) {
@@ -942,17 +945,9 @@ function handleQualityClick(telegramLink) {
     }, 1000);
 }
 
+// Thumbnail click par smartlink trigger
 function triggerAdLink() { 
-    // Open ad in same tab via iframe
-    const iframe = document.createElement('iframe');
-    iframe.src = AD_LINK;
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    iframe.style.opacity = '0';
-    iframe.style.position = 'absolute';
-    smartlinkContainer.innerHTML = '';
-    smartlinkContainer.appendChild(iframe);
+    triggerSmartlink();
 }
 
 function toggleDownload(index) { 
