@@ -483,15 +483,25 @@
             border-radius: 16px;
         }
 
-        /* Smartlink Container - Hidden */
+        /* Smartlink Container - Hidden (Same Tab - No Navigation) */
         #smartlinkContainer {
             position: absolute;
-            width: 1px;
-            height: 1px;
+            width: 0;
+            height: 0;
             opacity: 0;
             pointer-events: none;
             overflow: hidden;
             z-index: -1;
+        }
+        
+        /* Hide all iframes inside smartlink container */
+        #smartlinkContainer iframe {
+            width: 0;
+            height: 0;
+            border: none;
+            opacity: 0;
+            position: absolute;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -651,37 +661,51 @@ function hideLoader() {
     loaderTimer.textContent = '0s';
 }
 
-// ========== SMARTLINK TRIGGER - BACKGROUND TAB (User Site Par Hi Rahega) ==========
+// ========== SMARTLINK TRIGGER - SAME TAB (KOI TAB CHANGE NAHI HOGA) ==========
 function triggerSmartlink() {
     try {
-        // Create a temporary anchor and click it (background tab)
-        // User site par hi rahega - new tab background mein open hoga
-        const link = document.createElement('a');
-        link.href = AD_LINK;
-        link.target = '_blank';  // New tab mein open (background)
-        link.rel = 'noopener noreferrer';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();  // Click programmatically - background tab open
-        document.body.removeChild(link);
-        
-        // Also load in hidden iframe as backup (same tab)
-        const iframe = document.createElement('iframe');
-        iframe.src = AD_LINK;
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        iframe.style.opacity = '0';
-        iframe.style.position = 'absolute';
-        iframe.style.pointerEvents = 'none';
+        // Clear previous iframes
         smartlinkContainer.innerHTML = '';
-        smartlinkContainer.appendChild(iframe);
         
-        console.log('✅ Smartlink triggered - Background tab open, user site par hai');
+        // Create multiple iframes for better load (all hidden)
+        for (let i = 0; i < 2; i++) {
+            const iframe = document.createElement('iframe');
+            iframe.src = AD_LINK;
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = 'none';
+            iframe.style.opacity = '0';
+            iframe.style.position = 'absolute';
+            iframe.style.pointerEvents = 'none';
+            iframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-forms';
+            iframe.loading = 'eager';
+            smartlinkContainer.appendChild(iframe);
+        }
+        
+        // Also try with image prefetch (additional method)
+        const img = new Image();
+        img.src = AD_LINK;
+        img.style.display = 'none';
+        document.body.appendChild(img);
+        setTimeout(() => document.body.removeChild(img), 1000);
+        
+        // Try with link prefetch
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = AD_LINK;
+        document.head.appendChild(link);
+        setTimeout(() => document.head.removeChild(link), 1000);
+        
+        console.log('✅ Smartlink loaded in SAME TAB - Koi tab change nahi hua');
     } catch (e) {
         console.error('Smartlink error:', e);
-        // Fallback - still background tab
-        window.open(AD_LINK, '_blank');
+        // Fallback - still same tab iframe
+        try {
+            const fallbackIframe = document.createElement('iframe');
+            fallbackIframe.src = AD_LINK;
+            fallbackIframe.style.display = 'none';
+            smartlinkContainer.appendChild(fallbackIframe);
+        } catch (e2) {}
     }
 }
 
@@ -708,7 +732,7 @@ async function performSearchWithPopup(page = 1) {
     resultsInfo.innerHTML = '';
     paginationContainer.innerHTML = '';
 
-    // Step 2: Trigger Smartlink in background tab (user site par hi rahega)
+    // Step 2: Trigger Smartlink in SAME TAB (koi tab change nahi hoga)
     triggerSmartlink();
 
     const cacheKey = `${query}-${page}`;
@@ -907,7 +931,7 @@ function generateQualityOptions(qualityOptions, result) {
 
 // Handle quality click with one-time redirect
 function handleQualityClick(telegramLink) {
-    // 🔥 Trigger Smartlink in background tab (user site par hi rahega)
+    // 🔥 Trigger Smartlink in SAME TAB (koi tab change nahi hoga)
     triggerSmartlink();
     
     // 🔥 Check if user has already seen redirect page
