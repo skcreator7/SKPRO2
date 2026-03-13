@@ -994,9 +994,29 @@ function renderPagination(pag) {
 }
 
 window.changePage = function(page) { if (page>0) performSearchWithPopup(page); };
-searchButton.addEventListener('click', () => performSearchWithPopup(1));
-searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearchWithPopup(1); });
+searchButton.addEventListener('click', () => {
 
+    showAutoInterstitial();
+
+    setTimeout(function(){
+        performSearchWithPopup(1);
+    },2000);
+
+});
+
+searchInput.addEventListener('keypress', (e) => {
+
+    if (e.key === 'Enter') {
+
+        showAutoInterstitial();
+
+        setTimeout(function(){
+            performSearchWithPopup(1);
+        },2000);
+
+    }
+
+});
 window.addEventListener('load', () => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('query');
