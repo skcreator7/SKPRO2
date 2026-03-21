@@ -606,34 +606,23 @@
 <div id="interstitialAd">
     <!-- Smartlink iframe will be inserted here by JavaScript (only for search) -->
     <div class="interstitial-content">
-        <i class="fas fa-film"></i>
-        <h2>Loading Results</h2>
-        <p>Please wait while we fetch the best quality movies for you...</p>
+        <h2>Searching Results</h2>
         <div class="interstitial-loader">
-            <div class="interstitial-progress"></div>
-        </div>
-        <div class="interstitial-timer" id="interstitialTimer">2</div>
-        <div>Preparing your content</div>
-        <button class="interstitial-close" onclick="closeInterstitial()">Skip</button>
+        <script>
+  atOptions = {
+    'key' : '567936a964b0784aedd11f237d26bee0',
+    'format' : 'iframe',
+    'height' : 250,
+    'width' : 300,
+    'params' : {}
+  };
+</script>
+<script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>    
     </div>
 </div>
 
 <!-- Hidden Smartlink Container (Background Tab for Download/Thumbnail) -->
 <div id="smartlinkContainer"></div>
-
-<!-- 🔥 REDIRECT PAGE - one time per user (first time only) -->
-<div id="redirectOverlay" class="redirect-overlay">
-    <div class="redirect-box">
-        <i class="fab fa-telegram"></i>
-        <h3>First Time Redirect</h3>
-        <p>You will be redirected to Telegram in</p>
-        <div class="redirect-timer" id="redirectTimer">3</div>
-        <div class="redirect-progress">
-            <div class="redirect-progress-bar" id="redirectProgressBar"></div>
-        </div>
-        <button class="redirect-close" onclick="closeRedirect()">Cancel</button>
-    </div>
-</div>
 
 <script>
 // ========== TOGGLE MENU ==========
