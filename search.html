@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SK4FiLM — latest movies</title>
     <meta name="description" content="Search and download latest movies in HD quality">
-    <!-- Adsterra (legacy) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
@@ -29,7 +28,6 @@
             -webkit-font-smoothing: antialiased;
         }
         
-        /* fixed navbar */
         .top-navbar {
             background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(10px);
@@ -78,7 +76,6 @@
             font-weight: 800;
         }
         .brand-subtitle { font-size: 0.65rem; color: #00ccff; font-weight: 300; }
-
         .menu-section { position: relative; }
         .menu-button {
             background: rgba(0,204,255,0.15);
@@ -153,11 +150,8 @@
             justify-content: center;
             transition: transform 0.2s;
         }
-        .search-btn:active {
-            transform: scale(0.95);
-        }
+        .search-btn:active { transform: scale(0.95); }
         
-        /* Expanding Loader - Search ke Neeche */
         .search-loader-container {
             width: 100%;
             margin: 5px 0 15px;
@@ -165,12 +159,10 @@
             visibility: hidden;
             transition: opacity 0.3s ease;
         }
-        
         .search-loader-container.active {
             opacity: 1;
             visibility: visible;
         }
-        
         .expanding-loader {
             background: linear-gradient(90deg, #ff0000, #0066ff, #00ccff, #ffaa00);
             height: 3px;
@@ -180,13 +172,11 @@
             box-shadow: 0 0 15px rgba(0,204,255,0.7);
             margin-bottom: 5px;
         }
-        
         @keyframes expandWidth {
             0% { width: 0%; opacity: 0.6; }
             50% { width: 100%; opacity: 1; }
             100% { width: 0%; opacity: 0.6; }
         }
-        
         .loader-status {
             display: flex;
             align-items: center;
@@ -194,27 +184,20 @@
             color: #aaa;
             font-size: 13px;
         }
-        
         .loader-text {
             display: flex;
             align-items: center;
             gap: 5px;
         }
-        
         .loader-text i {
             color: #00ccff;
             animation: spin 1s infinite linear;
         }
-        
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        
-        .loader-timer {
-            color: #00ccff;
-            font-weight: 600;
-        }
+        .loader-timer { color: #00ccff; font-weight: 600; }
         
         #resultsContainer { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; width: 100%; }
         .result-card {
@@ -226,7 +209,6 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             animation: fadeIn 0.5s ease;
         }
-        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -262,11 +244,10 @@
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-size: 24px; color: white; border: 3px solid white;
         }
-        .thumbnail-source-badge, .video-file-badge {
-            position: absolute; top: 8px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 2;
+        .video-file-badge {
+            position: absolute; top: 8px; right: 8px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 2;
+            background: var(--primary); color: white;
         }
-        .thumbnail-source-badge { left: 8px; background: rgba(0,0,0,0.8); color: white; }
-        .video-file-badge { right: 8px; background: var(--primary); color: white; }
         .result-title { 
             font-size: 18px; 
             font-weight: 700; 
@@ -274,15 +255,7 @@
             margin-bottom: 10px;
             word-break: break-word;
         }
-        .result-title a {
-            color: #00ccff;
-            text-decoration: none;
-        }
-        .result-title a:hover {
-            text-decoration: underline;
-        }
         
-        /* Post content styles */
         .result-post-content {
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(255,255,255,0.1);
@@ -303,9 +276,6 @@
             word-break: break-all;
             font-weight: 500;
         }
-        .post-text a:hover {
-            color: #ff0000 !important;
-        }
         .fade-effect {
             position: absolute;
             bottom: 40px;
@@ -314,7 +284,6 @@
             height: 40px;
             background: linear-gradient(transparent, rgba(15, 23, 42, 0.95));
             pointer-events: none;
-            transition: opacity 0.3s;
         }
         .show-more-btn {
             background: transparent;
@@ -331,12 +300,7 @@
             position: relative;
             z-index: 2;
         }
-        .show-more-btn:hover {
-            background: rgba(0,204,255,0.1);
-        }
-        .show-more-btn i {
-            margin-right: 5px;
-        }
+        .show-more-btn:hover { background: rgba(0,204,255,0.1); }
         
         .action-buttons-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         @media (min-width: 480px) { .action-buttons-container { flex-direction: row; } }
@@ -344,36 +308,26 @@
             flex: 1; padding: 12px 16px; border: none; border-radius: 10px; font-weight: 600;
             font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;
             color: white; text-decoration: none; min-height: 48px;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
         }
-        .btn-stream-now:active, .btn-download-main:active {
-            transform: scale(0.98);
-        }
+        .btn-stream-now:active, .btn-download-main:active { transform: scale(0.98); }
         .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
         .btn-download-main { background: linear-gradient(45deg, #28a745, #20c997); }
         .quality-dropdown { display: none; background: #1e293b; border: 2px solid #00ccff; border-radius: 10px; padding: 12px; margin-top: 8px; }
-        .quality-dropdown.show { display: block; }
-        .quality-buttons-row { display: flex; flex-wrap: wrap; gap: 8px; }
-        
-        /* 🔥 quality options as 2-click buttons */
         .quality-option-2click {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             padding: 10px 12px;
             border-radius: 8px;
             color: white;
-            text-decoration: none;
             font-weight: 600;
             font-size: 14px;
-            flex: 1 1 auto;
-            min-width: 90px;
             text-align: center;
             cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
-            display: inline-block;
             border: none;
+            margin: 4px;
+            display: inline-block;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
-        .quality-option-2click:active { transform: scale(0.97); opacity: 0.9; }
         
         .pagination { margin: 20px 0; flex-wrap: wrap; justify-content: center; gap: 4px; }
         .page-link {
@@ -381,9 +335,7 @@
             padding: 8px 12px; font-size: 14px; border-radius: 8px; text-decoration: none; display: inline-block;
             transition: all 0.2s;
         }
-        .page-link:hover {
-            background: rgba(0,204,255,0.2);
-        }
+        .page-link:hover { background: rgba(0,204,255,0.2); }
         .page-item.active .page-link { background: var(--accent); color: #0a0a0f; }
         .results-info { text-align: center; margin: 10px 0; font-size: 14px; color: rgba(255,255,255,0.7); }
         .disclaimer {
@@ -391,8 +343,7 @@
             font-size: 13px; text-align: center;
             border-left: 3px solid var(--primary);
         }
-
-        /* one-time badge */
+        
         .one-time-badge {
             background: rgba(255,215,0,0.2);
             border: 1px solid gold;
@@ -403,7 +354,7 @@
             display: inline-block;
             margin-left: 8px;
         }
-
+        
         /* 🔥 FULL SCREEN INTERSTITIAL AD UI */
         #interstitialAd {
             position: fixed;
@@ -418,7 +369,6 @@
             justify-content: center;
             flex-direction: column;
             z-index: 999999;
-            font-size: 20px;
             backdrop-filter: blur(10px);
         }
         
@@ -426,58 +376,48 @@
             max-width: 350px;
             width: 90%;
             text-align: center;
-            padding: 30px 20px;
+            padding: 40px 30px;
             background: rgba(15, 23, 42, 0.95);
             border: 2px solid #00ccff;
             border-radius: 40px;
             box-shadow: 0 20px 40px rgba(0,204,255,0.3);
-            z-index: 9999999;
-            position: relative;
+            animation: slideUp 0.5s ease;
         }
         
-        .interstitial-content i {
-            font-size: 60px;
-            color: #00ccff;
-            margin-bottom: 20px;
-            text-shadow: 0 0 30px cyan;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .interstitial-content h2 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            background: linear-gradient(90deg, #ff0000, #0066ff);
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            background: linear-gradient(90deg, #ff0000, #0066ff, #00ccff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         
-        .interstitial-content p {
-            color: #aaa;
-            margin-bottom: 25px;
-            font-size: 16px;
-        }
-        
         .interstitial-loader {
             width: 100%;
-            height: 6px;
+            height: 4px;
             background: #334155;
             border-radius: 10px;
             overflow: hidden;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
         
         .interstitial-progress {
             height: 100%;
             width: 0%;
             background: linear-gradient(90deg, #ff0000, #0066ff, #00ccff);
-            animation: progressLoad 2s ease-in-out forwards;
+            animation: progressLoad 3s linear forwards;
         }
         
         @keyframes progressLoad {
@@ -485,43 +425,69 @@
             100% { width: 100%; }
         }
         
-        .interstitial-timer {
-            font-size: 36px;
-            font-weight: 800;
-            color: #00ccff;
-            margin-bottom: 10px;
+        .interstitial-content iframe {
+            max-width: 100%;
+            border: none;
+            border-radius: 12px;
+            margin-top: 10px;
         }
         
-        .interstitial-close {
-            background: transparent;
-            border: 2px solid #00ccff;
-            color: white;
-            padding: 10px 30px;
-            border-radius: 40px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 20px;
-        }
-        
-        .interstitial-close:hover {
-            background: #00ccff;
-            color: #0a0a0f;
-        }
-
-        /* Smartlink iframe - full screen under the content */
-        #smartlinkIframe {
+        /* Redirect Overlay */
+        #redirectOverlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            border: none;
-            z-index: 999998;
-            background: white;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            backdrop-filter: blur(10px);
         }
-
-        /* Hidden container for background smartlink (for download/thumbnail) */
+        
+        #redirectOverlay.active { display: flex; }
+        
+        .redirect-content {
+            text-align: center;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 40px 30px;
+            border-radius: 40px;
+            border: 2px solid #00ccff;
+            max-width: 350px;
+            width: 90%;
+        }
+        
+        .redirect-content i {
+            font-size: 60px;
+            color: #00ccff;
+            margin-bottom: 20px;
+        }
+        
+        .redirect-timer {
+            font-size: 48px;
+            font-weight: 800;
+            color: #00ccff;
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #0066ff);
+            transition: width 0.1s linear;
+        }
+        
         #smartlinkContainer {
             position: absolute;
             width: 1px;
@@ -531,11 +497,27 @@
             overflow: hidden;
             z-index: -1;
         }
+        
+        .error-state {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .bottom-ads {
+            margin: 20px 0 10px;
+        }
+        
+        .bottom-ad-container {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
     </style>
 </head>
 <body>
 
-<!-- fixed navbar -->
 <nav class="top-navbar">
     <div class="navbar-content">
         <a href="/" class="logo-section">
@@ -562,39 +544,65 @@
     </div>
 </nav>
 
-<!-- MAIN CONTAINER -->
 <div class="main-container">
+    <!-- Top Ads -->
     <div class="ad-container">
         <div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
         <div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div>
     </div>
 
+    <!-- Search Section -->
     <div class="search-container">
-        <input type="text" id="searchInput" class="search-box" placeholder="Search movies...">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search movies... (e.g., Animal, Jawan, Pathaan)">
         <button class="search-btn" id="searchButton"><i class="fas fa-search"></i></button>
     </div>
 
-    <!-- Expanding Loader - Search ke Neeche -->
+    <!-- Loader -->
     <div id="searchLoader" class="search-loader-container">
         <div class="expanding-loader"></div>
         <div class="loader-status">
-            <span class="loader-text">
-                <i class="fas fa-spinner"></i> Searching movies...
-            </span>
+            <span class="loader-text"><i class="fas fa-spinner"></i> Searching movies...</span>
             <span class="loader-timer" id="loaderTimer">0s</span>
         </div>
     </div>
 
-    <div class="ad-container">
-        <div id="adBottomDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
-    </div>
+    <!-- Results Section -->
     <div id="resultsInfo" class="results-info"></div>
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
 
-    <div class="ad-container">
-        <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-        <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+    <!-- Bottom Ads - Fixed -->
+    <div class="bottom-ads">
+        <div class="bottom-ad-container">
+            <script type="text/javascript">
+                atOptions = {
+                    'key': '3118cf3c0d1d908e59d96fac6de40e1f',
+                    'format': 'iframe',
+                    'height': 90,
+                    'width': 728,
+                    'params': {}
+                };
+            </script>
+            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
+        </div>
+        
+        <div class="bottom-ad-container">
+            <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+        </div>
+        
+        <div class="bottom-ad-container">
+            <script type="text/javascript">
+                atOptions = {
+                    'key': 'c628de75b51e4c70d2f3bebebbaaf335',
+                    'format': 'iframe',
+                    'height': 50,
+                    'width': 320,
+                    'params': {}
+                };
+            </script>
+            <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
+        </div>
     </div>
 
     <div class="disclaimer">
@@ -602,86 +610,105 @@
     </div>
 </div>
 
-<!-- 🔥 FULL SCREEN INTERSTITIAL AD UI (Sirf Search ke liye) -->
+<!-- Interstitial Ad -->
 <div id="interstitialAd">
-    <!-- Smartlink iframe will be inserted here by JavaScript (only for search) -->
     <div class="interstitial-content">
-        <h2>Searching Results</h2>
+        <h2>Loading Results</h2>
         <div class="interstitial-loader">
+            <div class="interstitial-progress"></div>
+        </div>
         <script>
-  atOptions = {
-    'key' : '567936a964b0784aedd11f237d26bee0',
-    'format' : 'iframe',
-    'height' : 250,
-    'width' : 300,
-    'params' : {}
-  };
-</script>
-<script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>    
+            atOptions = {
+                'key': '567936a964b0784aedd11f237d26bee0',
+                'format': 'iframe',
+                'height': 250,
+                'width': 300,
+                'params': {}
+            };
+        </script>
+        <script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
     </div>
 </div>
 
-<!-- Hidden Smartlink Container (Background Tab for Download/Thumbnail) -->
+<!-- Redirect Overlay -->
+<div id="redirectOverlay">
+    <div class="redirect-content">
+        <i class="fas fa-external-link-alt"></i>
+        <h3>Redirecting to Telegram</h3>
+        <div class="redirect-timer" id="redirectTimer">3</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="redirectProgressBar"></div>
+        </div>
+        <p>You will be redirected in <span id="redirectSeconds">3</span> seconds</p>
+        <button class="interstitial-close-btn" onclick="closeRedirect()" style="background: transparent; border: 2px solid #00ccff; color: white; padding: 10px 30px; border-radius: 40px; font-weight: 600; cursor: pointer; margin-top: 20px;">Cancel</button>
+    </div>
+</div>
+
 <div id="smartlinkContainer"></div>
 
 <script>
 // ========== TOGGLE MENU ==========
 function toggleMenu() {
     const dropdown = document.getElementById('menuDropdown');
-    dropdown.style.display = (dropdown.style.display === 'none' || dropdown.style.display === '') ? 'block' : 'none';
+    if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
 }
+
 document.addEventListener('click', function(event) {
     const btn = document.getElementById('menuToggleBtn');
     const dropdown = document.getElementById('menuDropdown');
-    if (!btn.contains(event.target) && !dropdown.contains(event.target)) dropdown.style.display = 'none';
+    if (btn && dropdown && !btn.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+    }
 });
 
 // ========== GLOBALS ==========
-const API_ENDPOINTS = [ 'https://sk4film.koyeb.app', 'https://sk4film-backup.herokuapp.com', 'https://sk4film-alternate.onrender.com' ];
+const API_ENDPOINTS = ['https://sk4film.koyeb.app', 'https://sk4film-backup.herokuapp.com', 'https://sk4film-alternate.onrender.com'];
 const FALLBACK_THUMBNAIL = 'https://iili.io/fAeIwv9.th.png';
 const RESULTS_PER_PAGE = 10;
-const SMARTLINK_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb'; // Smartlink
+const SMARTLINK_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb';
 const FILE_CHANNEL_ID = "-1001768249569";
 const BOT_USERNAME = 'sk4filmbot';
 
-// 🔥 ONE-TIME REDIRECT TRACKING
 const REDIRECT_KEY = 'sk4film_redirect_shown';
 let hasUserSeenRedirect = localStorage.getItem(REDIRECT_KEY) === 'true';
 
 let currentQuery = '';
 let currentPage = 1;
-const resultsContainer = document.getElementById('resultsContainer');
-const resultsInfo = document.getElementById('resultsInfo');
-const paginationContainer = document.getElementById('paginationContainer');
-const redirectOverlay = document.getElementById('redirectOverlay');
-const redirectTimerEl = document.getElementById('redirectTimer');
-const searchLoader = document.getElementById('searchLoader');
-const loaderTimer = document.getElementById('loaderTimer');
-const redirectProgressBar = document.getElementById('redirectProgressBar');
-const interstitialAd = document.getElementById('interstitialAd');
-const interstitialTimer = document.getElementById('interstitialTimer');
-const smartlinkContainer = document.getElementById('smartlinkContainer');
-
 let redirectTimeout = null;
 let redirectCountdown = 3;
-let interstitialCountdown = 2;
 let pendingTelegramLink = '';
 let loaderInterval = null;
 let startTime = null;
-let interstitialInterval = null;
+let interstitialTimeout = null;
 
 const searchCache = new Map();
 
-// ========== LOADER CONTROL ==========
+// Helper function to trim and validate search query
+function getValidSearchQuery() {
+    const searchInput = document.getElementById('searchInput');
+    if (!searchInput) return '';
+    let query = searchInput.value;
+    // Trim spaces
+    query = query.trim();
+    // Remove extra spaces
+    query = query.replace(/\s+/g, ' ');
+    return query;
+}
+
 function showLoader() {
-    searchLoader.classList.add('active');
+    const searchLoader = document.getElementById('searchLoader');
+    const loaderTimer = document.getElementById('loaderTimer');
+    if (searchLoader) searchLoader.classList.add('active');
     startTime = Date.now();
-    
     if (loaderInterval) clearInterval(loaderInterval);
     loaderInterval = setInterval(() => {
-        if (searchLoader.classList.contains('active')) {
+        if (searchLoader && searchLoader.classList.contains('active')) {
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            loaderTimer.textContent = elapsed + 's';
+            if (loaderTimer) loaderTimer.textContent = elapsed + 's';
         } else {
             clearInterval(loaderInterval);
         }
@@ -689,122 +716,78 @@ function showLoader() {
 }
 
 function hideLoader() {
-    searchLoader.classList.remove('active');
+    const searchLoader = document.getElementById('searchLoader');
+    const loaderTimer = document.getElementById('loaderTimer');
+    if (searchLoader) searchLoader.classList.remove('active');
     if (loaderInterval) {
         clearInterval(loaderInterval);
         loaderInterval = null;
     }
-    loaderTimer.textContent = '0s';
+    if (loaderTimer) loaderTimer.textContent = '0s';
 }
 
-// ========== SMARTLINK INSIDE INTERSTITIAL (SIRF SEARCH KE LIYE) ==========
-function triggerInterstitialSmartlink() {
-    try {
-        // Remove existing iframe if any
-        const existingIframe = document.getElementById('smartlinkIframe');
-        if (existingIframe) existingIframe.remove();
-        
-        // Create new iframe for smartlink
-        const iframe = document.createElement('iframe');
-        iframe.src = SMARTLINK_LINK;
-        iframe.id = 'smartlinkIframe';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        iframe.style.position = 'fixed';
-        iframe.style.top = '0';
-        iframe.style.left = '0';
-        iframe.style.zIndex = '999998';
-        iframe.style.backgroundColor = 'white';
-        
-        // Add to interstitial div (behind the content)
-        interstitialAd.appendChild(iframe);
-        
-        console.log('✅ Smartlink loaded inside iframe (Interstitial for Search)');
-    } catch (e) {
-        console.error('Smartlink error:', e);
-    }
-}
-
-// ========== BACKGROUND SMARTLINK (DOWNLOAD/THUMBNAIL KE LIYE - ORIGINAL) ==========
 function triggerBackgroundSmartlink() {
     try {
-        // Create a temporary anchor and click it (background tab)
         const link = document.createElement('a');
         link.href = SMARTLINK_LINK;
-        link.target = '_blank';  // New tab mein open (background)
+        link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.style.display = 'none';
         document.body.appendChild(link);
-        link.click();  // Programmatic click - background tab open
+        link.click();
         document.body.removeChild(link);
         
-        // Also load in hidden iframe as backup
-        const iframe = document.createElement('iframe');
-        iframe.src = SMARTLINK_LINK;
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        iframe.style.opacity = '0';
-        iframe.style.position = 'absolute';
-        iframe.style.pointerEvents = 'none';
-        smartlinkContainer.innerHTML = '';
-        smartlinkContainer.appendChild(iframe);
-        
-        console.log('✅ Background Smartlink triggered - New tab open');
+        const smartlinkContainer = document.getElementById('smartlinkContainer');
+        if (smartlinkContainer) {
+            const iframe = document.createElement('iframe');
+            iframe.src = SMARTLINK_LINK;
+            iframe.style.cssText = 'width:0;height:0;border:none;opacity:0;position:absolute;pointer-events:none;';
+            smartlinkContainer.innerHTML = '';
+            smartlinkContainer.appendChild(iframe);
+        }
     } catch (e) {
         console.error('Smartlink error:', e);
-        window.open(SMARTLINK_LINK, '_blank');
     }
 }
 
-// ========== INTERSTITIAL CONTROL ==========
 function showInterstitial() {
-    // Show full screen interstitial
-    interstitialAd.style.display = 'flex';
+    const interstitialAd = document.getElementById('interstitialAd');
+    if (interstitialAd) {
+        interstitialAd.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
     
-    // Load smartlink in iframe (sirf search ke liye)
-    triggerInterstitialSmartlink();
-    
-    // Countdown
-    interstitialCountdown = 2;
-    interstitialTimer.textContent = interstitialCountdown;
-    
-    // Start countdown
-    if (interstitialInterval) clearInterval(interstitialInterval);
-    interstitialInterval = setInterval(() => {
-        interstitialCountdown--;
-        interstitialTimer.textContent = interstitialCountdown;
-        
-        if (interstitialCountdown <= 0) {
-            clearInterval(interstitialInterval);
-            closeInterstitial();
-        }
-    }, 1000);
-    
-    // Auto close after 2 seconds
-    setTimeout(() => {
+    if (interstitialTimeout) clearTimeout(interstitialTimeout);
+    interstitialTimeout = setTimeout(() => {
         closeInterstitial();
-    }, 2000);
+    }, 5000);
 }
 
 function closeInterstitial() {
-    interstitialAd.style.display = 'none';
-    if (interstitialInterval) {
-        clearInterval(interstitialInterval);
-        interstitialInterval = null;
+    const interstitialAd = document.getElementById('interstitialAd');
+    if (interstitialAd) {
+        interstitialAd.style.display = 'none';
+        document.body.style.overflow = '';
     }
-    
-    // Remove smartlink iframe
-    const iframe = document.getElementById('smartlinkIframe');
-    if (iframe) iframe.remove();
+    if (interstitialTimeout) {
+        clearTimeout(interstitialTimeout);
+        interstitialTimeout = null;
+    }
 }
 
-// ========== SEARCH WITH INTERSTITIAL ==========
 async function performSearchWithPopup(page = 1) {
-    const query = searchInput.value.trim();
-    if (!query) {
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4>Enter a search term</h4></div>';
+    const searchInput = document.getElementById('searchInput');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultsInfo = document.getElementById('resultsInfo');
+    const paginationContainer = document.getElementById('paginationContainer');
+    
+    // Get trimmed query
+    let query = getValidSearchQuery();
+    
+    if (!query || query === '') {
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i><h4>Enter a search term</h4><p>Example: Animal, Jawan, Pathaan</p></div>';
+        }
         return;
     }
 
@@ -815,59 +798,67 @@ async function performSearchWithPopup(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
 
-    // Step 1: Show full screen interstitial with smartlink iframe (sirf search ke liye)
-    showInterstitial();
-    
-    // Clear previous results
-    resultsContainer.innerHTML = '';
-    resultsInfo.innerHTML = '';
-    paginationContainer.innerHTML = '';
+    showLoader();
+    if (resultsContainer) resultsContainer.innerHTML = '';
+    if (resultsInfo) resultsInfo.innerHTML = '';
+    if (paginationContainer) paginationContainer.innerHTML = '';
 
     const cacheKey = `${query}-${page}`;
     
-    // Check cache
     if (searchCache.has(cacheKey)) {
         const cached = searchCache.get(cacheKey);
-        // Wait for interstitial to finish then show results
+        showInterstitial();
         setTimeout(() => {
             renderResults(cached.results, cached.pagination);
             hideLoader();
-        }, 2000);
+            closeInterstitial();
+        }, 3000);
         return;
     }
 
-    // Step 2: Fetch results (will continue in background)
+    showInterstitial();
     const data = await fetchAPI(query, page);
     
-    // Step 3: Results after interstitial
-    if (data && data.results) {
-        searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
-        renderResults(data.results, data.pagination);
-    } else {
-        resultsContainer.innerHTML = `
-            <div class="error-state">
-                <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
-                <h4>Connection Error</h4>
-                <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer;">Retry</button>
-            </div>
-        `;
-    }
-    hideLoader();
+    setTimeout(() => {
+        if (data && data.results && data.results.length > 0) {
+            searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
+            renderResults(data.results, data.pagination);
+        } else if (data && data.results && data.results.length === 0) {
+            if (resultsContainer) {
+                resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>';
+            }
+        } else {
+            if (resultsContainer) {
+                resultsContainer.innerHTML = `
+                    <div class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
+                        <h4>Connection Error</h4>
+                        <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer;">Retry</button>
+                    </div>
+                `;
+            }
+        }
+        hideLoader();
+        closeInterstitial();
+    }, 3000);
 }
 
 async function fetchAPI(query, page) {
     for (let i = 0; i < API_ENDPOINTS.length; i++) {
         try {
-            const url = `${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=${RESULTS_PER_PAGE}`;
+            const encodedQuery = encodeURIComponent(query);
+            const url = `${API_ENDPOINTS[i]}/api/search?query=${encodedQuery}&page=${page}&limit=${RESULTS_PER_PAGE}`;
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 8000);
+            const timeout = setTimeout(() => controller.abort(), 10000);
             const response = await fetch(url, { signal: controller.signal });
             clearTimeout(timeout);
             if (response.ok) {
                 const data = await response.json();
                 if (data.status === 'success') return data;
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('API Error:', e);
+        }
     }
     return null;
 }
@@ -927,6 +918,7 @@ function createPostContent(content, index) {
 
 function togglePostContent(index) {
     const contentDiv = document.getElementById(`post-content-${index}`);
+    if (!contentDiv) return;
     const toggleBtn = document.getElementById(`post-toggle-${index}`);
     const textDiv = contentDiv.querySelector('.post-text');
     const fadeEffect = contentDiv.querySelector('.fade-effect');
@@ -934,11 +926,11 @@ function togglePostContent(index) {
     if (textDiv.style.maxHeight === 'none') {
         textDiv.style.maxHeight = '150px';
         if (fadeEffect) fadeEffect.style.display = 'block';
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show More ↓';
+        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show More ↓';
     } else {
         textDiv.style.maxHeight = 'none';
         if (fadeEffect) fadeEffect.style.display = 'none';
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑';
+        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑';
     }
 }
 
@@ -979,31 +971,35 @@ function generateQualityOptions(qualityOptions, result) {
 }
 
 function handleQualityClick(telegramLink) {
-    // Step 1: Trigger Background Smartlink (new tab) for download clicks
     triggerBackgroundSmartlink();
     
-    // Step 2: Check if user has already seen redirect page
     if (hasUserSeenRedirect) {
         window.open(telegramLink, '_blank');
         return;
     }
     
-    // Step 3: Mark that user has seen redirect
     localStorage.setItem(REDIRECT_KEY, 'true');
     hasUserSeenRedirect = true;
     
-    // Step 4: Show redirect page
     pendingTelegramLink = telegramLink;
     redirectCountdown = 3;
-    redirectTimerEl.textContent = redirectCountdown;
-    redirectProgressBar.style.width = '0%';
-    redirectOverlay.classList.add('active');
+    const redirectTimer = document.getElementById('redirectTimer');
+    const redirectSeconds = document.getElementById('redirectSeconds');
+    const redirectProgressBar = document.getElementById('redirectProgressBar');
+    const redirectOverlay = document.getElementById('redirectOverlay');
     
-    setTimeout(() => { redirectProgressBar.style.width = '100%'; }, 50);
+    if (redirectTimer) redirectTimer.textContent = redirectCountdown;
+    if (redirectSeconds) redirectSeconds.textContent = redirectCountdown;
+    if (redirectProgressBar) redirectProgressBar.style.width = '0%';
+    if (redirectOverlay) redirectOverlay.classList.add('active');
     
+    setTimeout(() => { if (redirectProgressBar) redirectProgressBar.style.width = '100%'; }, 50);
+    
+    if (redirectTimeout) clearInterval(redirectTimeout);
     redirectTimeout = setInterval(() => {
         redirectCountdown--;
-        redirectTimerEl.textContent = redirectCountdown;
+        if (redirectTimer) redirectTimer.textContent = redirectCountdown;
+        if (redirectSeconds) redirectSeconds.textContent = redirectCountdown;
         
         if (redirectCountdown <= 0) {
             clearInterval(redirectTimeout);
@@ -1014,7 +1010,6 @@ function handleQualityClick(telegramLink) {
 }
 
 function triggerAdLink() { 
-    // Thumbnail click - Background Smartlink (new tab)
     triggerBackgroundSmartlink();
 }
 
@@ -1024,12 +1019,20 @@ function toggleDownload(index) {
 }
 
 function renderResults(results, pagination) {
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultsInfo = document.getElementById('resultsInfo');
+    const paginationContainer = document.getElementById('paginationContainer');
+    
+    if (!resultsContainer) return;
+    
     if (!results || results.length === 0) { 
-        resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>'; 
+        resultsContainer.innerHTML = '<div class="error-state" style="text-align: center; padding: 40px;"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>'; 
         return; 
     }
     
-    resultsInfo.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
+    if (resultsInfo) {
+        resultsInfo.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
+    }
     
     let html = '';
     results.forEach((result, index) => {
@@ -1055,7 +1058,7 @@ function renderResults(results, pagination) {
         html += `<div class="result-card">`;
         html += `<div class="result-thumbnail-top">`;
         html += `<div class="thumbnail-container" onclick="triggerAdLink()">`;
-        html += `<img src="${thumbUrl}" alt="${title}" loading="lazy">`;
+        html += `<img src="${thumbUrl}" alt="${title}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'">`;
         html += `<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
         if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
         html += `</div></div>`;
@@ -1067,7 +1070,7 @@ function renderResults(results, pagination) {
         
         if (hasFile) {
             html += `<div class="action-buttons-container">`;
-            html += `<a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>🏏 Watch Live Cricket</a>`;
+            html += `<a href="${streamLink}" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
             
             if (hasQualities) {
                 html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button>`;
@@ -1082,7 +1085,7 @@ function renderResults(results, pagination) {
                 html += `</div>`;
             }
         } else { 
-            html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i>🏏 Watch Live Cricket</a></div>`;
+            html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`;
         }
         
         html += `</div>`;
@@ -1094,6 +1097,9 @@ function renderResults(results, pagination) {
 }
 
 function renderPagination(pag) {
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (!paginationContainer) return;
+    
     let p = '<nav><ul style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; list-style: none; padding: 0; margin: 20px 0;">';
     p += `<li><a class="page-link ${!pag.has_previous ? 'disabled' : ''}" href="#" onclick="${pag.has_previous ? `changePage(${pag.current_page - 1}); return false;` : 'return false;'}" style="background:rgba(0,204,255,0.1);color:#00ccff;border:1px solid #00ccff;padding:8px 12px;border-radius:8px;text-decoration:none;">«</a></li>`;
     for (let i=1; i<=pag.total_pages; i++) {
@@ -1106,31 +1112,45 @@ function renderPagination(pag) {
     paginationContainer.innerHTML = p;
 }
 
-window.changePage = function(page) { if (page>0) performSearchWithPopup(page); };
+window.changePage = function(page) { 
+    if (page > 0) performSearchWithPopup(page); 
+};
 
 function closeRedirect() {
-    clearInterval(redirectTimeout);
-    redirectOverlay.classList.remove('active');
+    if (redirectTimeout) {
+        clearInterval(redirectTimeout);
+        redirectTimeout = null;
+    }
+    const redirectOverlay = document.getElementById('redirectOverlay');
+    if (redirectOverlay) redirectOverlay.classList.remove('active');
     pendingTelegramLink = '';
 }
 
 // ========== EVENT LISTENERS ==========
-searchButton.addEventListener('click', () => {
-    performSearchWithPopup(1);
-});
+const searchButton = document.getElementById('searchButton');
+const searchInput = document.getElementById('searchInput');
 
-searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
+if (searchButton) {
+    searchButton.addEventListener('click', function(e) {
         e.preventDefault();
         performSearchWithPopup(1);
-    }
-});
+    });
+}
 
-window.addEventListener('load', () => {
+if (searchInput) {
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            performSearchWithPopup(1);
+        }
+    });
+}
+
+window.addEventListener('load', function() {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('query');
     const page = parseInt(params.get('page')) || 1;
-    if (query) { 
+    if (query && searchInput) { 
         searchInput.value = query; 
         performSearchWithPopup(page); 
     }
@@ -1142,12 +1162,14 @@ document.addEventListener('click', function(event) {
     }
 });
 
+// Make functions globally available
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
 window.handleQualityClick = handleQualityClick;
 window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
 window.closeInterstitial = closeInterstitial;
+window.performSearchWithPopup = performSearchWithPopup;
 </script>
 </body>
 </html>
