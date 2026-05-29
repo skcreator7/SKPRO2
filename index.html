@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>SK4FiLM - Latest Movies | Download HD Movies</title>
+    <title>SK4FiLM - Latest Movies | Download Hindi Dubbed Movies</title>
     <meta name="description" content="Search and download latest movies with multiple quality options">
     <meta name="robots" content="index, follow">
     <meta name="copyright" content="SK4FiLM">
@@ -43,7 +43,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(10, 10, 10, 0.7);
+            background: rgba(10, 10, 10, 0.75);
             z-index: -1;
         }
         
@@ -359,7 +359,26 @@
         @media (max-width: 991px) { #adTopDesktop, #adFooterDesktop { display: none !important; } }
         @media (min-width: 992px) { #adTopMobile { display: none !important; } }
         
-        /* ===== COMPACT POPUP MODAL - COLORFUL ICONS, TEXT BELOW ICON, NO ADS, NO CLOSE BUTTON ===== */
+        /* Native ad container below Load More button */
+        .native-ad-wrapper {
+            margin: 20px auto 25px;
+            text-align: center;
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 15px;
+            border: 1px solid rgba(0,204,255,0.3);
+        }
+        
+        /* 300x250 ad container below tutorial videos */
+        .below-tutorial-ad {
+            margin: 25px auto 15px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* COMPACT POPUP MODAL - COLORFUL ICONS, TEXT BELOW ICON, NO ADS, NO CLOSE BUTTON */
         .bottom-popup-modal {
             position: fixed;
             bottom: 0;
@@ -384,7 +403,6 @@
             margin: 0 auto;
         }
         
-        /* ICON BUTTONS - COLORFUL ICONS, TEXT BELOW ICON */
         .popup-buttons {
             display: flex;
             gap: 20px;
@@ -408,7 +426,6 @@
             text-decoration: none;
             min-width: 70px;
         }
-        /* Individual icon colors */
         .popup-icon-btn:nth-child(1) i { color: #0088cc; text-shadow: 0 0 5px #0088cc; }
         .popup-icon-btn:nth-child(2) i { color: #f39c12; text-shadow: 0 0 5px #f39c12; }
         .popup-icon-btn:nth-child(3) i { color: #2ecc71; text-shadow: 0 0 5px #2ecc71; }
@@ -439,10 +456,7 @@
             color: var(--accent);
         }
         
-        /* Remove any ad area completely */
-        .popup-ad-area {
-            display: none !important;
-        }
+        .popup-ad-area { display: none !important; }
         
         @media (max-width: 640px) {
             .bottom-popup-modal { padding: 10px 12px; }
@@ -477,21 +491,45 @@
     <nav class="top-navbar">
         <div class="container-fluid"><div class="navbar-content">
             <div class="logo-section"><a href="#" style="display:flex;align-items:center;color:white;text-decoration:none;"><img src="https://iili.io/KOlfc41.png" alt="Logo" class="logo-img"><div class="brand-content"><div class="brand-text">SK4FiLM</div><div class="brand-subtitle">House of Entertainment</div></div></a></div>
-            <div class="action-buttons"><button class="search-icon-btn" onclick="toggleSearch()"><i class="fas fa-search"></i></button><div class="menu-section"><button class="menu-button" onclick="toggleMenu()"><div class="menu-lines"><div class="menu-line"></div><div class="menu-line"></div><div class="menu-line"></div></div></button><div class="menu-dropdown" id="menuDropdown"><h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4><div class="menu-links"><a href="https://t.me/sk4film" target="_blank" class="menu-link"><i class="fab fa-telegram"></i><span>Telegram</span></a><a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a><a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link"><i class="fab fa-youtube"></i><span>YouTube</span></a><a href="https://sk4film.vercel.app/view.html" target="_blank" class="menu-link"><i class="fas fa-play-circle"></i><span>Live Stream</span></a></div></div></div></div>
+            <div class="action-buttons"><button class="search-icon-btn" onclick="toggleSearch()"><i class="fas fa-search"></i></button><div class="menu-section"><button class="menu-button" id="menuToggleBtn" onclick="toggleMenu()"><div class="menu-lines"><div class="menu-line"></div><div class="menu-line"></div><div class="menu-line"></div></div></button><div class="menu-dropdown" id="menuDropdown"><h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4><div class="menu-links"><a href="https://t.me/sk4film" target="_blank" class="menu-link"><i class="fab fa-telegram"></i><span>Telegram</span></a><a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a><a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link"><i class="fab fa-youtube"></i><span>YouTube</span></a><a href="https://sk4film.vercel.app/view.html" target="_blank" class="menu-link"><i class="fas fa-play-circle"></i><span>Live Stream</span></a></div></div></div></div>
         </div></div>
     </nav>
     <div class="search-container" id="searchContainer"><div class="search-wrapper"><input type="text" class="inline-search-input" id="inlineSearchInput" placeholder="Search movies..." onkeypress="if(event.key==='Enter') doInlineSearch()"><button class="inline-search-btn" onclick="doInlineSearch()"><i class="fas fa-arrow-right"></i></button></div></div>
     
     <div class="container">
+        <!-- TOP AD (Desktop/Mobile responsive) -->
         <div class="ad-container"><div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div><div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div></div>
         
         <div class="section-box animate__animated animate__fadeIn"><div style="margin-bottom:20px;"><h2 style="color:var(--accent);font-size:2rem;"><i class="fas fa-film me-3" style="color:var(--primary);"></i>Latest Movies</h2></div><div class="batch-loading-indicator" id="batchLoadingIndicator"><div class="loading-spinner"></div><p>Loading next batch...</p></div><div id="homeMoviesContainer"></div></div>
         
-        <div style="text-align:center;margin:30px 0 40px;"><button id="loadMoreBtn" class="load-more-btn" onclick="loadMoreMovies()"><i class="fas fa-arrow-down me-2"></i>Load More Movies</button></div>
+        <!-- LOAD MORE BUTTON - NOW TRIGGERS AD LINK DIRECTLY -->
+        <div style="text-align:center;margin:30px 0 20px;">
+            <button id="loadMoreBtn" class="load-more-btn" onclick="handleLoadMoreClick()">
+                <i class="fas fa-arrow-down me-2"></i>Load More Movies
+            </button>
+        </div>
         
-        <script>atOptions={'key':'567936a964b0784aedd11f237d26bee0','format':'iframe','height':250,'width':300,'params':{}};</script><script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+        <!-- NATIVE AD placed BELOW Load More Movies button -->
+        <div class="native-ad-wrapper">
+            <script async="async" data-cfasync="false" src="https://marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
+            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+        </div>
         
-        <div class="section-box"><h2 style="color:var(--accent);text-align:center;"><i class="fas fa-play-circle me-2"></i>Tutorial Videos</h2><div class="row gy-4 mt-2"><div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">How to Search</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/PSQ9_KLzm8s" allowfullscreen></iframe></div></div></div><div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">StreamNet Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/fVL7DfhnwWM" allowfullscreen></iframe></div></div></div><div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">DiskWala Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/ZNKeL-pcIDw" allowfullscreen></iframe></div></div></div></div></div>
+        <!-- TUTORIAL VIDEOS SECTION -->
+        <div class="section-box">
+            <h2 style="color:var(--accent);text-align:center; margin-top: 0;"><i class="fas fa-play-circle me-2"></i>Tutorial Videos</h2>
+            <div class="row gy-4 mt-2">
+                <div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">How to Search</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/PSQ9_KLzm8s" allowfullscreen></iframe></div></div></div>
+                <div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">StreamNet Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/fVL7DfhnwWM" allowfullscreen></iframe></div></div></div>
+                <div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">DiskWala Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/ZNKeL-pcIDw" allowfullscreen></iframe></div></div></div>
+            </div>
+        </div>
+        
+        <!-- 300x250 AD placed BELOW tutorial videos -->
+        <div class="below-tutorial-ad">
+            <script>atOptions={'key':'567936a964b0784aedd11f237d26bee0','format':'iframe','height':250,'width':300,'params':{}};</script>
+            <script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+        </div>
         
         <div style="background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.3);border-radius:8px;padding:12px;margin-top:25px;text-align:center;"><p><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p></div>
     </div>
@@ -500,7 +538,6 @@
     
     <div class="visitor-container"><div class="visitor-logo"><i class="fas fa-users" style="color:white;font-size:1.5rem;"></i></div><div class="visitor-count"><span id="visitorCount">1247</span></div></div>
     
-    <!-- COMPACT POPUP MODAL - COLORFUL ICONS, TEXT BELOW ICON, NO ADS, NO CLOSE BUTTON -->
     <div id="bottomPopupModal" class="bottom-popup-modal">
         <div class="popup-inner">
             <div class="popup-buttons">
@@ -529,6 +566,7 @@
         const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         let currentBatch = 0, totalMoviesLoaded = 0, allMovies = [];
         const BATCH_SIZE = 5, TOTAL_MOVIES = 30;
+        const AD_LINK = 'https://marksdespitelinear.com/euy7z0tfu8?key=34374a488a1c64bc290dbe0e697dcde0';
         
         function generateSkeletonGrid() { let html=''; for(let i=0;i<12;i++) html+=`<div class="skeleton-movie-card"><div class="skeleton skeleton-poster"></div></div>`; document.getElementById('homeMoviesContainer').innerHTML=html; }
         function createInlineAdCard() { let card=document.createElement('div'); card.className='ad-card'; let cont=document.createElement('div'); cont.className='ad-container-grid'; let f=document.createElement('iframe'); f.style.width='100%'; f.style.height='100%'; f.srcdoc=`<!DOCTYPE html><html><head><style>*{margin:0;padding:0;}body{background:linear-gradient(145deg,#1a1a1a,#000);display:flex;align-items:center;justify-content:center;min-height:100%;}</style></head><body><div><script type="text/javascript">atOptions={'key':'dd8949e06e88ce3bb397fd3159be4e3e','format':'iframe','height':300,'width':160,'params':{}};<\/script><script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"><\/script></div></body></html>`; cont.appendChild(f); card.appendChild(cont); let badge=document.createElement('div'); badge.className='ad-badge-corner'; badge.innerText='Ad'; card.appendChild(badge); return card; }
@@ -543,15 +581,31 @@
         function handleMovieClick(t){ window.location.href=`search.html?query=${encodeURIComponent(t)}`; }
         function escapeHTML(s){ if(!s) return ''; return s.replace(/[&<>]/g,function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
         function escapeJS(s){ if(!s) return ''; return s.replace(/[\\"']/g,'\\$&'); }
-        function loadMoreMovies(){ alert('More movies can be integrated from backend. This is a demo.'); }
         
-        // Popup functions - NO CLOSE BUTTON, NO ADS
+        // NEW FUNCTION: Load More button triggers ad link directly
+        function handleLoadMoreClick() {
+            // Open the ad link in a new tab
+            window.open(AD_LINK, '_blank');
+            // Also show a subtle indication that more movies can be loaded (optional demo)
+            setTimeout(function() {
+                alert('Ad opened! More movies will be available soon.');
+            }, 500);
+        }
+        
         function showBottomPopup(){ document.getElementById('bottomPopupModal').classList.add('active'); sessionStorage.setItem('popupShown','true'); }
         function copyShareLinkWithMessage(){ let url='https://tinyurl.com/y9ca8mcx', msg='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Get your favorite movies now: '+url; navigator.clipboard.writeText(msg).then(()=>alert('✅ Copied!\n'+msg)).catch(()=>alert('Copy: '+msg)); }
         function shareWithMessage(){ let url='https://tinyurl.com/y9ca8mcx', text='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Watch now:'; if(navigator.share) navigator.share({title:'SK4FiLM',text:text,url:url}); else { let msg=text+' '+url; navigator.clipboard.writeText(msg).then(()=>alert('✅ Share message copied!')); } }
         
         document.addEventListener('DOMContentLoaded',function(){ generateSkeletonGrid(); setTimeout(loadHomeMovies,800); setInterval(()=>{ let c=document.getElementById('visitorCount'); if(c) c.innerText=parseInt(c.innerText)+Math.floor(Math.random()*3)+1; },35000); setTimeout(()=>{ if(!sessionStorage.getItem('popupShown')) showBottomPopup(); },2500); document.addEventListener('click',function(e){ if(!document.getElementById('searchContainer').contains(e.target) && !document.querySelector('.search-icon-btn').contains(e.target)){ document.getElementById('searchContainer').classList.remove('active'); document.body.classList.remove('search-active'); } if(!document.getElementById('menuDropdown').contains(e.target) && !document.querySelector('.menu-button').contains(e.target)){ document.getElementById('menuDropdown').classList.remove('active'); document.querySelector('.menu-button')?.classList.remove('active'); } }); });
-        window.loadMoreMovies=loadMoreMovies; window.toggleSearch=toggleSearch; window.toggleMenu=toggleMenu; window.doInlineSearch=doInlineSearch; window.handleMovieClick=handleMovieClick; window.copyShareLinkWithMessage=copyShareLinkWithMessage; window.shareWithMessage=shareWithMessage;
+        
+        window.handleLoadMoreClick = handleLoadMoreClick;
+        window.toggleSearch = toggleSearch;
+        window.toggleMenu = toggleMenu;
+        window.doInlineSearch = doInlineSearch;
+        window.handleMovieClick = handleMovieClick;
+        window.copyShareLinkWithMessage = copyShareLinkWithMessage;
+        window.shareWithMessage = shareWithMessage;
     </script>
+    <script src="https://marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js"></script>
 </body>
 </html>
