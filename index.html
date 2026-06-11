@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, user-scalable=no">
     <title>SK4FiLM - Latest Movies | Download Hindi Dubbed Movies</title>
     <meta name="description" content="Search and download latest movies with multiple quality options">
     <meta name="robots" content="index, follow">
@@ -16,6 +16,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     
     <style>
+        /* Disable zooming via CSS touch actions */
+        html, body {
+            touch-action: pan-x pan-y;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        
         :root {
             --primary: #ff0000;
             --secondary: #0066ff;
@@ -158,8 +165,15 @@
             overflow: hidden;
             transition: all 0.3s ease;
         }
-        .search-container.active { max-height: 85px; padding: 15px; }
-        .search-wrapper { display: flex; gap: 10px; align-items: center; }
+        .search-container.active { 
+            max-height: 85px; 
+            padding: 15px; 
+        }
+        .search-wrapper { 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+        }
         .inline-search-input {
             flex: 1;
             background: rgba(60, 65, 90, 0.9);
@@ -179,6 +193,11 @@
             border-radius: 25px;
             cursor: pointer;
             font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .inline-search-btn:hover {
+            background: #00e6ff;
+            transform: scale(1.02);
         }
         
         .menu-section { position: relative; }
@@ -425,7 +444,7 @@
             border: 1px solid rgba(0,204,255,0.4);
         }
         
-        /* BOTTOM POPUP MODAL - ORIGINAL STYLE - ALWAYS VISIBLE, NO CLOSE BUTTON */
+        /* BOTTOM POPUP MODAL - ORIGINAL STYLE - ALWAYS VISIBLE */
         .bottom-popup-modal {
             position: fixed;
             bottom: 0;
@@ -532,16 +551,41 @@
         
         .text-center { text-align: center; }
         .px-2 { padding-left: 8px; padding-right: 8px; }
+        
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top: 5px solid #28a745;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <nav class="top-navbar">
         <div class="container-fluid"><div class="navbar-content">
             <div class="logo-section"><a href="#" style="display:flex;align-items:center;color:white;text-decoration:none;"><img src="https://iili.io/KOlfc41.png" alt="Logo" class="logo-img"><div class="brand-content"><div class="brand-text">SK4FiLM</div><div class="brand-subtitle">House of Entertainment</div></div></a></div>
-            <div class="action-buttons"><button class="search-icon-btn" onclick="toggleSearch()"><i class="fas fa-search"></i></button><div class="menu-section"><button class="menu-button" id="menuToggleBtn" onclick="toggleMenu()"><div class="menu-lines"><div class="menu-line"></div><div class="menu-line"></div><div class="menu-line"></div></div></button><div class="menu-dropdown" id="menuDropdown"><h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4><div class="menu-links"><a href="https://t.me/sk4film" target="_blank" class="menu-link"><i class="fab fa-telegram"></i><span>Telegram</span></a><a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a><a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link"><i class="fab fa-youtube"></i><span>YouTube</span></a><a href="https://sk4film.vercel.app/view.html" target="_blank" class="menu-link"><i class="fas fa-play-circle"></i><span>Live Stream</span></a></div></div></div></div>
+            <div class="action-buttons">
+                <button class="search-icon-btn" id="searchIconBtn" onclick="toggleSearch()"><i class="fas fa-search"></i></button>
+                <div class="menu-section">
+                    <button class="menu-button" id="menuToggleBtn" onclick="toggleMenu()"><div class="menu-lines"><div class="menu-line"></div><div class="menu-line"></div><div class="menu-line"></div></div></button>
+                    <div class="menu-dropdown" id="menuDropdown"><h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4><div class="menu-links"><a href="https://t.me/sk4film" target="_blank" class="menu-link"><i class="fab fa-telegram"></i><span>Telegram</span></a><a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a><a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link"><i class="fab fa-youtube"></i><span>YouTube</span></a><a href="https://sk4film.vercel.app/view.html" target="_blank" class="menu-link"><i class="fas fa-play-circle"></i><span>Live Stream</span></a></div></div>
+                </div>
+            </div>
         </div></div>
     </nav>
-    <div class="search-container" id="searchContainer"><div class="search-wrapper"><input type="text" class="inline-search-input" id="inlineSearchInput" placeholder="Search movies..." onkeypress="if(event.key==='Enter') doInlineSearch()"><button class="inline-search-btn" onclick="doInlineSearch()"><i class="fas fa-arrow-right"></i></button></div></div>
+    <div class="search-container" id="searchContainer">
+        <div class="search-wrapper">
+            <input type="text" class="inline-search-input" id="inlineSearchInput" placeholder="Search movies..." onkeypress="if(event.key==='Enter') doInlineSearch()">
+            <button class="inline-search-btn" onclick="doInlineSearch()"><i class="fas fa-search"></i> Search</button>
+        </div>
+    </div>
     
     <div class="container">
         <div class="ad-container px-2"><div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div><div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div></div>
@@ -587,7 +631,7 @@
     
     <footer class="mt-5 pb-4"><div class="ad-container"><div id="adFooterDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div></div></footer>
     
-    <!-- BOTTOM POPUP MODAL - ORIGINAL STYLE - ALWAYS VISIBLE, NO CLOSE BUTTON -->
+    <!-- BOTTOM POPUP MODAL - ALWAYS VISIBLE -->
     <div id="bottomPopupModal" class="bottom-popup-modal">
         <div class="popup-inner">
             <div class="popup-buttons">
@@ -612,6 +656,10 @@
     </div>
     
     <script>
+        // Disable zooming
+        document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+        document.addEventListener('dblclick', function(e) { e.preventDefault(); });
+        
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         let currentBatch = 0, totalMoviesLoaded = 0, allMovies = [];
@@ -705,37 +753,101 @@
         
         function showError(){ document.getElementById('homeMoviesContainer').innerHTML=`<div style="text-align:center;padding:40px;"><i class="fas fa-exclamation-triangle fa-5x text-warning"></i><h3>Error loading movies</h3><button onclick="location.reload()" style="background:#28a745;color:white;border:none;padding:10px 20px;border-radius:15px;">Retry</button></div>`; }
         
-        function toggleSearch(){ let sc=document.getElementById('searchContainer'), md=document.getElementById('menuDropdown'), mb=document.getElementById('menuToggleBtn'); if(md?.classList.contains('active')){ md.classList.remove('active'); if(mb) mb.classList.remove('active'); } sc.classList.toggle('active'); document.body.classList.toggle('search-active',sc.classList.contains('active')); }
-        function toggleMenu(){ let md=document.getElementById('menuDropdown'), mb=document.getElementById('menuToggleBtn'), sc=document.getElementById('searchContainer'); if(sc.classList.contains('active')){ sc.classList.remove('active'); document.body.classList.remove('search-active'); } md.classList.toggle('active'); if(mb) mb.classList.toggle('active'); }
-        function doInlineSearch(){ let q=document.getElementById('inlineSearchInput').value.trim(); if(q.length>=2) window.location.href=`search.html?query=${encodeURIComponent(q)}`; else alert('Enter at least 2 characters'); }
-        function handleMovieClick(t){ window.location.href=`search.html?query=${encodeURIComponent(t)}`; }
+        function toggleSearch(){ 
+            let sc=document.getElementById('searchContainer'); 
+            let md=document.getElementById('menuDropdown'); 
+            let mb=document.getElementById('menuToggleBtn'); 
+            if(md && md.classList.contains('active')){ 
+                md.classList.remove('active'); 
+                if(mb) mb.classList.remove('active'); 
+            } 
+            if(sc) {
+                sc.classList.toggle('active'); 
+                document.body.classList.toggle('search-active', sc.classList.contains('active'));
+                // Focus on input when search opens
+                if(sc.classList.contains('active')) {
+                    setTimeout(() => {
+                        document.getElementById('inlineSearchInput')?.focus();
+                    }, 100);
+                }
+            }
+        }
+        
+        function toggleMenu(){ 
+            let md=document.getElementById('menuDropdown'); 
+            let mb=document.getElementById('menuToggleBtn'); 
+            let sc=document.getElementById('searchContainer'); 
+            if(sc && sc.classList.contains('active')){ 
+                sc.classList.remove('active'); 
+                document.body.classList.remove('search-active'); 
+            } 
+            if(md) md.classList.toggle('active'); 
+            if(mb) mb.classList.toggle('active'); 
+        }
+        
+        function doInlineSearch(){ 
+            let q = document.getElementById('inlineSearchInput').value.trim(); 
+            if(q.length >= 2) {
+                window.location.href = `search.html?query=${encodeURIComponent(q)}`;
+            } else {
+                alert('Please enter at least 2 characters to search');
+            }
+        }
+        
+        function handleMovieClick(t){ 
+            window.location.href = `search.html?query=${encodeURIComponent(t)}`; 
+        }
+        
         function escapeHTML(s){ if(!s) return ''; return s.replace(/[&<>]/g,function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
         function escapeJS(s){ if(!s) return ''; return s.replace(/[\\"']/g,'\\$&'); }
         
-        function handleLoadMoreClick() { window.open(AD_LINK, '_blank'); setTimeout(function() { alert('Ad opened! More movies will be available soon.'); }, 500); }
+        function handleLoadMoreClick() { 
+            window.open(AD_LINK, '_blank'); 
+            setTimeout(function() { 
+                alert('Ad opened! More movies will be available soon.'); 
+            }, 500); 
+        }
         
-        function copyShareLinkWithMessage(){ let url='https://tinyurl.com/y9ca8mcx', msg='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Get your favorite movies now: '+url; navigator.clipboard.writeText(msg).then(()=>alert('✅ Copied!\n'+msg)).catch(()=>alert('Copy: '+msg)); }
-        function shareWithMessage(){ let url='https://tinyurl.com/y9ca8mcx', text='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Watch now:'; if(navigator.share) navigator.share({title:'SK4FiLM',text:text,url:url}); else { let msg=text+' '+url; navigator.clipboard.writeText(msg).then(()=>alert('✅ Share message copied!')); } }
+        function copyShareLinkWithMessage(){ 
+            let url='https://tinyurl.com/y9ca8mcx'; 
+            let msg='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Get your favorite movies now: '+url; 
+            navigator.clipboard.writeText(msg).then(()=>alert('✅ Copied!\n'+msg)).catch(()=>alert('Copy: '+msg)); 
+        }
         
-        document.addEventListener('DOMContentLoaded',function(){ 
-            generateSkeletonGrid(); 
-            setTimeout(loadHomeMovies,800); 
-            document.addEventListener('click',function(e){ 
-                let searchContainer = document.getElementById('searchContainer');
-                let searchBtn = document.querySelector('.search-icon-btn');
-                let menuDropdown = document.getElementById('menuDropdown');
-                let menuBtn = document.querySelector('.menu-button');
-                if(searchContainer && !searchContainer.contains(e.target) && searchBtn && !searchBtn.contains(e.target)){ 
-                    searchContainer.classList.remove('active'); 
-                    document.body.classList.remove('search-active'); 
-                } 
-                if(menuDropdown && !menuDropdown.contains(e.target) && menuBtn && !menuBtn.contains(e.target)){ 
-                    menuDropdown.classList.remove('active'); 
-                    if(menuBtn) menuBtn.classList.remove('active'); 
-                } 
-            }); 
+        function shareWithMessage(){ 
+            let url='https://tinyurl.com/y9ca8mcx'; 
+            let text='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Watch now:'; 
+            if(navigator.share) {
+                navigator.share({title:'SK4FiLM', text:text, url:url});
+            } else { 
+                let msg=text+' '+url; 
+                navigator.clipboard.writeText(msg).then(()=>alert('✅ Share message copied!')); 
+            } 
+        }
+        
+        // Close search when clicking outside
+        document.addEventListener('click', function(e) { 
+            let searchContainer = document.getElementById('searchContainer');
+            let searchBtn = document.getElementById('searchIconBtn');
+            let menuDropdown = document.getElementById('menuDropdown');
+            let menuBtn = document.getElementById('menuToggleBtn');
+            
+            if(searchContainer && searchBtn && !searchContainer.contains(e.target) && !searchBtn.contains(e.target)){ 
+                searchContainer.classList.remove('active'); 
+                document.body.classList.remove('search-active'); 
+            } 
+            if(menuDropdown && menuBtn && !menuDropdown.contains(e.target) && !menuBtn.contains(e.target)){ 
+                menuDropdown.classList.remove('active'); 
+                if(menuBtn) menuBtn.classList.remove('active'); 
+            } 
         });
         
+        document.addEventListener('DOMContentLoaded', function(){ 
+            generateSkeletonGrid(); 
+            setTimeout(loadHomeMovies, 800); 
+        });
+        
+        // Make functions global
         window.handleLoadMoreClick = handleLoadMoreClick;
         window.toggleSearch = toggleSearch;
         window.toggleMenu = toggleMenu;
