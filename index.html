@@ -14,7 +14,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    
+    <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
     <style>
         :root {
             --primary: #ff0000;
@@ -272,76 +272,116 @@
         @keyframes skeleton-loading { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .skeleton-poster { width: 100%; height: 100%; border-radius: 10px; }
         
+        /* Zero gap grid - mobile 3 cols, desktop 6 cols */
         #homeMoviesContainer {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0px;
             margin: 0;
             padding: 0;
             width: 100%;
         }
-        @media (min-width: 768px) { #homeMoviesContainer { grid-template-columns: repeat(3, 1fr); gap: 8px; } }
-        @media (min-width: 992px) { #homeMoviesContainer { grid-template-columns: repeat(4, 1fr); gap: 10px; } }
-        @media (min-width: 1200px) { #homeMoviesContainer { grid-template-columns: repeat(6, 1fr); gap: 12px; } }
+        @media (min-width: 992px) {
+            #homeMoviesContainer {
+                grid-template-columns: repeat(6, 1fr);
+                gap: 0px;
+            }
+        }
         
         .movie-card {
             background: #000000;
             border: 2px solid rgba(0, 204, 255, 0.15);
-            border-radius: 12px;
+            border-radius: 0px;
             overflow: hidden;
             transition: all 0.4s ease;
             height: 100%;
             cursor: pointer;
             position: relative;
-            aspect-ratio: 2/3;
+            display: flex;
+            flex-direction: column;
         }
-        .movie-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 25px 50px rgba(0, 204, 255, 0.5); border-color: var(--accent); z-index: 10; }
+        .movie-card:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+        .movie-card:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+        .movie-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 25px 50px rgba(0, 204, 255, 0.5); border-color: var(--accent); z-index: 10; border-radius: 12px; }
         .click-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10; cursor: pointer; }
-        .progressive-image-container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+        .poster-wrapper {
+            position: relative;
+            aspect-ratio: 2/3;
+            width: 100%;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
         .hq-poster { width: 100%; height: 100%; object-fit: cover; object-position: center; background: #000; transition: all 0.5s ease; display: block; }
         .movie-card:hover .hq-poster { transform: scale(1.05); filter: brightness(1.1); }
         
+        /* SMALLER RED NEW BADGE - compact size */
         .new-badge {
-            position: absolute; top: 8px; left: 8px;
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 700;
-            z-index: 5; animation: newPulse 3s infinite;
+            position: absolute; 
+            top: 6px; 
+            left: 6px;
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            color: white; 
+            padding: 2px 6px; 
+            border-radius: 12px; 
+            font-size: 0.55rem; 
+            font-weight: 700;
+            z-index: 5;
+            letter-spacing: 0.3px;
+            box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
+            animation: redPulse 1.2s ease-in-out infinite;
+            text-transform: uppercase;
+            white-space: nowrap;
         }
-        @keyframes newPulse { 0%,100% { box-shadow: 0 4px 15px rgba(40, 167, 69, 0.6); } 50% { box-shadow: 0 6px 25px rgba(40, 167, 69, 0.9); } }
+        @keyframes redPulse {
+            0% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.5); background: #ff0000; }
+            50% { box-shadow: 0 0 12px rgba(255, 0, 0, 1); background: #ff3333; transform: scale(1.02); }
+            100% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.5); background: #ff0000; }
+        }
+        
         .rating-badge {
-            position: absolute; top: 8px; right: 8px;
-            background: rgba(0,0,0,0.8); color: #ffd700; padding: 4px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 700;
-            border: 1px solid rgba(255, 215, 0, 0.3); z-index: 5;
-        }
-        .movie-title-badge {
-            position: absolute; bottom: 8px; left: 8px; right: 8px;
-            background: rgba(0, 0, 0, 0.7); color: var(--accent); padding: 4px 8px; border-radius: 12px;
-            font-size: 0.7rem; font-weight: 600; text-align: center; text-transform: uppercase;
-            border: 1px solid var(--accent); z-index: 5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            position: absolute; 
+            top: 6px; 
+            right: 6px;
+            background: rgba(0,0,0,0.8); 
+            color: #ffd700; 
+            padding: 2px 6px; 
+            border-radius: 12px; 
+            font-size: 0.55rem; 
+            font-weight: 700;
+            border: 1px solid rgba(255, 215, 0, 0.3); 
+            z-index: 5;
+            backdrop-filter: blur(2px);
         }
         
-        .ad-card {
-            background: #000000;
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            border-radius: 12px;
+        /* MOVIE INFO BELOW POSTER - title + date */
+        .movie-info {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 6px 6px;
+            text-align: center;
+            border-top: 1px solid rgba(0, 204, 255, 0.3);
+            flex-shrink: 0;
+        }
+        .movie-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--accent);
+            white-space: nowrap;
             overflow: hidden;
-            aspect-ratio: 2/3;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(145deg, #1a1a1a, #000000);
-            position: relative;
+            text-overflow: ellipsis;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
-        .ad-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 25px 50px rgba(255, 215, 0, 0.5); border-color: gold; transition: all 0.4s ease; }
-        .ad-container-grid { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-        .ad-container-grid iframe { max-width: 100%; max-height: 100%; border: none; }
-        .ad-badge-corner {
-            position: absolute; top: 8px; right: 8px;
-            background: gold; color: black; padding: 4px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 700;
-            z-index: 20; border: 1px solid #fff; pointer-events: none;
+        .movie-date {
+            font-size: 0.55rem;
+            color: #ffaa00;
+            font-weight: 400;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
-        .skeleton-movie-card { background: #000; border: 2px solid rgba(255,255,255,0.05); border-radius: 12px; aspect-ratio: 2/3; }
+        .skeleton-movie-card { background: #000; border: 2px solid rgba(255,255,255,0.05); border-radius: 0px; aspect-ratio: 2/3; }
         .visitor-container { position: fixed; bottom: 15px; right: 15px; z-index: 1000; }
         .visitor-logo {
             width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -359,7 +399,6 @@
         @media (max-width: 991px) { #adTopDesktop, #adFooterDesktop { display: none !important; } }
         @media (min-width: 992px) { #adTopMobile { display: none !important; } }
         
-        /* Native ad container below Load More button */
         .native-ad-wrapper {
             margin: 20px auto 25px;
             text-align: center;
@@ -369,7 +408,6 @@
             border: 1px solid rgba(0,204,255,0.3);
         }
         
-        /* 300x250 ad container below tutorial videos */
         .below-tutorial-ad {
             margin: 25px auto 15px;
             text-align: center;
@@ -378,7 +416,15 @@
             align-items: center;
         }
         
-        /* COMPACT POPUP MODAL - COLORFUL ICONS, TEXT BELOW ICON, NO ADS, NO CLOSE BUTTON */
+        .video-slider-section {
+            margin: 25px auto 15px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border: 1px solid rgba(0,204,255,0.4);
+        }
+        
         .bottom-popup-modal {
             position: fixed;
             bottom: 0;
@@ -426,52 +472,15 @@
             text-decoration: none;
             min-width: 70px;
         }
-        .popup-icon-btn:nth-child(1) i { color: #0088cc; text-shadow: 0 0 5px #0088cc; }
-        .popup-icon-btn:nth-child(2) i { color: #f39c12; text-shadow: 0 0 5px #f39c12; }
-        .popup-icon-btn:nth-child(3) i { color: #2ecc71; text-shadow: 0 0 5px #2ecc71; }
-        .popup-icon-btn:nth-child(4) i { color: #e74c3c; text-shadow: 0 0 5px #e74c3c; }
-        
-        .popup-icon-btn i {
-            font-size: 1.8rem;
-            transition: all 0.25s ease;
-        }
-        .popup-icon-btn span {
-            font-size: 0.7rem;
-            letter-spacing: 0.3px;
-            font-weight: 500;
-            color: #ffffff;
-            opacity: 0.9;
-            text-transform: uppercase;
-            font-family: 'Josefin Sans', sans-serif;
-        }
-        .popup-icon-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-4px);
-        }
-        .popup-icon-btn:hover i {
-            transform: scale(1.1);
-        }
-        .popup-icon-btn:hover span {
-            opacity: 1;
-            color: var(--accent);
-        }
-        
-        .popup-ad-area { display: none !important; }
-        
-        @media (max-width: 640px) {
-            .bottom-popup-modal { padding: 10px 12px; }
-            .popup-icon-btn { padding: 6px 12px; min-width: 60px; }
-            .popup-icon-btn i { font-size: 1.4rem; }
-            .popup-icon-btn span { font-size: 0.6rem; }
-            .popup-buttons { gap: 12px; }
-        }
-        
-        @media (max-width: 480px) {
-            .popup-icon-btn { padding: 5px 10px; min-width: 55px; }
-            .popup-icon-btn i { font-size: 1.2rem; }
-            .popup-icon-btn span { font-size: 0.55rem; }
-            .popup-buttons { gap: 8px; }
-        }
+        .popup-icon-btn:nth-child(1) i { color: #0088cc; }
+        .popup-icon-btn:nth-child(2) i { color: #f39c12; }
+        .popup-icon-btn:nth-child(3) i { color: #2ecc71; }
+        .popup-icon-btn:nth-child(4) i { color: #e74c3c; }
+        .popup-icon-btn i { font-size: 1.8rem; transition: all 0.25s ease; }
+        .popup-icon-btn span { font-size: 0.7rem; font-weight: 500; color: #ffffff; opacity: 0.9; text-transform: uppercase; }
+        .popup-icon-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-4px); }
+        .popup-icon-btn:hover i { transform: scale(1.1); }
+        .popup-icon-btn:hover span { opacity: 1; color: var(--accent); }
         
         .batch-loading-indicator { text-align: center; padding: 20px; margin: 20px 0; background: rgba(0,204,255,0.1); border-radius: 10px; display: none; }
         .batch-loading-indicator.active { display: block; animation: fadeIn 0.5s ease; }
@@ -497,25 +506,21 @@
     <div class="search-container" id="searchContainer"><div class="search-wrapper"><input type="text" class="inline-search-input" id="inlineSearchInput" placeholder="Search movies..." onkeypress="if(event.key==='Enter') doInlineSearch()"><button class="inline-search-btn" onclick="doInlineSearch()"><i class="fas fa-arrow-right"></i></button></div></div>
     
     <div class="container">
-        <!-- TOP AD (Desktop/Mobile responsive) -->
         <div class="ad-container"><div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div><div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div></div>
         
         <div class="section-box animate__animated animate__fadeIn"><div style="margin-bottom:20px;"><h2 style="color:var(--accent);font-size:2rem;"><i class="fas fa-film me-3" style="color:var(--primary);"></i>Latest Movies</h2></div><div class="batch-loading-indicator" id="batchLoadingIndicator"><div class="loading-spinner"></div><p>Loading next batch...</p></div><div id="homeMoviesContainer"></div></div>
         
-        <!-- LOAD MORE BUTTON - NOW TRIGGERS AD LINK DIRECTLY -->
         <div style="text-align:center;margin:30px 0 20px;">
             <button id="loadMoreBtn" class="load-more-btn" onclick="handleLoadMoreClick()">
                 <i class="fas fa-arrow-down me-2"></i>Load More Movies
             </button>
         </div>
         
-        <!-- NATIVE AD placed BELOW Load More Movies button -->
         <div class="native-ad-wrapper">
             <script async="async" data-cfasync="false" src="https://marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
             <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
         </div>
         
-        <!-- TUTORIAL VIDEOS SECTION -->
         <div class="section-box">
             <h2 style="color:var(--accent);text-align:center; margin-top: 0;"><i class="fas fa-play-circle me-2"></i>Tutorial Videos</h2>
             <div class="row gy-4 mt-2">
@@ -525,10 +530,13 @@
             </div>
         </div>
         
-        <!-- 300x250 AD placed BELOW tutorial videos -->
         <div class="below-tutorial-ad">
             <script>atOptions={'key':'567936a964b0784aedd11f237d26bee0','format':'iframe','height':250,'width':300,'params':{}};</script>
             <script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+        </div>
+        
+        <div class="video-slider-section">
+            <script type="text/javascript"> aclib.runVideoSlider({ zoneId: '11421322' }); </script>
         </div>
         
         <div style="background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.3);border-radius:8px;padding:12px;margin-top:25px;text-align:center;"><p><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p></div>
@@ -539,42 +547,108 @@
     <div class="visitor-container"><div class="visitor-logo"><i class="fas fa-users" style="color:white;font-size:1.5rem;"></i></div><div class="visitor-count"><span id="visitorCount">1247</span></div></div>
     
     <div id="bottomPopupModal" class="bottom-popup-modal">
-        <div class="popup-inner">
-            <div class="popup-buttons">
-                <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM', '_blank')">
-                    <i class="fab fa-telegram-plane"></i>
-                    <span>Backup</span>
-                </button>
-                <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk', '_blank')">
-                    <i class="fas fa-download"></i>
-                    <span>App</span>
-                </button>
-                <button class="popup-icon-btn" onclick="copyShareLinkWithMessage()">
-                    <i class="fas fa-copy"></i>
-                    <span>Copy URL</span>
-                </button>
-                <button class="popup-icon-btn" onclick="shareWithMessage()">
-                    <i class="fas fa-share-alt"></i>
-                    <span>Share</span>
-                </button>
-            </div>
-        </div>
+        <div class="popup-inner"><div class="popup-buttons">
+            <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM', '_blank')"><i class="fab fa-telegram-plane"></i><span>Backup</span></button>
+            <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk', '_blank')"><i class="fas fa-download"></i><span>App</span></button>
+            <button class="popup-icon-btn" onclick="copyShareLinkWithMessage()"><i class="fas fa-copy"></i><span>Copy URL</span></button>
+            <button class="popup-icon-btn" onclick="shareWithMessage()"><i class="fas fa-share-alt"></i><span>Share</span></button>
+        </div></div>
     </div>
     
     <script>
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         let currentBatch = 0, totalMoviesLoaded = 0, allMovies = [];
-        const BATCH_SIZE = 5, TOTAL_MOVIES = 30;
+        const BATCH_SIZE = 6;
+        const TOTAL_MOVIES = 30;
         const AD_LINK = 'https://marksdespitelinear.com/euy7z0tfu8?key=34374a488a1c64bc290dbe0e697dcde0';
         
         function generateSkeletonGrid() { let html=''; for(let i=0;i<12;i++) html+=`<div class="skeleton-movie-card"><div class="skeleton skeleton-poster"></div></div>`; document.getElementById('homeMoviesContainer').innerHTML=html; }
-        function createInlineAdCard() { let card=document.createElement('div'); card.className='ad-card'; let cont=document.createElement('div'); cont.className='ad-container-grid'; let f=document.createElement('iframe'); f.style.width='100%'; f.style.height='100%'; f.srcdoc=`<!DOCTYPE html><html><head><style>*{margin:0;padding:0;}body{background:linear-gradient(145deg,#1a1a1a,#000);display:flex;align-items:center;justify-content:center;min-height:100%;}</style></head><body><div><script type="text/javascript">atOptions={'key':'dd8949e06e88ce3bb397fd3159be4e3e','format':'iframe','height':300,'width':160,'params':{}};<\/script><script type="text/javascript" src="//marksdespitelinear.com/dd8949e06e88ce3bb397fd3159be4e3e/invoke.js"><\/script></div></body></html>`; cont.appendChild(f); card.appendChild(cont); let badge=document.createElement('div'); badge.className='ad-badge-corner'; badge.innerText='Ad'; card.appendChild(badge); return card; }
-        function displayHomeMovies(movies) { let container=document.getElementById('homeMoviesContainer'); container.innerHTML=''; let frag=document.createDocumentFragment(); movies.forEach((m,idx)=>{ let title=m.title||'Unknown', isNew=m.is_new, rating=m.poster_rating||'0.0'; let card=document.createElement('div'); card.className='movie-card animate__animated animate__fadeInUp'; let badges=''; if(isNew) badges+='<div class="new-badge"><i class="fas fa-fire me-1"></i>NEW</div>'; if(rating!=='0.0') badges+=`<div class="rating-badge"><i class="fas fa-star me-1"></i>${rating}</div>`; card.innerHTML=`<div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}');"></div><div class="progressive-image-container"><img class="hq-poster progressive-loading" alt="${escapeHTML(title)}" loading="lazy"></div>${badges}<div class="movie-title-badge">${escapeHTML(title)}</div>`; frag.appendChild(card); if((idx+1)%5===0) frag.appendChild(createInlineAdCard()); }); container.appendChild(frag); }
-        async function loadMoviesInBatches() { try { if(currentBatch>0) document.getElementById('batchLoadingIndicator').classList.add('active'); let start=currentBatch*BATCH_SIZE, end=Math.min(start+BATCH_SIZE,TOTAL_MOVIES); for(let i=start;i<end;i++) { if(i<allMovies.length) { await loadSingleMovieProgressive(i,allMovies[i]); totalMoviesLoaded++; } } document.getElementById('batchLoadingIndicator').classList.remove('active'); currentBatch++; if(totalMoviesLoaded<TOTAL_MOVIES && currentBatch*BATCH_SIZE<allMovies.length) setTimeout(loadMoviesInBatches,800); } catch(e){ document.getElementById('batchLoadingIndicator').classList.remove('active'); } }
-        async function loadSingleMovieProgressive(idx,movie){ let cards=document.querySelectorAll('.movie-card'); if(idx>=cards.length) return; let img=cards[idx]?.querySelector('.progressive-loading'); if(!img) return; img.src=FALLBACK_IMAGE; img.style.filter='blur(15px)'; let url=movie.poster_url?.startsWith('http')?movie.poster_url:`${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title||'')}&year=${movie.year||''}`; let highImg=new Image(); let to=setTimeout(()=>{ img.src=FALLBACK_IMAGE; img.style.filter='blur(0px)'; img.style.opacity='1'; },5000); highImg.onload=()=>{ clearTimeout(to); img.src=url; setTimeout(()=>{ img.style.filter='blur(0px)'; img.style.opacity='1'; },100); }; highImg.onerror=()=>{ clearTimeout(to); img.src=FALLBACK_IMAGE; img.style.filter='blur(0px)'; img.style.opacity='1'; }; highImg.src=url; }
-        async function loadHomeMovies(){ try{ let resp=await fetch(`${BACKEND_URL}/api/movies`); let data=await resp.json(); if(data.status==='success' && data.movies?.length){ allMovies=data.movies.slice(0,TOTAL_MOVIES); displayHomeMovies(allMovies); setTimeout(loadMoviesInBatches,500); } else showError(); }catch(e){ showError(); } }
+        
+        function formatReleaseDate(movie) {
+            if(movie.release_date && movie.release_date !== 'N/A') return movie.release_date;
+            if(movie.year && movie.year !== 'N/A') return movie.year;
+            return 'Coming Soon';
+        }
+        
+        function displayHomeMovies(movies) { 
+            let container=document.getElementById('homeMoviesContainer'); 
+            container.innerHTML=''; 
+            let frag=document.createDocumentFragment(); 
+            movies.forEach((m)=>{ 
+                let title=m.title||'Unknown'; 
+                let isNew = (m.is_new === true || m.is_new === 1 || m.is_new === 'true');
+                let rating=m.poster_rating||'0.0';
+                let releaseInfo = formatReleaseDate(m);
+                
+                let card=document.createElement('div'); 
+                card.className='movie-card animate__animated animate__fadeInUp'; 
+                
+                let badges = '';
+                if(isNew) badges += '<div class="new-badge"><i class="fas fa-bolt me-1" style="font-size: 0.45rem;"></i>NEW</div>';
+                if(rating !== '0.0') badges += `<div class="rating-badge"><i class="fas fa-star me-1"></i>${rating}</div>`;
+                
+                card.innerHTML = `
+                    <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}');"></div>
+                    <div class="poster-wrapper">
+                        <img class="hq-poster progressive-loading" alt="${escapeHTML(title)}" loading="lazy">
+                        ${badges}
+                    </div>
+                    <div class="movie-info">
+                        <div class="movie-title">${escapeHTML(title)}</div>
+                        <div class="movie-date"><i class="far fa-calendar-alt me-1"></i>${escapeHTML(releaseInfo)}</div>
+                    </div>
+                `;
+                frag.appendChild(card);
+            }); 
+            container.appendChild(frag); 
+        }
+        
+        async function loadMoviesInBatches() { 
+            try { 
+                if(currentBatch>0) document.getElementById('batchLoadingIndicator').classList.add('active'); 
+                let start=currentBatch*BATCH_SIZE, end=Math.min(start+BATCH_SIZE,TOTAL_MOVIES); 
+                for(let i=start;i<end;i++) { 
+                    if(i<allMovies.length) { 
+                        await loadSingleMovieProgressive(i,allMovies[i]); 
+                        totalMoviesLoaded++; 
+                    } 
+                } 
+                document.getElementById('batchLoadingIndicator').classList.remove('active'); 
+                currentBatch++; 
+                if(totalMoviesLoaded<TOTAL_MOVIES && currentBatch*BATCH_SIZE<allMovies.length) setTimeout(loadMoviesInBatches,800); 
+            } catch(e){ document.getElementById('batchLoadingIndicator').classList.remove('active'); } 
+        }
+        
+        async function loadSingleMovieProgressive(idx,movie){ 
+            let cards=document.querySelectorAll('.movie-card'); 
+            if(idx>=cards.length) return; 
+            let img=cards[idx]?.querySelector('.hq-poster'); 
+            if(!img) return; 
+            img.src=FALLBACK_IMAGE; 
+            img.style.filter='blur(15px)'; 
+            let url=movie.poster_url?.startsWith('http')?movie.poster_url:`${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title||'')}&year=${movie.year||''}`; 
+            let highImg=new Image(); 
+            let to=setTimeout(()=>{ img.src=FALLBACK_IMAGE; img.style.filter='blur(0px)'; img.style.opacity='1'; },5000); 
+            highImg.onload=()=>{ clearTimeout(to); img.src=url; setTimeout(()=>{ img.style.filter='blur(0px)'; img.style.opacity='1'; },100); }; 
+            highImg.onerror=()=>{ clearTimeout(to); img.src=FALLBACK_IMAGE; img.style.filter='blur(0px)'; img.style.opacity='1'; }; 
+            highImg.src=url; 
+        }
+        
+        async function loadHomeMovies(){ 
+            try{ 
+                let resp=await fetch(`${BACKEND_URL}/api/movies`); 
+                let data=await resp.json(); 
+                if(data.status==='success' && data.movies?.length){ 
+                    allMovies=data.movies.slice(0,TOTAL_MOVIES); 
+                    displayHomeMovies(allMovies); 
+                    setTimeout(loadMoviesInBatches,500); 
+                } else showError(); 
+            }catch(e){ showError(); } 
+        }
+        
         function showError(){ document.getElementById('homeMoviesContainer').innerHTML=`<div style="text-align:center;padding:40px;"><i class="fas fa-exclamation-triangle fa-5x text-warning"></i><h3>Error loading movies</h3><button onclick="location.reload()" style="background:#28a745;color:white;border:none;padding:10px 20px;border-radius:15px;">Retry</button></div>`; }
+        
         function toggleSearch(){ let sc=document.getElementById('searchContainer'), md=document.getElementById('menuDropdown'), mb=document.getElementById('menuToggleBtn'); if(md?.classList.contains('active')){ md.classList.remove('active'); if(mb) mb.classList.remove('active'); } sc.classList.toggle('active'); document.body.classList.toggle('search-active',sc.classList.contains('active')); }
         function toggleMenu(){ let md=document.getElementById('menuDropdown'), mb=document.getElementById('menuToggleBtn'), sc=document.getElementById('searchContainer'); if(sc.classList.contains('active')){ sc.classList.remove('active'); document.body.classList.remove('search-active'); } md.classList.toggle('active'); if(mb) mb.classList.toggle('active'); }
         function doInlineSearch(){ let q=document.getElementById('inlineSearchInput').value.trim(); if(q.length>=2) window.location.href=`search.html?query=${encodeURIComponent(q)}`; else alert('Enter at least 2 characters'); }
@@ -582,15 +656,7 @@
         function escapeHTML(s){ if(!s) return ''; return s.replace(/[&<>]/g,function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
         function escapeJS(s){ if(!s) return ''; return s.replace(/[\\"']/g,'\\$&'); }
         
-        // NEW FUNCTION: Load More button triggers ad link directly
-        function handleLoadMoreClick() {
-            // Open the ad link in a new tab
-            window.open(AD_LINK, '_blank');
-            // Also show a subtle indication that more movies can be loaded (optional demo)
-            setTimeout(function() {
-                alert('Ad opened! More movies will be available soon.');
-            }, 500);
-        }
+        function handleLoadMoreClick() { window.open(AD_LINK, '_blank'); setTimeout(function() { alert('Ad opened! More movies will be available soon.'); }, 500); }
         
         function showBottomPopup(){ document.getElementById('bottomPopupModal').classList.add('active'); sessionStorage.setItem('popupShown','true'); }
         function copyShareLinkWithMessage(){ let url='https://tinyurl.com/y9ca8mcx', msg='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Get your favorite movies now: '+url; navigator.clipboard.writeText(msg).then(()=>alert('✅ Copied!\n'+msg)).catch(()=>alert('Copy: '+msg)); }
@@ -606,11 +672,7 @@
         window.copyShareLinkWithMessage = copyShareLinkWithMessage;
         window.shareWithMessage = shareWithMessage;
     </script>
-    <script type="text/javascript">
-    aclib.runAutoTag({
-        zoneId: 'rlhgca3lke',
-    });
-    </script>
+    <script type="text/javascript"> aclib.runAutoTag({ zoneId: 'rlhgca3lke' }); </script>
     <script src="https://marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js"></script>
 </body>
 </html>
