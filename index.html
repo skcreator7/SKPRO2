@@ -14,7 +14,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
+    
     <style>
         :root {
             --primary: #ff0000;
@@ -246,18 +246,23 @@
             }
         }
         
-        .container { padding-left: 8px; padding-right: 8px; max-width: 100%; }
-        @media (min-width: 768px) { .container { padding-left: 12px; padding-right: 12px; } }
-        @media (min-width: 992px) { .container { padding-left: 15px; padding-right: 15px; } }
+        .container { padding-left: 0px; padding-right: 0px; max-width: 100%; }
+        @media (min-width: 768px) { .container { padding-left: 0px; padding-right: 0px; } }
+        @media (min-width: 992px) { .container { padding-left: 0px; padding-right: 0px; } }
         
         .section-box {
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(5px);
             border-radius: 12px;
-            padding: 20px 12px;
+            padding: 20px 0px;
             margin-bottom: 25px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .section-box h2 {
+            padding-left: 12px;
+            padding-right: 12px;
         }
         
         .progressive-loading {
@@ -272,7 +277,7 @@
         @keyframes skeleton-loading { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .skeleton-poster { width: 100%; height: 100%; border-radius: 10px; }
         
-        /* Zero gap grid - mobile 3 cols, desktop 6 cols */
+        /* ZERO GAP GRID */
         #homeMoviesContainer {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -290,19 +295,23 @@
         
         .movie-card {
             background: #000000;
-            border: 2px solid rgba(0, 204, 255, 0.15);
+            border: 1px solid rgba(0, 204, 255, 0.2);
             border-radius: 0px;
             overflow: hidden;
-            transition: all 0.4s ease;
+            transition: all 0.3s ease;
             height: 100%;
             cursor: pointer;
             position: relative;
             display: flex;
             flex-direction: column;
         }
-        .movie-card:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
-        .movie-card:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
-        .movie-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 25px 50px rgba(0, 204, 255, 0.5); border-color: var(--accent); z-index: 10; border-radius: 12px; }
+        .movie-card:hover { 
+            transform: translateY(-5px) scale(1.02); 
+            box-shadow: 0 20px 40px rgba(0, 204, 255, 0.4); 
+            border-color: var(--accent); 
+            z-index: 10; 
+            border-radius: 8px;
+        }
         .click-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10; cursor: pointer; }
         .poster-wrapper {
             position: relative;
@@ -314,7 +323,7 @@
         .hq-poster { width: 100%; height: 100%; object-fit: cover; object-position: center; background: #000; transition: all 0.5s ease; display: block; }
         .movie-card:hover .hq-poster { transform: scale(1.05); filter: brightness(1.1); }
         
-        /* SMALLER RED NEW BADGE - compact size */
+        /* SMALL RED NEW BADGE */
         .new-badge {
             position: absolute; 
             top: 6px; 
@@ -353,10 +362,10 @@
             backdrop-filter: blur(2px);
         }
         
-        /* MOVIE INFO BELOW POSTER - title + date */
+        /* MOVIE INFO BELOW POSTER */
         .movie-info {
-            background: rgba(0, 0, 0, 0.85);
-            padding: 6px 6px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 6px 5px;
             text-align: center;
             border-top: 1px solid rgba(0, 204, 255, 0.3);
             flex-shrink: 0;
@@ -381,16 +390,7 @@
             text-overflow: ellipsis;
         }
         
-        .skeleton-movie-card { background: #000; border: 2px solid rgba(255,255,255,0.05); border-radius: 0px; aspect-ratio: 2/3; }
-        .visitor-container { position: fixed; bottom: 15px; right: 15px; z-index: 1000; }
-        .visitor-logo {
-            width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;
-            border: 2px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-        .visitor-count { background: rgba(0, 102, 255, 0.9); color: white; padding: 6px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; text-align: center; }
-        .loading-spinner { width: 3rem; height: 3rem; border: 5px solid rgba(255,255,255,0.3); border-top: 5px solid #28a745; border-radius: 50%; animation: spin 1.2s linear infinite; margin: 0 auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .skeleton-movie-card { background: #000; border: 1px solid rgba(255,255,255,0.05); border-radius: 0px; aspect-ratio: 2/3; }
         
         .ad-container { display: flex; justify-content: center; align-items: center; margin: 10px auto; overflow: hidden; z-index: 1; }
         #adTopDesktop { height: 90px; width: 728px; }
@@ -425,6 +425,7 @@
             border: 1px solid rgba(0,204,255,0.4);
         }
         
+        /* BOTTOM POPUP MODAL - ORIGINAL STYLE - ALWAYS VISIBLE, NO CLOSE BUTTON */
         .bottom-popup-modal {
             position: fixed;
             bottom: 0;
@@ -435,11 +436,10 @@
             border-top: 2px solid var(--accent);
             box-shadow: 0 -5px 30px rgba(0, 204, 255, 0.3);
             z-index: 1100;
-            transform: translateY(100%);
-            transition: transform 0.35s ease-out;
             padding: 12px 16px;
+            display: block !important;
+            transform: none !important;
         }
-        .bottom-popup-modal.active { transform: translateY(0); }
         
         .popup-inner {
             display: flex;
@@ -472,15 +472,50 @@
             text-decoration: none;
             min-width: 70px;
         }
-        .popup-icon-btn:nth-child(1) i { color: #0088cc; }
-        .popup-icon-btn:nth-child(2) i { color: #f39c12; }
-        .popup-icon-btn:nth-child(3) i { color: #2ecc71; }
-        .popup-icon-btn:nth-child(4) i { color: #e74c3c; }
-        .popup-icon-btn i { font-size: 1.8rem; transition: all 0.25s ease; }
-        .popup-icon-btn span { font-size: 0.7rem; font-weight: 500; color: #ffffff; opacity: 0.9; text-transform: uppercase; }
-        .popup-icon-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-4px); }
-        .popup-icon-btn:hover i { transform: scale(1.1); }
-        .popup-icon-btn:hover span { opacity: 1; color: var(--accent); }
+        .popup-icon-btn:nth-child(1) i { color: #0088cc; text-shadow: 0 0 5px #0088cc; }
+        .popup-icon-btn:nth-child(2) i { color: #f39c12; text-shadow: 0 0 5px #f39c12; }
+        .popup-icon-btn:nth-child(3) i { color: #2ecc71; text-shadow: 0 0 5px #2ecc71; }
+        .popup-icon-btn:nth-child(4) i { color: #e74c3c; text-shadow: 0 0 5px #e74c3c; }
+        
+        .popup-icon-btn i {
+            font-size: 1.8rem;
+            transition: all 0.25s ease;
+        }
+        .popup-icon-btn span {
+            font-size: 0.7rem;
+            letter-spacing: 0.3px;
+            font-weight: 500;
+            color: #ffffff;
+            opacity: 0.9;
+            text-transform: uppercase;
+            font-family: 'Josefin Sans', sans-serif;
+        }
+        .popup-icon-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-4px);
+        }
+        .popup-icon-btn:hover i {
+            transform: scale(1.1);
+        }
+        .popup-icon-btn:hover span {
+            opacity: 1;
+            color: var(--accent);
+        }
+        
+        @media (max-width: 640px) {
+            .bottom-popup-modal { padding: 10px 12px; }
+            .popup-icon-btn { padding: 6px 12px; min-width: 60px; }
+            .popup-icon-btn i { font-size: 1.4rem; }
+            .popup-icon-btn span { font-size: 0.6rem; }
+            .popup-buttons { gap: 12px; }
+        }
+        
+        @media (max-width: 480px) {
+            .popup-icon-btn { padding: 5px 10px; min-width: 55px; }
+            .popup-icon-btn i { font-size: 1.2rem; }
+            .popup-icon-btn span { font-size: 0.55rem; }
+            .popup-buttons { gap: 8px; }
+        }
         
         .batch-loading-indicator { text-align: center; padding: 20px; margin: 20px 0; background: rgba(0,204,255,0.1); border-radius: 10px; display: none; }
         .batch-loading-indicator.active { display: block; animation: fadeIn 0.5s ease; }
@@ -494,6 +529,9 @@
             border: 2px solid var(--accent); display: inline-flex; align-items: center; gap: 10px;
         }
         .load-more-btn:hover { transform: scale(1.05); box-shadow: 0 12px 35px rgba(255, 0, 0, 0.8); }
+        
+        .text-center { text-align: center; }
+        .px-2 { padding-left: 8px; padding-right: 8px; }
     </style>
 </head>
 <body>
@@ -506,11 +544,15 @@
     <div class="search-container" id="searchContainer"><div class="search-wrapper"><input type="text" class="inline-search-input" id="inlineSearchInput" placeholder="Search movies..." onkeypress="if(event.key==='Enter') doInlineSearch()"><button class="inline-search-btn" onclick="doInlineSearch()"><i class="fas fa-arrow-right"></i></button></div></div>
     
     <div class="container">
-        <div class="ad-container"><div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div><div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div></div>
+        <div class="ad-container px-2"><div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div><div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div></div>
         
-        <div class="section-box animate__animated animate__fadeIn"><div style="margin-bottom:20px;"><h2 style="color:var(--accent);font-size:2rem;"><i class="fas fa-film me-3" style="color:var(--primary);"></i>Latest Movies</h2></div><div class="batch-loading-indicator" id="batchLoadingIndicator"><div class="loading-spinner"></div><p>Loading next batch...</p></div><div id="homeMoviesContainer"></div></div>
+        <div class="section-box animate__animated animate__fadeIn">
+            <div style="margin-bottom:20px; padding-left: 12px;"><h2 style="color:var(--accent);font-size:2rem;"><i class="fas fa-film me-3" style="color:var(--primary);"></i>Latest Movies</h2></div>
+            <div class="batch-loading-indicator" id="batchLoadingIndicator"><div class="loading-spinner"></div><p>Loading next batch...</p></div>
+            <div id="homeMoviesContainer"></div>
+        </div>
         
-        <div style="text-align:center;margin:30px 0 20px;">
+        <div class="text-center" style="margin:30px 0 20px;">
             <button id="loadMoreBtn" class="load-more-btn" onclick="handleLoadMoreClick()">
                 <i class="fas fa-arrow-down me-2"></i>Load More Movies
             </button>
@@ -523,7 +565,7 @@
         
         <div class="section-box">
             <h2 style="color:var(--accent);text-align:center; margin-top: 0;"><i class="fas fa-play-circle me-2"></i>Tutorial Videos</h2>
-            <div class="row gy-4 mt-2">
+            <div class="row gy-4 mt-2 px-2">
                 <div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">How to Search</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/PSQ9_KLzm8s" allowfullscreen></iframe></div></div></div>
                 <div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">StreamNet Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/fVL7DfhnwWM" allowfullscreen></iframe></div></div></div>
                 <div class="col-md-4"><div style="background:rgba(30,41,59,0.7);padding:15px;border-radius:8px;"><h5 style="color:var(--accent);">DiskWala Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/ZNKeL-pcIDw" allowfullscreen></iframe></div></div></div>
@@ -536,23 +578,37 @@
         </div>
         
         <div class="video-slider-section">
+            <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
             <script type="text/javascript"> aclib.runVideoSlider({ zoneId: '11421322' }); </script>
         </div>
         
-        <div style="background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.3);border-radius:8px;padding:12px;margin-top:25px;text-align:center;"><p><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p></div>
+        <div style="background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.3);border-radius:8px;padding:12px;margin-top:25px;text-align:center;" class="px-2"><p><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p></div>
     </div>
     
     <footer class="mt-5 pb-4"><div class="ad-container"><div id="adFooterDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div></div></footer>
     
-    <div class="visitor-container"><div class="visitor-logo"><i class="fas fa-users" style="color:white;font-size:1.5rem;"></i></div><div class="visitor-count"><span id="visitorCount">1247</span></div></div>
-    
+    <!-- BOTTOM POPUP MODAL - ORIGINAL STYLE - ALWAYS VISIBLE, NO CLOSE BUTTON -->
     <div id="bottomPopupModal" class="bottom-popup-modal">
-        <div class="popup-inner"><div class="popup-buttons">
-            <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM', '_blank')"><i class="fab fa-telegram-plane"></i><span>Backup</span></button>
-            <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk', '_blank')"><i class="fas fa-download"></i><span>App</span></button>
-            <button class="popup-icon-btn" onclick="copyShareLinkWithMessage()"><i class="fas fa-copy"></i><span>Copy URL</span></button>
-            <button class="popup-icon-btn" onclick="shareWithMessage()"><i class="fas fa-share-alt"></i><span>Share</span></button>
-        </div></div>
+        <div class="popup-inner">
+            <div class="popup-buttons">
+                <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM', '_blank')">
+                    <i class="fab fa-telegram-plane"></i>
+                    <span>Backup</span>
+                </button>
+                <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk', '_blank')">
+                    <i class="fas fa-download"></i>
+                    <span>App</span>
+                </button>
+                <button class="popup-icon-btn" onclick="copyShareLinkWithMessage()">
+                    <i class="fas fa-copy"></i>
+                    <span>Copy URL</span>
+                </button>
+                <button class="popup-icon-btn" onclick="shareWithMessage()">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Share</span>
+                </button>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -658,11 +714,27 @@
         
         function handleLoadMoreClick() { window.open(AD_LINK, '_blank'); setTimeout(function() { alert('Ad opened! More movies will be available soon.'); }, 500); }
         
-        function showBottomPopup(){ document.getElementById('bottomPopupModal').classList.add('active'); sessionStorage.setItem('popupShown','true'); }
         function copyShareLinkWithMessage(){ let url='https://tinyurl.com/y9ca8mcx', msg='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Get your favorite movies now: '+url; navigator.clipboard.writeText(msg).then(()=>alert('✅ Copied!\n'+msg)).catch(()=>alert('Copy: '+msg)); }
         function shareWithMessage(){ let url='https://tinyurl.com/y9ca8mcx', text='🔥 Download Latest HD Movies at SK4FiLM! 🎬 Watch now:'; if(navigator.share) navigator.share({title:'SK4FiLM',text:text,url:url}); else { let msg=text+' '+url; navigator.clipboard.writeText(msg).then(()=>alert('✅ Share message copied!')); } }
         
-        document.addEventListener('DOMContentLoaded',function(){ generateSkeletonGrid(); setTimeout(loadHomeMovies,800); setInterval(()=>{ let c=document.getElementById('visitorCount'); if(c) c.innerText=parseInt(c.innerText)+Math.floor(Math.random()*3)+1; },35000); setTimeout(()=>{ if(!sessionStorage.getItem('popupShown')) showBottomPopup(); },2500); document.addEventListener('click',function(e){ if(!document.getElementById('searchContainer').contains(e.target) && !document.querySelector('.search-icon-btn').contains(e.target)){ document.getElementById('searchContainer').classList.remove('active'); document.body.classList.remove('search-active'); } if(!document.getElementById('menuDropdown').contains(e.target) && !document.querySelector('.menu-button').contains(e.target)){ document.getElementById('menuDropdown').classList.remove('active'); document.querySelector('.menu-button')?.classList.remove('active'); } }); });
+        document.addEventListener('DOMContentLoaded',function(){ 
+            generateSkeletonGrid(); 
+            setTimeout(loadHomeMovies,800); 
+            document.addEventListener('click',function(e){ 
+                let searchContainer = document.getElementById('searchContainer');
+                let searchBtn = document.querySelector('.search-icon-btn');
+                let menuDropdown = document.getElementById('menuDropdown');
+                let menuBtn = document.querySelector('.menu-button');
+                if(searchContainer && !searchContainer.contains(e.target) && searchBtn && !searchBtn.contains(e.target)){ 
+                    searchContainer.classList.remove('active'); 
+                    document.body.classList.remove('search-active'); 
+                } 
+                if(menuDropdown && !menuDropdown.contains(e.target) && menuBtn && !menuBtn.contains(e.target)){ 
+                    menuDropdown.classList.remove('active'); 
+                    if(menuBtn) menuBtn.classList.remove('active'); 
+                } 
+            }); 
+        });
         
         window.handleLoadMoreClick = handleLoadMoreClick;
         window.toggleSearch = toggleSearch;
@@ -672,7 +744,6 @@
         window.copyShareLinkWithMessage = copyShareLinkWithMessage;
         window.shareWithMessage = shareWithMessage;
     </script>
-    <script type="text/javascript"> aclib.runAutoTag({ zoneId: 'rlhgca3lke' }); </script>
     <script src="https://marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js"></script>
 </body>
 </html>
