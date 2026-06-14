@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+
+<defs>
+
+<radialGradient id="reelGrad">
+<stop offset="20%" stop-color="#999"/>
+<stop offset="45%" stop-color="#555"/>
+<stop offset="75%" stop-color="#222"/>
+<stop offset="100%" stop-color="#111"/>
+</radialGradient>
+
+<!-- Gradient for Outer Loader Ring -->
+<linearGradient id="loaderGradOuter" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" stop-color="#ff4444"/>
+<stop offset="16%" stop-color="#ffdd44"/>
+<stop offset="33%" stop-color="#55ff55"/>
+<stop offset="50%" stop-color="#00e5ff"/>
+<stop offset="66%" stop-color="#6699ff"/>
+<stop offset="83%" stop-color="#ff66ff"/>
+<stop offset="100%" stop-color="#ff4444"/>
+</linearGradient>
+
+<!-- Gradient for Inner Loader Ring -->
+<linearGradient id="loaderGradInner" x1="100%" y1="100%" x2="0%" y2="0%">
+<stop offset="0%" stop-color="#ff8800"/>
+<stop offset="25%" stop-color="#ff0088"/>
+<stop offset="50%" stop-color="#8800ff"/>
+<stop offset="75%" stop-color="#00ff88"/>
+<stop offset="100%" stop-color="#ff8800"/>
+</linearGradient>
+
+<filter id="glow">
+<feGaussianBlur stdDeviation="4" result="blur"/>
+<feMerge>
+<feMergeNode in="blur"/>
+<feMergeNode in="SourceGraphic"/>
+</feMerge>
+</filter>
+
+</defs>
+
+<!-- Outer Gradient Loader Ring -->
+<circle
+cx="400"
+cy="250"
+r="155"
+fill="none"
+stroke="url(#loaderGradOuter)"
+stroke-width="6"
+stroke-linecap="round"
+stroke-dasharray="220 780"
+filter="url(#glow)">
+<animateTransform
+attributeName="transform"
+type="rotate"
+from="0 400 250"
+to="360 400 250"
+dur="1.5s"
+repeatCount="indefinite"/>
+</circle>
+
+<!-- Inner Gradient Loader Ring -->
+<circle
+cx="400"
+cy="250"
+r="120"
+fill="none"
+stroke="url(#loaderGradInner)"
+stroke-width="6"
+stroke-linecap="round"
+stroke-dasharray="160 600"
+filter="url(#glow)">
+<animateTransform
+attributeName="transform"
+type="rotate"
+from="360 400 250"
+to="0 400 250"
+dur="1.2s"
+repeatCount="indefinite"/>
+</circle>
+
+<!-- Reel -->
+<g>
+<animateTransform attributeName="transform" type="rotate" from="0 400 250" to="360 400 250" dur="4s" repeatCount="indefinite"/>
+<circle cx="400" cy="250" r="75" fill="url(#reelGrad)" stroke="#ccc" stroke-width="4"/>
+<circle cx="400" cy="205" r="12" fill="#111"/>
+<circle cx="442" cy="236" r="12" fill="#111"/>
+<circle cx="425" cy="285" r="12" fill="#111"/>
+<circle cx="375" cy="285" r="12" fill="#111"/>
+<circle cx="358" cy="236" r="12" fill="#111"/>
+<circle cx="400" cy="250" r="15" fill="#111" stroke="#aaa" stroke-width="3"/>
+</g>
+
+<!-- LOGO -->
+<g font-family="Arial Black, sans-serif" font-size="62" font-weight="900" text-anchor="middle" filter="url(#glow)">
+
+<!-- S -->
+<g transform-origin="280 260">
+<text x="280" y="260" fill="#ff4444">S
+<animateTransform attributeName="transform" type="scale" values="0;4;1;1" keyTimes="0;0.03;0.08;1" dur="4s" repeatCount="indefinite" additive="sum"/>
+<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.75;1" dur="4s" repeatCount="indefinite"/>
+</text>
+</g>
+
+<!-- K -->
+<g transform-origin="330 260">
+<text x="330" y="260" fill="#00e5ff">K
+<animateTransform attributeName="transform" type="scale" values="0;0;4;1;1" keyTimes="0;0.08;0.11;0.16;1" dur="4s" repeatCount="indefinite" additive="sum"/>
+<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.08;0.16;0.75;1" dur="4s" repeatCount="indefinite"/>
+</text>
+</g>
+
+<!-- 4 -->
+<g transform-origin="380 260">
+<text x="380" y="260" fill="#55ff55">4
+<animateTransform attributeName="transform" type="scale" values="0;0;0;4;1;1" keyTimes="0;0.16;0.19;0.22;0.27;1" dur="4s" repeatCount="indefinite" additive="sum"/>
+<animate attributeName="opacity" values="0;0;0;1;1;0" keyTimes="0;0.16;0.22;0.27;0.75;1" dur="4s" repeatCount="indefinite"/>
+</text>
+</g>
+
+<!-- F -->
+<g transform-origin="430 260">
+<text x="430" y="260" fill="#ffdd44">F
+<animateTransform attributeName="transform" type="scale" values="0;0;0;0;4;1;1" keyTimes="0;0.24;0.27;0.30;0.35;0.40;1" dur="4s" repeatCount="indefinite" additive="sum"/>
+<animate attributeName="opacity" values="0;0;0;0;1;1;0" keyTimes="0;0.24;0.30;0.35;0.75;1" dur="4s" repeatCount="indefinite"/>
+</text>
+</g>
+
+<!-- i -->
+<g transform-origin="465 260">
+<text x="465" y="260" fill="#ff66ff">i
+<animateTransform attributeName="transform" type="scale" values="0;0;0;0;0;4;1;1" keyTimes="0;0.32;0.35;0.38;0.43;0.48;0.53;1" dur="4s" repeatCount="indefinite" additive="sum"/>
+<animate attributeName="opacity" values="0;0;0;0;0;1;1;0" keyTimes="0;0.32;0.38;0.43;0.75;1" dur="4s" repeatCount="indefinite"/>
+</text>
+</g>
+
+<!-- L -->
+<g transform-origin="500 260">
+<text x="500" y="260" fill="#ffffff">L
+<animateTransform attributeName="transform" type="scale" values="0;0;0;0;0;0;4;1;1" keyTimes="0;0.40;0.43;0.46;0.51;0.56;0.61;0.66;1" dur="4s" repeatCount="indefinite" additive="sum"/>
+<animate attributeName="opacity" values="0;0;0;0;0;0;1;1;0" keyTimes="0;0.40;0.46;0.51;0.75;1" dur="4s" repeatCount="indefinite"/>
+</text>
+</g>
+
+<!-- M -->
+<g transform-origin="555 260">
+<text x="555" y="260" fill="#6699ff">M
+<animateTransform attributeName="transform" type="scale" values="0;0;0;0;0;0;0;4;1;1" keyTimes="0;0.48;0.51;0.54;0.59;0.64;0.69;0.74;0.79;1" dur="4s" repeatCount="indefinite" additive="sum"/>
+<animate attributeName="opacity" values="0;0;0;0;0;0;0;1;1;0" keyTimes="0;0.48;0.54;0.59;0.75;1" dur="4s" repeatCount="indefinite"/>
+</text>
+</g>
+
+</g>
+
+</svg>
