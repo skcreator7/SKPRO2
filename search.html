@@ -438,16 +438,31 @@
 </div>
 
 <script>
-// ========== SMARTLINK TRIGGER - ONLY ONCE ==========
-let smartlinkTriggered = false;
+// ========== SMARTLINK TRIGGER - SEPARATE FLAGS FOR DIFFERENT ACTIONS ==========
+let downloadSmartlinkTriggered = false;
+let joinSmartlinkTriggered = false;
+let posterSmartlinkTriggered = false;
 
-function triggerSmartlink() { 
-    if(smartlinkTriggered) {
-        console.log('Smartlink already triggered, skipping...');
-        return;
+function triggerSmartlink(type) {
+    if(type === 'download') {
+        if(downloadSmartlinkTriggered) {
+            console.log('Download smartlink already triggered, skipping...');
+            return;
+        }
+        downloadSmartlinkTriggered = true;
+        console.log('Download smartlink triggered (once per session)');
+    } else if(type === 'join') {
+        // Join buttons trigger every time - no flag check
+        console.log('Join smartlink triggered');
+    } else if(type === 'poster') {
+        if(posterSmartlinkTriggered) {
+            console.log('Poster smartlink already triggered, skipping...');
+            return;
+        }
+        posterSmartlinkTriggered = true;
+        console.log('Poster smartlink triggered (once per session)');
     }
-    smartlinkTriggered = true;
-    console.log('Smartlink triggered once');
+    
     try { 
         const a = document.createElement('a'); 
         a.href = SMARTLINK; 
@@ -459,8 +474,10 @@ function triggerSmartlink() {
     } catch(e){} 
 }
 
-function resetSmartlinkTrigger() {
-    smartlinkTriggered = false;
+function resetSmartlinkTriggers() {
+    downloadSmartlinkTriggered = false;
+    posterSmartlinkTriggered = false;
+    console.log('Smartlink triggers reset for new search');
 }
 
 function showLoader() {
@@ -511,8 +528,6 @@ function openStream(url, title) {
     iframe.src = embedUrl;
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
-    
-    triggerSmartlink();
 }
 
 function closeStream() {
@@ -634,19 +649,14 @@ function extractEpisodeLinks(content) {
     return uniqueEpisodes;
 }
 
-// Quality detection that handles all formats
 function extractQualityLinks(content) {
     if(!content || content.trim() === '') return [];
-    
-    console.log('=== PARSING FOR QUALITIES ===');
     
     const qualities = [];
     const usedUrls = new Set();
     
     const urlRegex = /https?:\/\/[^\s<>\n\[\]()"']+/gi;
     const allUrls = content.match(urlRegex) || [];
-    
-    console.log('Found URLs:', allUrls);
     
     const lines = content.split(/\r?\n/);
     
@@ -681,7 +691,6 @@ function extractQualityLinks(content) {
         }
     ];
     
-    // Process each line to find quality label and its URL
     for(let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
@@ -689,7 +698,6 @@ function extractQualityLinks(content) {
         
         for(let qm of qualityMap) {
             let matched = false;
-            
             for(let pattern of qm.patterns) {
                 if(pattern.test(combinedLine)) {
                     matched = true;
@@ -720,31 +728,26 @@ function extractQualityLinks(content) {
                 if(urlFound) {
                     usedUrls.add(urlFound);
                     qualities.push({ label: qm.label, url: urlFound });
-                    console.log(`✓ Found ${qm.label}: ${urlFound}`);
                     break;
                 }
             }
         }
     }
     
-    // If still no qualities found, try direct URL matching
     if(qualities.length === 0) {
         for(let url of allUrls) {
             const urlLower = url.toLowerCase();
-            
             if(urlLower.includes('t.me') || urlLower.includes('telegram') || 
                urlLower.includes('whatsapp') || urlLower.includes('broadcaster24') ||
                urlLower.includes('youtube')) {
                 continue;
             }
-            
             for(let qm of qualityMap) {
                 for(let pattern of qm.patterns) {
                     if(pattern.test(urlLower)) {
                         if(!usedUrls.has(url)) {
                             usedUrls.add(url);
                             qualities.push({ label: qm.label, url: url });
-                            console.log(`✓ Found ${qm.label} in URL: ${url}`);
                         }
                         break;
                     }
@@ -753,7 +756,6 @@ function extractQualityLinks(content) {
         }
     }
     
-    // Remove duplicates by label
     const uniqueQualities = [];
     const seenLabels = new Set();
     for(let q of qualities) {
@@ -763,22 +765,16 @@ function extractQualityLinks(content) {
         }
     }
     
-    // Sort in correct order
     const order = { "480p": 1, "720p HEVC": 2, "720p": 3, "1080p": 4 };
     uniqueQualities.sort((a,b) => (order[a.label] || 99) - (order[b.label] || 99));
-    
-    console.log('Final qualities found:', uniqueQualities.length);
-    console.log('===============================');
     
     return uniqueQualities;
 }
 
 function extractWatchContent(content) {
     if(!content || content.trim() === '') return { episodes: [], qualities: [] };
-    
     const episodes = extractEpisodeLinks(content);
     const qualities = extractQualityLinks(content);
-    
     return { episodes: episodes, qualities: qualities };
 }
 
@@ -808,8 +804,9 @@ function hasTelegramLink(content) { return content && content.toLowerCase().incl
 function hasBackupLink(content) { return content && content.toLowerCase().includes('broadcaster24.com/join'); }
 function hasHowToLink(content) { return content && content.toLowerCase().includes('youtu.be/fvl7dfhnwwm'); }
 
+// ========== HANDLE DOWNLOAD - WITH SMARTLINK (ONCE PER SESSION) ==========
 function handleDownload(startParam) {
-    triggerSmartlink();
+    triggerSmartlink('download');
     let link = `https://t.me/${BOT_USERNAME}?start=${startParam}`;
     if(hasUserSeenRedirect) { window.open(link, '_blank'); return; }
     localStorage.setItem(REDIRECT_KEY, 'true');
@@ -817,15 +814,39 @@ function handleDownload(startParam) {
     window.open(link, '_blank');
 }
 
+// ========== HANDLE WATCH ONLINE - NO SMARTLINK ==========
 function handleWatchOnline(url, title) {
     if(url) {
         openStream(url, title);
     }
 }
 
-function joinTelegram() { triggerSmartlink(); window.open('https://t.me/sk4film', '_blank'); }
-function joinBackup() { triggerSmartlink(); window.open('https://broadcaster24.com/join/CCM33FHM', '_blank'); }
-function howToWatch() { window.open('https://youtu.be/fVL7DfhnwWM', '_blank'); }
+// ========== JOIN BUTTONS - WITH SMARTLINK (EVERY TIME) ==========
+function joinTelegram() { 
+    triggerSmartlink('join'); 
+    window.open('https://t.me/sk4film', '_blank'); 
+}
+
+function joinBackup() { 
+    triggerSmartlink('join'); 
+    window.open('https://broadcaster24.com/join/CCM33FHM', '_blank'); 
+}
+
+// ========== HOW TO WATCH - WITH SMARTLINK (EVERY TIME) ==========
+function howToWatch() { 
+    triggerSmartlink('join'); 
+    window.open('https://youtu.be/fVL7DfhnwWM', '_blank'); 
+}
+
+// ========== DISKWALA LINK - NO SMARTLINK ==========
+function openDiskwalaLink(url) {
+    window.open(url, '_blank');
+}
+
+// ========== POSTER CLICK - WITH SMARTLINK (ONCE PER SESSION) ==========
+function onPosterClick() {
+    triggerSmartlink('poster');
+}
 
 let currentOpenDropdown = null;
 function toggleDropdown(dropdownId, event) {
@@ -872,20 +893,20 @@ function renderResultCard(result, idx) {
     let diskDropdownId = `disk-dd-${idx}`;
     
     let html = `<div class="result-card" data-idx="${idx}">`;
-    html += `<div class="poster-container" onclick="triggerSmartlink()">
+    html += `<div class="poster-container" onclick="onPosterClick()">
                 <img class="poster-img" src="${thumb}" alt="${escapeHtml(cleanMovieTitle)}" onerror="this.src='${FALLBACK_THUMB}'">
                 <div class="play-overlay">
                     <div class="play-button-center"><i class="fas fa-play"></i></div>
                 </div>
              </div>`;
-    html += `<h3 class="result-title">🎬 ${escapeHtml(cleanMovieTitle)}</h3>`;
+    html += `<h3 class="result-title">🎞️ ${escapeHtml(cleanMovieTitle)}</h3>`;
     
     html += `<div class="buttons-container">`;
     
     if(hasDownload) {
         html += `<div class="button-item">
                     <button class="btn-main btn-download" onclick="toggleDropdown('${downloadDropdownId}', event)">
-                        <i class="fas fa-download"></i> 📥 Download Now
+                        <i class="fas fa-download"></i> Download Now
                     </button>
                     <div id="${downloadDropdownId}" class="dropdown-container" style="display:none;">
                         <div class="quality-grid">`;
@@ -899,7 +920,7 @@ function renderResultCard(result, idx) {
     if(hasWatch) {
         html += `<div class="button-item">
                     <button class="btn-main btn-watch" onclick="toggleDropdown('${watchDropdownId}', event)">
-                        <i class="fas fa-play-circle"></i> ▶️ Watch Online
+                        <i class="fas fa-play-circle"></i> Watch Online
                     </button>
                     <div id="${watchDropdownId}" class="dropdown-container" style="display:none;">`;
         
@@ -937,12 +958,12 @@ function renderResultCard(result, idx) {
     if(hasDisk) {
         html += `<div class="button-item">
                     <button class="btn-main btn-disk" onclick="toggleDropdown('${diskDropdownId}', event)">
-                        <i class="fas fa-hdd"></i> 💿 Diskwala Link
+                        <i class="fas fa-hdd"></i> Diskwala Link
                     </button>
                     <div id="${diskDropdownId}" class="dropdown-container" style="display:none;">
                         <div class="quality-grid">`;
         for(let d of diskQualities) {
-            html += `<div class="quality-item" data-quality="${d.label}" onclick="window.open('${escapeHtml(d.url)}', '_blank')">${d.label}</div>`;
+            html += `<div class="quality-item" data-quality="${d.label}" onclick="openDiskwalaLink('${escapeHtml(d.url)}')">${d.label}</div>`;
         }
         html += `</div></div></div>`;
     }
@@ -972,8 +993,7 @@ function escapeHtml(str) {
 }
 
 async function performSearch(page=1) {
-    // Reset smartlink trigger on new search
-    resetSmartlinkTrigger();
+    resetSmartlinkTriggers();
     
     let query = getSearchQuery();
     if(!query) {
@@ -1083,9 +1103,11 @@ window.toggleDropdown = toggleDropdown;
 window.joinTelegram = joinTelegram;
 window.joinBackup = joinBackup;
 window.howToWatch = howToWatch;
+window.openDiskwalaLink = openDiskwalaLink;
+window.onPosterClick = onPosterClick;
 window.changePage = changePage;
 window.triggerSmartlink = triggerSmartlink;
-window.resetSmartlinkTrigger = resetSmartlinkTrigger;
+window.resetSmartlinkTriggers = resetSmartlinkTriggers;
 window.openStream = openStream;
 window.closeStream = closeStream;
 </script>
