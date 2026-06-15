@@ -438,6 +438,31 @@
 </div>
 
 <script>
+// ========== SMARTLINK TRIGGER - ONLY ONCE ==========
+let smartlinkTriggered = false;
+
+function triggerSmartlink() { 
+    if(smartlinkTriggered) {
+        console.log('Smartlink already triggered, skipping...');
+        return;
+    }
+    smartlinkTriggered = true;
+    console.log('Smartlink triggered once');
+    try { 
+        const a = document.createElement('a'); 
+        a.href = SMARTLINK; 
+        a.target='_blank'; 
+        a.style.display='none'; 
+        document.body.appendChild(a); 
+        a.click(); 
+        document.body.removeChild(a); 
+    } catch(e){} 
+}
+
+function resetSmartlinkTrigger() {
+    smartlinkTriggered = false;
+}
+
 function showLoader() {
     const ld = document.getElementById('svgLoader');
     if(ld) {
@@ -459,7 +484,6 @@ function openStream(url, title) {
     
     titleEl.textContent = title || 'Now Playing';
     
-    // Handle streaam.net links specially (they work directly)
     let embedUrl = url;
     
     if(url.includes('youtube.com/watch') || url.includes('youtu.be')) {
@@ -518,9 +542,6 @@ let hasUserSeenRedirect = localStorage.getItem(REDIRECT_KEY) === 'true';
 let currentQuery = '', currentPage = 1;
 let searchCache = new Map();
 
-function triggerSmartlink() { 
-    try { const a = document.createElement('a'); a.href = SMARTLINK; a.target='_blank'; a.style.display='none'; document.body.appendChild(a); a.click(); document.body.removeChild(a); } catch(e){} 
-}
 function getSearchQuery() { return document.getElementById('searchInput')?.value.trim().replace(/\s+/g,' ') || ''; }
 function cleanTitle(title) {
     if(!title) return '';
@@ -613,96 +634,126 @@ function extractEpisodeLinks(content) {
     return uniqueEpisodes;
 }
 
-// FIXED: Quality detection that handles Unicode and special characters
+// Quality detection that handles all formats
 function extractQualityLinks(content) {
     if(!content || content.trim() === '') return [];
     
-    console.log('=== PARSING CONTENT FOR QUALITIES ===');
-    console.log('Content:', content);
+    console.log('=== PARSING FOR QUALITIES ===');
     
     const qualities = [];
     const usedUrls = new Set();
     
-    // Better regex to find URLs including those with $ and special chars
     const urlRegex = /https?:\/\/[^\s<>\n\[\]()"']+/gi;
     const allUrls = content.match(urlRegex) || [];
     
     console.log('Found URLs:', allUrls);
     
-    // Quality mapping with patterns (case insensitive)
-    const qualityMap = [
-        { label: "1080p", patterns: [/1080p?/i, /𝟭𝟬𝟴𝟬𝗽/i, /full\s*hd/i, /fhd/i] },
-        { label: "720p HEVC", patterns: [/720p\s*hevc/i, /720p\s*hev?c/i, /𝟳𝟮𝟬𝗽\s*𝗛𝗘𝗩𝗖/i, /hevc\s*720/i, /x265\s*720/i] },
-        { label: "720p", patterns: [/720p?/i, /𝟳𝟮𝟬𝗽/i, /hd\s*ready/i] },
-        { label: "480p", patterns: [/480p?/i, /𝟰𝟴𝟬𝗽/i, /sd/i] }
-    ];
-    
-    // Method 1: Extract quality from the line before the URL
     const lines = content.split(/\r?\n/);
     
-    for(let line of lines) {
-        const lineLower = line.toLowerCase();
-        const lineUrls = line.match(urlRegex) || [];
+    const qualityMap = [
+        { 
+            label: "1080p", 
+            patterns: [
+                /1080p?/i, /𝟭𝟬𝟴𝟬𝗽/i, /𝟙𝟘𝟠𝟘𝕡/i, /𝟣𝟢𝟪𝟢𝗉/i,
+                /full\s*hd/i, /fhd/i, /1080/i
+            ]
+        },
+        { 
+            label: "720p HEVC", 
+            patterns: [
+                /720p\s*hevc/i, /720p\s*hev?c/i, /𝟳𝟮𝟬𝗽\s*𝗛𝗘𝗩𝗖/i,
+                /hevc\s*720/i, /x265\s*720/i, /720.*?hevc/i
+            ]
+        },
+        { 
+            label: "720p", 
+            patterns: [
+                /720p?/i, /𝟳𝟮𝟬𝗽/i, /𝟩𝟤𝟢𝕡/i, /𝟩𝟤𝟢𝗉/i,
+                /hd\s*ready/i, /720/i
+            ]
+        },
+        { 
+            label: "480p", 
+            patterns: [
+                /480p?/i, /𝟰𝟴𝟬𝗽/i, /𝟦𝟪𝟢𝕡/i, /𝟦𝟪𝟢𝗉/i,
+                /sd/i, /480/i
+            ]
+        }
+    ];
+    
+    // Process each line to find quality label and its URL
+    for(let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+        const combinedLine = line + ' ' + nextLine;
         
-        if(lineUrls.length === 0) continue;
-        
-        // Check each quality pattern against the line
         for(let qm of qualityMap) {
             let matched = false;
+            
             for(let pattern of qm.patterns) {
-                if(pattern.test(lineLower)) {
+                if(pattern.test(combinedLine)) {
                     matched = true;
                     break;
                 }
             }
             
             if(matched) {
-                for(let url of lineUrls) {
+                let urlFound = null;
+                let lineUrls = line.match(urlRegex) || [];
+                let nextLineUrls = nextLine.match(urlRegex) || [];
+                let allLineUrls = [...lineUrls, ...nextLineUrls];
+                
+                for(let url of allLineUrls) {
                     if(!usedUrls.has(url) && 
                        !url.includes('t.me') && 
                        !url.includes('telegram') &&
-                       !url.includes('youtube.com') &&
+                       !url.includes('whatsapp.com') &&
+                       !url.includes('broadcaster24.com') &&
+                       !url.includes('tinyurl.com') &&
+                       !url.includes('clck.ru') &&
                        !url.includes('youtu.be')) {
-                        usedUrls.add(url);
-                        qualities.push({ label: qm.label, url: url });
-                        console.log(`✓ Found ${qm.label}: ${url}`);
-                    }
-                }
-                break;
-            }
-        }
-    }
-    
-    // Method 2: If no qualities found, check URL itself for quality indicators
-    if(qualities.length === 0) {
-        for(let url of allUrls) {
-            const urlLower = url.toLowerCase();
-            
-            if(urlLower.includes('t.me') || urlLower.includes('telegram') || 
-               urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
-                continue;
-            }
-            
-            for(let qm of qualityMap) {
-                let matched = false;
-                for(let pattern of qm.patterns) {
-                    if(pattern.test(urlLower)) {
-                        matched = true;
+                        urlFound = url;
                         break;
                     }
                 }
                 
-                if(matched && !usedUrls.has(url)) {
-                    usedUrls.add(url);
-                    qualities.push({ label: qm.label, url: url });
-                    console.log(`✓ Found ${qm.label} in URL: ${url}`);
+                if(urlFound) {
+                    usedUrls.add(urlFound);
+                    qualities.push({ label: qm.label, url: urlFound });
+                    console.log(`✓ Found ${qm.label}: ${urlFound}`);
                     break;
                 }
             }
         }
     }
     
-    // Remove duplicates by label (keep first of each quality)
+    // If still no qualities found, try direct URL matching
+    if(qualities.length === 0) {
+        for(let url of allUrls) {
+            const urlLower = url.toLowerCase();
+            
+            if(urlLower.includes('t.me') || urlLower.includes('telegram') || 
+               urlLower.includes('whatsapp') || urlLower.includes('broadcaster24') ||
+               urlLower.includes('youtube')) {
+                continue;
+            }
+            
+            for(let qm of qualityMap) {
+                for(let pattern of qm.patterns) {
+                    if(pattern.test(urlLower)) {
+                        if(!usedUrls.has(url)) {
+                            usedUrls.add(url);
+                            qualities.push({ label: qm.label, url: url });
+                            console.log(`✓ Found ${qm.label} in URL: ${url}`);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Remove duplicates by label
     const uniqueQualities = [];
     const seenLabels = new Set();
     for(let q of qualities) {
@@ -716,7 +767,7 @@ function extractQualityLinks(content) {
     const order = { "480p": 1, "720p HEVC": 2, "720p": 3, "1080p": 4 };
     uniqueQualities.sort((a,b) => (order[a.label] || 99) - (order[b.label] || 99));
     
-    console.log('Final qualities:', uniqueQualities);
+    console.log('Final qualities found:', uniqueQualities.length);
     console.log('===============================');
     
     return uniqueQualities;
@@ -767,7 +818,6 @@ function handleDownload(startParam) {
 }
 
 function handleWatchOnline(url, title) {
-    triggerSmartlink();
     if(url) {
         openStream(url, title);
     }
@@ -922,6 +972,9 @@ function escapeHtml(str) {
 }
 
 async function performSearch(page=1) {
+    // Reset smartlink trigger on new search
+    resetSmartlinkTrigger();
+    
     let query = getSearchQuery();
     if(!query) {
         document.getElementById('resultsContainer').innerHTML = '<div class="error-state"><i class="fas fa-search fa-3x"></i><h4>Enter a movie or series name</h4></div>';
@@ -1032,6 +1085,7 @@ window.joinBackup = joinBackup;
 window.howToWatch = howToWatch;
 window.changePage = changePage;
 window.triggerSmartlink = triggerSmartlink;
+window.resetSmartlinkTrigger = resetSmartlinkTrigger;
 window.openStream = openStream;
 window.closeStream = closeStream;
 </script>
