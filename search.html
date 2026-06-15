@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SK4FiLM — Perfect Posters & Center Play Button</title>
+    <title>SK4FiLM — Latest Movies | Download Hindi Dubbed Movies</title>
     <meta name="description" content="Fixed poster fit, centered play button. Episode and Quality wise dropdown for series and movies.">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -14,23 +14,159 @@
             --primary: #ff0000;
             --secondary: #0066ff;
             --accent: #00ccff;
-            --card-bg: rgba(30, 41, 59, 0.9);
+            --card-bg: #000000;
         }
         body {
             font-family: 'Josefin Sans', sans-serif;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            background: #000000;
             color: #f8f9fa;
             min-height: 100vh;
             padding-top: 70px;
         }
         
+        /* Popup Modal - Slide from bottom */
+        .slideup-popup {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            z-index: 10001;
+            transition: bottom 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background: transparent;
+        }
+        
+        .slideup-popup.show {
+            bottom: 20px;
+        }
+        
+        .popup-container {
+            width: 300px;
+            background: #1a1a2e;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 1px solid rgba(0,204,255,0.3);
+        }
+        
+        /* Watch Live Cricket Button - 300x40 with Animation */
+        .live-cricket-btn {
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(90deg, #ff0000, #ff4b2b, #ff0000);
+            background-size: 200% 100%;
+            animation: btnPulse 1.5s ease-in-out infinite, gradientShift 2s ease infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 16px;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        
+        .live-cricket-btn:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+        }
+        
+        .live-cricket-btn i {
+            font-size: 18px;
+            animation: iconShake 0.8s ease-in-out infinite;
+        }
+        
+        @keyframes btnPulse {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(255,0,0,0.5);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(255,0,0,0.8);
+            }
+        }
+        
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+        
+        @keyframes iconShake {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            25% {
+                transform: rotate(10deg);
+            }
+            75% {
+                transform: rotate(-10deg);
+            }
+        }
+        
+        /* Banner Ad Container - 300x100 */
+        .popup-banner {
+            width: 100%;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000000;
+            overflow: hidden;
+        }
+        
+        .popup-banner iframe,
+        .popup-banner ins,
+        .popup-banner > div {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        /* Close button */
+        .popup-close {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            width: 26px;
+            height: 26px;
+            background: #ff0000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10002;
+            transition: all 0.2s ease;
+            border: 2px solid white;
+        }
+        
+        .popup-close:hover {
+            transform: scale(1.1);
+            background: #cc0000;
+        }
+        
+        /* No blur or overlay on background */
         .svg-loader-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(10, 10, 15, 0.15);
+            background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             z-index: 10000;
@@ -70,7 +206,7 @@
             content: '';
             position: absolute;
             inset: 4px;
-            background: rgba(10, 10, 15, 0.8);
+            background: #000000;
             border-radius: 50%;
         }
         
@@ -94,8 +230,8 @@
         }
         
         .loader-inner object {
-            width: 130px;
-            height: 130px;
+            width: 100px;
+            height: 100px;
             pointer-events: none;
         }
         
@@ -111,7 +247,7 @@
         }
         
         .top-navbar {
-            background: rgba(15,23,42,0.98);
+            background: #000000;
             backdrop-filter: blur(10px);
             position: fixed; top:0; left:0; right:0; height:70px; z-index:9999;
             border-bottom: 2px solid var(--accent);
@@ -125,10 +261,68 @@
         .menu-lines div { width:22px; height:2px; background:#00ccff; margin:4px 0; }
         .main-container { max-width:1200px; margin:0 auto; padding:8px 12px 20px; }
         .search-container { margin:8px 0 12px; position:relative; }
-        .search-box { background:rgba(15,23,42,0.95); border:2px solid rgba(255,255,255,0.15); border-radius:50px; padding:12px 20px; color:white; width:100%; height:50px; }
+        .search-box { background:#1a1a2e; border:2px solid rgba(255,255,255,0.15); border-radius:50px; padding:12px 20px; color:white; width:100%; height:50px; }
         .search-box:focus { border-color:#00ccff; outline:none; box-shadow:0 0 15px rgba(0,204,255,0.3); }
         .search-btn { position:absolute; right:5px; top:5px; background:linear-gradient(45deg,#ff0000,#0066ff); border:none; border-radius:50px; width:42px; height:42px; color:white; cursor:pointer; }
-        .result-card { background:var(--card-bg); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:16px; margin-bottom:16px; animation:fadeIn 0.4s; }
+        
+        /* Top Banner Ad Container */
+        .top-banner-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #000000;
+            border-radius: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        .top-banner-wrapper {
+            width: 300px;
+            min-height: 250px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000000;
+            overflow: visible;
+        }
+        
+        /* Below Tutorial Ad Container - 300x250 */
+        .below-tutorial-ad {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: #000000;
+            border-radius: 12px;
+            overflow: visible;
+        }
+        .below-tutorial-ad > div,
+        .below-tutorial-ad iframe,
+        .below-tutorial-ad ins {
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .top-banner-wrapper > div,
+        .top-banner-wrapper iframe,
+        .top-banner-wrapper ins {
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .result-card {
+            background: #000000;
+            border: 1px solid rgba(0,204,255,0.2);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 16px;
+            animation: fadeIn 0.4s;
+        }
         @keyframes fadeIn { from{opacity:0; transform:translateY(8px);} to{opacity:1;} }
         
         .poster-container {
@@ -137,7 +331,7 @@
             aspect-ratio: 16 / 9;
             border-radius: 16px;
             overflow: hidden;
-            background: linear-gradient(135deg, #1e293b, #0f172a);
+            background: #000000;
             cursor: pointer;
             margin-bottom: 12px;
         }
@@ -212,7 +406,7 @@
         
         .dropdown-container {
             display: none;
-            background: #0f172a;
+            background: #1a1a2e;
             border: 2px solid #00ccff;
             border-radius: 16px;
             padding: 14px;
@@ -318,7 +512,7 @@
         
         .pagination { display: flex; justify-content: center; gap: 8px; margin: 20px 0; flex-wrap: wrap; }
         .page-link { background: rgba(0,204,255,0.1); color:#00ccff; padding:8px 14px; border-radius:8px; cursor:pointer; border:1px solid #00ccff; }
-        .page-link.active { background:#00ccff; color:#0a0a0f; }
+        .page-link.active { background:#00ccff; color:#000000; }
         .results-info { text-align:center; margin:10px 0; font-size:14px; color:#ccc; }
         .disclaimer { background:rgba(255,0,0,0.1); border-radius:10px; padding:12px; margin-top:20px; font-size:12px; text-align:center; }
         .error-state { text-align:center; padding:40px; }
@@ -353,7 +547,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.95);
+            background: #000000;
             z-index: 20000;
             align-items: center;
             justify-content: center;
@@ -388,9 +582,66 @@
             margin-bottom: 15px;
             font-size: 18px;
         }
+        
+        .section-box {
+            background: #000000;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(0,204,255,0.2);
+        }
+        
+        .ad-label {
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            margin-top: 4px;
+        }
+        
+        iframe, ins {
+            max-width: 100%;
+            overflow: visible;
+        }
+        
+        .dropdown-container {
+            background: #1a1a2e;
+        }
+        
+        .section-box [style*="background:rgba(30,41,59,0.7)"] {
+            background: #1a1a2e !important;
+        }
     </style>
 </head>
 <body>
+
+<!-- Slide Up Popup Modal -->
+<div id="slideupPopup" class="slideup-popup">
+    <div class="popup-container">
+        <div class="popup-close" onclick="closePopup()">✕</div>
+        <a href="https://sk4film.vercel.app/view.html" target="_blank" class="live-cricket-btn">
+            <i class="fas fa-tv"></i> Live Movies & Cricket <i class="fas fa-arrow-right"></i>
+        </a>
+        <div class="popup-banner" id="popupBannerAd">
+            <script>
+                (function(kifb){
+                    var d = document,
+                        s = d.createElement('script'),
+                        targetDiv = d.getElementById('popupBannerAd');
+                    s.settings = kifb || {};
+                    s.src = "//masculine-employment.com/b.XzVWshdKGylp0FYyWLcG/ZemmY9-upZtUKlBkhPuTtc-xmNPD/A_0KOPDnE/tAN/zJEx0ZMqDZQq4CNbQn";
+                    s.async = true;
+                    s.referrerPolicy = 'no-referrer-when-downgrade';
+                    if(targetDiv) {
+                        targetDiv.appendChild(s);
+                    } else {
+                        var l = d.scripts[d.scripts.length - 1];
+                        l.parentNode.insertBefore(s, l);
+                    }
+                })({})
+            </script>
+        </div>
+    </div>
+</div>
 
 <nav class="top-navbar">
     <div class="navbar-content">
@@ -400,7 +651,7 @@
         </a>
         <div class="menu-section">
             <button class="menu-button" onclick="toggleMenu()"><div class="menu-lines"><div></div><div></div><div></div></div></button>
-            <div id="menuDropdown" style="display:none; position:absolute; top:60px; right:0; background:#0f172a; border:2px solid #00ccff; border-radius:16px; padding:15px; z-index:10000;">
+            <div id="menuDropdown" style="display:none; position:absolute; top:60px; right:0; background:#1a1a2e; border:2px solid #00ccff; border-radius:16px; padding:15px; z-index:10000;">
                 <a href="https://t.me/sk4film" target="_blank" style="display:block; color:white; margin:8px 0;"><i class="fab fa-telegram"></i> Telegram</a>
                 <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" style="display:block; color:white;"><i class="fab fa-whatsapp"></i> WhatsApp</a>
                 <a href="https://sk4film.vercel.app/view.html" target="_blank" style="display:block; color:white;"><i class="fas fa-tv"></i> Live Channels</a>
@@ -419,8 +670,8 @@
     <div class="circular-loader">
         <div class="loader-ring"></div>
         <div class="loader-inner">
-            <object type="image/svg+xml" data="SK4FiLM.svg" width="130" height="130">
-                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" width="120" height="120">
+            <object type="image/svg+xml" data="SK4FiLM.svg" width="100" height="100">
+                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" width="100" height="100">
             </object>
         </div>
     </div>
@@ -431,14 +682,116 @@
         <input type="text" id="searchInput" class="search-box" placeholder="Search movies or TV series... Animal, Jawan, Pathaan, The Boys">
         <button class="search-btn" id="searchButton"><i class="fas fa-search"></i></button>
     </div>
+    
+    <!-- TOP BANNER AD - 300x250 ABOVE resultsInfo -->
+    <div class="top-banner-container">
+        <div class="top-banner-wrapper" id="topBannerAd">
+            <script>
+                (function(kifb){
+                    var d = document,
+                        s = d.createElement('script'),
+                        targetDiv = d.getElementById('topBannerAd');
+                    s.settings = kifb || {};
+                    s.src = "//masculine-employment.com/bgXDV.sodgGIla0KYPW/cT/weJmv9euqZIUTlOksP/TacxxaMOjIE/0zNODlE/t_N/z/EqyJMsTxQl0sNOQj";
+                    s.async = true;
+                    s.referrerPolicy = 'no-referrer-when-downgrade';
+                    if(targetDiv) {
+                        targetDiv.appendChild(s);
+                    } else {
+                        var l = d.scripts[d.scripts.length - 1];
+                        l.parentNode.insertBefore(s, l);
+                    }
+                })({})
+            </script>
+        </div>
+    </div>
+    
     <div id="resultsInfo" class="results-info"></div>
     <div id="resultsContainer"></div>
     <div id="paginationContainer"></div>
-    <div class="disclaimer"><i class="fas fa-exclamation-triangle me-2"></i> Perfect posters with centered play button. Episode & Quality dropdowns available.</div>
+    
+    <!-- Tutorial Videos Section -->
+    <div class="section-box">
+        <h2 style="color:var(--accent);text-align:center; margin-top: 0;"><i class="fas fa-play-circle me-2"></i>Tutorial Videos</h2>
+        <div class="row gy-4 mt-2 px-2">
+            <div class="col-md-4">
+                <div style="background:#1a1a2e;padding:15px;border-radius:8px;">
+                    <h5 style="color:var(--accent);">How to Download</h5>
+                    <div class="ratio ratio-16x9">
+                        <iframe src="https://www.youtube.com/embed/PSQ9_KLzm8s" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#1a1a2e;padding:15px;border-radius:8px;">
+                    <h5 style="color:var(--accent);">StreamNet Link</h5>
+                    <div class="ratio ratio-16x9">
+                        <iframe src="https://www.youtube.com/embed/fVL7DfhnwWM" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#1a1a2e;padding:15px;border-radius:8px;">
+                    <h5 style="color:var(--accent);">DiskWala</h5>
+                    <div class="ratio ratio-16x9">
+                        <iframe src="https://www.youtube.com/embed/ZNKeL-pcIDw" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- BELOW TUTORIAL AD - 300x250 -->
+    <div class="below-tutorial-ad">
+        <div id="bottomBannerAd">
+            <script>
+                atOptions = {
+                    'key': '567936a964b0784aedd11f237d26bee0',
+                    'format': 'iframe',
+                    'height': 250,
+                    'width': 300,
+                    'params': {}
+                };
+            </script>
+            <script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
+        </div>
+    </div>
+    
+    <div class="disclaimer"><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted On Telegram.</p></div>
 </div>
 
 <script>
-// ========== SMARTLINK TRIGGER - SEPARATE FLAGS FOR DIFFERENT ACTIONS ==========
+// ========== POPUP FUNCTIONALITY ==========
+let popupTimeout;
+
+function showPopup() {
+    const popup = document.getElementById('slideupPopup');
+    if(popup) {
+        popup.classList.add('show');
+        popupTimeout = setTimeout(() => {
+            closePopup();
+        }, 15000);
+    }
+}
+
+function closePopup() {
+    const popup = document.getElementById('slideupPopup');
+    if(popup) {
+        popup.classList.remove('show');
+        if(popupTimeout) {
+            clearTimeout(popupTimeout);
+        }
+    }
+}
+
+// Show popup when page loads
+window.addEventListener('load', function() {
+    setTimeout(() => {
+        showPopup();
+    }, 500);
+});
+
+// ========== SMARTLINK TRIGGER ==========
 let downloadSmartlinkTriggered = false;
 let joinSmartlinkTriggered = false;
 let posterSmartlinkTriggered = false;
@@ -452,7 +805,6 @@ function triggerSmartlink(type) {
         downloadSmartlinkTriggered = true;
         console.log('Download smartlink triggered (once per session)');
     } else if(type === 'join') {
-        // Join buttons trigger every time - no flag check
         console.log('Join smartlink triggered');
     } else if(type === 'poster') {
         if(posterSmartlinkTriggered) {
@@ -543,6 +895,7 @@ function closeStream() {
 document.addEventListener('keydown', function(e) {
     if(e.key === 'Escape') {
         closeStream();
+        closePopup();
     }
 });
 
@@ -804,7 +1157,6 @@ function hasTelegramLink(content) { return content && content.toLowerCase().incl
 function hasBackupLink(content) { return content && content.toLowerCase().includes('broadcaster24.com/join'); }
 function hasHowToLink(content) { return content && content.toLowerCase().includes('youtu.be/fvl7dfhnwwm'); }
 
-// ========== HANDLE DOWNLOAD - WITH SMARTLINK (ONCE PER SESSION) ==========
 function handleDownload(startParam) {
     triggerSmartlink('download');
     let link = `https://t.me/${BOT_USERNAME}?start=${startParam}`;
@@ -814,14 +1166,12 @@ function handleDownload(startParam) {
     window.open(link, '_blank');
 }
 
-// ========== HANDLE WATCH ONLINE - NO SMARTLINK ==========
 function handleWatchOnline(url, title) {
     if(url) {
         openStream(url, title);
     }
 }
 
-// ========== JOIN BUTTONS - WITH SMARTLINK (EVERY TIME) ==========
 function joinTelegram() { 
     triggerSmartlink('join'); 
     window.open('https://t.me/sk4film', '_blank'); 
@@ -832,18 +1182,15 @@ function joinBackup() {
     window.open('https://broadcaster24.com/join/CCM33FHM', '_blank'); 
 }
 
-// ========== HOW TO WATCH - WITH SMARTLINK (EVERY TIME) ==========
 function howToWatch() { 
     triggerSmartlink('join'); 
     window.open('https://youtu.be/fVL7DfhnwWM', '_blank'); 
 }
 
-// ========== DISKWALA LINK - NO SMARTLINK ==========
 function openDiskwalaLink(url) {
     window.open(url, '_blank');
 }
 
-// ========== POSTER CLICK - WITH SMARTLINK (ONCE PER SESSION) ==========
 function onPosterClick() {
     triggerSmartlink('poster');
 }
@@ -899,7 +1246,7 @@ function renderResultCard(result, idx) {
                     <div class="play-button-center"><i class="fas fa-play"></i></div>
                 </div>
              </div>`;
-    html += `<h3 class="result-title">🎞️ ${escapeHtml(cleanMovieTitle)}</h3>`;
+    html += `<h3 class="result-title">🎬 ${escapeHtml(cleanMovieTitle)}</h3>`;
     
     html += `<div class="buttons-container">`;
     
@@ -958,7 +1305,7 @@ function renderResultCard(result, idx) {
     if(hasDisk) {
         html += `<div class="button-item">
                     <button class="btn-main btn-disk" onclick="toggleDropdown('${diskDropdownId}', event)">
-                        <i class="fas fa-hdd"></i> Diskwala Link
+                        <i class="fas fa-hdd"></i> Watch Online 
                     </button>
                     <div id="${diskDropdownId}" class="dropdown-container" style="display:none;">
                         <div class="quality-grid">`;
@@ -1110,6 +1457,8 @@ window.triggerSmartlink = triggerSmartlink;
 window.resetSmartlinkTriggers = resetSmartlinkTriggers;
 window.openStream = openStream;
 window.closeStream = closeStream;
+window.showPopup = showPopup;
+window.closePopup = closePopup;
 </script>
 </body>
 </html>
