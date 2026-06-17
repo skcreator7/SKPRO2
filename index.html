@@ -4,7 +4,6 @@
     <meta charset="utf-8">
     <meta name="6a97888e-site-verification" content="4a444dbbbc402e72dca20a9c8e72ae83">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="google-site-verification" content="T_OuDVqODbRhzUtxzd6QnA5q3YfG_SSlcQKwHYbBXPM">
     <title>SK4FiLM - Latest Movies | Download Hindi Dubbed Movies</title>
     <meta name="description" content="Search and download latest movies with multiple quality options">
     <meta name="robots" content="index, follow">
@@ -450,35 +449,189 @@
         .below-tutorial-ad { margin: 25px auto 15px; text-align: center; display: flex; justify-content: center; align-items: center; }
         .video-slider-section { margin: 25px auto 15px; border-radius: 16px; overflow: hidden; background: rgba(0,0,0,0.4); padding: 10px; border: 1px solid rgba(0,204,255,0.4); }
         
+        /* ===== BOTTOM POPUP + OUTSTREAM VIDEO ===== */
         .bottom-popup-modal {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.96), rgba(10, 20, 40, 0.98));
-            backdrop-filter: blur(12px);
-            border-top: 2px solid var(--accent);
-            box-shadow: 0 -5px 30px rgba(0, 204, 255, 0.3);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             z-index: 1100;
-            padding: 12px 16px;
             display: block !important;
             transform: none !important;
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
         }
-        .popup-inner { display: flex; align-items: center; justify-content: center; max-width: 100%; margin: 0 auto; }
-        .popup-buttons { display: flex; gap: 20px; align-items: flex-end; justify-content: center; flex-wrap: wrap; width: 100%; }
+        /* Shrunk state (default) */
+        .bottom-popup-modal.shrunk {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.92), rgba(10, 20, 40, 0.94));
+            backdrop-filter: blur(10px);
+            border-top: 2px solid var(--accent);
+            box-shadow: 0 -5px 30px rgba(0, 204, 255, 0.25);
+            padding: 10px 16px;
+            border-radius: 20px 20px 0 0;
+            max-height: 80px;
+            overflow: hidden;
+        }
+        /* Expanded state (video playing) */
+        .bottom-popup-modal.expanded {
+            background: rgba(0, 0, 0, 0.96);
+            backdrop-filter: blur(16px);
+            border-top: 3px solid var(--accent);
+            box-shadow: 0 -10px 60px rgba(0, 204, 255, 0.5);
+            padding: 0;
+            border-radius: 24px 24px 0 0;
+            max-height: 75vh;
+            overflow: hidden;
+        }
+        .bottom-popup-modal.expanded .popup-inner {
+            padding: 16px 18px 18px 18px;
+        }
+        .popup-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 100%;
+            margin: 0 auto;
+            transition: all 0.4s ease;
+        }
+        /* Shrunk buttons */
+        .popup-buttons {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+            transition: all 0.4s ease;
+        }
+        .bottom-popup-modal.expanded .popup-buttons {
+            display: none;
+        }
         .popup-icon-btn {
-            background: rgba(0, 0, 0, 0.6); border: none; border-radius: 50px; padding: 8px 18px;
-            display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer;
-            transition: all 0.25s ease; backdrop-filter: blur(8px); text-decoration: none; min-width: 70px;
+            background: rgba(0, 0, 0, 0.6);
+            border: none;
+            border-radius: 50px;
+            padding: 8px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(8px);
+            text-decoration: none;
+            min-width: 70px;
         }
         .popup-icon-btn:nth-child(1) i { color: #0088cc; text-shadow: 0 0 5px #0088cc; }
         .popup-icon-btn:nth-child(2) i { color: #f39c12; text-shadow: 0 0 5px #f39c12; }
         .popup-icon-btn:nth-child(3) i { color: #2ecc71; text-shadow: 0 0 5px #2ecc71; }
         .popup-icon-btn:nth-child(4) i { color: #e74c3c; text-shadow: 0 0 5px #e74c3c; }
+        .popup-icon-btn:nth-child(5) i { color: #9b59b6; text-shadow: 0 0 5px #9b59b6; }
         .popup-icon-btn i { font-size: 1.8rem; transition: all 0.25s ease; }
         .popup-icon-btn span { font-size: 0.7rem; letter-spacing: 0.3px; font-weight: 500; color: #ffffff; opacity: 0.9; text-transform: uppercase; font-family: 'Josefin Sans', sans-serif; }
         .popup-icon-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-4px); }
         .popup-icon-btn:hover i { transform: scale(1.1); }
         .popup-icon-btn:hover span { opacity: 1; color: var(--accent); }
-        @media (max-width: 640px) { .bottom-popup-modal { padding: 10px 12px; } .popup-icon-btn { padding: 6px 12px; min-width: 60px; } .popup-icon-btn i { font-size: 1.4rem; } .popup-icon-btn span { font-size: 0.6rem; } .popup-buttons { gap: 12px; } }
-        @media (max-width: 480px) { .popup-icon-btn { padding: 5px 10px; min-width: 55px; } .popup-icon-btn i { font-size: 1.2rem; } .popup-icon-btn span { font-size: 0.55rem; } .popup-buttons { gap: 8px; } }
+        @media (max-width: 640px) {
+            .bottom-popup-modal.shrunk { padding: 8px 12px; max-height: 70px; }
+            .popup-icon-btn { padding: 6px 12px; min-width: 60px; }
+            .popup-icon-btn i { font-size: 1.4rem; }
+            .popup-icon-btn span { font-size: 0.6rem; }
+            .popup-buttons { gap: 12px; }
+        }
+        @media (max-width: 480px) {
+            .popup-icon-btn { padding: 5px 10px; min-width: 55px; }
+            .popup-icon-btn i { font-size: 1.2rem; }
+            .popup-icon-btn span { font-size: 0.55rem; }
+            .popup-buttons { gap: 8px; }
+        }
+        
+        /* OUTSTREAM VIDEO WRAPPER - hidden when shrunk, visible when expanded */
+        .outstream-video-wrapper {
+            display: none;
+            width: 100%;
+            max-width: 100%;
+            transition: all 0.5s ease;
+        }
+        .bottom-popup-modal.expanded .outstream-video-wrapper {
+            display: block;
+            animation: fadeInUp 0.6s ease;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .outstream-video-wrapper .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 780px;
+            margin: 0 auto;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
+        .outstream-video-wrapper .video-container video,
+        .outstream-video-wrapper .video-container iframe {
+            width: 100%;
+            border-radius: 12px;
+            display: block;
+        }
+        /* close btn on expanded video */
+        .outstream-close-btn {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 20px rgba(0,204,255,0.3);
+        }
+        .outstream-close-btn:hover {
+            background: var(--accent);
+            color: #000;
+            transform: scale(1.1);
+        }
+        .outstream-video-wrapper .video-container {
+            position: relative;
+        }
+        /* Ad label */
+        .video-ad-label {
+            position: absolute;
+            bottom: 12px;
+            right: 14px;
+            background: rgba(0,0,0,0.7);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.6rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .expand-hint {
+            color: var(--accent);
+            font-size: 0.65rem;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: pulseHint 2s ease-in-out infinite;
+        }
+        .expand-hint i { font-size: 0.8rem; }
+        @keyframes pulseHint {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
         
         .batch-loading-indicator { text-align: center; padding: 20px; margin: 20px 0; background: rgba(0,204,255,0.1); border-radius: 10px; display: none; }
         .batch-loading-indicator.active { display: block; animation: fadeIn 0.5s ease; }
@@ -630,12 +783,12 @@
         </div>
         
         <div class="footer-links">
-    <a href="/about.html">About Us</a>
-    <a href="/contact.html">Contact Us</a>
-    <a href="/dmca.html">DMCA</a>
-    <a href="/privacy.html">Privacy Policy</a>
-    <a href="/terms.html">Terms of Service</a>
-</div>
+            <a href="#">About Us</a>
+            <a href="#">Contact Us</a>
+            <a href="#">Request Us</a>
+            <a href="#">DMCA</a>
+            <a href="#">Sitemap</a>
+        </div>
         <div class="footer-copy">
             Copyright © 2026. Created by <strong style="color:var(--accent);">SK4FiLM Team</strong>
         </div>
@@ -643,17 +796,218 @@
     
     <footer class="mt-3 pb-4"><div class="ad-container"><div id="adFooterDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div></div></footer>
     
-    <!-- BOTTOM POPUP -->
-    <div id="bottomPopupModal" class="bottom-popup-modal">
+    <!-- ===== BOTTOM POPUP WITH OUTSTREAM VIDEO ===== -->
+    <div id="bottomPopupModal" class="bottom-popup-modal shrunk">
         <div class="popup-inner">
-            <div class="popup-buttons">
+            <!-- SHRUNK BUTTONS (visible by default) -->
+            <div class="popup-buttons" id="popupButtons">
                 <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM', '_blank')"><i class="fab fa-telegram-plane"></i><span>Backup</span></button>
                 <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk', '_blank')"><i class="fas fa-download"></i><span>App</span></button>
                 <button class="popup-icon-btn" onclick="copyShareLinkWithMessage()"><i class="fas fa-copy"></i><span>Copy URL</span></button>
                 <button class="popup-icon-btn" onclick="shareWithMessage()"><i class="fas fa-share-alt"></i><span>Share</span></button>
+                <!-- New: Play Video button to expand -->
+                <button class="popup-icon-btn" onclick="playOutstreamVideo()" id="playVideoBtn" style="background: rgba(0,204,255,0.2); border: 2px solid var(--accent);">
+                    <i class="fas fa-play-circle" style="color: var(--accent) !important; text-shadow: 0 0 10px var(--accent) !important;"></i>
+                    <span style="color: var(--accent);">Watch</span>
+                </button>
+            </div>
+            
+            <!-- OUTSTREAM VIDEO PLAYER (hidden when shrunk) -->
+            <div class="outstream-video-wrapper" id="outstreamVideoWrapper">
+                <div class="video-container">
+                    <button class="outstream-close-btn" onclick="closeOutstreamVideo()" aria-label="Close video">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div id="outstreamVideoPlayer">
+                        <!-- The ad script will inject here -->
+                    </div>
+                    <div class="video-ad-label">📺 Sponsored Content</div>
+                </div>
+                <div style="text-align: center; margin-top: 8px; color: rgba(255,255,255,0.5); font-size: 0.65rem; letter-spacing: 0.5px;">
+                    <i class="fas fa-volume-up me-1"></i> Video will auto-shrink when finished
+                </div>
             </div>
         </div>
     </div>
+    
+    <!-- ===== OUTSTREAM VIDEO AD SCRIPT ===== -->
+    <!-- This is the outstream video ad unit – it will auto-play when the popup expands -->
+    <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script> 
+    <ins class="eas6a97888e37" data-zoneid="5953230" id="outstreamAdUnit"></ins> 
+    <script>
+        (function() {
+            // Store reference to the ad unit
+            window.outstreamAdUnit = document.getElementById('outstreamAdUnit');
+            // Flag to know if video has been triggered
+            let videoTriggered = false;
+            let videoEnded = false;
+            
+            // Function to expand popup and play video
+            window.playOutstreamVideo = function() {
+                const modal = document.getElementById('bottomPopupModal');
+                const wrapper = document.getElementById('outstreamVideoWrapper');
+                const buttons = document.getElementById('popupButtons');
+                
+                // Expand the popup
+                modal.classList.remove('shrunk');
+                modal.classList.add('expanded');
+                
+                // Show video wrapper, hide buttons
+                wrapper.style.display = 'block';
+                if (buttons) buttons.style.display = 'none';
+                
+                // If not triggered yet, load the ad
+                if (!videoTriggered) {
+                    videoTriggered = true;
+                    // The ad provider will automatically render into the ins element
+                    // We need to make sure the ins is visible and in the DOM
+                    const adUnit = document.getElementById('outstreamAdUnit');
+                    if (adUnit) {
+                        // Force re-render by moving it or triggering provider
+                        // The provider's script will handle it if we push the serve again
+                        if (window.AdProvider) {
+                            // Some providers need a re-push
+                            window.AdProvider.push({"serve": {}});
+                        }
+                    }
+                }
+                
+                // Set up a timer to check if video ended (using multiple signals)
+                // We'll listen for the video ending via the provider's events if possible,
+                // but also use a combination of visibility and timeout fallback.
+                startVideoEndWatcher();
+            };
+            
+            // Function to shrink back (video ended or user closes)
+            window.closeOutstreamVideo = function() {
+                const modal = document.getElementById('bottomPopupModal');
+                const wrapper = document.getElementById('outstreamVideoWrapper');
+                const buttons = document.getElementById('popupButtons');
+                
+                // Shrink the popup
+                modal.classList.remove('expanded');
+                modal.classList.add('shrunk');
+                
+                // Hide video, show buttons
+                wrapper.style.display = 'none';
+                if (buttons) buttons.style.display = 'flex';
+                
+                // Reset flag so video can be re-triggered
+                videoEnded = false;
+                // Stop any watcher
+                if (window._videoWatcher) {
+                    clearInterval(window._videoWatcher);
+                    window._videoWatcher = null;
+                }
+            };
+            
+            // Watch for video end signals
+            function startVideoEndWatcher() {
+                if (window._videoWatcher) clearInterval(window._videoWatcher);
+                
+                let attempts = 0;
+                const maxAttempts = 60; // 30 seconds max
+                
+                window._videoWatcher = setInterval(function() {
+                    attempts++;
+                    
+                    // Try to find any video or iframe inside the ad container
+                    const adContainer = document.getElementById('outstreamAdUnit');
+                    if (adContainer) {
+                        const videoElements = adContainer.querySelectorAll('video');
+                        const iframes = adContainer.querySelectorAll('iframe');
+                        
+                        // Check if any video has ended
+                        let ended = false;
+                        videoElements.forEach(v => {
+                            if (v.ended) ended = true;
+                            // Also check if video is paused and near the end
+                            if (v.currentTime > 0 && v.paused && (v.duration - v.currentTime) < 1) {
+                                ended = true;
+                            }
+                        });
+                        
+                        // Some providers use iframes with internal players - check if they're gone or ended
+                        if (iframes.length > 0) {
+                            // If iframe is removed or hidden, consider it ended
+                            if (!adContainer.querySelector('iframe') && !adContainer.querySelector('video')) {
+                                ended = true;
+                            }
+                        }
+                        
+                        // Also check if the ad container itself becomes empty
+                        if (adContainer.innerHTML.trim() === '' || adContainer.innerHTML.includes('<!--')) {
+                            // Could be that ad finished and was removed
+                            ended = true;
+                        }
+                        
+                        if (ended) {
+                            videoEnded = true;
+                            clearInterval(window._videoWatcher);
+                            window._videoWatcher = null;
+                            // Auto-shrink after a short delay
+                            setTimeout(function() {
+                                if (videoEnded) {
+                                    closeOutstreamVideo();
+                                    // Show a small notification that video ended
+                                    console.log('🎬 Outstream video ended – popup shrunk.');
+                                }
+                            }, 800);
+                        }
+                    }
+                    
+                    // Fallback: if no video found after 30 seconds, assume it ended or failed
+                    if (attempts >= maxAttempts) {
+                        clearInterval(window._videoWatcher);
+                        window._videoWatcher = null;
+                        // If video hasn't been detected but we tried long enough, shrink anyway
+                        setTimeout(function() {
+                            if (!videoEnded) {
+                                videoEnded = true;
+                                closeOutstreamVideo();
+                            }
+                        }, 500);
+                    }
+                }, 500);
+            }
+            
+            // Also listen for the AdProvider's events if available
+            document.addEventListener('adVideoEnded', function() {
+                videoEnded = true;
+                if (window._videoWatcher) {
+                    clearInterval(window._videoWatcher);
+                    window._videoWatcher = null;
+                }
+                setTimeout(closeOutstreamVideo, 600);
+            });
+            
+            // Listen for scroll/resize to detect if video container becomes hidden
+            const observer = new MutationObserver(function(mutations) {
+                const modal = document.getElementById('bottomPopupModal');
+                if (modal && modal.classList.contains('expanded')) {
+                    const wrapper = document.getElementById('outstreamVideoWrapper');
+                    if (wrapper && wrapper.style.display === 'none') {
+                        // If video wrapper is hidden but modal is expanded, shrink
+                        modal.classList.remove('expanded');
+                        modal.classList.add('shrunk');
+                    }
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+            
+            // Expose close function globally
+            window.closeOutstreamVideo = closeOutstreamVideo;
+            
+            // Auto-trigger video after a short delay on page load (optional)
+            // Commented out to let user click "Watch" button
+            // setTimeout(function() {
+            //     if (!videoTriggered) {
+            //         // Only if user hasn't interacted yet
+            //     }
+            // }, 5000);
+            
+        })();
+    </script>
     
     <script>
         document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
@@ -938,11 +1292,8 @@
         window.copyShareLinkWithMessage = copyShareLinkWithMessage;
         window.shareWithMessage = shareWithMessage;
     </script>
-    <script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script> 
- <ins class="eas6a97888e35" data-zoneid="5953178"></ins> 
- <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
     <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script> 
- <ins class="eas6a97888e10" data-zoneid="5953216"></ins> 
- <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
+    <ins class="eas6a97888e31" data-zoneid="5952654"></ins> 
+    <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
 </body>
 </html>
