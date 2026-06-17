@@ -1,5 +1,0 @@
-# Allow all crawlers to access the site
-User-agent: *
-
-# Specify the location of your sitemap
-Sitemap: https://sk4film.xyz/sitemap.xml
