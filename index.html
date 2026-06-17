@@ -254,7 +254,7 @@
         @media (min-width: 768px) { .container { padding-left: 0px; padding-right: 0px; } }
         @media (min-width: 992px) { .container { padding-left: 0px; padding-right: 0px; } }
         
-        /* Category buttons with gap */
+        /* Category buttons */
         .category-strip {
             display: flex;
             flex-wrap: wrap;
@@ -447,25 +447,31 @@
         
         .native-ad-wrapper { margin: 20px auto 25px; text-align: center; background: rgba(0,0,0,0.2); border-radius: 16px; padding: 15px; border: 1px solid rgba(0,204,255,0.3); }
         .below-tutorial-ad { margin: 25px auto 15px; text-align: center; display: flex; justify-content: center; align-items: center; }
-        .video-slider-section { margin: 25px auto 15px; border-radius: 16px; overflow: hidden; background: rgba(0,0,0,0.4); padding: 10px; border: 1px solid rgba(0,204,255,0.4); }
         
-        /* ===== BOTTOM POPUP WITH 300x100 BANNER AD ===== */
+        /* ===== BOTTOM POPUP WITH 300x50 BANNER AD ===== */
         .bottom-popup-modal {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.96), rgba(10, 20, 40, 0.98));
-            backdrop-filter: blur(12px);
+            background: #000000;
             border-top: 2px solid var(--accent);
             box-shadow: 0 -5px 30px rgba(0, 204, 255, 0.3);
             z-index: 1100;
-            padding: 10px 16px;
+            padding: 10px 12px;
             display: block !important;
             transform: none !important;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
             border-radius: 20px 20px 0 0;
+            overflow: hidden;
         }
+        .bottom-popup-modal.normal .popup-buttons { display: flex; }
+        .bottom-popup-modal.normal .popup-banner { display: flex; max-height: 80px; opacity: 1; padding: 5px; }
+        
+        .bottom-popup-modal.shrunk .popup-buttons { display: flex; }
+        .bottom-popup-modal.shrunk .popup-banner { display: none; max-height: 0; opacity: 0; padding: 0; }
+        .bottom-popup-modal.shrunk { padding: 8px 12px; }
+        
         .popup-inner {
             display: flex;
             align-items: center;
@@ -473,93 +479,116 @@
             max-width: 100%;
             margin: 0 auto;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
+            transition: all 0.3s ease;
         }
-        /* Shrunk state with banner */
-        .bottom-popup-modal .popup-buttons {
+        .popup-buttons {
             display: flex;
             align-items: center;
             justify-content: center;
             flex-wrap: wrap;
-            gap: 10px;
-            flex: 1;
+            gap: 8px;
+            flex: 1 1 auto;
         }
-        .bottom-popup-modal .popup-banner {
-            flex-shrink: 0;
+        .popup-banner {
+            flex: 1 1 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100px;
-            min-width: 300px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            border: 1px solid rgba(0,204,255,0.15);
+            background: #000000;
+            border-radius: 8px;
             overflow: hidden;
+            transition: all 0.4s ease;
+            min-height: 50px;
+            max-width: 100%;
         }
-        .bottom-popup-modal .popup-banner ins {
+        .popup-banner .banner-ad-container {
+            width: 100%;
+            max-width: 320px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+        }
+        .popup-banner .banner-ad-container ins {
             display: block;
             width: 300px;
-            height: 100px;
+            height: 50px;
+            max-width: 100%;
+            background: #000000;
         }
+        .popup-banner .banner-ad-container iframe,
+        .popup-banner .banner-ad-container img {
+            max-width: 100% !important;
+            height: auto !important;
+            background: #000000;
+        }
+        
         .popup-icon-btn {
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(255, 255, 255, 0.08);
             border: none;
             border-radius: 50px;
-            padding: 8px 18px;
+            padding: 6px 14px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 2px;
             cursor: pointer;
             transition: all 0.25s ease;
             backdrop-filter: blur(8px);
             text-decoration: none;
-            min-width: 60px;
+            min-width: 55px;
         }
         .popup-icon-btn:nth-child(1) i { color: #0088cc; text-shadow: 0 0 5px #0088cc; }
         .popup-icon-btn:nth-child(2) i { color: #f39c12; text-shadow: 0 0 5px #f39c12; }
         .popup-icon-btn:nth-child(3) i { color: #2ecc71; text-shadow: 0 0 5px #2ecc71; }
         .popup-icon-btn:nth-child(4) i { color: #e74c3c; text-shadow: 0 0 5px #e74c3c; }
-        .popup-icon-btn i { font-size: 1.6rem; transition: all 0.25s ease; }
-        .popup-icon-btn span { font-size: 0.65rem; letter-spacing: 0.3px; font-weight: 500; color: #ffffff; opacity: 0.9; text-transform: uppercase; font-family: 'Josefin Sans', sans-serif; }
-        .popup-icon-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-4px); }
+        .popup-icon-btn.shrink-btn i { color: #ff6b6b; text-shadow: 0 0 5px #ff6b6b; }
+        .popup-icon-btn i { font-size: 1.4rem; transition: all 0.25s ease; }
+        .popup-icon-btn span { font-size: 0.55rem; letter-spacing: 0.3px; font-weight: 500; color: #ffffff; opacity: 0.9; text-transform: uppercase; font-family: 'Josefin Sans', sans-serif; }
+        .popup-icon-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-3px); }
         .popup-icon-btn:hover i { transform: scale(1.1); }
         .popup-icon-btn:hover span { opacity: 1; color: var(--accent); }
         
         @media (max-width: 768px) {
-            .bottom-popup-modal .popup-inner {
-                flex-direction: column;
-                gap: 8px;
-            }
-            .bottom-popup-modal .popup-banner {
-                min-height: 80px;
-                min-width: 280px;
-                width: 100%;
-                max-width: 320px;
-            }
-            .bottom-popup-modal .popup-banner ins {
-                width: 280px;
-                height: 80px;
-            }
-            .popup-icon-btn { padding: 6px 12px; min-width: 55px; }
-            .popup-icon-btn i { font-size: 1.3rem; }
-            .popup-icon-btn span { font-size: 0.55rem; }
+            .bottom-popup-modal { padding: 8px 10px; border-radius: 16px 16px 0 0; }
+            .bottom-popup-modal.normal .popup-banner { max-height: 70px; }
+            .popup-banner .banner-ad-container { max-width: 280px; min-height: 45px; }
+            .popup-banner .banner-ad-container ins { width: 260px; height: 45px; }
+            .popup-icon-btn { padding: 5px 10px; min-width: 48px; }
+            .popup-icon-btn i { font-size: 1.2rem; }
+            .popup-icon-btn span { font-size: 0.5rem; }
+            .popup-buttons { gap: 5px; }
         }
         @media (max-width: 480px) {
-            .bottom-popup-modal { padding: 8px 10px; border-radius: 16px 16px 0 0; }
-            .bottom-popup-modal .popup-banner {
-                min-height: 60px;
-                min-width: 240px;
-                max-width: 280px;
-            }
-            .bottom-popup-modal .popup-banner ins {
-                width: 240px;
-                height: 60px;
-            }
-            .popup-icon-btn { padding: 5px 10px; min-width: 50px; }
-            .popup-icon-btn i { font-size: 1.1rem; }
-            .popup-icon-btn span { font-size: 0.5rem; }
-            .bottom-popup-modal .popup-buttons { gap: 6px; }
+            .bottom-popup-modal { padding: 6px 8px; border-radius: 14px 14px 0 0; }
+            .bottom-popup-modal.normal .popup-banner { max-height: 60px; }
+            .popup-banner .banner-ad-container { max-width: 220px; min-height: 40px; }
+            .popup-banner .banner-ad-container ins { width: 200px; height: 40px; }
+            .popup-icon-btn { padding: 4px 8px; min-width: 42px; }
+            .popup-icon-btn i { font-size: 1rem; }
+            .popup-icon-btn span { font-size: 0.45rem; }
+            .popup-buttons { gap: 4px; }
+        }
+        @media (max-width: 380px) {
+            .popup-banner .banner-ad-container { max-width: 180px; min-height: 35px; }
+            .popup-banner .banner-ad-container ins { width: 160px; height: 35px; }
+        }
+        
+        .bottom-popup-modal.popup-expanding {
+            animation: popupExpand 0.5s ease forwards;
+        }
+        @keyframes popupExpand {
+            0% { transform: scale(0.98); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .bottom-popup-modal.popup-shrinking {
+            animation: popupShrink 0.4s ease forwards;
+        }
+        @keyframes popupShrink {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.98); opacity: 0.7; }
         }
         
         .batch-loading-indicator { text-align: center; padding: 20px; margin: 20px 0; background: rgba(0,204,255,0.1); border-radius: 10px; display: none; }
@@ -683,8 +712,9 @@
         </div>
         
         <div class="native-ad-wrapper">
-            <script async="async" data-cfasync="false" src="https://marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script> 
+ <ins class="eas6a97888e10" data-zoneid="5953216"></ins> 
+ <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
         </div>
         
         <div class="section-box">
@@ -699,11 +729,6 @@
         <div class="below-tutorial-ad">
             <script>atOptions={'key':'567936a964b0784aedd11f237d26bee0','format':'iframe','height':250,'width':300,'params':{}};</script>
             <script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-        </div>
-        
-        <div class="video-slider-section">
-            <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
-            <script type="text/javascript"> aclib.runVideoSlider({ zoneId: '11421322' }); </script>
         </div>
         
         <!-- Disclaimer & Footer -->
@@ -725,27 +750,66 @@
     
     <footer class="mt-3 pb-4"><div class="ad-container"><div id="adFooterDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div></div></footer>
     
-    <!-- ===== BOTTOM POPUP WITH 300x100 BANNER AD ===== -->
-    <div id="bottomPopupModal" class="bottom-popup-modal">
+    <!-- ===== BOTTOM POPUP WITH 300x50 BANNER AD ===== -->
+    <div id="bottomPopupModal" class="bottom-popup-modal normal">
         <div class="popup-inner">
             <!-- Action Buttons -->
-            <div class="popup-buttons">
+            <div class="popup-buttons" id="popupButtons">
                 <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM', '_blank')"><i class="fab fa-telegram-plane"></i><span>Backup</span></button>
                 <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk', '_blank')"><i class="fas fa-download"></i><span>App</span></button>
                 <button class="popup-icon-btn" onclick="copyShareLinkWithMessage()"><i class="fas fa-copy"></i><span>Copy URL</span></button>
                 <button class="popup-icon-btn" onclick="shareWithMessage()"><i class="fas fa-share-alt"></i><span>Share</span></button>
+                <!-- Shrink Button -->
+                <button class="popup-icon-btn shrink-btn" onclick="toggleShrink()" id="shrinkToggleBtn">
+                    <i class="fas fa-compress-alt"></i>
+                    <span id="shrinkLabel">Shrink</span>
+                </button>
             </div>
             
-            <!-- 300x100 Banner Ad -->
-            <div class="popup-banner">
-                <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-                <ins class="eas6a97888e10" data-zoneid="5953234"></ins>
-                <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
+            <!-- 300x50 Banner Ad - Black Background, No Countdown -->
+            <div class="popup-banner" id="popupBanner">
+                <div class="banner-ad-container">
+                    <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+                    <ins class="eas6a97888e10" data-zoneid="5953262" id="bannerAdIns"></ins>
+                    <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
+                </div>
             </div>
         </div>
     </div>
     
     <script>
+        // ===== SHRINK/EXPAND LOGIC =====
+        let isShrunk = false;
+        
+        function toggleShrink() {
+            const modal = document.getElementById('bottomPopupModal');
+            const label = document.getElementById('shrinkLabel');
+            const btn = document.getElementById('shrinkToggleBtn');
+            
+            if (isShrunk) {
+                // Expand to normal
+                modal.classList.remove('shrunk');
+                modal.classList.add('normal');
+                modal.classList.add('popup-expanding');
+                setTimeout(() => modal.classList.remove('popup-expanding'), 500);
+                label.textContent = 'Shrink';
+                btn.querySelector('i').className = 'fas fa-compress-alt';
+                isShrunk = false;
+            } else {
+                // Shrink - hide banner
+                modal.classList.remove('normal');
+                modal.classList.add('shrunk');
+                modal.classList.add('popup-shrinking');
+                setTimeout(() => modal.classList.remove('popup-shrinking'), 400);
+                label.textContent = 'Expand';
+                btn.querySelector('i').className = 'fas fa-expand-alt';
+                isShrunk = true;
+            }
+        }
+        
+        window.toggleShrink = toggleShrink;
+        
+        // ===== REST OF SCRIPTS =====
         document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
         document.addEventListener('dblclick', function(e) { e.preventDefault(); });
         
@@ -757,7 +821,6 @@
         let totalPages = 1;
         const AD_LINK = 'https://marksdespitelinear.com/euy7z0tfu8?key=34374a488a1c64bc290dbe0e697dcde0';
         
-        // Category buttons: trigger ad
         document.querySelectorAll('.cat-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -816,7 +879,6 @@
             });
             container.appendChild(frag);
             
-            // Load high-res images progressively
             const cards = container.querySelectorAll('.movie-card');
             cards.forEach((card, idx) => {
                 const img = card.querySelector('.hq-poster');
