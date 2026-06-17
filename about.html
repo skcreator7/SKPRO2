@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us - SK4FiLM</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff0000;
+            --secondary: #0066ff;
+            --accent: #00ccff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Josefin Sans', sans-serif;
+            background: #0a0a0f;
+            color: #f8f9fa;
+            padding-top: 70px;
+            min-height: 100vh;
+        }
+        .top-navbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(15px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 12px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .logo-section {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: white;
+        }
+        .logo-img {
+            height: 40px;
+            width: 40px;
+            margin-right: 10px;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+        .brand-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.4rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+        }
+        .brand-subtitle {
+            font-size: 0.6rem;
+            color: var(--accent);
+            font-weight: 300;
+        }
+        .main-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        .page-card {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 204, 255, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 25px;
+            border-bottom: 2px solid rgba(0, 204, 255, 0.3);
+            padding-bottom: 15px;
+        }
+        .page-subtitle {
+            font-size: 1.2rem;
+            color: #aaa;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .page-content {
+            font-size: 1.05rem;
+            line-height: 1.8;
+            color: #e0e0e0;
+        }
+        .page-content h3 {
+            color: var(--accent);
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+        .page-content ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .page-content ul li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        .page-content ul li:before {
+            content: '▸';
+            color: var(--accent);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+        .back-home {
+            display: inline-block;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 12px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.3s;
+            margin-top: 20px;
+        }
+        .back-home:hover {
+            transform: scale(1.05);
+            color: white;
+        }
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .footer-links a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: 0.2s;
+        }
+        .footer-links a:hover { color: white; }
+        .footer-copy {
+            text-align: center;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 15px;
+        }
+        @media (max-width: 768px) {
+            .page-card { padding: 20px; }
+            .page-title { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-navbar">
+        <div class="navbar-content">
+            <a href="/" class="logo-section">
+                <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
+                <div>
+                    <div class="brand-text">SK4FiLM</div>
+                    <div class="brand-subtitle">House of Entertainment</div>
+                </div>
+            </a>
+            <a href="/" style="color: var(--accent); text-decoration: none; font-weight: 600;">
+                <i class="fas fa-home"></i> Home
+            </a>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="page-card animate__animated animate__fadeIn">
+            <h1 class="page-title"><i class="fas fa-info-circle me-3" style="color: var(--primary);"></i>About SK4FiLM</h1>
+            
+            <div class="page-content">
+                <p class="page-subtitle">
+                    Welcome to <strong>SK4FiLM</strong> — your ultimate destination for entertainment updates, 
+                    movie information, and streaming guidance.
+                </p>
+
+                <h3>📌 Our Mission</h3>
+                <p>
+                    SK4FiLM is dedicated to providing movie enthusiasts with a comprehensive platform to 
+                    discover, explore, and stay updated on the latest in cinema. We curate information about 
+                    Bollywood, Hollywood, South Indian cinema, web series, and more — all in one place.
+                </p>
+
+                <h3>🎬 What We Offer</h3>
+                <ul>
+                    <li><strong>Latest Movie Updates:</strong> Stay informed about new releases, trailers, and upcoming films.</li>
+                    <li><strong>Multi-Language Content:</strong> Covering Hindi, English, Tamil, Telugu, Punjabi, and more.</li>
+                    <li><strong>Quality Information:</strong> Details on formats like 480p, 720p, 1080p, HEVC, and 4K.</li>
+                    <li><strong>Genre Exploration:</strong> Action, Drama, Horror, Thriller, Comedy, Romance, and more.</li>
+                    <li><strong>Platform Aggregation:</strong> Content from Netflix, Prime Video, Apple TV+, and other streaming services.</li>
+                </ul>
+
+                <h3>🌟 Our Values</h3>
+                <ul>
+                    <li><strong>User-First Approach:</strong> We prioritize a clean, fast, and intuitive browsing experience.</li>
+                    <li><strong>Quality Content:</strong> We focus on accurate and up-to-date information.</li>
+                    <li><strong>Community Focus:</strong> Built for movie lovers, by movie lovers.</li>
+                    <li><strong>Transparency:</strong> Clear about our purpose and content sources.</li>
+                </ul>
+
+                <h3>🤝 Connect With Us</h3>
+                <p>
+                    Join our community on <a href="https://t.me/sk4film" target="_blank" style="color: var(--accent);">Telegram</a>, 
+                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" style="color: var(--accent);">WhatsApp</a>, 
+                    and <a href="https://youtube.com/@Skcreator7" target="_blank" style="color: var(--accent);">YouTube</a> 
+                    for the latest updates and discussions.
+                </p>
+
+                <h3>📧 Contact</h3>
+                <p>
+                    For inquiries, feedback, or collaboration, please visit our 
+                    <a href="/contact.html" style="color: var(--accent);">Contact Page</a>.
+                </p>
+
+                <a href="/" class="back-home"><i class="fas fa-arrow-left me-2"></i>Back to Home</a>
+            </div>
+        </div>
+
+        <div class="footer-links">
+            <a href="/about.html">About Us</a>
+            <a href="/contact.html">Contact Us</a>
+            <a href="/dmca.html">DMCA</a>
+            <a href="/privacy.html">Privacy Policy</a>
+            <a href="/terms.html">Terms of Service</a>
+        </div>
+        <div class="footer-copy">
+            Copyright © 2026. Created by <strong style="color: var(--accent);">SK4FiLM Team</strong>
+        </div>
+    </div>
+</body>
+</html>
