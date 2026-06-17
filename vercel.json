@@ -1,17 +1,13 @@
 {
   "version": 2,
   "rewrites": [
-    {
-      "source": "/search",
-      "destination": "/search.html"
-    },
-    {
-      "source": "/view",
-      "destination": "/view.html"
-    },
-    {
-      "source": "/post",
-      "destination": "/view.html"
-    }
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/contact", "destination": "/contact.html" },
+    { "source": "/dmca", "destination": "/dmca.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/search", "destination": "/search.html" },
+    { "source": "/view", "destination": "/view.html" },
+    { "source": "/post", "destination": "/view.html" }
   ]
 }
