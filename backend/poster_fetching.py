@@ -1,307 +1,244 @@
+# poster_fetching.py - Fixed version without Letterboxd
+
 import asyncio
-import re
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-from enum import Enum
 import aiohttp
-import urllib.parse
-import json
 import logging
+import re
+import json
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
-TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w780"
-CUSTOM_POSTER_URL = ""  # Empty = No fallback
-CACHE_TTL = 3600  # 1 hour
-
-
-class PosterSource(Enum):
+class PosterSource:
+    """Poster source constants"""
     TMDB = "tmdb"
     OMDB = "omdb"
-    LETTERBOXD = "letterboxd"
-    IMDB = "imdb"
-    JUSTWATCH = "justwatch"
-    IMPAWARDS = "impawards"
-    CUSTOM = "custom"
     NONE = "none"
 
-
 class PosterFetcher:
-    def __init__(self, config, redis=None):
+    """Fetch movie posters from various sources (NO LETTERBOXD)"""
+    
+    def __init__(self, config, redis_client=None):
         self.config = config
-        self.redis = redis
-
-        self.tmdb_keys = [getattr(config, "TMDB_API_KEY", "")]
-        self.omdb_keys = [getattr(config, "OMDB_API_KEY", "")]
-
-        self.poster_cache: Dict[str, tuple] = {}
-        self.http_session: Optional[aiohttp.ClientSession] = None
-        self.lock = asyncio.Lock()
-
+        self.redis_client = redis_client
+        self.tmdb_api_key = getattr(config, 'TMDB_API_KEY', 'e547e17d4e91f3e62a571655cd1ccaff')
+        self.omdb_api_key = getattr(config, 'OMDB_API_KEY', '8265bd1c')
+        self.timeout = getattr(config, 'POSTER_FETCH_TIMEOUT', 5)
+        self.cache_ttl = getattr(config, 'POSTER_CACHE_TTL', 86400)
+        self.session = None
         self.stats = {
-            "tmdb": 0,
-            "imdb": 0,
-            "letterboxd": 0,
-            "justwatch": 0,
-            "impawards": 0,
-            "omdb": 0,
-            "custom": 0,
-            "cache_hits": 0,
+            'total_fetches': 0,
+            'tmdb_hits': 0,
+            'omdb_hits': 0,
+            'misses': 0,
+            'cache_hits': 0
         }
+        
+        # TMDB image base URL
+        self.tmdb_image_base = "https://image.tmdb.org/t/p/w500"
+        self.tmdb_image_original = "https://image.tmdb.org/t/p/original"
+        
+        logger.info("🎬 PosterFetcher initialized (Letterboxd REMOVED)")
 
-    async def get_http_session(self):
-        async with self.lock:
-            if not self.http_session or self.http_session.closed:
-                self.http_session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10),
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-                )
-                logger.info("✅ HTTP session created")
-            return self.http_session
+    async def _get_session(self):
+        """Get or create aiohttp session"""
+        if self.session is None or self.session.closed:
+            self.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self.timeout + 2),
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            )
+        return self.session
 
-    async def redis_get(self, key: str):
-        if not self.redis:
-            return None
-        try:
-            data = await self.redis.get(key)
-            if data:
-                self.stats["cache_hits"] += 1
-                return json.loads(data)
-        except Exception:
-            pass
-        return None
-
-    async def redis_set(self, key: str, value: Dict[str, Any]):
-        if not self.redis:
-            return
-        try:
-            await self.redis.setex(key, CACHE_TTL, json.dumps(value))
-        except Exception:
-            pass
-
-    def normalize_poster(self, poster: Dict[str, Any], title: str) -> Dict[str, Any]:
-        return {
-            "poster_url": poster.get("poster_url", ""),
-            "source": poster.get("source", PosterSource.NONE.value),
-            "title": poster.get("title", title),
-            "year": poster.get("year", ""),
-            "rating": poster.get("rating", "0.0"),
-        }
-
-    async def fetch_from_tmdb(self, title: str):
-        session = await self.get_http_session()
-        for key in self.tmdb_keys:
-            if not key:
-                continue
+    async def fetch_poster(self, title: str, year: str = "") -> Dict[str, Any]:
+        """
+        Fetch poster for movie - TMDB only (Letterboxd removed)
+        """
+        self.stats['total_fetches'] += 1
+        
+        if not title:
+            return self._empty_result(title, year)
+        
+        # Clean title
+        clean_title = self._clean_title(title)
+        
+        # Check cache first
+        cache_key = f"poster:{clean_title}:{year}"
+        if self.redis_client:
             try:
-                async with session.get(
-                    "https://api.themoviedb.org/3/search/movie",
-                    params={"api_key": key, "query": title},
-                ) as r:
-                    if r.status != 200:
-                        continue
-                    data = await r.json()
-                    if not data.get("results"):
-                        continue
-
-                    m = data["results"][0]
-                    if not m.get("poster_path"):
-                        continue
-
-                    self.stats["tmdb"] += 1
-                    return {
-                        "poster_url": f"{TMDB_IMAGE_BASE}{m['poster_path']}",
-                        "source": PosterSource.TMDB.value,
-                        "rating": str(m.get("vote_average", "0.0")),
-                        "year": (m.get("release_date") or "")[:4],
-                        "title": m.get("title", title),
-                    }
+                cached = await self.redis_client.get(cache_key)
+                if cached:
+                    self.stats['cache_hits'] += 1
+                    data = json.loads(cached)
+                    logger.debug(f"📦 Cache hit: {clean_title}")
+                    return data
             except Exception as e:
-                logger.debug(f"TMDB error: {e}")
-        return None
-
-    async def fetch_from_omdb(self, title: str):
-        session = await self.get_http_session()
-        for key in self.omdb_keys:
-            if not key:
-                continue
+                logger.debug(f"Cache read error: {e}")
+        
+        result = None
+        
+        # Try TMDB first (primary source)
+        result = await self._fetch_from_tmdb(clean_title, year)
+        
+        if result and result.get('poster_url'):
+            self.stats['tmdb_hits'] += 1
+            logger.info(f"✅ TMDB poster found: {clean_title}")
+        else:
+            # Try OMDB as fallback
+            result = await self._fetch_from_omdb(clean_title, year)
+            if result and result.get('poster_url'):
+                self.stats['omdb_hits'] += 1
+                logger.info(f"✅ OMDB poster found: {clean_title}")
+            else:
+                self.stats['misses'] += 1
+                result = self._empty_result(clean_title, year)
+                logger.debug(f"❌ No poster found: {clean_title}")
+        
+        # Cache result
+        if self.redis_client and result:
             try:
-                async with session.get(
-                    f"https://www.omdbapi.com/?t={urllib.parse.quote(title)}&apikey={key}"
-                ) as r:
-                    if r.status != 200:
-                        continue
-                    data = await r.json()
-                    if data.get("Response") != "True":
-                        continue
-                    poster = data.get("Poster")
-                    if poster and poster.startswith("http") and poster != "N/A":
-                        self.stats["omdb"] += 1
-                        return {
-                            "poster_url": poster,
-                            "source": PosterSource.OMDB.value,
-                            "rating": data.get("imdbRating", "0.0"),
-                            "year": data.get("Year", ""),
-                            "title": data.get("Title", title),
-                        }
-            except Exception:
-                pass
-        return None
+                await self.redis_client.setex(
+                    cache_key, 
+                    self.cache_ttl,
+                    json.dumps(result)
+                )
+            except Exception as e:
+                logger.debug(f"Cache write error: {e}")
+        
+        return result
 
-    async def fetch_from_imdb(self, title: str):
-        session = await self.get_http_session()
+    async def _fetch_from_tmdb(self, title: str, year: str = "") -> Dict[str, Any]:
+        """Fetch poster from TMDB"""
         try:
-            clean = re.sub(r"[^\w\s]", "", title).strip()
-            if not clean:
-                return None
-            url = f"https://v2.sg.media-imdb.com/suggestion/{clean[0].lower()}/{urllib.parse.quote(clean.replace(' ', '_'))}.json"
-            async with session.get(url) as r:
-                if r.status != 200:
-                    return None
-                data = await r.json()
-                for item in data.get("d", []):
-                    img = item.get("i")
-                    poster = None
-                    if isinstance(img, dict):
-                        poster = img.get("imageUrl")
-                    elif isinstance(img, list) and img:
-                        poster = img[0]
-                    elif isinstance(img, str):
-                        poster = img
-                    
-                    if poster and poster.startswith("http"):
-                        self.stats["imdb"] += 1
-                        return {
-                            "poster_url": poster,
-                            "source": PosterSource.IMDB.value,
-                            "year": str(item.get("yr", "")),
-                            "title": item.get("l", title),
-                            "rating": "0.0",
-                        }
-        except Exception:
-            pass
-        return None
+            session = await self._get_session()
+            
+            # Search for movie
+            search_query = quote(title)
+            search_url = f"https://api.themoviedb.org/3/search/movie?api_key={self.tmdb_api_key}&query={search_query}&language=en-US&page=1"
+            
+            if year:
+                search_url += f"&year={year}"
+            
+            async with session.get(search_url) as response:
+                if response.status != 200:
+                    logger.debug(f"TMDB search failed: {response.status}")
+                    return self._empty_result(title, year)
+                
+                data = await response.json()
+                results = data.get('results', [])
+                
+                if not results:
+                    # Try without year if no results
+                    if year:
+                        return await self._fetch_from_tmdb(title, "")
+                    return self._empty_result(title, year)
+                
+                # Get first result
+                movie = results[0]
+                poster_path = movie.get('poster_path')
+                
+                if not poster_path:
+                    return self._empty_result(title, year)
+                
+                poster_url = f"{self.tmdb_image_base}{poster_path}"
+                
+                return {
+                    'poster_url': poster_url,
+                    'source': PosterSource.TMDB,
+                    'title': movie.get('title', title),
+                    'year': str(movie.get('release_date', year))[:4] if movie.get('release_date') else year,
+                    'rating': str(movie.get('vote_average', 0)),
+                    'id': str(movie.get('id', '')),
+                    'found': True,
+                    'cached_at': datetime.now().isoformat()
+                }
+                
+        except asyncio.TimeoutError:
+            logger.debug(f"TMDB timeout for {title}")
+            return self._empty_result(title, year)
+        except Exception as e:
+            logger.debug(f"TMDB error for {title}: {e}")
+            return self._empty_result(title, year)
 
-    async def fetch_from_letterboxd(self, title: str):
-        session = await self.get_http_session()
-        slug = re.sub(r"[^\w\s]", "", title).lower().replace(" ", "-")
+    async def _fetch_from_omdb(self, title: str, year: str = "") -> Dict[str, Any]:
+        """Fetch poster from OMDB"""
         try:
-            async with session.get(f"https://letterboxd.com/film/{slug}/") as r:
-                if r.status != 200:
-                    return None
-                html = await r.text()
-                m = re.search(r'property="og:image" content="([^"]+)"', html)
-                if m:
-                    self.stats["letterboxd"] += 1
-                    return {
-                        "poster_url": m.group(1),
-                        "source": PosterSource.LETTERBOXD.value,
-                        "title": title,
-                        "rating": "0.0",
-                        "year": ""
-                    }
-        except Exception:
-            pass
-        return None
+            session = await self._get_session()
+            
+            search_query = quote(title)
+            url = f"http://www.omdbapi.com/?apikey={self.omdb_api_key}&t={search_query}&plot=short"
+            
+            if year:
+                url += f"&y={year}"
+            
+            async with session.get(url) as response:
+                if response.status != 200:
+                    return self._empty_result(title, year)
+                
+                data = await response.json()
+                
+                if data.get('Response') != 'True':
+                    return self._empty_result(title, year)
+                
+                poster_url = data.get('Poster', '')
+                if not poster_url or poster_url == 'N/A':
+                    return self._empty_result(title, year)
+                
+                return {
+                    'poster_url': poster_url,
+                    'source': PosterSource.OMDB,
+                    'title': data.get('Title', title),
+                    'year': data.get('Year', year),
+                    'rating': data.get('imdbRating', '0.0'),
+                    'id': data.get('imdbID', ''),
+                    'found': True,
+                    'cached_at': datetime.now().isoformat()
+                }
+                
+        except asyncio.TimeoutError:
+            logger.debug(f"OMDB timeout for {title}")
+            return self._empty_result(title, year)
+        except Exception as e:
+            logger.debug(f"OMDB error for {title}: {e}")
+            return self._empty_result(title, year)
 
-    async def fetch_from_justwatch(self, title: str):
-        session = await self.get_http_session()
-        slug = re.sub(r"[^\w\s]", "", title).lower().replace(" ", "-")
-        try:
-            async with session.get(f"https://www.justwatch.com/in/movie/{slug}") as r:
-                if r.status != 200:
-                    return None
-                html = await r.text()
-                m = re.search(r'property="og:image" content="([^"]+)"', html)
-                if m:
-                    self.stats["justwatch"] += 1
-                    return {
-                        "poster_url": m.group(1),
-                        "source": PosterSource.JUSTWATCH.value,
-                        "title": title,
-                        "rating": "0.0",
-                        "year": ""
-                    }
-        except Exception:
-            pass
-        return None
+    def _clean_title(self, title: str) -> str:
+        """Clean movie title for searching"""
+        if not title:
+            return ""
+        
+        # Remove special characters and normalize
+        clean = re.sub(r'[^\w\s\-]', ' ', title)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        
+        # Remove common tags but keep numbers
+        clean = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x264|x265|web-dl|webrip|bluray|hdtv)\b', '', clean, flags=re.IGNORECASE)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        
+        return clean
 
-    async def fetch_from_impawards(self, title: str):
-        session = await self.get_http_session()
-        year = re.search(r"\b(19|20)\d{2}\b", title)
-        if not year:
-            return None
-        clean = re.sub(r"\b(19|20)\d{2}\b", "", title).strip().replace(" ", "_")
-        url = f"https://www.impawards.com/{year.group()}/posters/{clean}.jpg"
-        try:
-            async with session.head(url) as r:
-                if r.status == 200:
-                    self.stats["impawards"] += 1
-                    return {
-                        "poster_url": url,
-                        "source": PosterSource.IMPAWARDS.value,
-                        "title": title,
-                        "year": year.group(),
-                        "rating": "0.0",
-                    }
-        except Exception:
-            pass
-        return None
-
-    async def fetch_poster(self, title: str) -> Dict[str, Any]:
-        """Get poster for movie - RETURNS POSTER ONLY, NO FALLBACK"""
-        key = f"poster:{title.lower().strip()}"
-
-        cached = await self.redis_get(key)
-        if cached:
-            return cached
-
-        if key in self.poster_cache:
-            data, ts = self.poster_cache[key]
-            if (datetime.now() - ts).seconds < CACHE_TTL:
-                self.stats["cache_hits"] += 1
-                return data
-
-        sources = [
-            self.fetch_from_tmdb(title),
-            self.fetch_from_omdb(title),
-            self.fetch_from_letterboxd(title),
-            self.fetch_from_imdb(title),
-            self.fetch_from_justwatch(title),
-            self.fetch_from_impawards(title),
-        ]
-
-        results = await asyncio.gather(*sources, return_exceptions=True)
-
-        for r in results:
-            if isinstance(r, dict) and r.get("poster_url", "").startswith("http"):
-                normalized = self.normalize_poster(r, title)
-                self.poster_cache[key] = (normalized, datetime.now())
-                await self.redis_set(key, normalized)
-                return normalized
-
-        # Return empty poster (NO FALLBACK)
-        empty_poster = {
-            "poster_url": "",
-            "source": PosterSource.NONE.value,
-            "title": title,
-            "year": "",
-            "rating": "0.0",
+    def _empty_result(self, title: str, year: str = "") -> Dict[str, Any]:
+        """Return empty poster result"""
+        return {
+            'poster_url': '',
+            'source': PosterSource.NONE,
+            'title': title,
+            'year': year,
+            'rating': '0.0',
+            'id': '',
+            'found': False,
+            'cached_at': datetime.now().isoformat()
         }
-        self.poster_cache[key] = (empty_poster, datetime.now())
-        await self.redis_set(key, empty_poster)
-        return empty_poster
 
-    async def fetch_batch_posters(self, titles: List[str]) -> Dict[str, Dict]:
-        posters = await asyncio.gather(*(self.fetch_poster(t) for t in titles))
-        return dict(zip(titles, posters))
-    
     async def close(self):
-        """Close HTTP session"""
-        if self.http_session and not self.http_session.closed:
-            await self.http_session.close()
-            logger.info("✅ HTTP session closed")
-    
-    def get_stats(self):
-        """Get poster fetcher statistics"""
-        return self.stats
+        """Close session"""
+        if self.session and not self.session.closed:
+            await self.session.close()
+            self.session = None
+
+    def get_stats(self) -> Dict[str, int]:
+        """Get fetcher statistics"""
+        return self.stats.copy()
