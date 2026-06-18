@@ -16,6 +16,7 @@ class PosterSource:
     TMDB = "tmdb"
     OMDB = "omdb"
     TELEGRAM = "telegram"
+    MONGODB = "mongodb"
     NONE = "none"
 
 class PosterFetcher:
@@ -34,6 +35,7 @@ class PosterFetcher:
             'tmdb_hits': 0,
             'omdb_hits': 0,
             'telegram_hits': 0,
+            'mongodb_hits': 0,
             'misses': 0,
             'cache_hits': 0
         }
@@ -57,7 +59,7 @@ class PosterFetcher:
 
     async def fetch_poster(self, title: str, year: str = "") -> Dict[str, Any]:
         """
-        Fetch poster for movie - TMDB only (Letterboxd removed)
+        Fetch poster for movie - TMDB first, then OMDB
         """
         self.stats['total_fetches'] += 1
         
@@ -178,8 +180,8 @@ class PosterFetcher:
         if year:
             variations.append(f"{title} {year}")
         
-        # Remove common suffixes
-        clean = re.sub(r'\s*(season|saison|part|episode|vol|volume)\s*\d+.*$', '', title, flags=re.IGNORECASE)
+        # Remove common suffixes (season, part, etc.)
+        clean = re.sub(r'\s*(season|saison|part|episode|vol|volume|series|s)\s*\d+.*$', '', title, flags=re.IGNORECASE)
         if clean != title:
             variations.append(clean.strip())
             if year:
@@ -216,6 +218,19 @@ class PosterFetcher:
             variations.append("Boys")
             if year:
                 variations.append(f"The Boys {year}")
+        
+        # For "Fast & Furious"
+        if 'fast' in title.lower() and 'furious' in title.lower():
+            variations.append("Fast and Furious")
+            variations.append("Furious")
+            variations.append("Fast & Furious")
+            if year:
+                variations.append(f"Fast and Furious {year}")
+        
+        # For "Murder" series
+        if 'murder' in title.lower():
+            variations.append("Murder")
+            variations.append(f"Murder {title[-1]}" if title[-1].isdigit() else title)
         
         # Remove special characters
         clean_title = re.sub(r'[^\w\s]', ' ', title)
