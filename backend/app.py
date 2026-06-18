@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT WITH FILE SENDING
+# 🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT WITH ALL POSTER SOURCES + TELEGRAM
 # ============================================================================
 
 import asyncio
@@ -135,26 +135,17 @@ except ImportError as e:
     logger.error(f"❌ Utils module import error: {e}")
     # Define fallback functions
     def normalize_title(title): 
-    """
-    Normalize title - PRESERVE NUMBERS
-    """
-    if not title:
-        return ""
-    
-    # Convert to lowercase and strip
-    title = title.lower().strip()
-    
-    # Remove year in parentheses at end
-    title = re.sub(r'\s*\([^)]*\)$', '', title)
-    title = re.sub(r'\s*\[[^\]]*\]$', '', title)
-    title = re.sub(r'\s*\d{4}$', '', title)
-    
-    # Remove quality tags but KEEP NUMBERS
-    title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x264|x265|web-dl|webrip|bluray|hdtv|hdr|dts|ac3|aac|ddp|5\.1|7\.1|2\.0|esub|sub|multi|dual|audio|hindi|english|tamil|telugu|malayalam|kannada|ben|eng|hin|tam|tel|mal|kan|season|saison|part|episode|vol|volume)\b', '', title, flags=re.IGNORECASE)
-    
-    # Clean up spaces
-    title = re.sub(r'\s+', ' ', title)
-    return title.strip()
+        if not title:
+            return ""
+        # Keep numbers - don't strip them!
+        title = title.lower().strip()
+        title = re.sub(r'\s*\([^)]*\)$', '', title)
+        title = re.sub(r'\s*\[[^\]]*\]$', '', title)
+        title = re.sub(r'\s*\d{4}$', '', title)
+        # Remove quality tags but keep numbers
+        title = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x264|x265|web-dl|webrip|bluray|hdtv|hdr|dts|ac3|aac|ddp|5\.1|7\.1|2\.0|esub|sub|multi|dual|audio|hindi|english|tamil|telugu|malayalam|kannada|ben|eng|hin|tam|tel|mal|kan|season|saison|part|episode|vol|volume)\b', '', title, flags=re.IGNORECASE)
+        title = re.sub(r'\s+', ' ', title)
+        return title.strip()
     
     def extract_title_smart(text):
         if not text:
@@ -167,19 +158,17 @@ except ImportError as e:
         return text[:50] if text else ""
     
     def extract_title_from_file(filename, caption=None):
-    """Extract clean title from filename - PRESERVE NUMBERS"""
-    if filename:
-        name = os.path.splitext(filename)[0]
-        name = re.sub(r'[._]', ' ', name)
-        # Remove quality tags but keep numbers
-        name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264|web-dl|webrip|bluray|hdtv|hdr|dts|ac3|aac|ddp|5\.1|7\.1|2\.0)\b', '', name, flags=re.IGNORECASE)
-        name = re.sub(r'\s+', ' ', name)
-        name = name.strip()
-        if name:
-            return name
-    if caption:
-        return extract_title_smart(caption)
-    return "Unknown"
+        if filename:
+            name = os.path.splitext(filename)[0]
+            name = re.sub(r'[._]', ' ', name)
+            name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264)\b', '', name, flags=re.IGNORECASE)
+            name = re.sub(r'\s+', ' ', name)
+            name = name.strip()
+            if name:
+                return name
+        if caption:
+            return extract_title_smart(caption)
+        return "Unknown"
     
     def format_size(size):
         if not size:
@@ -361,6 +350,8 @@ class Config:
     # API Keys for POSTERS
     TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "e547e17d4e91f3e62a571655cd1ccaff")
     OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "8265bd1c")
+    TMDB_KEYS = [os.environ.get("TMDB_API_KEY", "e547e17d4e91f3e62a571655cd1ccaff")]
+    OMDB_KEYS = [os.environ.get("OMDB_API_KEY", "8265bd1c")]
     
     # 🔥 OPTIMIZATION SETTINGS
     POSTER_FETCHING_ENABLED = True
@@ -995,7 +986,7 @@ bot_handler = BotHandler()
 # ============================================================================
 
 def extract_clean_title(filename):
-    """Extract clean movie title without quality tags, year, etc."""
+    """Extract clean movie title without quality tags, year, etc. - PRESERVE NUMBERS"""
     if not filename:
         return "Unknown"
     
@@ -1005,10 +996,10 @@ def extract_clean_title(filename):
     # Replace separators with spaces
     name = re.sub(r'[._\-]', ' ', name)
     
-    # Remove ALL quality-related tags
-    name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x264|x265|web-dl|webrip|bluray|hdtv|hdr|dts|ac3|aac|ddp|5\.1|7\.1|2\.0|esub|sub|multi|dual|audio|hindi|english|tamil|telugu|malayalam|kannada|ben|eng|hin|tam|tel|mal|kan)\b.*$', '', name, flags=re.IGNORECASE)
+    # Remove ALL quality-related tags but keep numbers
+    name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x264|x265|web-dl|webrip|bluray|hdtv|hdr|dts|ac3|aac|ddp|5\.1|7\.1|2\.0|esub|sub|multi|dual|audio|hindi|english|tamil|telugu|malayalam|kannada|ben|eng|hin|tam|tel|mal|kan|season|saison|part|episode|vol|volume)\b.*$', '', name, flags=re.IGNORECASE)
     
-    # Remove year at the end
+    # Remove year at the end but keep numbers in title
     name = re.sub(r'\s+(19|20)\d{2}\s*$', '', name)
     
     # Remove parentheses content
@@ -1188,15 +1179,39 @@ async def try_store_real_thumbnail(normalized_title: str, clean_title: str, msg)
         traceback.print_exc()
 
 # ============================================================================
-# ✅ FIXED get_best_thumbnail - POSTER FIRST, NO LETTERBOXD
+# ✅ FIXED get_best_thumbnail - ALL SOURCES + TELEGRAM
 # ============================================================================
 
 async def get_best_thumbnail(normalized_title: str, clean_title: str = None, 
-                                      year: str = None) -> Tuple[str, str]:
+                            year: str = None, msg=None, is_post: bool = False) -> Tuple[str, str]:
     """
-    🏠 HOMEPAGE: MongoDB Cache → TMDB/OMDB → Telegram → Fallback
+    🎯 FIXED: Get thumbnail with priority:
+    1. TMDB/OMDB/Letterboxd/IMDB/JustWatch/IMPAwards (via poster_fetcher)
+    2. MongoDB stored thumbnail
+    3. TELEGRAM channel search
+    4. Fallback
     """
-    # ========== STEP 1: MongoDB Cache (Fastest) ==========
+    # ========== STEP 1: POSTER FETCHER (ALL SOURCES) ==========
+    if Config.POSTER_FETCHING_ENABLED and poster_fetcher and clean_title:
+        try:
+            poster = await get_poster_for_movie(clean_title, year)
+            
+            if poster and poster.get('poster_url') and poster.get('found'):
+                source = poster.get('source', 'poster')
+                logger.info(f"🎬 POSTER FOUND for {clean_title} from {source} (Post: {is_post})")
+                
+                # For file results, try to store real thumbnail in background
+                if not is_post and msg and has_telegram_thumbnail(msg):
+                    asyncio.create_task(
+                        try_store_real_thumbnail(normalized_title, clean_title, msg)
+                    )
+                
+                return poster['poster_url'], source
+                
+        except Exception as e:
+            logger.debug(f"⚠️ Poster error: {e}")
+    
+    # ========== STEP 2: MongoDB Check ==========
     if thumbnails_col is not None:
         try:
             doc = await thumbnails_col.find_one({
@@ -1206,54 +1221,22 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
             })
             
             if doc and doc.get('thumbnail_url'):
-                self.stats.get('mongodb_hits', 0) + 1 if hasattr(self, 'stats') else None
-                logger.info(f"📦 MONGODB cache HIT for home: {clean_title}")
+                logger.info(f"📦 MongoDB thumbnail FOUND for {clean_title} (Post: {is_post})")
                 return doc['thumbnail_url'], 'mongodb'
                     
         except Exception as e:
             logger.debug(f"⚠️ MongoDB fetch error: {e}")
     
-    # ========== STEP 2: TMDB/OMDB Poster ==========
-    if Config.POSTER_FETCHING_ENABLED and poster_fetcher and clean_title:
-        try:
-            poster = await get_poster_for_movie(clean_title, year)
-            
-            if poster and poster.get('poster_url') and poster.get('found'):
-                logger.info(f"🎬 POSTER FOUND for home: {clean_title}")
-                
-                # Store in MongoDB for future cache
-                if thumbnails_col is not None:
-                    try:
-                        await thumbnails_col.update_one(
-                            {'normalized_title': normalized_title},
-                            {'$set': {
-                                'normalized_title': normalized_title,
-                                'title': clean_title,
-                                'year': year,
-                                'thumbnail_url': poster['poster_url'],
-                                'thumbnail_source': poster.get('source', 'poster'),
-                                'has_thumbnail': True,
-                                'extracted_at': datetime.now()
-                            }},
-                            upsert=True
-                        )
-                    except Exception as e:
-                        logger.debug(f"Store poster in MongoDB error: {e}")
-                
-                return poster['poster_url'], poster.get('source', 'poster')
-                
-        except Exception as e:
-            logger.debug(f"⚠️ Poster error for home: {e}")
-    
-    # ========== STEP 3: Telegram Search ==========
+    # ========== STEP 3: TELEGRAM SEARCH (via poster_fetcher) ==========
     if poster_fetcher and clean_title:
         try:
-            telegram_result = await poster_fetcher.fetch_poster_from_telegram(clean_title, year)
+            # Fetch from Telegram using poster_fetcher
+            telegram_result = await poster_fetcher.fetch_from_telegram(clean_title, year)
             
-            if telegram_result and telegram_result.get('found') and telegram_result.get('poster_url'):
-                logger.info(f"📺 TELEGRAM poster found for home: {clean_title}")
+            if telegram_result and telegram_result.get('poster_url'):
+                logger.info(f"📺 TELEGRAM poster found for {clean_title} (Post: {is_post})")
                 
-                # Store in MongoDB for future cache
+                # Store in MongoDB for future
                 if thumbnails_col is not None:
                     try:
                         await thumbnails_col.update_one(
@@ -1261,7 +1244,7 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
                             {'$set': {
                                 'normalized_title': normalized_title,
                                 'title': clean_title,
-                                'year': year,
+                                'year': year or '',
                                 'thumbnail_url': telegram_result['poster_url'],
                                 'thumbnail_source': 'telegram',
                                 'has_thumbnail': True,
@@ -1275,10 +1258,16 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
                 return telegram_result['poster_url'], 'telegram'
                 
         except Exception as e:
-            logger.debug(f"⚠️ Telegram poster error for home: {e}")
+            logger.debug(f"⚠️ Telegram poster error: {e}")
     
-    # ========== STEP 4: Fallback ==========
-    logger.info(f"⚠️ FALLBACK for home: {clean_title}")
+    # ========== STEP 4: For files only - try extraction ==========
+    if not is_post and msg and clean_title:
+        asyncio.create_task(
+            try_store_real_thumbnail(normalized_title, clean_title, msg)
+        )
+    
+    # ========== STEP 5: Fallback ==========
+    logger.info(f"⚠️ FALLBACK for {clean_title} (Post: {is_post})")
     return FALLBACK_THUMBNAIL_URL, 'fallback'
                                 
 # ============================================================================
@@ -1286,7 +1275,7 @@ async def get_best_thumbnail(normalized_title: str, clean_title: str = None,
 # ============================================================================
 
 async def get_poster_for_movie(title: str, year: str = "", quality: str = "") -> Dict[str, Any]:
-    """Get poster for movie - TMDB only, NO LETTERBOXD"""
+    """Get poster for movie - uses poster_fetcher with all sources"""
     global poster_fetcher, posters_col
     
     if poster_fetcher is None:
@@ -1314,7 +1303,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
             logger.debug(f"Cache check error: {e}")
     
     try:
-        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title))
+        poster_task = asyncio.create_task(poster_fetcher.fetch_poster(title, year))
         
         try:
             poster_data = await asyncio.wait_for(poster_task, timeout=Config.POSTER_FETCH_TIMEOUT)
@@ -1367,15 +1356,15 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ OPTIMIZED SEARCH v4.2 - FIXED CHANNEL IDs
+# ✅ OPTIMIZED SEARCH v4.3 - ALL SOURCES + TELEGRAM
 # ============================================================================
 
 @performance_monitor.measure("optimized_search")
 @async_cache_with_ttl(maxsize=500, ttl=600)
 async def search_movies_optimized(query, limit=15, page=1):
     """
-    🔥 OPTIMIZED SEARCH v4.2 - One thumbnail per movie, all qualities shown
-    FIXED: Posts ke liye bhi thumbnail, correct channel IDs
+    🔥 OPTIMIZED SEARCH v4.3 - All poster sources + Telegram fallback
+    FIXED: Numbered movies work properly
     """
     start_time = time.time()
     offset = (page - 1) * limit
@@ -1393,7 +1382,7 @@ async def search_movies_optimized(query, limit=15, page=1):
             file_count = 0
             
             async for msg in User.search_messages(
-                Config.FILE_CHANNEL_ID,  # ✅ FIXED: Using correct FILE_CHANNEL_ID
+                Config.FILE_CHANNEL_ID,
                 query=query,
                 limit=50
             ):
@@ -1409,7 +1398,7 @@ async def search_movies_optimized(query, limit=15, page=1):
                 if not file_name or not is_video_file(file_name):
                     continue
                 
-                # Extract clean title (without quality)
+                # Extract clean title (without quality) - PRESERVE NUMBERS
                 clean_title = extract_clean_title(file_name)
                 normalized = normalize_title(clean_title)
                 quality = detect_quality_enhanced(file_name)
@@ -1422,7 +1411,7 @@ async def search_movies_optimized(query, limit=15, page=1):
                     'file_size': msg.document.file_size if msg.document else msg.video.file_size,
                     'file_size_formatted': format_size(msg.document.file_size if msg.document else msg.video.file_size),
                     'message_id': msg.id,
-                    'channel_id': Config.FILE_CHANNEL_ID,  # ✅ FIXED: Correct channel ID
+                    'channel_id': Config.FILE_CHANNEL_ID,
                     'file_id': msg.document.file_id if msg.document else msg.video.file_id,
                     'date': msg.date,
                     'has_thumbnail_in_telegram': has_telegram_thumbnail(msg)
@@ -1483,7 +1472,7 @@ async def search_movies_optimized(query, limit=15, page=1):
         try:
             post_count = 0
             
-            for channel_id in Config.TEXT_CHANNEL_IDS:  # ✅ FIXED: Using TEXT_CHANNEL_IDS
+            for channel_id in Config.TEXT_CHANNEL_IDS:
                 try:
                     async for msg in User.search_messages(
                         channel_id, 
@@ -1546,7 +1535,7 @@ async def search_movies_optimized(query, limit=15, page=1):
             logger.error(f"❌ Text channels search error: {e}")
     
     # ============================================================================
-    # ✅ STEP 3: Get Thumbnails for Each Result (SEARCH PRIORITY)
+    # ✅ STEP 3: Get Thumbnails for Each Result (ALL SOURCES + TELEGRAM)
     # ============================================================================
     for normalized, result in results_dict.items():
         # Check if it's a post-only result
@@ -1555,19 +1544,21 @@ async def search_movies_optimized(query, limit=15, page=1):
         if result.get('has_file'):
             # File result - has message object
             msg = result.get('first_file_msg')
-            thumbnail_url, thumbnail_source = await get_best_thumbnail_for_search(
+            thumbnail_url, thumbnail_source = await get_best_thumbnail(
                 normalized,
                 result.get('title'),
                 result.get('year'),
-                msg
+                msg,
+                is_post=False
             )
         else:
             # Post-only result - no message object
-            thumbnail_url, thumbnail_source = await get_best_thumbnail_for_search(
+            thumbnail_url, thumbnail_source = await get_best_thumbnail(
                 normalized,
                 result.get('title'),
                 result.get('year'),
-                None
+                None,
+                is_post=True
             )
         
         result['thumbnail_url'] = thumbnail_url
@@ -1587,7 +1578,7 @@ async def search_movies_optimized(query, limit=15, page=1):
     
     # Sort by: has_file (priority), is_new, best_date
     all_results.sort(key=lambda x: (
-        1 if x.get('has_file') else 0,  # Files first
+        1 if x.get('has_file') else 0,
         1 if x.get('is_new') else 0,
         x.get('best_date') if isinstance(x.get('best_date'), datetime) else 
         (x.get('date') if isinstance(x.get('date'), datetime) else datetime.min)
@@ -1607,21 +1598,38 @@ async def search_movies_optimized(query, limit=15, page=1):
     combined_count = sum(1 for r in all_results if r.get('has_file') and r.get('has_post'))
     
     # Count thumbnail sources
-    poster_count = 0
+    tmdb_count = 0
+    omdb_count = 0
+    letterboxd_count = 0
+    imdb_count = 0
+    justwatch_count = 0
+    impawards_count = 0
     mongodb_count = 0
     telegram_count = 0
     fallback_count = 0
     
     for r in paginated:
         source = r.get('thumbnail_source', 'fallback')
-        if source in ['tmdb', 'omdb', 'poster']:
-            poster_count += 1
+        if source == 'tmdb':
+            tmdb_count += 1
+        elif source == 'omdb':
+            omdb_count += 1
+        elif source == 'letterboxd':
+            letterboxd_count += 1
+        elif source == 'imdb':
+            imdb_count += 1
+        elif source == 'justwatch':
+            justwatch_count += 1
+        elif source == 'impawards':
+            impawards_count += 1
         elif source == 'mongodb':
             mongodb_count += 1
         elif source == 'telegram':
             telegram_count += 1
         else:
             fallback_count += 1
+    
+    total_poster_count = tmdb_count + omdb_count + letterboxd_count + imdb_count + justwatch_count + impawards_count
     
     # Count total qualities
     total_qualities = sum(len(r.get('available_qualities', [])) for r in all_results)
@@ -1635,9 +1643,14 @@ async def search_movies_optimized(query, limit=15, page=1):
     logger.info(f"   • Post+Files: {combined_count}")
     logger.info(f"   • Post only: {post_count - combined_count}")
     logger.info(f"   • File only: {file_count - combined_count}")
-    logger.info(f"   • Posters (TMDB/OMDB): {poster_count}")
+    logger.info(f"   • TMDB posters: {tmdb_count}")
+    logger.info(f"   • OMDB posters: {omdb_count}")
+    logger.info(f"   • Letterboxd posters: {letterboxd_count}")
+    logger.info(f"   • IMDB posters: {imdb_count}")
+    logger.info(f"   • JustWatch posters: {justwatch_count}")
+    logger.info(f"   • IMPAwards posters: {impawards_count}")
     logger.info(f"   • MongoDB thumbnails: {mongodb_count}")
-    logger.info(f"   • Main Channel thumbnails: {main_channel_count}")
+    logger.info(f"   • TELEGRAM thumbnails: {telegram_count}")
     logger.info(f"   • Fallback images: {fallback_count}")
     logger.info(f"   • Time: {elapsed:.2f}s")
     logger.info("=" * 70)
@@ -1659,11 +1672,16 @@ async def search_movies_optimized(query, limit=15, page=1):
             'file_results': file_count,
             'post_results': post_count,
             'combined_results': combined_count,
-            'posters': poster_count,
+            'tmdb': tmdb_count,
+            'omdb': omdb_count,
+            'letterboxd': letterboxd_count,
+            'imdb': imdb_count,
+            'justwatch': justwatch_count,
+            'impawards': impawards_count,
             'mongodb_thumbnails': mongodb_count,
             'telegram_thumbnails': telegram_count,
             'fallback': fallback_count,
-            'mode': 'search_priority_v5',
+            'mode': 'optimized_v4.3_all_sources',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED
         },
         'bot_username': Config.BOT_USERNAME
@@ -1827,7 +1845,7 @@ class ThumbnailManager:
                     'has_thumbnail': True,
                     'extracted_at': datetime.now(),
                     'message_id': message_id,
-                    'channel_id': Config.FILE_CHANNEL_ID,  # ✅ FIXED: Use Config.FILE_CHANNEL_ID
+                    'channel_id': Config.FILE_CHANNEL_ID,
                     'file_name': file_name,
                     'size_kb': size_kb,
                     'file_id': thumbnail_file_id
@@ -2307,14 +2325,15 @@ class OptimizedSyncManager:
 sync_manager = OptimizedSyncManager()
 
 # ============================================================================
-# ✅ UPDATED HOME MOVIES - FIXED WITH POSTER FIRST
+# ✅ UPDATED HOME MOVIES - ALL SOURCES + TELEGRAM
 # ============================================================================
 
 @performance_monitor.measure("home_movies")
-@async_cache_with_ttl(maxsize=1, ttl=300)
-async def get_home_movies(limit=100):
+@async_cache_with_ttl(maxsize=1, ttl=60)
+async def get_home_movies(limit=30):
     """
-    🏠 HOME MOVIES: MongoDB Cache → TMDB/OMDB → Telegram → Fallback
+    🎬 HOME MOVIES - ALL SOURCES + TELEGRAM
+    Priority: TMDB > OMDB > Letterboxd > IMDB > JustWatch > IMPAwards > MongoDB > TELEGRAM > Fallback
     """
     try:
         if User is None or not user_session_ready:
@@ -2325,8 +2344,8 @@ async def get_home_movies(limit=100):
         
         logger.info(f"🎬 Fetching home movies from main channel {Config.MAIN_CHANNEL_ID}...")
         
-        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=300):
-            if msg is not None and msg.text and len(msg.text) > 3:
+        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=50):
+            if msg is not None and msg.text and len(msg.text) > 30:
                 title = extract_title_smart(msg.text)
                 
                 if title and title not in seen_titles:
@@ -2343,10 +2362,54 @@ async def get_home_movies(limit=100):
                     formatted_content = format_post(msg.text, max_length=500)
                     norm_title = normalize_title(clean_title)
                     
-                    # ========== GET THUMBNAIL WITH HOME PRIORITY ==========
-                    thumbnail_url, thumbnail_source = await get_best_thumbnail_for_home(
-                        norm_title, clean_title, year
-                    )
+                    # ========== GET THUMBNAIL: ALL SOURCES ==========
+                    thumbnail_url = None
+                    thumbnail_source = None
+                    poster_data = None
+                    
+                    # STEP 1: Try Poster Fetcher (TMDB, OMDB, Letterboxd, IMDB, JustWatch, IMPAwards)
+                    if Config.POSTER_FETCHING_ENABLED and poster_fetcher:
+                        try:
+                            poster_data = await get_poster_for_movie(clean_title, year)
+                            if poster_data and poster_data.get('found') and poster_data.get('poster_url'):
+                                thumbnail_url = poster_data['poster_url']
+                                thumbnail_source = poster_data.get('source', 'poster')
+                                logger.info(f"🎬 POSTER FOUND for home movie: {clean_title} from {thumbnail_source}")
+                        except Exception as e:
+                            logger.debug(f"Poster error for {clean_title}: {e}")
+                    
+                    # STEP 2: Try MongoDB
+                    if not thumbnail_url and thumbnails_col is not None:
+                        try:
+                            thumb_doc = await thumbnails_col.find_one({
+                                'normalized_title': norm_title,
+                                'has_thumbnail': True,
+                                'thumbnail_url': {'$exists': True, '$ne': None}
+                            })
+                            
+                            if thumb_doc and thumb_doc.get('thumbnail_url'):
+                                thumbnail_url = thumb_doc['thumbnail_url']
+                                thumbnail_source = 'mongodb'
+                                logger.info(f"📦 MONGODB thumbnail FOUND for home movie: {clean_title}")
+                        except Exception as e:
+                            logger.debug(f"MongoDB fetch error for {clean_title}: {e}")
+                    
+                    # STEP 3: Try TELEGRAM search
+                    if not thumbnail_url and poster_fetcher:
+                        try:
+                            telegram_result = await poster_fetcher.fetch_from_telegram(clean_title, year)
+                            if telegram_result and telegram_result.get('poster_url'):
+                                thumbnail_url = telegram_result['poster_url']
+                                thumbnail_source = 'telegram'
+                                logger.info(f"📺 TELEGRAM thumbnail FOUND for home movie: {clean_title}")
+                        except Exception as e:
+                            logger.debug(f"Telegram search error for {clean_title}: {e}")
+                    
+                    # STEP 4: Fallback (only if all else fails)
+                    if not thumbnail_url:
+                        thumbnail_url = FALLBACK_THUMBNAIL_URL
+                        thumbnail_source = 'fallback'
+                        logger.warning(f"⚠️ FALLBACK for home movie: {clean_title}")
                     
                     movie_data = {
                         'title': clean_title,
@@ -2362,7 +2425,11 @@ async def get_home_movies(limit=100):
                         'post_content': post_content,
                         'thumbnail_url': thumbnail_url,
                         'thumbnail_source': thumbnail_source,
-                        'has_thumbnail': True
+                        'has_thumbnail': True,
+                        'poster_url': poster_data.get('poster_url') if poster_data else None,
+                        'poster_source': poster_data.get('source') if poster_data else None,
+                        'poster_rating': poster_data.get('rating') if poster_data else None,
+                        'has_poster': bool(poster_data and poster_data.get('poster_url'))
                     }
                     
                     movies.append(movie_data)
@@ -2371,18 +2438,16 @@ async def get_home_movies(limit=100):
                         break
         
         # Statistics
-        mongodb_count = sum(1 for m in movies if m.get('thumbnail_source') == 'mongodb')
-        poster_count = sum(1 for m in movies if m.get('thumbnail_source') in ['poster', 'tmdb', 'omdb'])
-        telegram_count = sum(1 for m in movies if m.get('thumbnail_source') == 'telegram')
-        fallback_count = sum(1 for m in movies if m.get('thumbnail_source') == 'fallback')
+        poster_sources = {}
+        for m in movies:
+            source = m.get('thumbnail_source', 'fallback')
+            poster_sources[source] = poster_sources.get(source, 0) + 1
         
         logger.info("=" * 60)
         logger.info("📊 HOME MOVIES SUMMARY:")
         logger.info(f"   • Total movies: {len(movies)}")
-        logger.info(f"   • MONGODB Cache (Priority 1): {mongodb_count}")
-        logger.info(f"   • POSTERS (Priority 2 - TMDB/OMDB): {poster_count}")
-        logger.info(f"   • TELEGRAM (Priority 3): {telegram_count}")
-        logger.info(f"   • FALLBACK (Priority 4): {fallback_count}")
+        for source, count in poster_sources.items():
+            logger.info(f"   • {source.upper()}: {count}")
         logger.info("=" * 60)
         
         return movies[:limit]
@@ -2808,7 +2873,7 @@ async def init_mongodb():
 # ============================================================================
 
 async def init_poster_fetcher():
-    """Initialize poster fetcher"""
+    """Initialize poster fetcher with all sources + telegram"""
     global poster_fetcher
     
     if not POSTER_FETCHER_AVAILABLE:
@@ -2821,7 +2886,14 @@ async def init_poster_fetcher():
     
     try:
         poster_fetcher = PosterFetcher(Config, cache_manager.redis_client if cache_manager else None)
-        logger.info("✅ Poster Fetcher initialized (TMDB/OMDB only - NO LETTERBOXD)")
+        
+        # Set telegram clients for poster fetcher
+        poster_fetcher.set_telegram_clients(
+            user_client=User if user_session_ready else None,
+            bot_client=Bot if bot_session_ready else None
+        )
+        
+        logger.info("✅ Poster Fetcher initialized with ALL SOURCES + TELEGRAM")
         return True
     except Exception as e:
         logger.error(f"❌ Poster fetcher initialization failed: {e}")
@@ -2893,7 +2965,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT")
+        logger.info("🚀 SK4FiLM v9.5 - ALL SOURCES + TELEGRAM")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2934,7 +3006,7 @@ async def init_system():
         # Initialize Thumbnail Manager
         await init_thumbnail_manager()
         
-        # Initialize Poster Fetcher
+        # Initialize Poster Fetcher with ALL SOURCES + TELEGRAM
         await init_poster_fetcher()
         
         # START TELEGRAM BOT
@@ -2956,10 +3028,10 @@ async def init_system():
         logger.info("🔧 FEATURES:")
         logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
         logger.info(f"   • Main Channel ID: {Config.MAIN_CHANNEL_ID}")
-        logger.info(f"   • Poster Fetching: ✅ ENABLED (TMDB/OMDB only)")
+        logger.info(f"   • Poster Sources: TMDB, OMDB, Letterboxd, IMDB, JustWatch, IMPAwards, TELEGRAM")
         logger.info(f"   • File Sending: ✅ ENABLED")
         logger.info(f"   • Auto-Delete: ✅ {Config.AUTO_DELETE_TIME} minutes")
-        logger.info(f"   • Letterboxd: ❌ REMOVED")
+        logger.info(f"   • Number Preservation: ✅ ENABLED")
         logger.info("=" * 60)
         
         return True
@@ -3004,11 +3076,16 @@ async def root():
     
     bot_running = telegram_bot is not None
     
+    poster_stats = {}
+    if poster_fetcher and hasattr(poster_fetcher, 'get_stats'):
+        poster_stats = poster_fetcher.get_stats()
+    
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.5 - COMPLETE FIXED BOT',
+        'service': 'SK4FiLM v9.5 - ALL SOURCES + TELEGRAM',
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
         'auto_delete_minutes': Config.AUTO_DELETE_TIME,
+        'poster_stats': poster_stats,
         'storage_stats': {
             'movies_with_thumbnails': movies_with_thumb,
             'movies_without_thumbnails': movies_without_thumb,
@@ -3077,7 +3154,7 @@ async def api_movies():
 
 @app.route('/api/search', methods=['GET'])
 async def api_search():
-    """Fast search with one thumbnail per movie"""
+    """Fast search with one thumbnail per movie - ALL SOURCES"""
     try:
         query = request.args.get('query', '').strip()
         page = int(request.args.get('page', 1))
@@ -3283,12 +3360,12 @@ if __name__ == "__main__":
     logger.info(f"📁 File Channel ID: {Config.FILE_CHANNEL_ID}")
     logger.info(f"🤖 Bot Token: {'✅ Configured' if Config.BOT_TOKEN else '❌ Missing'}")
     logger.info(f"⏰ Auto-Delete Time: {Config.AUTO_DELETE_TIME} minutes")
-    logger.info(f"🎬 Poster Fetching: {'ENABLED' if Config.POSTER_FETCHING_ENABLED else 'DISABLED'}")
+    logger.info(f"🎬 Poster Sources: TMDB, OMDB, Letterboxd, IMDB, JustWatch, IMPAwards, TELEGRAM")
     logger.info(f"🖼️ ONE Thumbnail Per Movie: ENABLED")
     logger.info(f"🎞️ All Qualities Shown: ENABLED")
     logger.info(f"📤 File Sending: ENABLED")
     logger.info(f"🔄 Auto-indexing: LIMITED (500 messages)")
-    logger.info(f"❌ Letterboxd: REMOVED")
+    logger.info(f"🔢 Number Preservation: ENABLED")
     
     try:
         asyncio.run(serve(app, config))
