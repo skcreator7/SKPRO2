@@ -327,6 +327,49 @@
         .welcome-blurb strong { color: var(--accent); }
         .welcome-blurb .highlight { color: #ffcc00; }
         
+        /* ===== 500x250 BANNER AD ABOVE LATEST MOVIES ===== */
+        .banner-ad-500x250 {
+            width: 100%;
+            max-width: 500px;
+            margin: 10px auto 20px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(0,204,255,0.15);
+            padding: 8px;
+            min-height: 250px;
+            overflow: hidden;
+        }
+        .banner-ad-500x250 ins {
+            display: block;
+            width: 500px;
+            height: 250px;
+            max-width: 100%;
+        }
+        .banner-ad-500x250 iframe,
+        .banner-ad-500x250 img {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        @media (max-width: 520px) {
+            .banner-ad-500x250 {
+                min-height: 150px;
+                padding: 5px;
+            }
+            .banner-ad-500x250 ins {
+                width: 320px;
+                height: 160px;
+            }
+        }
+        @media (max-width: 340px) {
+            .banner-ad-500x250 ins {
+                width: 280px;
+                height: 140px;
+            }
+        }
+        
         /* movie grid */
         .section-box {
             background: rgba(15, 23, 42, 0.7);
@@ -340,7 +383,6 @@
         .section-box h2 { padding-left: 12px; padding-right: 12px; }
         .progressive-loading {
             background-color: rgba(30, 41, 59, 0.3);
-            background-image: url('https://iili.io/fAeIwv9.th.png');
             background-size: cover;
             transition: filter 0.7s ease-out, opacity 0.5s ease-out;
             filter: blur(15px);
@@ -400,9 +442,49 @@
             text-align: center;
             border-top: 1px solid rgba(0, 204, 255, 0.3);
             flex-shrink: 0;
+            min-height: 55px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        .movie-title { font-size: 0.7rem; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.3px; }
-        .movie-date { font-size: 0.55rem; color: #ffaa00; font-weight: 400; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .movie-title {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.2;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .movie-title .highlight-text {
+            color: var(--accent);
+        }
+        .movie-title .year-text {
+            color: #ffaa00;
+        }
+        .movie-title .lang-text {
+            color: #ff6b6b;
+        }
+        .movie-title .type-text {
+            color: #2ecc71;
+        }
+        .movie-title .multi-text {
+            color: #e74c3c;
+            font-weight: 800;
+        }
+        .movie-date {
+            font-size: 0.5rem;
+            color: #888;
+            font-weight: 400;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .skeleton-movie-card { background: #000; border: 1px solid rgba(255,255,255,0.05); border-radius: 0px; aspect-ratio: 2/3; }
         
         /* PAGINATION */
@@ -681,6 +763,13 @@
             </span>
         </div>
         
+        <!-- ===== 500x250 BANNER AD ABOVE LATEST MOVIES ===== -->
+        <div class="banner-ad-500x250" id="bannerAd500x250">
+            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+            <ins class="eas6a97888e10" data-zoneid="5953216" id="bannerAd500Ins"></ins>
+            <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
+        </div>
+        
         <!-- Movie grid -->
         <div class="section-box animate__animated animate__fadeIn">
             <div style="margin-bottom:20px; padding-left: 12px;"><h2 style="color:var(--accent);font-size:2rem;"><i class="fas fa-film me-3" style="color:var(--primary);"></i>Latest Movies</h2></div>
@@ -713,7 +802,7 @@
         
         <div class="native-ad-wrapper">
             <script async="async" data-cfasync="false" src="https://marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-<div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
+            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
         </div>
         
         <div class="section-box">
@@ -776,7 +865,56 @@
         </div>
     </div>
     
+    <!-- ===== EXOCLICK MOBILE FULLPAGE INTERSTITIAL - SIRF AD CODE ===== -->
+    <!-- No container, no wrapper, no close button needed - ExoClick handles everything -->
+    <script async type="application/javascript" src="https://a.pemsrv.com/ad-provider.js"></script>
+    <ins class="eas6a97888e33" data-zoneid="5952664"></ins>
+    <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
+    
     <script>
+        // ===== TELEGRAM CONFIGURATION =====
+        const TELEGRAM_CHANNEL = 'sk4film';
+        const TELEGRAM_POSTER_API = 'https://sk4film.koyeb.app/api/telegram/poster';
+        let telegramCache = {};
+        
+        // ===== FORMAT MOVIE TITLE FUNCTION =====
+        function formatMovieTitle(movie) {
+            let title = movie.title || 'Unknown';
+            let year = movie.year || '2024';
+            let language = movie.language || 'Hindi';
+            let isDualAudio = movie.dual_audio || movie.is_dual_audio || false;
+            let sourceType = movie.source || movie.quality || 'WEB-DL';
+            
+            let formattedTitle = title;
+            
+            if (year && year !== 'N/A') {
+                formattedTitle += ' <span class="year-text">(' + year + ')</span>';
+            }
+            if (language && language !== 'N/A') {
+                formattedTitle += ' <span class="lang-text">' + language + '</span>';
+            }
+            if (sourceType && sourceType !== 'N/A') {
+                let sourceDisplay = sourceType.toUpperCase();
+                if (sourceDisplay.includes('WEB')) sourceDisplay = 'WEB-DL';
+                else if (sourceDisplay.includes('HDTC')) sourceDisplay = 'HDTC';
+                else if (sourceDisplay.includes('ORG')) sourceDisplay = 'ORG';
+                else if (sourceDisplay.includes('BLURAY')) sourceDisplay = 'BluRay';
+                else if (sourceDisplay.includes('DVD')) sourceDisplay = 'DVD-Rip';
+                formattedTitle += ' <span class="type-text">' + sourceDisplay + '</span>';
+            }
+            if (isDualAudio || language === 'Dual Audio' || language === 'Multi Audio') {
+                formattedTitle += ' <span class="multi-text">MULTi</span>';
+                formattedTitle += ' <span class="type-text">Dual Audio</span>';
+            }
+            formattedTitle += ' <span class="highlight-text">Full Movie</span>';
+            
+            return formattedTitle;
+        }
+        
+        function getTelegramPosterUrl(movieTitle, year) {
+            return `${TELEGRAM_POSTER_API}?channel=${TELEGRAM_CHANNEL}&title=${encodeURIComponent(movieTitle)}&year=${year || ''}`;
+        }
+        
         // ===== SHRINK/EXPAND LOGIC =====
         let isShrunk = false;
         
@@ -786,7 +924,6 @@
             const btn = document.getElementById('shrinkToggleBtn');
             
             if (isShrunk) {
-                // Expand to normal
                 modal.classList.remove('shrunk');
                 modal.classList.add('normal');
                 modal.classList.add('popup-expanding');
@@ -795,7 +932,6 @@
                 btn.querySelector('i').className = 'fas fa-compress-alt';
                 isShrunk = false;
             } else {
-                // Shrink - hide banner
                 modal.classList.remove('normal');
                 modal.classList.add('shrunk');
                 modal.classList.add('popup-shrinking');
@@ -863,14 +999,21 @@
                 let badges = '';
                 if(isNew) badges += '<div class="new-badge"><i class="fas fa-bolt me-1" style="font-size: 0.45rem;"></i>NEW</div>';
                 if(rating !== '0.0') badges += `<div class="rating-badge"><i class="fas fa-star me-1"></i>${rating}</div>`;
+                
+                const formattedTitle = formatMovieTitle(m);
+                let posterUrl = m.poster_url;
+                if (!posterUrl || !posterUrl.startsWith('http')) {
+                    posterUrl = getTelegramPosterUrl(title, m.year);
+                }
+                
                 card.innerHTML = `
                     <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}');"></div>
                     <div class="poster-wrapper">
-                        <img class="hq-poster progressive-loading" alt="${escapeHTML(title)}" loading="lazy" src="${FALLBACK_IMAGE}">
+                        <img class="hq-poster progressive-loading" alt="${escapeHTML(title)}" loading="lazy" src="${FALLBACK_IMAGE}" data-poster="${escapeHTML(posterUrl)}" data-title="${escapeJS(title)}" data-year="${escapeJS(m.year || '')}">
                         ${badges}
                     </div>
                     <div class="movie-info">
-                        <div class="movie-title">${escapeHTML(title)}</div>
+                        <div class="movie-title">${formattedTitle}</div>
                         <div class="movie-date"><i class="far fa-calendar-alt me-1"></i>${escapeHTML(releaseInfo)}</div>
                     </div>
                 `;
@@ -883,27 +1026,79 @@
                 const img = card.querySelector('.hq-poster');
                 const movie = pageMovies[idx];
                 if (!img || !movie) return;
-                const url = movie.poster_url?.startsWith('http') ? movie.poster_url : `${BACKEND_URL}/api/poster?title=${encodeURIComponent(movie.title || '')}&year=${movie.year || ''}`;
+                
+                let posterUrl = movie.poster_url;
+                if (!posterUrl || !posterUrl.startsWith('http')) {
+                    posterUrl = getTelegramPosterUrl(movie.title || '', movie.year || '');
+                }
+                
                 const highImg = new Image();
                 const to = setTimeout(() => {
                     img.style.filter = 'blur(0px)';
                     img.style.opacity = '1';
-                }, 5000);
+                }, 8000);
+                
                 highImg.onload = () => {
                     clearTimeout(to);
-                    img.src = url;
+                    img.src = highImg.src;
                     setTimeout(() => { img.style.filter = 'blur(0px)'; img.style.opacity = '1'; }, 100);
                 };
+                
                 highImg.onerror = () => {
                     clearTimeout(to);
-                    img.src = FALLBACK_IMAGE;
-                    img.style.filter = 'blur(0px)';
-                    img.style.opacity = '1';
+                    tryTelegramFallback(img, movie.title || '', movie.year || '');
                 };
-                highImg.src = url;
+                
+                highImg.src = posterUrl;
             });
             
             updatePagination();
+        }
+        
+        function tryTelegramFallback(imgElement, movieTitle, year) {
+            const cleanTitle = movieTitle.trim()
+                .replace(/[^a-zA-Z0-9 ]/g, '')
+                .replace(/\s+/g, '-')
+                .toLowerCase();
+            
+            const fallbackUrls = [
+                `${TELEGRAM_POSTER_API}?channel=${TELEGRAM_CHANNEL}&title=${encodeURIComponent(movieTitle)}&year=${year || ''}`,
+                `https://t.me/${TELEGRAM_CHANNEL}/${cleanTitle}-${year || '2024'}`,
+                `https://t.me/${TELEGRAM_CHANNEL}/${cleanTitle}`,
+                `https://telegra.ph/file/${cleanTitle}-${year || '2024'}-poster.jpg`,
+                `https://telegra.ph/file/${cleanTitle}-poster.jpg`,
+                `https://telegra.ph/file/${cleanTitle}.jpg`,
+                `https://img.telegra.ph/file/${cleanTitle}-${year || '2024'}.jpg`
+            ];
+            
+            let attemptIndex = 0;
+            
+            function tryNextFallback() {
+                if (attemptIndex >= fallbackUrls.length) {
+                    imgElement.src = FALLBACK_IMAGE;
+                    imgElement.style.filter = 'blur(0px)';
+                    imgElement.style.opacity = '1';
+                    return;
+                }
+                
+                const testImg = new Image();
+                const url = fallbackUrls[attemptIndex];
+                
+                testImg.onload = function() {
+                    imgElement.src = url;
+                    imgElement.style.filter = 'blur(0px)';
+                    imgElement.style.opacity = '1';
+                };
+                
+                testImg.onerror = function() {
+                    attemptIndex++;
+                    tryNextFallback();
+                };
+                
+                testImg.src = url;
+            }
+            
+            tryNextFallback();
         }
         
         function updatePagination() {
@@ -1086,5 +1281,10 @@
         window.copyShareLinkWithMessage = copyShareLinkWithMessage;
         window.shareWithMessage = shareWithMessage;
     </script>
+    
+    <!-- Additional ad scripts -->
+    <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script> 
+ <ins class="eas6a97888e42" data-zoneid="5953270"></ins> 
+ <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>
 </body>
 </html>
