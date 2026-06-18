@@ -15,6 +15,7 @@ class PosterSource:
     """Poster source constants"""
     TMDB = "tmdb"
     OMDB = "omdb"
+    TELEGRAM = "telegram"
     NONE = "none"
 
 class PosterFetcher:
@@ -32,6 +33,7 @@ class PosterFetcher:
             'total_fetches': 0,
             'tmdb_hits': 0,
             'omdb_hits': 0,
+            'telegram_hits': 0,
             'misses': 0,
             'cache_hits': 0
         }
@@ -62,7 +64,7 @@ class PosterFetcher:
         if not title:
             return self._empty_result(title, year)
         
-        # Clean title
+        # Clean title - preserve numbers
         clean_title = self._clean_title(title)
         
         # Check cache first
@@ -109,6 +111,129 @@ class PosterFetcher:
                 logger.debug(f"Cache write error: {e}")
         
         return result
+
+    async def fetch_poster_from_telegram(self, title: str, year: str = "") -> Dict[str, Any]:
+        """
+        Fetch poster from Telegram channel using title search
+        """
+        try:
+            # Clean title - preserve numbers
+            clean_title = self._clean_title(title)
+            
+            # Create search variations
+            search_variations = self._generate_search_variations(clean_title, year)
+            
+            # Try to search in main channel
+            if User and user_session_ready:
+                for search_term in search_variations:
+                    try:
+                        async for msg in User.search_messages(
+                            Config.MAIN_CHANNEL_ID,
+                            query=search_term,
+                            limit=3
+                        ):
+                            if msg and msg.text:
+                                # Check if this message has media with thumbnail
+                                if hasattr(msg, 'media') and msg.media:
+                                    if hasattr(msg.media, 'thumbnail') and msg.media.thumbnail:
+                                        thumb_data = await User.download_media(
+                                            msg.media.thumbnail.file_id,
+                                            in_memory=True
+                                        )
+                                        if thumb_data:
+                                            if isinstance(thumb_data, bytes):
+                                                thumb_url = f"data:image/jpeg;base64,{base64.b64encode(thumb_data).decode()}"
+                                            else:
+                                                thumb_url = f"data:image/jpeg;base64,{base64.b64encode(thumb_data.read()).decode()}"
+                                            
+                                            if thumb_url and len(thumb_url) < 100000:
+                                                self.stats['telegram_hits'] += 1
+                                                logger.info(f"✅ Telegram poster found: {clean_title} (via '{search_term}')")
+                                                return {
+                                                    'poster_url': thumb_url,
+                                                    'source': PosterSource.TELEGRAM,
+                                                    'title': clean_title,
+                                                    'year': year,
+                                                    'found': True,
+                                                    'cached_at': datetime.now().isoformat()
+                                                }
+                    except Exception as e:
+                        logger.debug(f"Telegram search error for '{search_term}': {e}")
+                        continue
+            
+            return self._empty_result(clean_title, year)
+            
+        except Exception as e:
+            logger.error(f"❌ Telegram poster fetch error: {e}")
+            return self._empty_result(title, year)
+
+    def _generate_search_variations(self, title: str, year: str = "") -> List[str]:
+        """Generate search variations for better matching"""
+        variations = []
+        
+        # Original title
+        variations.append(title)
+        
+        # Title with year
+        if year:
+            variations.append(f"{title} {year}")
+        
+        # Remove common suffixes
+        clean = re.sub(r'\s*(season|saison|part|episode|vol|volume)\s*\d+.*$', '', title, flags=re.IGNORECASE)
+        if clean != title:
+            variations.append(clean.strip())
+            if year:
+                variations.append(f"{clean.strip()} {year}")
+        
+        # For numbered movies (Don 2, Murder 2, Fast & Furious 2)
+        numbered_match = re.search(r'^(.*?)\s+(\d+)$', title)
+        if numbered_match:
+            base = numbered_match.group(1).strip()
+            num = numbered_match.group(2)
+            variations.append(base)
+            variations.append(f"{base} {num}")
+            if year:
+                variations.append(f"{base} {year}")
+        
+        # Remove "The" prefix
+        if title.lower().startswith('the '):
+            without_the = title[4:]
+            variations.append(without_the)
+            if year:
+                variations.append(f"{without_the} {year}")
+        
+        # For series like "Money Heist" -> "Money Heist Season", "La Casa De Papel"
+        if 'heist' in title.lower():
+            variations.append("Money Heist")
+            variations.append("La Casa De Papel")
+            variations.append("La Casa De Papel Season")
+            if year:
+                variations.append(f"Money Heist {year}")
+        
+        # For "The Boys"
+        if 'boys' in title.lower():
+            variations.append("The Boys")
+            variations.append("Boys")
+            if year:
+                variations.append(f"The Boys {year}")
+        
+        # Remove special characters
+        clean_title = re.sub(r'[^\w\s]', ' ', title)
+        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+        if clean_title != title:
+            variations.append(clean_title)
+            if year:
+                variations.append(f"{clean_title} {year}")
+        
+        # Deduplicate
+        seen = set()
+        unique_variations = []
+        for v in variations:
+            if v.lower() not in seen:
+                seen.add(v.lower())
+                unique_variations.append(v)
+        
+        return unique_variations[:10]  # Limit to 10 variations
 
     async def _fetch_from_tmdb(self, title: str, year: str = "") -> Dict[str, Any]:
         """Fetch poster from TMDB"""
@@ -206,11 +331,11 @@ class PosterFetcher:
             return self._empty_result(title, year)
 
     def _clean_title(self, title: str) -> str:
-        """Clean movie title for searching"""
+        """Clean movie title for searching - PRESERVE NUMBERS"""
         if not title:
             return ""
         
-        # Remove special characters and normalize
+        # Remove special characters but keep numbers
         clean = re.sub(r'[^\w\s\-]', ' ', title)
         clean = re.sub(r'\s+', ' ', clean).strip()
         
