@@ -167,17 +167,19 @@ except ImportError as e:
         return text[:50] if text else ""
     
     def extract_title_from_file(filename, caption=None):
-        if filename:
-            name = os.path.splitext(filename)[0]
-            name = re.sub(r'[._]', ' ', name)
-            name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264)\b', '', name, flags=re.IGNORECASE)
-            name = re.sub(r'\s+', ' ', name)
-            name = name.strip()
-            if name:
-                return name
-        if caption:
-            return extract_title_smart(caption)
-        return "Unknown"
+    """Extract clean title from filename - PRESERVE NUMBERS"""
+    if filename:
+        name = os.path.splitext(filename)[0]
+        name = re.sub(r'[._]', ' ', name)
+        # Remove quality tags but keep numbers
+        name = re.sub(r'\b(480p|720p|1080p|2160p|4k|hd|hevc|x265|x264|web-dl|webrip|bluray|hdtv|hdr|dts|ac3|aac|ddp|5\.1|7\.1|2\.0)\b', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'\s+', ' ', name)
+        name = name.strip()
+        if name:
+            return name
+    if caption:
+        return extract_title_smart(caption)
+    return "Unknown"
     
     def format_size(size):
         if not size:
