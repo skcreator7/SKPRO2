@@ -1607,8 +1607,8 @@ async def search_movies_optimized(query, limit=15, page=1):
     # Count thumbnail sources
     poster_count = 0
     mongodb_count = 0
+    telegram_count = 0
     fallback_count = 0
-    main_channel_count = 0
     
     for r in paginated:
         source = r.get('thumbnail_source', 'fallback')
@@ -1616,8 +1616,8 @@ async def search_movies_optimized(query, limit=15, page=1):
             poster_count += 1
         elif source == 'mongodb':
             mongodb_count += 1
-        elif source == 'main_channel':
-            main_channel_count += 1
+        elif source == 'telegram':
+            telegram_count += 1
         else:
             fallback_count += 1
     
