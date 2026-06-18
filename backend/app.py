@@ -1659,9 +1659,9 @@ async def search_movies_optimized(query, limit=15, page=1):
             'combined_results': combined_count,
             'posters': poster_count,
             'mongodb_thumbnails': mongodb_count,
-            'main_channel_thumbnails': main_channel_count,
+            'telegram_thumbnails': telegram_count,
             'fallback': fallback_count,
-            'mode': 'optimized_v4.2_fixed',
+            'mode': 'search_priority_v5',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED
         },
         'bot_username': Config.BOT_USERNAME
