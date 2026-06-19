@@ -297,7 +297,7 @@ last_index_time = None
 indexing_task = None
 
 # ============================================================================
-# ✅ CONFIGURATION - v9.5 WITH FIXED IDs
+# ✅ CONFIGURATION
 # ============================================================================
 
 class Config:
@@ -312,7 +312,7 @@ class Config:
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
     
-    # ✅ FIXED: Channel Configuration
+    # ✅ CHANNEL CONFIGURATION
     MAIN_CHANNEL_ID = -1001767371495  # Main channel (posts)
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Text channels for posts
     FILE_CHANNEL_ID = -1001768249569   # File channel for videos
@@ -385,7 +385,7 @@ class Config:
     SEARCH_MIN_QUERY_LENGTH = 2
     SEARCH_RESULTS_PER_PAGE = 12
     SEARCH_CACHE_TTL = 1800
-    MAX_MESSAGES_TO_SCAN = 2000  # 🔥 NEW: Max messages to scan
+    MAX_MESSAGES_TO_SCAN = 2000  # Max messages to scan per channel
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -479,7 +479,7 @@ def async_cache_with_ttl(maxsize=128, ttl=300):
     return decorator
 
 # ============================================================================
-# ✅ BOT HANDLER MODULE
+# ✅ BOT HANDLER
 # ============================================================================
 
 class BotHandler:
@@ -1341,7 +1341,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ FIXED SEARCH v8.0 - USING MESSAGE HISTORY (NO SEARCH API)
+# ✅ FIXED SEARCH v9.0 - ALL CHANNELS MERGED
 # ============================================================================
 
 @performance_monitor.measure("optimized_search")
@@ -1355,8 +1355,19 @@ async def search_movies_optimized(query, limit=15, page=1):
     results_dict = {}
     query_lower = query.lower().strip()
     
+    # Track source counts
+    source_stats = {
+        'file_channel_messages_scanned': 0,
+        'file_channel_files_found': 0,
+        'text_channel_messages_scanned': 0,
+        'text_channel_posts_found': 0,
+        'merged_count': 0,
+        'file_only_count': 0,
+        'post_only_count': 0
+    }
+    
     # ============================================================================
-    # ✅ STEP 1: SCAN ALL MESSAGES FROM FILE CHANNEL
+    # ✅ STEP 1: SCAN FILE CHANNEL FOR VIDEOS/DOCUMENTS
     # ============================================================================
     if user_session_ready and User is not None:
         try:
@@ -1365,7 +1376,6 @@ async def search_movies_optimized(query, limit=15, page=1):
             
             logger.info(f"📥 Scanning FILE CHANNEL {Config.FILE_CHANNEL_ID} for '{query}'...")
             
-            # Fetch ALL messages from channel
             all_messages = []
             offset_id = 0
             batch_size = 100
@@ -1388,18 +1398,19 @@ async def search_movies_optimized(query, limit=15, page=1):
                     
                     all_messages.extend(messages)
                     offset_id = messages[-1].id
-                    logger.info(f"📥 Fetched {len(all_messages)} messages...")
+                    logger.info(f"📥 Fetched {len(all_messages)} messages from FILE CHANNEL...")
                     
                     if len(messages) < batch_size:
                         break
                     
-                    await asyncio.sleep(0.5)  # Rate limit
+                    await asyncio.sleep(0.5)
                     
                 except Exception as e:
-                    logger.error(f"❌ Fetch error: {e}")
+                    logger.error(f"❌ Fetch error from FILE CHANNEL: {e}")
                     break
             
-            logger.info(f"✅ Total messages fetched: {len(all_messages)}")
+            source_stats['file_channel_messages_scanned'] = len(all_messages)
+            logger.info(f"✅ Total FILE CHANNEL messages fetched: {len(all_messages)}")
             
             # Filter messages by query
             for msg in all_messages:
@@ -1421,16 +1432,13 @@ async def search_movies_optimized(query, limit=15, page=1):
                 file_lower = file_name.lower()
                 caption_lower = caption.lower()
                 
-                # Split query into words
                 query_words = query_lower.split()
                 matched = False
                 matched_term = query_lower
                 
-                # Check full query
                 if query_lower in file_lower or query_lower in caption_lower:
                     matched = True
                 else:
-                    # Check each word
                     for word in query_words:
                         if len(word) >= 2 and (word in file_lower or word in caption_lower):
                             matched = True
@@ -1440,7 +1448,6 @@ async def search_movies_optimized(query, limit=15, page=1):
                 if not matched:
                     continue
                 
-                # Found a match!
                 file_key = f"{msg.id}_{Config.FILE_CHANNEL_ID}"
                 if file_key in seen_files:
                     continue
@@ -1474,6 +1481,7 @@ async def search_movies_optimized(query, limit=15, page=1):
                         'has_file': True,
                         'has_post': False,
                         'result_type': 'file',
+                        'source': 'file_channel',
                         'best_date': msg.date,
                         'is_new': is_new(msg.date),
                         'thumbnail_url': None,
@@ -1483,7 +1491,10 @@ async def search_movies_optimized(query, limit=15, page=1):
                         'all_messages': [msg],
                         'search_matched_terms': [matched_term],
                         'series_info': detect_series_info(file_name, clean_title),
-                        'alternative_titles': []
+                        'alternative_titles': [],
+                        'post_content': None,
+                        'post_channel_id': None,
+                        'post_message_id': None
                     }
                     
                     results_dict[normalized]['qualities'][quality] = quality_entry
@@ -1506,15 +1517,16 @@ async def search_movies_optimized(query, limit=15, page=1):
                     if matched_term not in results_dict[normalized]['search_matched_terms']:
                         results_dict[normalized]['search_matched_terms'].append(matched_term)
             
-            logger.info(f"📁 Found {file_count} unique file results from FILE CHANNEL (scanned {len(all_messages)} messages)")
+            source_stats['file_channel_files_found'] = file_count
+            logger.info(f"📁 Found {file_count} unique file results from FILE CHANNEL")
             
         except Exception as e:
-            logger.error(f"❌ File channel fetch error: {e}")
+            logger.error(f"❌ FILE CHANNEL scan error: {e}")
             import traceback
             traceback.print_exc()
     
     # ============================================================================
-    # ✅ STEP 2: TEXT CHANNELS Search (Posts)
+    # ✅ STEP 2: SCAN ALL TEXT CHANNELS FOR POSTS
     # ============================================================================
     if user_session_ready and User is not None:
         try:
@@ -1554,10 +1566,11 @@ async def search_movies_optimized(query, limit=15, page=1):
                             await asyncio.sleep(0.5)
                             
                         except Exception as e:
-                            logger.error(f"❌ Fetch error in {channel_id}: {e}")
+                            logger.error(f"❌ Fetch error in TEXT CHANNEL {channel_id}: {e}")
                             break
                     
-                    logger.info(f"✅ Fetched {len(all_posts)} posts from channel {channel_id}")
+                    source_stats['text_channel_messages_scanned'] += len(all_posts)
+                    logger.info(f"✅ Fetched {len(all_posts)} posts from TEXT CHANNEL {channel_id}")
                     
                     for msg in all_posts:
                         if not msg or not msg.text or len(msg.text) < 15:
@@ -1594,52 +1607,60 @@ async def search_movies_optimized(query, limit=15, page=1):
                         year_match = re.search(r'\b(19|20)\d{2}\b', title)
                         year = year_match.group() if year_match else ""
                         
+                        # ✅ MERGE: If movie already exists (from file channel), add post info
                         if normalized in results_dict:
                             results_dict[normalized]['has_post'] = True
                             results_dict[normalized]['post_content'] = format_post(msg.text, max_length=500)
                             results_dict[normalized]['post_channel_id'] = channel_id
                             results_dict[normalized]['post_message_id'] = msg.id
                             results_dict[normalized]['result_type'] = 'file_and_post'
+                            results_dict[normalized]['source'] = 'merged'
                             if query_lower not in results_dict[normalized].get('search_matched_terms', []):
                                 results_dict[normalized]['search_matched_terms'].append(query_lower)
+                            source_stats['merged_count'] += 1
                         else:
+                            # ✅ NEW: Post-only movie entry
                             results_dict[normalized] = {
                                 'title': clean_title,
                                 'normalized_title': normalized,
                                 'year': year,
-                                'content': format_post(msg.text, max_length=500),
-                                'post_content': msg.text,
-                                'channel_id': channel_id,
-                                'message_id': msg.id,
-                                'date': msg.date,
-                                'is_new': is_new(msg.date) if msg.date else False,
-                                'has_post': True,
-                                'has_file': False,
-                                'result_type': 'post',
                                 'qualities': {},
                                 'available_qualities': [],
+                                'has_file': False,
+                                'has_post': True,
+                                'result_type': 'post',
+                                'source': 'text_channel',
+                                'content': format_post(msg.text, max_length=500),
+                                'post_content': msg.text,
+                                'post_channel_id': channel_id,
+                                'post_message_id': msg.id,
+                                'date': msg.date,
+                                'is_new': is_new(msg.date) if msg.date else False,
                                 'thumbnail_url': None,
                                 'thumbnail_source': None,
                                 'has_thumbnail': False,
                                 'first_file_msg': None,
                                 'search_matched_terms': [query_lower],
                                 'series_info': detect_series_info_from_text(msg.text),
-                                'alternative_titles': []
+                                'alternative_titles': [],
+                                'all_messages': [msg]
                             }
+                            source_stats['post_only_count'] += 1
                         
                         post_count += 1
                     
                 except Exception as e:
-                    logger.error(f"❌ Text channel {channel_id} error: {e}")
+                    logger.error(f"❌ TEXT CHANNEL {channel_id} error: {e}")
                     continue
             
-            logger.info(f"📝 Found {post_count} unique post results from text channels")
+            source_stats['text_channel_posts_found'] = post_count
+            logger.info(f"📝 Found {post_count} unique post results from all TEXT CHANNELS")
             
         except Exception as e:
-            logger.error(f"❌ Text channels fetch error: {e}")
+            logger.error(f"❌ TEXT CHANNELS scan error: {e}")
     
     # ============================================================================
-    # ✅ STEP 3: Get Thumbnails
+    # ✅ STEP 3: Get Thumbnails for Each Result
     # ============================================================================
     for normalized, result in results_dict.items():
         is_post_only = result.get('has_file') == False and result.get('has_post') == True
@@ -1676,13 +1697,22 @@ async def search_movies_optimized(query, limit=15, page=1):
     # ============================================================================
     all_results = list(results_dict.values())
     
+    # Sort: merged first, then file only, then post only
+    def sort_priority(x):
+        if x.get('has_file') and x.get('has_post'):
+            return 0  # Merged - highest priority
+        elif x.get('has_file'):
+            return 1  # File only
+        else:
+            return 2  # Post only
+    
     all_results.sort(key=lambda x: (
-        1 if x.get('has_file') else 0,
-        len(x.get('search_matched_terms', [])),
+        sort_priority(x),
+        len(x.get('available_qualities', [])),
         1 if x.get('is_new') else 0,
         x.get('best_date') if isinstance(x.get('best_date'), datetime) else 
         (x.get('date') if isinstance(x.get('date'), datetime) else datetime.min)
-    ), reverse=True)
+    ), reverse=False)
     
     # ============================================================================
     # ✅ STEP 5: Pagination
@@ -1692,18 +1722,24 @@ async def search_movies_optimized(query, limit=15, page=1):
     end_idx = offset + limit
     paginated = all_results[start_idx:end_idx]
     
+    # Final statistics
     file_count = sum(1 for r in all_results if r.get('has_file'))
     post_count = sum(1 for r in all_results if r.get('has_post'))
-    combined_count = sum(1 for r in all_results if r.get('has_file') and r.get('has_post'))
+    merged_count = sum(1 for r in all_results if r.get('has_file') and r.get('has_post'))
+    file_only_count = file_count - merged_count
+    post_only_count = post_count - merged_count
     
     elapsed = time.time() - start_time
     logger.info("=" * 70)
     logger.info("📊 SEARCH RESULTS SUMMARY:")
     logger.info(f"   • Query: '{query}'")
     logger.info(f"   • Total movies: {total}")
-    logger.info(f"   • File results: {file_count}")
-    logger.info(f"   • Post results: {post_count}")
-    logger.info(f"   • Combined: {combined_count}")
+    logger.info(f"   • Merged (File+Post): {merged_count}")
+    logger.info(f"   • File only: {file_only_count}")
+    logger.info(f"   • Post only: {post_only_count}")
+    logger.info(f"   • Total qualities: {sum(len(r.get('available_qualities', [])) for r in all_results)}")
+    logger.info(f"   • FILE CHANNEL scanned: {source_stats['file_channel_messages_scanned']} messages")
+    logger.info(f"   • TEXT CHANNELS scanned: {source_stats['text_channel_messages_scanned']} messages")
     logger.info(f"   • Time: {elapsed:.2f}s")
     logger.info("=" * 70)
     
@@ -1720,13 +1756,17 @@ async def search_movies_optimized(query, limit=15, page=1):
         'search_metadata': {
             'query': query,
             'total_movies': total,
-            'file_results': file_count,
-            'post_results': post_count,
-            'combined_results': combined_count,
-            'mode': 'fixed_v8_message_history',
-            'poster_fetching': Config.POSTER_FETCHING_ENABLED,
+            'merged_count': merged_count,
+            'file_only_count': file_only_count,
+            'post_only_count': post_only_count,
             'file_channel_id': Config.FILE_CHANNEL_ID,
-            'messages_scanned': len(all_messages) if 'all_messages' in locals() else 0
+            'text_channel_ids': Config.TEXT_CHANNEL_IDS,
+            'mode': 'fixed_v9_all_channels_merged',
+            'poster_fetching': Config.POSTER_FETCHING_ENABLED,
+            'messages_scanned': {
+                'file_channel': source_stats['file_channel_messages_scanned'],
+                'text_channels': source_stats['text_channel_messages_scanned']
+            }
         },
         'bot_username': Config.BOT_USERNAME
     }
@@ -2969,11 +3009,14 @@ async def init_system():
         logger.info("=" * 60)
         logger.info("🔧 FEATURES:")
         logger.info(f"   • FILE CHANNEL ID: {Config.FILE_CHANNEL_ID}")
+        logger.info(f"   • TEXT CHANNELS: {Config.TEXT_CHANNEL_IDS}")
         logger.info(f"   • Main Channel ID: {Config.MAIN_CHANNEL_ID}")
         logger.info(f"   • Poster Sources: TMDB, OMDB, Letterboxd, IMDB, JustWatch, IMPAwards, TELEGRAM")
         logger.info(f"   • File Sending: ✅ ENABLED")
         logger.info(f"   • Auto-Delete: ✅ {Config.AUTO_DELETE_TIME} minutes")
         logger.info(f"   • Message History Search: ✅ ENABLED (scans {Config.MAX_MESSAGES_TO_SCAN} messages)")
+        logger.info(f"   • ALL TEXT CHANNELS: ✅ SCANNED")
+        logger.info(f"   • Results Merged: ✅ FILE + POST merged by title")
         logger.info("=" * 60)
         
         return True
@@ -3078,6 +3121,7 @@ async def health():
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
         'auto_delete_minutes': Config.AUTO_DELETE_TIME,
         'file_channel_id': Config.FILE_CHANNEL_ID,
+        'text_channels': Config.TEXT_CHANNEL_IDS,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -3123,6 +3167,7 @@ async def api_search():
             'bot_username': Config.BOT_USERNAME,
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
             'file_channel_id': Config.FILE_CHANNEL_ID,
+            'text_channels': Config.TEXT_CHANNEL_IDS,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -3180,6 +3225,7 @@ async def api_stats():
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
             'auto_delete_minutes': Config.AUTO_DELETE_TIME,
             'file_channel_id': Config.FILE_CHANNEL_ID,
+            'text_channels': Config.TEXT_CHANNEL_IDS,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -3208,6 +3254,7 @@ async def debug_channel_info():
                     'username': file_chat.username
                 }
                 
+                # Get sample from file channel
                 messages = []
                 async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=10):
                     if msg.document or msg.video:
@@ -3218,7 +3265,22 @@ async def debug_channel_info():
                             'has_thumbnail': has_telegram_thumbnail(msg)
                         })
                 
-                result['sample_messages'] = messages
+                result['file_channel_sample'] = messages
+                
+                # Get sample from text channels
+                text_samples = {}
+                for channel_id in Config.TEXT_CHANNEL_IDS:
+                    try:
+                        chat = await User.get_chat(channel_id)
+                        text_samples[str(channel_id)] = {
+                            'title': chat.title,
+                            'id': chat.id,
+                            'type': str(chat.type)
+                        }
+                    except:
+                        text_samples[str(channel_id)] = {'error': 'Cannot access'}
+                
+                result['text_channels_info'] = text_samples
                 
             except Exception as e:
                 result['file_channel_error'] = str(e)
@@ -3311,7 +3373,9 @@ if __name__ == "__main__":
     logger.info(f"🎞️ All Qualities Shown: ENABLED")
     logger.info(f"📤 File Sending: ENABLED")
     logger.info(f"🔍 Search Mode: MESSAGE HISTORY (scans {Config.MAX_MESSAGES_TO_SCAN} messages)")
-    logger.info(f"🔢 Number Preservation: ENABLED")
+    logger.info(f"📌 ALL TEXT CHANNELS SCANNED: {Config.TEXT_CHANNEL_IDS}")
+    logger.info(f"🔄 RESULTS MERGED: FILE + POST merged by normalized title")
+    logger.info("=" * 60)
     
     try:
         asyncio.run(serve(app, config))
