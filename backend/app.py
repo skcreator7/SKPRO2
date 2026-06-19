@@ -1,5 +1,5 @@
 # ============================================================================
-# 🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT WITH ALL POSTER SOURCES + TELEGRAM
+# 🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT WITH /api/movies ENDPOINT
 # ============================================================================
 
 import asyncio
@@ -285,7 +285,7 @@ except ImportError:
 cache_manager = None
 verification_system = None
 premium_system = None
-poster_fetcher = None  # UPDATED: Will be PosterFetcher instance
+poster_fetcher = None
 bot_handler = None
 telegram_bot = None
 
@@ -384,6 +384,10 @@ class Config:
     SEARCH_MIN_QUERY_LENGTH = 2
     SEARCH_RESULTS_PER_PAGE = 12
     SEARCH_CACHE_TTL = 1800  # 10 minutes cache
+    
+    # 🔥 HOME MOVIES SETTINGS
+    HOME_MOVIES_LIMIT = 100  # 100 movies for home page
+    HOME_MOVIES_CACHE_TTL = 3600  # 1 hour
 
 # ============================================================================
 # ✅ PERFORMANCE MONITOR
@@ -1264,6 +1268,275 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
+# ✅ GET HOME MOVIES - 100 MOVIES
+# ============================================================================
+
+@performance_monitor.measure("get_home_movies")
+@async_cache_with_ttl(maxsize=10, ttl=3600)  # Cache for 1 hour
+async def get_home_movies(limit: int = 100) -> Dict[str, Any]:
+    """
+    🏠 GET HOME MOVIES - 100 MOVIES FOR HOME PAGE
+    Fetches latest movies from file channel and text channels
+    """
+    start_time = time.time()
+    logger.info(f"🏠 Fetching {limit} movies for home page...")
+    
+    results_dict = {}
+    
+    # ========== STEP 1: Get files from FILE CHANNEL ==========
+    if user_session_ready and User is not None:
+        try:
+            file_count = 0
+            
+            # Get latest messages from file channel (videos only)
+            async for msg in User.get_messages(
+                Config.FILE_CHANNEL_ID,
+                limit=min(limit * 2, 200)  # Get more to ensure we have enough
+            ):
+                if not msg or not msg.video:
+                    continue
+                
+                file_name = msg.video.file_name or "video.mp4"
+                if not is_video_file(file_name):
+                    continue
+                
+                clean_title = extract_clean_title(file_name)
+                normalized = normalize_title(clean_title)
+                quality = detect_quality_enhanced(file_name)
+                year = extract_year(file_name)
+                
+                # Skip if already have this movie
+                if normalized in results_dict:
+                    # Add quality if not already present
+                    if quality not in results_dict[normalized]['qualities']:
+                        results_dict[normalized]['qualities'][quality] = {
+                            'quality': quality,
+                            'file_name': file_name,
+                            'file_size': msg.video.file_size,
+                            'file_size_formatted': format_size(msg.video.file_size),
+                            'message_id': msg.id,
+                            'channel_id': Config.FILE_CHANNEL_ID,
+                            'file_id': msg.video.file_id,
+                            'date': msg.date
+                        }
+                        results_dict[normalized]['available_qualities'].append(quality)
+                    continue
+                
+                # New movie
+                results_dict[normalized] = {
+                    'title': clean_title,
+                    'normalized_title': normalized,
+                    'year': year,
+                    'qualities': {
+                        quality: {
+                            'quality': quality,
+                            'file_name': file_name,
+                            'file_size': msg.video.file_size,
+                            'file_size_formatted': format_size(msg.video.file_size),
+                            'message_id': msg.id,
+                            'channel_id': Config.FILE_CHANNEL_ID,
+                            'file_id': msg.video.file_id,
+                            'date': msg.date
+                        }
+                    },
+                    'available_qualities': [quality],
+                    'has_file': True,
+                    'has_post': False,
+                    'result_type': 'file',
+                    'best_date': msg.date,
+                    'is_new': is_new(msg.date),
+                    'thumbnail_url': None,
+                    'thumbnail_source': None,
+                    'has_thumbnail': False,
+                    'first_file_msg': msg
+                }
+                file_count += 1
+                
+                # Stop if we have enough movies
+                if len(results_dict) >= limit:
+                    break
+            
+            logger.info(f"📁 Found {file_count} files from file channel")
+            
+        except Exception as e:
+            logger.error(f"❌ File channel fetch error: {e}")
+    
+    # ========== STEP 2: Get posts from TEXT CHANNELS ==========
+    if user_session_ready and User is not None and len(results_dict) < limit:
+        try:
+            post_count = 0
+            
+            for channel_id in Config.TEXT_CHANNEL_IDS:
+                try:
+                    async for msg in User.get_messages(
+                        channel_id,
+                        limit=50
+                    ):
+                        if not msg or not msg.text or len(msg.text) < 15:
+                            continue
+                        
+                        title = extract_title_smart(msg.text)
+                        if not title:
+                            continue
+                        
+                        normalized = normalize_title(title)
+                        
+                        # Skip if already have this movie
+                        if normalized in results_dict:
+                            results_dict[normalized]['has_post'] = True
+                            results_dict[normalized]['post_content'] = format_post(msg.text, max_length=500)
+                            results_dict[normalized]['post_channel_id'] = channel_id
+                            results_dict[normalized]['post_message_id'] = msg.id
+                            results_dict[normalized]['result_type'] = 'file_and_post'
+                            continue
+                        
+                        clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
+                        clean_title = re.sub(r'\s+\d{4}$', '', clean_title).strip()
+                        
+                        year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                        year = year_match.group() if year_match else ""
+                        
+                        results_dict[normalized] = {
+                            'title': clean_title,
+                            'normalized_title': normalized,
+                            'year': year,
+                            'content': format_post(msg.text, max_length=500),
+                            'post_content': msg.text,
+                            'channel_id': channel_id,
+                            'message_id': msg.id,
+                            'date': msg.date,
+                            'is_new': is_new(msg.date) if msg.date else False,
+                            'has_post': True,
+                            'has_file': False,
+                            'result_type': 'post',
+                            'qualities': {},
+                            'available_qualities': [],
+                            'thumbnail_url': None,
+                            'thumbnail_source': None,
+                            'has_thumbnail': False,
+                            'first_file_msg': None
+                        }
+                        post_count += 1
+                        
+                        # Stop if we have enough movies
+                        if len(results_dict) >= limit:
+                            break
+                            
+                except Exception as e:
+                    logger.debug(f"Text channel fetch error in {channel_id}: {e}")
+                    continue
+                
+                if len(results_dict) >= limit:
+                    break
+            
+            logger.info(f"📝 Found {post_count} posts from text channels")
+            
+        except Exception as e:
+            logger.error(f"❌ Text channels fetch error: {e}")
+    
+    # ========== STEP 3: Get Thumbnails for Each Movie ==========
+    logger.info(f"🖼️ Fetching thumbnails for {len(results_dict)} movies...")
+    
+    # Process in batches for efficiency
+    items = list(results_dict.items())
+    batch_size = 10
+    
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i+batch_size]
+        tasks = []
+        
+        for normalized, result in batch:
+            is_post_only = result.get('has_file') == False and result.get('has_post') == True
+            
+            if result.get('has_file'):
+                msg = result.get('first_file_msg')
+                task = get_best_thumbnail(
+                    normalized,
+                    result.get('title'),
+                    result.get('year'),
+                    msg,
+                    is_post=False
+                )
+            else:
+                task = get_best_thumbnail(
+                    normalized,
+                    result.get('title'),
+                    result.get('year'),
+                    None,
+                    is_post=True
+                )
+            tasks.append((normalized, task))
+        
+        # Wait for batch
+        for normalized, task in tasks:
+            try:
+                thumbnail_url, thumbnail_source = await task
+                results_dict[normalized]['thumbnail_url'] = thumbnail_url
+                results_dict[normalized]['thumbnail_source'] = thumbnail_source
+                results_dict[normalized]['has_thumbnail'] = True
+            except Exception as e:
+                logger.error(f"❌ Thumbnail error for {normalized}: {e}")
+                results_dict[normalized]['thumbnail_url'] = FALLBACK_THUMBNAIL_URL
+                results_dict[normalized]['thumbnail_source'] = 'fallback'
+                results_dict[normalized]['has_thumbnail'] = False
+        
+        # Clean up first_file_msg to avoid memory issues
+        for normalized, result in batch:
+            if 'first_file_msg' in result:
+                del result['first_file_msg']
+    
+    # ========== STEP 4: Convert to List and Sort ==========
+    all_results = list(results_dict.values())
+    
+    # Sort by: has_file (priority), is_new, best_date
+    all_results.sort(key=lambda x: (
+        1 if x.get('has_file') else 0,  # Files first
+        1 if x.get('is_new') else 0,
+        x.get('best_date') if isinstance(x.get('best_date'), datetime) else 
+        (x.get('date') if isinstance(x.get('date'), datetime) else datetime.min)
+    ), reverse=True)
+    
+    # Limit to requested number
+    all_results = all_results[:limit]
+    
+    # Count thumbnail sources
+    source_counts = {}
+    file_count = 0
+    post_count = 0
+    
+    for r in all_results:
+        if r.get('has_file'):
+            file_count += 1
+        if r.get('has_post'):
+            post_count += 1
+        
+        source = r.get('thumbnail_source', 'unknown')
+        source_counts[source] = source_counts.get(source, 0) + 1
+    
+    elapsed = time.time() - start_time
+    logger.info("=" * 70)
+    logger.info("🏠 HOME MOVIES SUMMARY:")
+    logger.info(f"   • Total movies: {len(all_results)}")
+    logger.info(f"   • Files: {file_count}")
+    logger.info(f"   • Posts: {post_count}")
+    logger.info(f"   • Thumbnail sources: {source_counts}")
+    logger.info(f"   • Time: {elapsed:.2f}s")
+    logger.info("=" * 70)
+    
+    return {
+        'success': True,
+        'movies': all_results,
+        'total': len(all_results),
+        'metadata': {
+            'file_count': file_count,
+            'post_count': post_count,
+            'thumbnail_sources': source_counts,
+            'fetched_at': datetime.now().isoformat(),
+            'fetch_time_seconds': elapsed
+        }
+    }
+
+# ============================================================================
 # ✅ OPTIMIZED SEARCH v4.3 - WITH ALL POSTER SOURCES
 # ============================================================================
 
@@ -1433,7 +1706,7 @@ async def search_movies_optimized(query, limit=15, page=1):
             logger.error(f"❌ Text channels search error: {e}")
     
     # ============================================================================
-    # ✅ STEP 3: Get Thumbnails with ALL Sources (MongoDB → TMDB → OMDB → ... → TELEGRAM → Fallback)
+    # ✅ STEP 3: Get Thumbnails with ALL Sources
     # ============================================================================
     for normalized, result in results_dict.items():
         is_post_only = result.get('has_file') == False and result.get('has_post') == True
@@ -1534,7 +1807,7 @@ async def search_movies_optimized(query, limit=15, page=1):
     }
 
 # ============================================================================
-# ✅ THUMBNAIL MANAGER - UPDATED
+# ✅ THUMBNAIL MANAGER
 # ============================================================================
 
 class ThumbnailManager:
@@ -1779,7 +2052,7 @@ class ThumbnailManager:
 thumbnail_manager = ThumbnailManager()
 
 # ============================================================================
-# ✅ TELEGRAM SESSION INITIALIZATION - UPDATED
+# ✅ TELEGRAM SESSION INITIALIZATION
 # ============================================================================
 
 async def initialize_telegram_sessions():
@@ -1862,7 +2135,7 @@ async def initialize_telegram_sessions():
     logger.info("✅ Telegram sessions initialized")
 
 # ============================================================================
-# ✅ AUTO INDEXING v9.5 - FIXED CHANNEL IDs
+# ✅ AUTO INDEXING v9.5
 # ============================================================================
 
 class AutoIndexer:
@@ -2064,7 +2337,7 @@ class AutoIndexer:
 auto_indexer = AutoIndexer()
 
 # ============================================================================
-# ✅ QUART ROUTES - UPDATED
+# ✅ QUART ROUTES - WITH /api/movies ENDPOINT
 # ============================================================================
 
 @app.route('/')
@@ -2075,23 +2348,64 @@ async def home():
         'version': '9.5-FIXED-BOT',
         'name': 'SK4FiLM API',
         'features': [
-            'All Poster Sources (MongoDB → TMDB → OMDB → Letterboxd → IMDB → JustWatch → IMPAwards → TELEGRAM → Fallback)',
-            'File Sending with Auto-Delete',
-            'Optimized Search',
-            'Auto Indexing',
-            'Thumbnail Extraction'
+            '🏠 /api/movies - 100 Movies for Home Page',
+            '🔍 /search - Search Movies',
+            '📤 /files/send - Send Files to Users',
+            '🖼️ All Poster Sources (MongoDB → TMDB → OMDB → Letterboxd → IMDB → JustWatch → IMPAwards → TELEGRAM → Fallback)',
+            '📁 File Sending with Auto-Delete',
+            '🔄 Auto Indexing',
+            '📊 Thumbnail Extraction'
         ],
         'endpoints': [
-            '/search?q=movie&page=1',
-            '/files/send/<channel_id>/<message_id>',
-            '/status',
-            '/index',
-            '/thumbnails/<title>',
-            '/bot/status',
-            '/poster/stats',
-            '/health'
+            '/api/movies - Get 100 movies for home page',
+            '/search?q=movie&page=1 - Search movies',
+            '/files/send/<channel_id>/<message_id> - Send file to user',
+            '/status - System status',
+            '/index - Trigger indexing',
+            '/thumbnails/<title> - Get thumbnail',
+            '/bot/status - Bot status',
+            '/poster/stats - Poster fetcher stats',
+            '/health - Health check'
         ]
     })
+
+@app.route('/api/movies', methods=['GET'])
+async def api_movies():
+    """
+    🏠 HOME PAGE MOVIES ENDPOINT
+    Returns 100 movies with thumbnails for home page
+    """
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        limit = min(limit, 200)  # Max 200 movies
+        
+        logger.info(f"🏠 /api/movies called with limit={limit}")
+        
+        # Get movies
+        result = await get_home_movies(limit=limit)
+        
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'movies': result['movies'],
+                'total': result['total'],
+                'metadata': result['metadata'],
+                'version': '9.5-FIXED-BOT'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch movies',
+                'message': 'Please try again later'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ /api/movies error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Server error',
+            'message': str(e)
+        }), 500
 
 @app.route('/health', methods=['GET'])
 async def health_check():
@@ -2433,7 +2747,7 @@ async def server_error(error):
     return jsonify({'error': 'Server error', 'message': 'Internal server error'}), 500
 
 # ============================================================================
-# ✅ APPLICATION STARTUP & SHUTDOWN - UPDATED
+# ✅ APPLICATION STARTUP & SHUTDOWN
 # ============================================================================
 
 @app.before_serving
@@ -2445,6 +2759,7 @@ async def startup():
     logger.info("=" * 60)
     logger.info("🚀 SK4FiLM v9.5 STARTING...")
     logger.info("📌 Poster Sources: MongoDB → TMDB → OMDB → Letterboxd → IMDB → JustWatch → IMPAwards → TELEGRAM → Fallback")
+    logger.info("📌 /api/movies - 100 Movies for Home Page")
     logger.info("=" * 60)
     
     # ========== DATABASE ==========
@@ -2541,6 +2856,7 @@ async def startup():
     logger.info("=" * 60)
     logger.info("✅ SK4FiLM v9.5 STARTUP COMPLETE")
     logger.info("   🔍 All poster sources ready!")
+    logger.info("   🏠 /api/movies ready with 100 movies!")
     logger.info("=" * 60)
 
 @app.after_serving
@@ -2611,6 +2927,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print("🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT")
     print("📅 Version: 9.5-FIXED-BOT")
+    print("🏠 NEW: /api/movies - 100 Movies for Home Page")
     print("🎬 Poster Sources:")
     print("   1️⃣ MongoDB Cache")
     print("   2️⃣ TMDB")
@@ -2619,7 +2936,7 @@ if __name__ == "__main__":
     print("   5️⃣ IMDB")
     print("   6️⃣ JustWatch")
     print("   7️⃣ IMPAwards")
-    print("   8️⃣ TELEGRAM (NEW)")
+    print("   8️⃣ TELEGRAM")
     print("   9️⃣ Fallback")
     print("=" * 60)
     
