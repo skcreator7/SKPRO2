@@ -1257,7 +1257,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ OPTIMIZED SEARCH v4.3 - FILE CHANNEL ONLY FOR FILES
+# ENHANCED SEARCH v5.1 - WITH SERIES/PART WISE RESULTS
 # ============================================================================
 
 @performance_monitor.measure("optimized_search")
@@ -1271,158 +1271,372 @@ async def search_movies_optimized(query, limit=15, page=1):
     results_dict = {}
     
     # ============================================================================
-    # ✅ STEP 1: FILE CHANNEL Search (Videos/Documents ONLY) - CORRECT CHANNEL ID
+    # ✅ STEP 0: Generate ALL search variations
+    # ============================================================================
+    search_terms = [query]
+    query_lower = query.lower().strip()
+    
+    # Common title variations with series/parts
+    TITLE_VARIATIONS = {
+        'money heist': ['money heist', 'la casa de papel', 'casa de papel', 'moneyheist'],
+        'stranger things': ['stranger things', 'strangerthings', 'st'],
+        'game of thrones': ['game of thrones', 'got', 'gameofthrones'],
+        'breaking bad': ['breaking bad', 'breakingbad', 'bb'],
+        'the walking dead': ['the walking dead', 'walking dead', 'twd'],
+        'squid game': ['squid game', 'squidgame', '오징어 게임'],
+        'dark': ['dark', 'dark netflix'],
+        'the crown': ['the crown', 'crown'],
+        'peaky blinders': ['peaky blinders', 'peakyblinders', 'pb'],
+        'the witcher': ['the witcher', 'witcher', 'wiedźmin'],
+        'narcos': ['narcos', 'narcos mexico'],
+        'the office': ['the office', 'office'],
+        'friends': ['friends', 'f.r.i.e.n.d.s'],
+        'how i met your mother': ['how i met your mother', 'himym'],
+        'the big bang theory': ['the big bang theory', 'big bang theory', 'tbbt'],
+        'mr robot': ['mr robot', 'mr. robot'],
+        'the mandalorian': ['the mandalorian', 'mandalorian'],
+        'house of cards': ['house of cards', 'cards'],
+        'ozark': ['ozark', 'ozark netflix'],
+        'mindhunter': ['mindhunter', 'mind hunter'],
+        'the boys': ['the boys', 'boys'],
+        'the last of us': ['the last of us', 'last of us', 'tlou'],
+        
+        # Indian Movies
+        'don': ['don', 'don 2', 'don tamil', 'don 2006'],
+        'dhoom': ['dhoom', 'dhoom 2', 'dhoom 3'],
+        'krrish': ['krrish', 'krrish 3', 'krrish 2'],
+        'bahubali': ['bahubali', 'baahubali', 'bahubali 2', 'baahubali 2'],
+        'kgf': ['kgf', 'kgf 2', 'kgf chapter 2'],
+        'pushpa': ['pushpa', 'pushpa 2', 'pushpa the rise'],
+        'r-r-r': ['rrr', 'r r r', 'rrr movie'],
+    }
+    
+    # Add variations if query matches
+    for key, variations in TITLE_VARIATIONS.items():
+        if query_lower in key or key in query_lower:
+            search_terms.extend(variations)
+    
+    # Also check for series pattern: "Title S1", "Title Season 1", "Title Part 1"
+    series_patterns = [
+        r'(.*?)\s+[sS](\d+)',  # Title S1
+        r'(.*?)\s+[sS]eason\s*(\d+)',  # Title Season 1
+        r'(.*?)\s+[pP]art\s*(\d+)',  # Title Part 1
+        r'(.*?)\s+(\d+)',  # Title 2 (for Don 2)
+    ]
+    
+    for pattern in series_patterns:
+        match = re.match(pattern, query_lower)
+        if match:
+            base_title = match.group(1).strip()
+            if len(base_title) >= 3:
+                search_terms.append(base_title)
+                # Also add common variations
+                for key, variations in TITLE_VARIATIONS.items():
+                    if base_title in key or key in base_title:
+                        search_terms.extend(variations)
+    
+    # Split multi-word queries
+    words = query_lower.split()
+    if len(words) > 1:
+        for word in words:
+            if len(word) >= 3 and word not in search_terms:
+                search_terms.append(word)
+    
+    # Remove duplicates
+    search_terms = list(set(search_terms))
+    logger.info(f"🔍 Searching with {len(search_terms)} variations: {search_terms}")
+    
+    # ============================================================================
+    # ✅ STEP 1: FILE CHANNEL Search - GROUP BY TITLE (Series/Part wise)
     # ============================================================================
     if user_session_ready and User is not None:
         try:
             file_count = 0
+            seen_files = set()
             
-            async for msg in User.search_messages(
-                Config.FILE_CHANNEL_ID,
-                query=query,
-                limit=50
-            ):
-                if not msg or (not msg.document and not msg.video):
-                    continue
-                
-                file_name = None
-                if msg.document:
-                    file_name = msg.document.file_name
-                elif msg.video:
-                    file_name = msg.video.file_name or "video.mp4"
-                
-                if not file_name or not is_video_file(file_name):
-                    continue
-                
-                clean_title = extract_clean_title(file_name)
-                normalized = normalize_title(clean_title)
-                quality = detect_quality_enhanced(file_name)
-                year = extract_year(file_name)
-                
-                quality_entry = {
-                    'quality': quality,
-                    'file_name': file_name,
-                    'file_size': msg.document.file_size if msg.document else msg.video.file_size,
-                    'file_size_formatted': format_size(msg.document.file_size if msg.document else msg.video.file_size),
-                    'message_id': msg.id,
-                    'channel_id': Config.FILE_CHANNEL_ID,
-                    'file_id': msg.document.file_id if msg.document else msg.video.file_id,
-                    'date': msg.date,
-                    'has_thumbnail_in_telegram': has_telegram_thumbnail(msg)
-                }
-                
-                if normalized not in results_dict:
-                    results_dict[normalized] = {
-                        'title': clean_title,
-                        'normalized_title': normalized,
-                        'year': year,
-                        'qualities': {},
-                        'available_qualities': [],
-                        'has_file': True,
-                        'has_post': False,
-                        'result_type': 'file',
-                        'best_date': msg.date,
-                        'is_new': is_new(msg.date),
-                        'thumbnail_url': None,
-                        'thumbnail_source': None,
-                        'has_thumbnail': False,
-                        'first_file_msg': msg,
-                        'all_messages': [msg]
-                    }
-                    
-                    results_dict[normalized]['qualities'][quality] = quality_entry
-                    results_dict[normalized]['available_qualities'].append(quality)
-                    
-                else:
-                    if quality not in results_dict[normalized]['qualities']:
-                        results_dict[normalized]['qualities'][quality] = quality_entry
-                        results_dict[normalized]['available_qualities'].append(quality)
+            for term in search_terms:
+                try:
+                    async for msg in User.search_messages(
+                        Config.FILE_CHANNEL_ID,
+                        query=term,
+                        limit=50  # Increased limit for better coverage
+                    ):
+                        if not msg or (not msg.document and not msg.video):
+                            continue
                         
-                    if msg.date and msg.date > results_dict[normalized]['best_date']:
-                        results_dict[normalized]['best_date'] = msg.date
-                        results_dict[normalized]['is_new'] = is_new(msg.date)
-                    
-                    if not results_dict[normalized].get('first_file_msg'):
-                        results_dict[normalized]['first_file_msg'] = msg
-                    
-                    results_dict[normalized]['all_messages'].append(msg)
-                
-                file_count += 1
+                        file_name = None
+                        if msg.document:
+                            file_name = msg.document.file_name
+                        elif msg.video:
+                            file_name = msg.video.file_name or "video.mp4"
+                        
+                        if not file_name or not is_video_file(file_name):
+                            continue
+                        
+                        file_key = f"{msg.id}_{Config.FILE_CHANNEL_ID}"
+                        if file_key in seen_files:
+                            continue
+                        seen_files.add(file_key)
+                        
+                        # Extract title and identify series/season/part
+                        clean_title = extract_clean_title(file_name)
+                        normalized = normalize_title(clean_title)
+                        quality = detect_quality_enhanced(file_name)
+                        year = extract_year(file_name)
+                        
+                        # ✅ DETECT: Is this a series/season/part?
+                        series_info = detect_series_info(file_name, clean_title)
+                        
+                        quality_entry = {
+                            'quality': quality,
+                            'file_name': file_name,
+                            'file_size': msg.document.file_size if msg.document else msg.video.file_size,
+                            'file_size_formatted': format_size(msg.document.file_size if msg.document else msg.video.file_size),
+                            'message_id': msg.id,
+                            'channel_id': Config.FILE_CHANNEL_ID,
+                            'file_id': msg.document.file_id if msg.document else msg.video.file_id,
+                            'date': msg.date,
+                            'has_thumbnail_in_telegram': has_telegram_thumbnail(msg)
+                        }
+                        
+                        # ✅ GROUP: Same normalized title = same movie entry
+                        if normalized not in results_dict:
+                            results_dict[normalized] = {
+                                'title': clean_title,
+                                'normalized_title': normalized,
+                                'year': year,
+                                'qualities': {},
+                                'available_qualities': [],
+                                'has_file': True,
+                                'has_post': False,
+                                'result_type': 'file',
+                                'best_date': msg.date,
+                                'is_new': is_new(msg.date),
+                                'thumbnail_url': None,
+                                'thumbnail_source': None,
+                                'has_thumbnail': False,
+                                'first_file_msg': msg,
+                                'all_messages': [msg],
+                                'search_matched_terms': [term],
+                                'series_info': series_info,  # ✅ NEW: Series/Season/Part info
+                                'alternative_titles': []
+                            }
+                            
+                            results_dict[normalized]['qualities'][quality] = quality_entry
+                            results_dict[normalized]['available_qualities'].append(quality)
+                            
+                        else:
+                            # ✅ MERGE: Add quality to existing movie entry
+                            if quality not in results_dict[normalized]['qualities']:
+                                results_dict[normalized]['qualities'][quality] = quality_entry
+                                results_dict[normalized]['available_qualities'].append(quality)
+                                
+                            if msg.date and msg.date > results_dict[normalized]['best_date']:
+                                results_dict[normalized]['best_date'] = msg.date
+                                results_dict[normalized]['is_new'] = is_new(msg.date)
+                            
+                            if not results_dict[normalized].get('first_file_msg'):
+                                results_dict[normalized]['first_file_msg'] = msg
+                            
+                            results_dict[normalized]['all_messages'].append(msg)
+                            if term not in results_dict[normalized]['search_matched_terms']:
+                                results_dict[normalized]['search_matched_terms'].append(term)
+                        
+                        file_count += 1
+                        
+                except Exception as e:
+                    logger.debug(f"Search term '{term}' error: {e}")
+                    continue
             
-            logger.info(f"📁 Found {file_count} file results from FILE CHANNEL {Config.FILE_CHANNEL_ID}")
+            logger.info(f"📁 Found {file_count} unique file results from FILE CHANNEL")
             
         except Exception as e:
             logger.error(f"❌ File channel search error: {e}")
     
     # ============================================================================
-    # ✅ STEP 2: TEXT CHANNELS Search (Posts ONLY)
+    # ✅ STEP 2: TEXT CHANNELS Search - POSTS (MERGED WITH FILES)
     # ============================================================================
     if user_session_ready and User is not None:
         try:
             post_count = 0
+            seen_posts = set()
             
-            for channel_id in Config.TEXT_CHANNEL_IDS:
-                try:
-                    async for msg in User.search_messages(
-                        channel_id, 
-                        query=query,
-                        limit=30
-                    ):
-                        if not msg or not msg.text or len(msg.text) < 15:
-                            continue
-                        
-                        title = extract_title_smart(msg.text)
-                        if not title:
-                            continue
-                        
-                        normalized = normalize_title(title)
-                        clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
-                        clean_title = re.sub(r'\s+\d{4}$', '', clean_title).strip()
-                        
-                        year_match = re.search(r'\b(19|20)\d{2}\b', title)
-                        year = year_match.group() if year_match else ""
-                        
-                        if normalized in results_dict:
-                            results_dict[normalized]['has_post'] = True
-                            results_dict[normalized]['post_content'] = format_post(msg.text, max_length=500)
-                            results_dict[normalized]['post_channel_id'] = channel_id
-                            results_dict[normalized]['post_message_id'] = msg.id
-                            results_dict[normalized]['result_type'] = 'file_and_post'
-                        else:
-                            results_dict[normalized] = {
-                                'title': clean_title,
-                                'normalized_title': normalized,
-                                'year': year,
-                                'content': format_post(msg.text, max_length=500),
-                                'post_content': msg.text,
-                                'channel_id': channel_id,
-                                'message_id': msg.id,
-                                'date': msg.date,
-                                'is_new': is_new(msg.date) if msg.date else False,
-                                'has_post': True,
-                                'has_file': False,
-                                'result_type': 'post',
-                                'qualities': {},
-                                'available_qualities': [],
-                                'thumbnail_url': None,
-                                'thumbnail_source': None,
-                                'has_thumbnail': False,
-                                'first_file_msg': None
-                            }
-                        
-                        post_count += 1
-                        
-                except Exception as e:
-                    logger.debug(f"Text search error in {channel_id}: {e}")
-                    continue
+            for term in search_terms:
+                for channel_id in Config.TEXT_CHANNEL_IDS:
+                    try:
+                        async for msg in User.search_messages(
+                            channel_id, 
+                            query=term,
+                            limit=30
+                        ):
+                            if not msg or not msg.text or len(msg.text) < 15:
+                                continue
+                            
+                            post_key = f"{msg.id}_{channel_id}"
+                            if post_key in seen_posts:
+                                continue
+                            seen_posts.add(post_key)
+                            
+                            title = extract_title_smart(msg.text)
+                            if not title:
+                                continue
+                            
+                            # Clean title and detect series info
+                            clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
+                            clean_title = re.sub(r'\s+\d{4}$', '', clean_title).strip()
+                            normalized = normalize_title(clean_title)
+                            
+                            year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                            year = year_match.group() if year_match else ""
+                            
+                            # Detect series info from post text
+                            series_info = detect_series_info_from_text(msg.text)
+                            
+                            # ✅ MERGE: If movie already exists (from file search), add post info
+                            if normalized in results_dict:
+                                results_dict[normalized]['has_post'] = True
+                                results_dict[normalized]['post_content'] = format_post(msg.text, max_length=500)
+                                results_dict[normalized]['post_channel_id'] = channel_id
+                                results_dict[normalized]['post_message_id'] = msg.id
+                                results_dict[normalized]['result_type'] = 'file_and_post'
+                                results_dict[normalized]['alternative_titles'] = list(set(
+                                    results_dict[normalized].get('alternative_titles', []) + [title]
+                                ))
+                                if term not in results_dict[normalized]['search_matched_terms']:
+                                    results_dict[normalized]['search_matched_terms'].append(term)
+                            else:
+                                # ✅ NEW: Post-only movie entry
+                                results_dict[normalized] = {
+                                    'title': clean_title,
+                                    'normalized_title': normalized,
+                                    'year': year,
+                                    'content': format_post(msg.text, max_length=500),
+                                    'post_content': msg.text,
+                                    'channel_id': channel_id,
+                                    'message_id': msg.id,
+                                    'date': msg.date,
+                                    'is_new': is_new(msg.date) if msg.date else False,
+                                    'has_post': True,
+                                    'has_file': False,
+                                    'result_type': 'post',
+                                    'qualities': {},
+                                    'available_qualities': [],
+                                    'thumbnail_url': None,
+                                    'thumbnail_source': None,
+                                    'has_thumbnail': False,
+                                    'first_file_msg': None,
+                                    'search_matched_terms': [term],
+                                    'series_info': series_info,
+                                    'alternative_titles': [title]
+                                }
+                            
+                            post_count += 1
+                            
+                    except Exception as e:
+                        logger.debug(f"Text search error in {channel_id} for '{term}': {e}")
+                        continue
             
-            logger.info(f"📝 Found {post_count} post results from text channels")
+            logger.info(f"📝 Found {post_count} unique post results from text channels")
             
         except Exception as e:
             logger.error(f"❌ Text channels search error: {e}")
     
     # ============================================================================
-    # ✅ STEP 3: Get Thumbnails for Each Result (ALL SOURCES + TELEGRAM)
+    # ✅ HELPER FUNCTION: Detect Series/Season/Part info
+    # ============================================================================
+    
+    def detect_series_info(file_name, clean_title):
+        """Detect if file is part of a series/season"""
+        file_lower = file_name.lower()
+        series_info = {
+            'type': 'movie',  # 'movie', 'series', 'season', 'episode'
+            'season': None,
+            'episode': None,
+            'part': None,
+            'full_title': clean_title
+        }
+        
+        # Check for season pattern: S01, S1, Season 1
+        season_match = re.search(r'[sS](\d{1,2})', file_lower)
+        if season_match:
+            series_info['type'] = 'season'
+            series_info['season'] = int(season_match.group(1))
+            # Remove season from title for grouping
+            clean_title = re.sub(r'[sS]\d{1,2}', '', clean_title).strip()
+        
+        # Check for Season X pattern
+        season_match2 = re.search(r'[sS]eason\s*(\d{1,2})', file_lower)
+        if season_match2 and not season_match:
+            series_info['type'] = 'season'
+            series_info['season'] = int(season_match2.group(1))
+            clean_title = re.sub(r'[sS]eason\s*\d{1,2}', '', clean_title).strip()
+        
+        # Check for episode: S01E01, E01
+        episode_match = re.search(r'[sS]\d{1,2}[eE](\d{1,2})', file_lower)
+        if episode_match:
+            series_info['type'] = 'episode'
+            series_info['episode'] = int(episode_match.group(1))
+        
+        # Check for Part X
+        part_match = re.search(r'[pP]art\s*(\d{1,2})', file_lower)
+        if part_match:
+            series_info['type'] = 'part'
+            series_info['part'] = int(part_match.group(1))
+            clean_title = re.sub(r'[pP]art\s*\d{1,2}', '', clean_title).strip()
+        
+        # Check for number at end: "Don 2", "Dhoom 3"
+        number_match = re.search(r'\s+(\d+)$', clean_title)
+        if number_match and not season_match and not part_match:
+            series_info['type'] = 'sequel'
+            series_info['part'] = int(number_match.group(1))
+            clean_title = re.sub(r'\s+\d+$', '', clean_title).strip()
+        
+        series_info['full_title'] = clean_title.strip()
+        series_info['display_title'] = clean_title.strip()
+        
+        # Add display suffix
+        if series_info['type'] == 'season' and series_info['season']:
+            series_info['display_title'] = f"{clean_title} Season {series_info['season']}"
+        elif series_info['type'] == 'episode' and series_info['season'] and series_info['episode']:
+            series_info['display_title'] = f"{clean_title} S{series_info['season']:02d}E{series_info['episode']:02d}"
+        elif series_info['type'] == 'part' and series_info['part']:
+            series_info['display_title'] = f"{clean_title} Part {series_info['part']}"
+        elif series_info['type'] == 'sequel' and series_info['part']:
+            series_info['display_title'] = f"{clean_title} {series_info['part']}"
+        
+        return series_info
+    
+    def detect_series_info_from_text(text):
+        """Detect series info from post text"""
+        text_lower = text.lower()
+        series_info = {
+            'type': 'movie',
+            'season': None,
+            'episode': None,
+            'part': None
+        }
+        
+        # Check for Season
+        season_match = re.search(r'[sS]eason\s*(\d{1,2})', text_lower)
+        if season_match:
+            series_info['type'] = 'season'
+            series_info['season'] = int(season_match.group(1))
+        
+        # Check for Part
+        part_match = re.search(r'[pP]art\s*(\d{1,2})', text_lower)
+        if part_match:
+            series_info['type'] = 'part'
+            series_info['part'] = int(part_match.group(1))
+        
+        # Check for Episode
+        episode_match = re.search(r'[eE]pisode\s*(\d{1,2})', text_lower)
+        if episode_match:
+            series_info['episode'] = int(episode_match.group(1))
+        
+        return series_info
+    
+    # ============================================================================
+    # ✅ STEP 3: Get Thumbnails for Each Result
     # ============================================================================
     for normalized, result in results_dict.items():
         is_post_only = result.get('has_file') == False and result.get('has_post') == True
@@ -1449,6 +1663,7 @@ async def search_movies_optimized(query, limit=15, page=1):
         result['thumbnail_source'] = thumbnail_source
         result['has_thumbnail'] = True
         
+        # Clean up
         if 'first_file_msg' in result:
             del result['first_file_msg']
         if 'all_messages' in result:
@@ -1459,12 +1674,35 @@ async def search_movies_optimized(query, limit=15, page=1):
     # ============================================================================
     all_results = list(results_dict.values())
     
-    all_results.sort(key=lambda x: (
-        1 if x.get('has_file') else 0,
-        1 if x.get('is_new') else 0,
-        x.get('best_date') if isinstance(x.get('best_date'), datetime) else 
-        (x.get('date') if isinstance(x.get('date'), datetime) else datetime.min)
-    ), reverse=True)
+    # Sort by: file first, then series order, then matches
+    def sort_key(x):
+        # Priority: has_file > series_type > season/part number > matches > date
+        priority = 0
+        if x.get('has_file'):
+            priority += 100
+        
+        # Series type priority
+        series_type = x.get('series_info', {}).get('type', 'movie')
+        type_priority = {
+            'episode': 10,
+            'season': 9,
+            'part': 8,
+            'sequel': 7,
+            'movie': 6
+        }
+        priority += type_priority.get(series_type, 0)
+        
+        # Season/Part number
+        season_num = x.get('series_info', {}).get('season', 0)
+        part_num = x.get('series_info', {}).get('part', 0)
+        priority += season_num + part_num
+        
+        # Number of search matches
+        priority += len(x.get('search_matched_terms', [])) * 2
+        
+        return priority
+    
+    all_results.sort(key=sort_key, reverse=True)
     
     # ============================================================================
     # ✅ STEP 5: Pagination
@@ -1474,62 +1712,20 @@ async def search_movies_optimized(query, limit=15, page=1):
     end_idx = offset + limit
     paginated = all_results[start_idx:end_idx]
     
+    # Statistics
     file_count = sum(1 for r in all_results if r.get('has_file'))
     post_count = sum(1 for r in all_results if r.get('has_post'))
     combined_count = sum(1 for r in all_results if r.get('has_file') and r.get('has_post'))
-    
-    tmdb_count = 0
-    omdb_count = 0
-    letterboxd_count = 0
-    imdb_count = 0
-    justwatch_count = 0
-    impawards_count = 0
-    mongodb_count = 0
-    telegram_count = 0
-    fallback_count = 0
-    
-    for r in paginated:
-        source = r.get('thumbnail_source', 'fallback')
-        if source == 'tmdb':
-            tmdb_count += 1
-        elif source == 'omdb':
-            omdb_count += 1
-        elif source == 'letterboxd':
-            letterboxd_count += 1
-        elif source == 'imdb':
-            imdb_count += 1
-        elif source == 'justwatch':
-            justwatch_count += 1
-        elif source == 'impawards':
-            impawards_count += 1
-        elif source == 'mongodb':
-            mongodb_count += 1
-        elif source == 'telegram':
-            telegram_count += 1
-        else:
-            fallback_count += 1
-    
-    total_poster_count = tmdb_count + omdb_count + letterboxd_count + imdb_count + justwatch_count + impawards_count
-    total_qualities = sum(len(r.get('available_qualities', [])) for r in all_results)
     
     elapsed = time.time() - start_time
     logger.info("=" * 70)
     logger.info("📊 SEARCH RESULTS SUMMARY:")
     logger.info(f"   • Query: '{query}'")
+    logger.info(f"   • Search Terms: {len(search_terms)} variations")
     logger.info(f"   • Total movies: {total}")
-    logger.info(f"   • Total qualities: {total_qualities}")
-    logger.info(f"   • Post+Files: {combined_count}")
-    logger.info(f"   • Post only: {post_count - combined_count}")
-    logger.info(f"   • File only: {file_count - combined_count}")
-    logger.info(f"   • TMDB posters: {tmdb_count}")
-    logger.info(f"   • OMDB posters: {omdb_count}")
-    logger.info(f"   • Letterboxd posters: {letterboxd_count}")
-    logger.info(f"   • IMDB posters: {imdb_count}")
-    logger.info(f"   • JustWatch posters: {justwatch_count}")
-    logger.info(f"   • IMPAwards posters: {impawards_count}")
-    logger.info(f"   • MongoDB thumbnails: {mongodb_count}")
-    logger.info(f"   • TELEGRAM thumbnails: {telegram_count}")
-    logger.info(f"   • Fallback images: {fallback_count}")
+    logger.info(f"   • File results: {file_count}")
+    logger.info(f"   • Post results: {post_count}")
+    logger.info(f"   • Combined: {combined_count}")
     logger.info(f"   • Time: {elapsed:.2f}s")
     logger.info("=" * 70)
     
@@ -1545,21 +1741,12 @@ async def search_movies_optimized(query, limit=15, page=1):
         },
         'search_metadata': {
             'query': query,
+            'search_terms': search_terms,
             'total_movies': total,
-            'total_qualities': total_qualities,
             'file_results': file_count,
             'post_results': post_count,
             'combined_results': combined_count,
-            'tmdb': tmdb_count,
-            'omdb': omdb_count,
-            'letterboxd': letterboxd_count,
-            'imdb': imdb_count,
-            'justwatch': justwatch_count,
-            'impawards': impawards_count,
-            'mongodb_thumbnails': mongodb_count,
-            'telegram_thumbnails': telegram_count,
-            'fallback': fallback_count,
-            'mode': 'optimized_v4.3_all_sources_file_channel_only',
+            'mode': 'enhanced_v5.1_series_wise',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
             'file_channel_id': Config.FILE_CHANNEL_ID
         },
