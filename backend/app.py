@@ -2254,8 +2254,8 @@ sync_manager = OptimizedSyncManager()
 # ============================================================================
 
 @performance_monitor.measure("home_movies")
-@async_cache_with_ttl(maxsize=1, ttl=60)
-async def get_home_movies(limit=30):
+@async_cache_with_ttl(maxsize=1, ttl=300)
+async def get_home_movies(limit=100):
     """
     🎬 HOME MOVIES - FIXED CHANNEL ID
     """
@@ -2268,8 +2268,8 @@ async def get_home_movies(limit=30):
         
         logger.info(f"🎬 Fetching home movies from main channel {Config.MAIN_CHANNEL_ID}...")
         
-        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=50):
-            if msg is not None and msg.text and len(msg.text) > 30:
+        async for msg in User.get_chat_history(Config.MAIN_CHANNEL_ID, limit=100):
+            if msg is not None and msg.text and len(msg.text) > 3:
                 title = extract_title_smart(msg.text)
                 
                 if title and title not in seen_titles:
@@ -2408,10 +2408,8 @@ async def setup_telegram_bot_handlers(bot):
                         if success:
                             await processing.delete()
                             await message.reply_text(
-                                f"✅ **File sent successfully!**\n\n"
+                                f"✅ **Powred By SK4FiLM!**\n\n"
                                 f"📁 **File:** `{result['file_name']}`\n"
-                                f"📦 **Size:** {format_size(size)}\n"
-                                f"📹 **Quality:** {quality}\n"
                                 f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME} minutes",
                                 reply_markup=InlineKeyboardMarkup([
                                     [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
