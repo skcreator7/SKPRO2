@@ -1268,7 +1268,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ GET HOME MOVIES - 100 MOVIES
+# ✅ FIXED GET HOME MOVIES - CORRECT PYROGRAM METHODS
 # ============================================================================
 
 @performance_monitor.measure("get_home_movies")
@@ -1288,10 +1288,12 @@ async def get_home_movies(limit: int = 100) -> Dict[str, Any]:
         try:
             file_count = 0
             
-            # Get latest messages from file channel (videos only)
-            async for msg in User.get_messages(
+            # ✅ FIXED: Use get_messages with message_ids or use search_messages
+            # Since we want latest messages, use search_messages with filter='video'
+            async for msg in User.search_messages(
                 Config.FILE_CHANNEL_ID,
-                limit=min(limit * 2, 200)  # Get more to ensure we have enough
+                limit=min(limit * 2, 200),  # Get more to ensure we have enough
+                filter='video'  # Only videos
             ):
                 if not msg or not msg.video:
                     continue
@@ -1360,6 +1362,8 @@ async def get_home_movies(limit: int = 100) -> Dict[str, Any]:
             
         except Exception as e:
             logger.error(f"❌ File channel fetch error: {e}")
+            import traceback
+            traceback.print_exc()
     
     # ========== STEP 2: Get posts from TEXT CHANNELS ==========
     if user_session_ready and User is not None and len(results_dict) < limit:
@@ -1368,7 +1372,8 @@ async def get_home_movies(limit: int = 100) -> Dict[str, Any]:
             
             for channel_id in Config.TEXT_CHANNEL_IDS:
                 try:
-                    async for msg in User.get_messages(
+                    # Use search_messages to get latest posts
+                    async for msg in User.search_messages(
                         channel_id,
                         limit=50
                     ):
