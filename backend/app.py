@@ -3034,13 +3034,13 @@ async def health():
 @app.route('/api/movies', methods=['GET'])
 async def api_movies():
     try:
-        movies = await get_home_movies(limit=25)
+        movies = await get_home_movies(limit=100)
         
         return jsonify({
             'status': 'success' if movies else 'empty',
             'movies': movies,
             'total': len(movies),
-            'limit': 25,
+            'limit': 100,
             'source': 'telegram',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
             'timestamp': datetime.now().isoformat()
