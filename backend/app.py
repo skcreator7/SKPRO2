@@ -1341,7 +1341,7 @@ async def get_poster_for_movie(title: str, year: str = "", quality: str = "") ->
         }
 
 # ============================================================================
-# ✅ FIXED SEARCH v9.0 - ALL CHANNELS MERGED
+# ✅ FIXED SEARCH v10.0 - TEXT RESULTS SHOW ALL, MERGING ONLY FOR FILES
 # ============================================================================
 
 @performance_monitor.measure("optimized_search")
@@ -1350,7 +1350,7 @@ async def search_movies_optimized(query, limit=15, page=1):
     start_time = time.time()
     offset = (page - 1) * limit
     
-    logger.info(f"🔍 FIXED SEARCH for: '{query}'")
+    logger.info(f"🔍 FIXED SEARCH v10.0 for: '{query}'")
     
     results_dict = {}
     query_lower = query.lower().strip()
@@ -1363,11 +1363,155 @@ async def search_movies_optimized(query, limit=15, page=1):
         'text_channel_posts_found': 0,
         'merged_count': 0,
         'file_only_count': 0,
-        'post_only_count': 0
+        'post_only_count': 0,
+        'text_channels_scanned': []
     }
     
     # ============================================================================
-    # ✅ STEP 1: SCAN FILE CHANNEL FOR VIDEOS/DOCUMENTS
+    # ✅ STEP 1: SCAN TEXT CHANNELS FIRST - SHOW ALL RESULTS
+    # ============================================================================
+    if user_session_ready and User is not None:
+        try:
+            post_count = 0
+            seen_posts = set()
+            text_channel_count = 0
+            
+            for channel_id in Config.TEXT_CHANNEL_IDS:
+                try:
+                    text_channel_count += 1
+                    logger.info(f"📥 Scanning TEXT CHANNEL {channel_id} for '{query}'...")
+                    source_stats['text_channels_scanned'].append(channel_id)
+                    
+                    all_posts = []
+                    offset_id = 0
+                    batch_size = 50
+                    max_posts = 500
+                    
+                    while len(all_posts) < max_posts:
+                        try:
+                            messages = []
+                            async for msg in User.get_chat_history(
+                                channel_id,
+                                limit=batch_size,
+                                offset_id=offset_id
+                            ):
+                                messages.append(msg)
+                                if len(messages) >= batch_size:
+                                    break
+                            
+                            if not messages:
+                                break
+                            
+                            all_posts.extend(messages)
+                            offset_id = messages[-1].id
+                            
+                            if len(messages) < batch_size:
+                                break
+                            
+                            await asyncio.sleep(0.3)
+                            
+                        except Exception as e:
+                            logger.error(f"❌ Fetch error in TEXT CHANNEL {channel_id}: {e}")
+                            break
+                    
+                    source_stats['text_channel_messages_scanned'] += len(all_posts)
+                    logger.info(f"✅ Fetched {len(all_posts)} posts from TEXT CHANNEL {channel_id}")
+                    
+                    for msg in all_posts:
+                        if not msg or not msg.text or len(msg.text) < 15:
+                            continue
+                        
+                        text_lower = msg.text.lower()
+                        
+                        # Check if query matches
+                        matched = False
+                        if query_lower in text_lower:
+                            matched = True
+                        else:
+                            for word in query_lower.split():
+                                if len(word) >= 2 and word in text_lower:
+                                    matched = True
+                                    break
+                        
+                        if not matched:
+                            continue
+                        
+                        post_key = f"{msg.id}_{channel_id}"
+                        if post_key in seen_posts:
+                            continue
+                        seen_posts.add(post_key)
+                        
+                        title = extract_title_smart(msg.text)
+                        if not title:
+                            continue
+                        
+                        clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
+                        clean_title = re.sub(r'\s+\d{4}$', '', clean_title).strip()
+                        normalized = normalize_title(clean_title)
+                        
+                        year_match = re.search(r'\b(19|20)\d{2}\b', title)
+                        year = year_match.group() if year_match else ""
+                        
+                        # ✅ Store TEXT post as main entry (will be merged with file later)
+                        if normalized not in results_dict:
+                            results_dict[normalized] = {
+                                'title': clean_title,
+                                'normalized_title': normalized,
+                                'year': year,
+                                'qualities': {},
+                                'available_qualities': [],
+                                'has_file': False,
+                                'has_post': True,
+                                'result_type': 'post',
+                                'source': 'text_channel',
+                                'content': format_post(msg.text, max_length=500),
+                                'post_content': msg.text,
+                                'post_channel_id': channel_id,
+                                'post_message_id': msg.id,
+                                'date': msg.date,
+                                'is_new': is_new(msg.date) if msg.date else False,
+                                'thumbnail_url': None,
+                                'thumbnail_source': None,
+                                'has_thumbnail': False,
+                                'first_file_msg': None,
+                                'search_matched_terms': [query_lower],
+                                'series_info': detect_series_info_from_text(msg.text),
+                                'alternative_titles': [],
+                                'all_messages': [msg],
+                                'file_message_id': None,
+                                'file_channel_id': None,
+                                'merged_with_file': False
+                            }
+                            source_stats['post_only_count'] += 1
+                        else:
+                            # ✅ If already exists (from previous text channel), add post info
+                            if not results_dict[normalized].get('has_post'):
+                                results_dict[normalized]['has_post'] = True
+                                results_dict[normalized]['post_content'] = format_post(msg.text, max_length=500)
+                                results_dict[normalized]['post_channel_id'] = channel_id
+                                results_dict[normalized]['post_message_id'] = msg.id
+                            
+                            # If file exists, mark as merged
+                            if results_dict[normalized].get('has_file'):
+                                results_dict[normalized]['result_type'] = 'file_and_post'
+                                results_dict[normalized]['source'] = 'merged'
+                                results_dict[normalized]['merged_with_file'] = True
+                                source_stats['merged_count'] += 1
+                        
+                        post_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"❌ TEXT CHANNEL {channel_id} error: {e}")
+                    continue
+            
+            source_stats['text_channel_posts_found'] = post_count
+            logger.info(f"📝 Found {post_count} unique post results from {text_channel_count} TEXT CHANNELS")
+            
+        except Exception as e:
+            logger.error(f"❌ TEXT CHANNELS scan error: {e}")
+    
+    # ============================================================================
+    # ✅ STEP 2: SCAN FILE CHANNEL - MERGE WITH EXISTING TEXT RESULTS
     # ============================================================================
     if user_session_ready and User is not None:
         try:
@@ -1403,7 +1547,7 @@ async def search_movies_optimized(query, limit=15, page=1):
                     if len(messages) < batch_size:
                         break
                     
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.3)
                     
                 except Exception as e:
                     logger.error(f"❌ Fetch error from FILE CHANNEL: {e}")
@@ -1471,7 +1615,37 @@ async def search_movies_optimized(query, limit=15, page=1):
                     'caption': caption[:200] if caption else ''
                 }
                 
-                if normalized not in results_dict:
+                # ✅ MERGE: If text post already exists, merge file into it
+                if normalized in results_dict:
+                    # Existing entry (from text channel) - add file info
+                    results_dict[normalized]['has_file'] = True
+                    results_dict[normalized]['result_type'] = 'file_and_post'
+                    results_dict[normalized]['source'] = 'merged'
+                    results_dict[normalized]['merged_with_file'] = True
+                    results_dict[normalized]['file_message_id'] = msg.id
+                    results_dict[normalized]['file_channel_id'] = Config.FILE_CHANNEL_ID
+                    
+                    # Add quality
+                    if quality not in results_dict[normalized]['qualities']:
+                        results_dict[normalized]['qualities'][quality] = quality_entry
+                        results_dict[normalized]['available_qualities'].append(quality)
+                    
+                    if msg.date and msg.date > results_dict[normalized].get('best_date', msg.date):
+                        results_dict[normalized]['best_date'] = msg.date
+                        results_dict[normalized]['is_new'] = is_new(msg.date)
+                    
+                    if not results_dict[normalized].get('first_file_msg'):
+                        results_dict[normalized]['first_file_msg'] = msg
+                    
+                    results_dict[normalized]['all_messages'].append(msg)
+                    if matched_term not in results_dict[normalized]['search_matched_terms']:
+                        results_dict[normalized]['search_matched_terms'].append(matched_term)
+                    
+                    source_stats['merged_count'] += 1
+                    source_stats['file_only_count'] -= 1  # Adjust because it's now merged
+                    
+                else:
+                    # ✅ NEW: File-only entry (no text post found)
                     results_dict[normalized] = {
                         'title': clean_title,
                         'normalized_title': normalized,
@@ -1494,170 +1668,25 @@ async def search_movies_optimized(query, limit=15, page=1):
                         'alternative_titles': [],
                         'post_content': None,
                         'post_channel_id': None,
-                        'post_message_id': None
+                        'post_message_id': None,
+                        'file_message_id': msg.id,
+                        'file_channel_id': Config.FILE_CHANNEL_ID,
+                        'merged_with_file': False
                     }
                     
                     results_dict[normalized]['qualities'][quality] = quality_entry
                     results_dict[normalized]['available_qualities'].append(quality)
                     file_count += 1
-                    
-                else:
-                    if quality not in results_dict[normalized]['qualities']:
-                        results_dict[normalized]['qualities'][quality] = quality_entry
-                        results_dict[normalized]['available_qualities'].append(quality)
-                        
-                    if msg.date and msg.date > results_dict[normalized]['best_date']:
-                        results_dict[normalized]['best_date'] = msg.date
-                        results_dict[normalized]['is_new'] = is_new(msg.date)
-                    
-                    if not results_dict[normalized].get('first_file_msg'):
-                        results_dict[normalized]['first_file_msg'] = msg
-                    
-                    results_dict[normalized]['all_messages'].append(msg)
-                    if matched_term not in results_dict[normalized]['search_matched_terms']:
-                        results_dict[normalized]['search_matched_terms'].append(matched_term)
+                    source_stats['file_only_count'] += 1
+                
+                source_stats['file_channel_files_found'] += 1
             
-            source_stats['file_channel_files_found'] = file_count
-            logger.info(f"📁 Found {file_count} unique file results from FILE CHANNEL")
+            logger.info(f"📁 Found {file_count} file results from FILE CHANNEL")
             
         except Exception as e:
             logger.error(f"❌ FILE CHANNEL scan error: {e}")
             import traceback
             traceback.print_exc()
-    
-    # ============================================================================
-    # ✅ STEP 2: SCAN ALL TEXT CHANNELS FOR POSTS
-    # ============================================================================
-    if user_session_ready and User is not None:
-        try:
-            post_count = 0
-            seen_posts = set()
-            
-            for channel_id in Config.TEXT_CHANNEL_IDS:
-                try:
-                    logger.info(f"📥 Scanning TEXT CHANNEL {channel_id} for '{query}'...")
-                    
-                    all_posts = []
-                    offset_id = 0
-                    batch_size = 50
-                    max_posts = 500
-                    
-                    while len(all_posts) < max_posts:
-                        try:
-                            messages = []
-                            async for msg in User.get_chat_history(
-                                channel_id,
-                                limit=batch_size,
-                                offset_id=offset_id
-                            ):
-                                messages.append(msg)
-                                if len(messages) >= batch_size:
-                                    break
-                            
-                            if not messages:
-                                break
-                            
-                            all_posts.extend(messages)
-                            offset_id = messages[-1].id
-                            
-                            if len(messages) < batch_size:
-                                break
-                            
-                            await asyncio.sleep(0.5)
-                            
-                        except Exception as e:
-                            logger.error(f"❌ Fetch error in TEXT CHANNEL {channel_id}: {e}")
-                            break
-                    
-                    source_stats['text_channel_messages_scanned'] += len(all_posts)
-                    logger.info(f"✅ Fetched {len(all_posts)} posts from TEXT CHANNEL {channel_id}")
-                    
-                    for msg in all_posts:
-                        if not msg or not msg.text or len(msg.text) < 15:
-                            continue
-                        
-                        text_lower = msg.text.lower()
-                        
-                        # Check if query matches
-                        matched = False
-                        if query_lower in text_lower:
-                            matched = True
-                        else:
-                            for word in query_lower.split():
-                                if len(word) >= 2 and word in text_lower:
-                                    matched = True
-                                    break
-                        
-                        if not matched:
-                            continue
-                        
-                        post_key = f"{msg.id}_{channel_id}"
-                        if post_key in seen_posts:
-                            continue
-                        seen_posts.add(post_key)
-                        
-                        title = extract_title_smart(msg.text)
-                        if not title:
-                            continue
-                        
-                        clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
-                        clean_title = re.sub(r'\s+\d{4}$', '', clean_title).strip()
-                        normalized = normalize_title(clean_title)
-                        
-                        year_match = re.search(r'\b(19|20)\d{2}\b', title)
-                        year = year_match.group() if year_match else ""
-                        
-                        # ✅ MERGE: If movie already exists (from file channel), add post info
-                        if normalized in results_dict:
-                            results_dict[normalized]['has_post'] = True
-                            results_dict[normalized]['post_content'] = format_post(msg.text, max_length=500)
-                            results_dict[normalized]['post_channel_id'] = channel_id
-                            results_dict[normalized]['post_message_id'] = msg.id
-                            results_dict[normalized]['result_type'] = 'file_and_post'
-                            results_dict[normalized]['source'] = 'merged'
-                            if query_lower not in results_dict[normalized].get('search_matched_terms', []):
-                                results_dict[normalized]['search_matched_terms'].append(query_lower)
-                            source_stats['merged_count'] += 1
-                        else:
-                            # ✅ NEW: Post-only movie entry
-                            results_dict[normalized] = {
-                                'title': clean_title,
-                                'normalized_title': normalized,
-                                'year': year,
-                                'qualities': {},
-                                'available_qualities': [],
-                                'has_file': False,
-                                'has_post': True,
-                                'result_type': 'post',
-                                'source': 'text_channel',
-                                'content': format_post(msg.text, max_length=500),
-                                'post_content': msg.text,
-                                'post_channel_id': channel_id,
-                                'post_message_id': msg.id,
-                                'date': msg.date,
-                                'is_new': is_new(msg.date) if msg.date else False,
-                                'thumbnail_url': None,
-                                'thumbnail_source': None,
-                                'has_thumbnail': False,
-                                'first_file_msg': None,
-                                'search_matched_terms': [query_lower],
-                                'series_info': detect_series_info_from_text(msg.text),
-                                'alternative_titles': [],
-                                'all_messages': [msg]
-                            }
-                            source_stats['post_only_count'] += 1
-                        
-                        post_count += 1
-                    
-                except Exception as e:
-                    logger.error(f"❌ TEXT CHANNEL {channel_id} error: {e}")
-                    continue
-            
-            source_stats['text_channel_posts_found'] = post_count
-            logger.info(f"📝 Found {post_count} unique post results from all TEXT CHANNELS")
-            
-        except Exception as e:
-            logger.error(f"❌ TEXT CHANNELS scan error: {e}")
     
     # ============================================================================
     # ✅ STEP 3: Get Thumbnails for Each Result
@@ -1740,6 +1769,7 @@ async def search_movies_optimized(query, limit=15, page=1):
     logger.info(f"   • Total qualities: {sum(len(r.get('available_qualities', [])) for r in all_results)}")
     logger.info(f"   • FILE CHANNEL scanned: {source_stats['file_channel_messages_scanned']} messages")
     logger.info(f"   • TEXT CHANNELS scanned: {source_stats['text_channel_messages_scanned']} messages")
+    logger.info(f"   • TEXT CHANNELS: {source_stats['text_channels_scanned']}")
     logger.info(f"   • Time: {elapsed:.2f}s")
     logger.info("=" * 70)
     
@@ -1761,7 +1791,8 @@ async def search_movies_optimized(query, limit=15, page=1):
             'post_only_count': post_only_count,
             'file_channel_id': Config.FILE_CHANNEL_ID,
             'text_channel_ids': Config.TEXT_CHANNEL_IDS,
-            'mode': 'fixed_v9_all_channels_merged',
+            'text_channels_scanned': source_stats['text_channels_scanned'],
+            'mode': 'fixed_v10_text_all_merged_files',
             'poster_fetching': Config.POSTER_FETCHING_ENABLED,
             'messages_scanned': {
                 'file_channel': source_stats['file_channel_messages_scanned'],
@@ -2947,7 +2978,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.5 - FIXED SEARCH")
+        logger.info("🚀 SK4FiLM v9.5 - FIXED SEARCH v10.0")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -3015,8 +3046,8 @@ async def init_system():
         logger.info(f"   • File Sending: ✅ ENABLED")
         logger.info(f"   • Auto-Delete: ✅ {Config.AUTO_DELETE_TIME} minutes")
         logger.info(f"   • Message History Search: ✅ ENABLED (scans {Config.MAX_MESSAGES_TO_SCAN} messages)")
-        logger.info(f"   • ALL TEXT CHANNELS: ✅ SCANNED")
-        logger.info(f"   • Results Merged: ✅ FILE + POST merged by title")
+        logger.info(f"   • ALL TEXT CHANNELS: ✅ SCANNED - ALL POSTS SHOWN")
+        logger.info(f"   • MERGING: ✅ ONLY FOR FILE CHANNEL DOCUMENTS/VIDEOS")
         logger.info("=" * 60)
         
         return True
@@ -3067,7 +3098,7 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.5 - FIXED SEARCH',
+        'service': 'SK4FiLM v9.5 - FIXED SEARCH v10.0',
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
         'auto_delete_minutes': Config.AUTO_DELETE_TIME,
         'poster_stats': poster_stats,
@@ -3103,7 +3134,8 @@ async def root():
         },
         'search_config': {
             'max_messages_to_scan': Config.MAX_MESSAGES_TO_SCAN,
-            'results_per_page': Config.SEARCH_RESULTS_PER_PAGE
+            'results_per_page': Config.SEARCH_RESULTS_PER_PAGE,
+            'mode': 'text_all_shown_files_merged'
         },
         'response_time': f"{time.perf_counter():.3f}s"
     })
@@ -3254,7 +3286,6 @@ async def debug_channel_info():
                     'username': file_chat.username
                 }
                 
-                # Get sample from file channel
                 messages = []
                 async for msg in User.get_chat_history(Config.FILE_CHANNEL_ID, limit=10):
                     if msg.document or msg.video:
@@ -3267,7 +3298,6 @@ async def debug_channel_info():
                 
                 result['file_channel_sample'] = messages
                 
-                # Get sample from text channels
                 text_samples = {}
                 for channel_id in Config.TEXT_CHANNEL_IDS:
                     try:
@@ -3373,8 +3403,8 @@ if __name__ == "__main__":
     logger.info(f"🎞️ All Qualities Shown: ENABLED")
     logger.info(f"📤 File Sending: ENABLED")
     logger.info(f"🔍 Search Mode: MESSAGE HISTORY (scans {Config.MAX_MESSAGES_TO_SCAN} messages)")
-    logger.info(f"📌 ALL TEXT CHANNELS SCANNED: {Config.TEXT_CHANNEL_IDS}")
-    logger.info(f"🔄 RESULTS MERGED: FILE + POST merged by normalized title")
+    logger.info(f"📌 ALL TEXT CHANNELS: ✅ SCANNED - ALL POSTS SHOWN")
+    logger.info(f"🔄 MERGING: ✅ ONLY FOR FILE CHANNEL DOCUMENTS/VIDEOS")
     logger.info("=" * 60)
     
     try:
