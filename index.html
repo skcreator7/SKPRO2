@@ -916,6 +916,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
     
     <script>
         const TELEGRAM_CHANNEL = 'sk4film';
@@ -1282,5 +1285,34 @@
         window.copyShareLinkWithMessage = copyShareLinkWithMessage;
         window.shareWithMessage = shareWithMessage;
     </script>
+    <b:if cond='data:view.isPost'>
+
+<div id="floating_ads_container">
+
+<div id="floating_ads_wrap">
+
+<div id="floating_ads_bottom_ad">
+
+<!--[ads]-->
+
+  <script>
+  atOptions = {
+    'key' : '5468e288aa04b4315e8eb86d41e05ba0',
+    'format' : 'iframe',
+    'height' : 250,
+    'width' : 300,
+    'params' : {}
+  };
+</script>
+<script src="https://marksdespitelinear.com/5468e288aa04b4315e8eb86d41e05ba0/invoke.js"></script>
+
+
+  <div id="floating_ads_bottom_close">
+
+<a href="#" onclick="document.getElementById('floating_ads_container').style.display='none';return false;" id="floating_ads_bottom_textcss_x">×</a>
+
+</div>
+
+  </div></div></div></b:if>
 </body>
 </html>
