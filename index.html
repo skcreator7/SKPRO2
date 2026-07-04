@@ -1232,7 +1232,7 @@
             // Open search page after a short delay
             setTimeout(() => {
                 window.location.href = `search.html?query=${encodeURIComponent(title)}`;
-            }, 800);
+            }, 1200);
         }
         
         function escapeHTML(s) { if(!s) return ''; return s.replace(/[&<>]/g, function(m) { if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m; }); }
