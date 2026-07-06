@@ -159,28 +159,160 @@
         .episodes-dropdown::-webkit-scrollbar-track { background: #000000; }
         .episodes-dropdown::-webkit-scrollbar-thumb { background: #00ccff; border-radius: 2px; }
         .episodes-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        
+        /* ========== EPISODE BUTTONS - DIFFERENT COLORS ========== */
         .episode-chip {
             display: inline-flex; align-items: center; gap: 6px;
-            background: #000000; border: 1px solid #1a1a1a; border-radius: 6px;
-            padding: 8px 12px; transition: all 0.2s;
-            cursor: pointer; white-space: nowrap; user-select: none;
+            border-radius: 8px; padding: 10px 14px; cursor: pointer;
+            white-space: nowrap; user-select: none; font-weight: 600;
+            transition: all 0.3s ease; border: 2px solid transparent;
         }
-        .episode-chip:hover { background: #111111; border-color: #28a745; transform: translateY(-1px); }
-        .episode-chip:active { transform: scale(0.96); }
-        .episode-chip-label { font-weight: 700; color: #ffffff; font-size: 13px; }
-        .episode-chip-size { font-size: 10px; color: #888888; }
+        .episode-chip:active { transform: scale(0.95); }
+        .episode-chip-label { font-weight: 700; font-size: 13px; }
+        .episode-chip-size { font-size: 10px; opacity: 0.8; padding: 2px 6px; background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        /* EP 01 - Gold */
+        .ep-chip-01 { background: linear-gradient(135deg, #1a0f00, #3a2500); border-color: #FFD700; color: #FFD700; }
+        .ep-chip-01:hover { background: linear-gradient(135deg, #3a2500, #FFD700); color: #000; border-color: #FFF; box-shadow: 0 4px 15px rgba(255,215,0,0.5); transform: translateY(-2px); }
+        /* EP 02 - Electric Blue */
+        .ep-chip-02 { background: linear-gradient(135deg, #0a0a2e, #1a1a5e); border-color: #448AFF; color: #448AFF; }
+        .ep-chip-02:hover { background: linear-gradient(135deg, #1a1a5e, #448AFF); color: #fff; border-color: #82B1FF; box-shadow: 0 4px 15px rgba(68,138,255,0.5); transform: translateY(-2px); }
+        /* EP 03 - Emerald Green */
+        .ep-chip-03 { background: linear-gradient(135deg, #0a1f0a, #1a4a1a); border-color: #4CAF50; color: #66BB6A; }
+        .ep-chip-03:hover { background: linear-gradient(135deg, #1a4a1a, #4CAF50); color: #fff; border-color: #A5D6A7; box-shadow: 0 4px 15px rgba(76,175,80,0.5); transform: translateY(-2px); }
+        /* EP 04 - Orange */
+        .ep-chip-04 { background: linear-gradient(135deg, #2e1a0a, #5e3a1a); border-color: #FF9800; color: #FFA726; }
+        .ep-chip-04:hover { background: linear-gradient(135deg, #5e3a1a, #FF9800); color: #fff; border-color: #FFCC02; box-shadow: 0 4px 15px rgba(255,152,0,0.5); transform: translateY(-2px); }
+        /* EP 05 - Purple */
+        .ep-chip-05 { background: linear-gradient(135deg, #1a0a2e, #3a1a6e); border-color: #AB47BC; color: #BA68C8; }
+        .ep-chip-05:hover { background: linear-gradient(135deg, #3a1a6e, #AB47BC); color: #fff; border-color: #CE93D8; box-shadow: 0 4px 15px rgba(171,71,188,0.5); transform: translateY(-2px); }
+        /* EP 06 - Cyan */
+        .ep-chip-06 { background: linear-gradient(135deg, #0a1a1a, #1a3a3a); border-color: #00BCD4; color: #4DD0E1; }
+        .ep-chip-06:hover { background: linear-gradient(135deg, #1a3a3a, #00BCD4); color: #000; border-color: #80DEEA; box-shadow: 0 4px 15px rgba(0,188,212,0.5); transform: translateY(-2px); }
+        /* EP 07 - Pink */
+        .ep-chip-07 { background: linear-gradient(135deg, #2e0a1a, #5e1a3a); border-color: #E91E63; color: #EC407A; }
+        .ep-chip-07:hover { background: linear-gradient(135deg, #5e1a3a, #E91E63); color: #fff; border-color: #F48FB1; box-shadow: 0 4px 15px rgba(233,30,99,0.5); transform: translateY(-2px); }
+        /* EP 08 - Lime */
+        .ep-chip-08 { background: linear-gradient(135deg, #1a2e0a, #3a5e1a); border-color: #CDDC39; color: #D4E157; }
+        .ep-chip-08:hover { background: linear-gradient(135deg, #3a5e1a, #CDDC39); color: #000; border-color: #E6EE9C; box-shadow: 0 4px 15px rgba(205,220,57,0.5); transform: translateY(-2px); }
+        /* EP 09 - Deep Orange */
+        .ep-chip-09 { background: linear-gradient(135deg, #2e150a, #5e2a1a); border-color: #FF5722; color: #FF7043; }
+        .ep-chip-09:hover { background: linear-gradient(135deg, #5e2a1a, #FF5722); color: #fff; border-color: #FFAB91; box-shadow: 0 4px 15px rgba(255,87,34,0.5); transform: translateY(-2px); }
+        /* EP 10 - Indigo */
+        .ep-chip-10 { background: linear-gradient(135deg, #0a0a2e, #1a1a5e); border-color: #3F51B5; color: #5C6BC0; }
+        .ep-chip-10:hover { background: linear-gradient(135deg, #1a1a5e, #3F51B5); color: #fff; border-color: #9FA8DA; box-shadow: 0 4px 15px rgba(63,81,181,0.5); transform: translateY(-2px); }
+        /* EP 11+ - Teal */
+        .ep-chip-11 { background: linear-gradient(135deg, #0a1a1a, #1a3a3a); border-color: #009688; color: #26A69A; }
+        .ep-chip-11:hover { background: linear-gradient(135deg, #1a3a3a, #009688); color: #fff; border-color: #80CBC4; box-shadow: 0 4px 15px rgba(0,150,136,0.5); transform: translateY(-2px); }
+        /* EP 12+ - Amber */
+        .ep-chip-12 { background: linear-gradient(135deg, #2e200a, #5e401a); border-color: #FFC107; color: #FFCA28; }
+        .ep-chip-12:hover { background: linear-gradient(135deg, #5e401a, #FFC107); color: #000; border-color: #FFE082; box-shadow: 0 4px 15px rgba(255,193,7,0.5); transform: translateY(-2px); }
+        
         .episode-badge { font-size: 9px; padding: 1px 5px; border-radius: 8px; background: rgba(255,215,0,0.15); border: 1px solid gold; color: gold; }
         
+        /* Quality Dropdown */
         .quality-dropdown { display: none; background: #0a0a0a; border: 1px solid #1a1a1a; border-top: 2px solid #00ccff; padding: 12px; margin: 4px 4px 0 4px; animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* ========== QUALITY BUTTONS - DIFFERENT COLORS ========== */
         .quality-option-2click {
-            background: #1a1a1a; padding: 10px 12px; border-radius: 4px; color: white;
-            font-weight: 600; font-size: 14px; text-align: center; cursor: pointer;
-            border: 1px solid #333333; margin: 4px; display: inline-block;
-            box-shadow: none; transition: all 0.2s; font-family: 'Josefin Sans', sans-serif;
+            padding: 10px 14px; border-radius: 8px; color: white;
+            font-weight: 600; font-size: 14px; text-align: center;
+            cursor: pointer; border: 2px solid #333333; margin: 4px;
+            display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.3s ease; font-family: 'Josefin Sans', sans-serif;
         }
-        .quality-option-2click:hover { background: #28a745; border-color: #28a745; transform: translateY(-2px); }
         .quality-option-2click:active { transform: scale(0.95); }
+        
+        /* 4K / 2160p - Gold Premium */
+        .quality-4k, .quality-2160p, .qual-4k, .qual-2160p {
+            background: linear-gradient(135deg, #1a0f00, #3a2a0a); border-color: #FFD700; color: #FFD700;
+        }
+        .quality-4k:hover, .quality-2160p:hover, .qual-4k:hover, .qual-2160p:hover {
+            background: linear-gradient(135deg, #3a2a0a, #FFD700); color: #000; border-color: #FFF;
+            box-shadow: 0 4px 20px rgba(255,215,0,0.6); transform: translateY(-3px);
+        }
+        
+        /* 1080p - Blue Electric */
+        .quality-1080p, .quality-1080, .qual-1080p, .qual-1080 {
+            background: linear-gradient(135deg, #0a1929, #1a3a6c); border-color: #2196F3; color: #42A5F5;
+        }
+        .quality-1080p:hover, .quality-1080:hover, .qual-1080p:hover, .qual-1080:hover {
+            background: linear-gradient(135deg, #1a3a6c, #2196F3); color: #fff; border-color: #64B5F6;
+            box-shadow: 0 4px 20px rgba(33,150,243,0.6); transform: translateY(-3px);
+        }
+        
+        /* 720p HEVC - Red */
+        .quality-720phevc, .quality-720hevc, .qual-720phevc, .qual-720hevc, .quality-720.hevc, .qual-720.hevc {
+            background: linear-gradient(135deg, #2e0a0a, #5e1a1a); border-color: #f44336; color: #EF5350;
+        }
+        .quality-720phevc:hover, .quality-720hevc:hover, .qual-720phevc:hover, .qual-720hevc:hover {
+            background: linear-gradient(135deg, #5e1a1a, #f44336); color: #fff; border-color: #EF9A9A;
+            box-shadow: 0 4px 20px rgba(244,67,54,0.6); transform: translateY(-3px);
+        }
+        
+        /* 720p - Green Emerald */
+        .quality-720p, .quality-720, .qual-720p, .qual-720 {
+            background: linear-gradient(135deg, #0a1f0a, #1a4a1a); border-color: #4CAF50; color: #66BB6A;
+        }
+        .quality-720p:hover, .quality-720:hover, .qual-720p:hover, .qual-720:hover {
+            background: linear-gradient(135deg, #1a4a1a, #4CAF50); color: #fff; border-color: #81C784;
+            box-shadow: 0 4px 20px rgba(76,175,80,0.6); transform: translateY(-3px);
+        }
+        
+        /* 480p - Orange Fire */
+        .quality-480p, .quality-480, .qual-480p, .qual-480 {
+            background: linear-gradient(135deg, #2e1a0a, #5e3a1a); border-color: #FF9800; color: #FFA726;
+        }
+        .quality-480p:hover, .quality-480:hover, .qual-480p:hover, .qual-480:hover {
+            background: linear-gradient(135deg, #5e3a1a, #FF9800); color: #fff; border-color: #FFB74D;
+            box-shadow: 0 4px 20px rgba(255,152,0,0.6); transform: translateY(-3px);
+        }
+        
+        /* 360p - Purple */
+        .quality-360p, .quality-360, .qual-360p, .qual-360 {
+            background: linear-gradient(135deg, #1a0a2e, #3a1a6e); border-color: #9C27B0; color: #AB47BC;
+        }
+        .quality-360p:hover, .quality-360:hover, .qual-360p:hover, .qual-360:hover {
+            background: linear-gradient(135deg, #3a1a6e, #9C27B0); color: #fff; border-color: #CE93D8;
+            box-shadow: 0 4px 20px rgba(156,39,176,0.6); transform: translateY(-3px);
+        }
+        
+        /* 240p - Teal */
+        .quality-240p, .quality-240, .qual-240p, .qual-240 {
+            background: linear-gradient(135deg, #0a1a1a, #1a3a3a); border-color: #009688; color: #26A69A;
+        }
+        .quality-240p:hover, .quality-240:hover, .qual-240p:hover, .qual-240:hover {
+            background: linear-gradient(135deg, #1a3a3a, #009688); color: #fff; border-color: #80CBC4;
+            box-shadow: 0 4px 20px rgba(0,150,136,0.6); transform: translateY(-3px);
+        }
+        
+        /* HDRip / HDCAM - Pink */
+        .quality-hdrip, .quality-hdcam, .qual-hdrip, .qual-hdcam {
+            background: linear-gradient(135deg, #2e0a1a, #5e1a3a); border-color: #E91E63; color: #EC407A;
+        }
+        .quality-hdrip:hover, .quality-hdcam:hover, .qual-hdrip:hover, .qual-hdcam:hover {
+            background: linear-gradient(135deg, #5e1a3a, #E91E63); color: #fff; border-color: #F48FB1;
+            box-shadow: 0 4px 20px rgba(233,30,99,0.6); transform: translateY(-3px);
+        }
+        
+        /* WebDL / WebRip - Indigo */
+        .quality-webdl, .quality-webrip, .qual-webdl, .qual-webrip {
+            background: linear-gradient(135deg, #0a0a2e, #1a1a5e); border-color: #3F51B5; color: #5C6BC0;
+        }
+        .quality-webdl:hover, .quality-webrip:hover, .qual-webdl:hover, .qual-webrip:hover {
+            background: linear-gradient(135deg, #1a1a5e, #3F51B5); color: #fff; border-color: #9FA8DA;
+            box-shadow: 0 4px 20px rgba(63,81,181,0.6); transform: translateY(-3px);
+        }
+        
+        /* BluRay / BDRip - Deep Purple */
+        .quality-bluray, .quality-bdrip, .qual-bluray, .qual-bdrip {
+            background: linear-gradient(135deg, #1a0a2e, #3a1a6e); border-color: #673AB7; color: #7E57C2;
+        }
+        .quality-bluray:hover, .quality-bdrip:hover, .qual-bluray:hover, .qual-bdrip:hover {
+            background: linear-gradient(135deg, #3a1a6e, #673AB7); color: #fff; border-color: #B39DDB;
+            box-shadow: 0 4px 20px rgba(103,58,183,0.6); transform: translateY(-3px);
+        }
         
         .pagination { margin: 20px 0; flex-wrap: wrap; justify-content: center; gap: 4px; }
         .page-link { background: #0a0a0a; color: var(--accent); border: 1px solid #1a1a1a; padding: 8px 12px; font-size: 14px; border-radius: 4px; text-decoration: none; display: inline-block; transition: all 0.2s; cursor: pointer; }
@@ -335,55 +467,68 @@ async function fetchAPI(q,p){for(let i=0;i<API_ENDPOINTS.length;i++){try{const r
 
 function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
 
-// ====== FIXED: formatPostContent WITH CLICKABLE LINKS ======
 function formatPostContent(content) {
     if (!content) return '';
-    
-    // First escape HTML to prevent XSS
     let formatted = escapeHtml(content);
-    
-    // Replace newlines with <br>
     formatted = formatted.replace(/\n/g, '<br>');
-    
-    // Make URLs clickable - matches http/https links
     formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(match) {
         return '<a href="' + match + '" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 500;">' + match + '</a>';
     });
-    
-    // Make Telegram links clickable
     formatted = formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g, function(match) {
         const url = match.startsWith('http') ? match : 'https://' + match;
         return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 500;">' + match + '</a>';
     });
-    
-    // Make @mentions clickable (except @sk4film)
     formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@$1</a>');
-    
-    // Make @sk4film clickable
     formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    
     return formatted;
 }
 
 function createPostContent(content, index) {
     if (!content || !content.trim()) return '';
     const isLong = content.length > 1200;
-    
     let html = '<div class="result-post-content" id="post-content-' + index + '" style="position: relative;">';
     html += '<div class="post-text" style="max-height: ' + (isLong ? '150px' : 'none') + '; overflow: hidden; transition: max-height 0.4s ease-in-out;">';
     html += formatPostContent(content);
     html += '</div>';
-    
     if (isLong) {
         html += '<div class="fade-effect" style="position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #0a0a0a); pointer-events: none;"></div>';
         html += '<button class="show-more-btn" onclick="var p=document.getElementById(\'post-content-' + index + '\'); var t=p.querySelector(\'.post-text\'); var f=p.querySelector(\'.fade-effect\'); var b=p.querySelector(\'.show-more-btn\'); if(t.style.maxHeight===\'none\'){t.style.maxHeight=\'150px\';f.style.display=\'block\';b.innerHTML=\'<i class=\\\'fas fa-chevron-down\\\'></i> Show More ↓\';}else{t.style.maxHeight=\'none\';f.style.display=\'none\';b.innerHTML=\'<i class=\\\'fas fa-chevron-up\\\'></i> Show Less ↑\';}" id="post-toggle-' + index + '" aria-label="Toggle content"><i class="fas fa-chevron-down"></i> Show More ↓</button>';
     }
-    
     html += '</div>';
     return html;
 }
 
 function formatSize(b){if(!b||b===0)return'';const k=1024,s=['B','KB','MB','GB'];const i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i];}
+
+/* ========== GET EPISODE COLOR CLASS ========== */
+function getEpisodeColorClass(epNum) {
+    const num = parseInt(epNum) || 0;
+    const colorMap = {
+        1: 'ep-chip-01', 2: 'ep-chip-02', 3: 'ep-chip-03', 4: 'ep-chip-04',
+        5: 'ep-chip-05', 6: 'ep-chip-06', 7: 'ep-chip-07', 8: 'ep-chip-08',
+        9: 'ep-chip-09', 10: 'ep-chip-10', 11: 'ep-chip-11', 12: 'ep-chip-12'
+    };
+    return colorMap[num] || 'ep-chip-01';
+}
+
+/* ========== GET QUALITY COLOR CLASS ========== */
+function getQualityColorClass(quality) {
+    if (!quality) return '';
+    const q = quality.toLowerCase().replace(/[\s\.\-]/g, '');
+    
+    if (q.includes('4k') || q.includes('2160') || q.includes('uhd')) return 'quality-4k';
+    if (q.includes('1080') || q.includes('fullhd') || q.includes('fhd')) return 'quality-1080p';
+    if ((q.includes('720') && q.includes('hevc')) || q.includes('720phevc') || q.includes('720hevc')) return 'quality-720phevc';
+    if (q.includes('720')) return 'quality-720p';
+    if (q.includes('480')) return 'quality-480p';
+    if (q.includes('360')) return 'quality-360p';
+    if (q.includes('240')) return 'quality-240p';
+    if (q.includes('hdrip') || q.includes('hdcam') || q.includes('hdts')) return 'quality-hdrip';
+    if (q.includes('webdl') || q.includes('webrip') || q.includes('web-dl')) return 'quality-webdl';
+    if (q.includes('bluray') || q.includes('bdrip') || q.includes('bd-rip')) return 'quality-bluray';
+    
+    return '';
+}
 
 function generateEpisodesDropdown(episodes,index){
     if(!episodes||!Array.isArray(episodes)||episodes.length===0)return'';
@@ -396,7 +541,8 @@ function generateEpisodesDropdown(episodes,index){
         const telegramLink=`https://t.me/${BOT_USERNAME}?start=${fileId}`;
         const paddedNum=String(epNum).padStart(2,'0');
         const badge=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
-        h+=`<div class="episode-chip" onclick="handleQualityClick('${telegramLink}')"><span class="episode-chip-label">EP ${paddedNum}</span>${epSize?`<span class="episode-chip-size">${epSize}</span>`:''}${badge}</div>`;
+        const colorClass=getEpisodeColorClass(epNum);
+        h+=`<div class="episode-chip ${colorClass}" onclick="handleQualityClick('${telegramLink}')"><span class="episode-chip-label">EP ${paddedNum}</span>${epSize?`<span class="episode-chip-size">${epSize}</span>`:''}${badge}</div>`;
     });
     h+=`</div></div>`;return h;
 }
@@ -428,7 +574,7 @@ function generateQualityOptionsHTML(qo,r){
     if(!qo||typeof qo!=='object')return'<p style="color:#999;">No options</p>';
     let h='<div style="display:flex;flex-wrap:wrap;gap:8px;">',c=0;
     let dmi=String(r.real_message_id||r.message_id||r.id||'0').replace(/\D/g,'');
-    for(const[q,d]of Object.entries(qo)){
+    for(const[q,d] of Object.entries(qo)){
         if(d&&typeof d==='object'){
             let qmi=String(d.message_id||dmi).replace(/\D/g,'');
             if(qmi&&qmi!=='0'){
@@ -436,7 +582,8 @@ function generateQualityOptionsHTML(qo,r){
                 const sz=d.file_size?formatSize(d.file_size):'';
                 const tl=`https://t.me/${BOT_USERNAME}?start=${fi}`;
                 const bd=!hasUserSeenRedirect?'<span class="one-time-badge">NEW</span>':'';
-                h+=`<button class="quality-option-2click" onclick="handleQualityClick('${tl}')">${q} ${sz} ${bd}</button>`;c++;
+                const colorClass=getQualityColorClass(q);
+                h+=`<button class="quality-option-2click ${colorClass}" onclick="handleQualityClick('${tl}')">${q} ${sz} ${bd}</button>`;c++;
             }
         }
     }
