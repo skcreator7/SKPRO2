@@ -34,720 +34,191 @@
             background: #000000;
             backdrop-filter: blur(10px);
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             height: 70px;
-            z-index: 9999;           
+            z-index: 9999;
             box-shadow: 0 2px 15px rgba(0,0,0,0.8);
-            display: flex;
-            align-items: center;
+            display: flex; align-items: center;
             border-bottom: 2px solid var(--accent);
         }
         .navbar-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 15px;
-            height: 100%;
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 15px; height: 100%;
         }
-        .logo-section {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-            color: white;
-        }
-        .logo-img {
-            height: 45px;
-            width: 45px;
-            margin-right: 10px;
-            border-radius: 10px;
-            object-fit: contain;
-        }
+        .logo-section { display: flex; align-items: center; text-decoration: none; color: white; }
+        .logo-img { height: 45px; width: 45px; margin-right: 10px; border-radius: 10px; object-fit: contain; }
         .brand-content { display: flex; flex-direction: column; }
         .brand-text {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.4rem;
+            font-family: 'Montserrat', sans-serif; font-size: 1.4rem;
             background: linear-gradient(90deg, #ff0000, #0066ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            line-height: 1.2;
-            font-weight: 800;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            line-height: 1.2; font-weight: 800;
         }
         .brand-subtitle { font-size: 0.65rem; color: #00ccff; font-weight: 300; }
         .menu-section { position: relative; }
         .menu-button {
-            background: rgba(0,204,255,0.15);
-            border: 2px solid var(--accent);
-            border-radius: 12px;
-            padding: 10px 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(0,204,255,0.15); border: 2px solid var(--accent);
+            border-radius: 12px; padding: 10px 12px; cursor: pointer; transition: all 0.3s ease;
         }
-        .menu-button:hover {
-            background: rgba(0,204,255,0.25);
-            transform: scale(1.05);
-        }
+        .menu-button:hover { background: rgba(0,204,255,0.25); transform: scale(1.05); }
         .menu-lines div { width: 22px; height: 2px; background: #00ccff; margin: 4px 0; border-radius: 2px; }
         
-        .main-container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 8px 12px 20px;
-            background: #000000;
-        }
-        
-        .results-wrapper {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            background: #000000;
-        }
-        
-        .ad-container {
-            text-align: center;
-            margin: 8px 0;
-            min-height: auto;
-            background: #0a0a0a;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            border: 1px solid #1a1a1a;
-        }
-        
+        .main-container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 8px 12px 20px; background: #000000; }
+        .results-wrapper { width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw; background: #000000; }
+        .ad-container { text-align: center; margin: 8px 0; min-height: auto; background: #0a0a0a; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #1a1a1a; }
         #adTopDesktop, #adBottomDesktop { display: none; max-width: 728px; margin: 0 auto; }
         #adTopMobile, #adBottomMobile { display: block; max-width: 320px; margin: 0 auto; }
-        @media (min-width: 768px) {
-            #adTopDesktop, #adBottomDesktop { display: block; }
-            #adTopMobile, #adBottomMobile { display: none; }
-        }
+        @media (min-width: 768px) { #adTopDesktop, #adBottomDesktop { display: block; } #adTopMobile, #adBottomMobile { display: none; } }
         
-        .search-container {
-            margin: 8px 0 12px;
-            position: relative;
-            width: 100%;
-        }
+        .search-container { margin: 8px 0 12px; position: relative; width: 100%; }
         .search-box {
-            background: #0a0a0a;
-            border: 2px solid #1a1a1a;
-            border-radius: 50px;
-            padding: 12px 20px;
-            color: white;
-            font-size: 16px;
-            width: 100%;
-            height: 50px;
-            transition: all 0.3s ease;
-            padding-right: 55px;
+            background: #0a0a0a; border: 2px solid #1a1a1a; border-radius: 50px;
+            padding: 12px 20px; color: white; font-size: 16px; width: 100%; height: 50px;
+            transition: all 0.3s ease; padding-right: 55px;
         }
-        .search-box:focus { 
-            border-color: #00ccff; 
-            outline: none;
-            box-shadow: 0 0 15px rgba(0,204,255,0.3);
-            background: #000000;
-        }
-        .search-box::placeholder {
-            color: rgba(255,255,255,0.4);
-        }
+        .search-box:focus { border-color: #00ccff; outline: none; box-shadow: 0 0 15px rgba(0,204,255,0.3); background: #000000; }
+        .search-box::placeholder { color: rgba(255,255,255,0.4); }
         .search-btn {
-            position: absolute;
-            right: 5px;
-            top: 5px;
-            background: linear-gradient(45deg, #ff0000, #0066ff);
-            border: none;
-            border-radius: 50px;
-            width: 42px;
-            height: 42px;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s;
+            position: absolute; right: 5px; top: 5px;
+            background: linear-gradient(45deg, #ff0000, #0066ff); border: none;
+            border-radius: 50px; width: 42px; height: 42px; color: white;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;
         }
-        .search-btn:hover {
-            background: linear-gradient(45deg, #ff3333, #3388ff);
-        }
+        .search-btn:hover { background: linear-gradient(45deg, #ff3333, #3388ff); }
         .search-btn:active { transform: scale(0.95); }
         
-        #resultsContainer { 
-            display: flex; 
-            flex-direction: column; 
-            gap: 0;
-            margin: 10px 0; 
-            width: 100%; 
-            background: #000000;
-        }
+        #resultsContainer { display: flex; flex-direction: column; gap: 0; margin: 10px 0; width: 100%; background: #000000; }
         .result-card {
-            background: #000000;
-            border-bottom: 1px solid #1a1a1a;
-            padding: 16px;
-            width: 100%;
-            box-shadow: none;
-            animation: fadeIn 0.5s ease;
-            transition: background 0.2s ease;
-            border-radius: 0;
+            background: #000000; border-bottom: 1px solid #1a1a1a; padding: 16px;
+            width: 100%; box-shadow: none; animation: fadeIn 0.5s ease;
+            transition: background 0.2s ease; border-radius: 0;
         }
-        .result-card:first-child {
-            border-top: 1px solid #1a1a1a;
-        }
-        .result-card:hover {
-            background: #0a0a0a;
-            position: relative;
-            z-index: 10;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .result-card:first-child { border-top: 1px solid #1a1a1a; }
+        .result-card:hover { background: #0a0a0a; position: relative; z-index: 10; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .result-thumbnail-top {
-            width: 100%;
-            aspect-ratio: 16/9;
-            overflow: hidden;
-            margin-bottom: 12px;
-            background: #0a0a0a;
-            border-radius: 0;
-        }
-        .thumbnail-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            cursor: pointer;
-        }
-        .thumbnail-container img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            transition: transform 0.3s; 
-        }
+        .result-thumbnail-top { width: 100%; aspect-ratio: 16/9; overflow: hidden; margin-bottom: 12px; background: #0a0a0a; border-radius: 0; }
+        .thumbnail-container { width: 100%; height: 100%; position: relative; cursor: pointer; }
+        .thumbnail-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
         .thumbnail-container:hover img { transform: scale(1.05); }
         .play-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex; align-items: center; justify-content: center;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
             opacity: 0; transition: opacity 0.3s;
         }
-        .thumbnail-container:hover .play-overlay,
-        .thumbnail-container:active .play-overlay { opacity: 1; }
+        .thumbnail-container:hover .play-overlay, .thumbnail-container:active .play-overlay { opacity: 1; }
         .play-button {
-            width: 60px; height: 60px; background: var(--primary);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; color: white; border: 3px solid white;
-            transition: transform 0.2s;
+            width: 60px; height: 60px; background: var(--primary); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; color: white; border: 3px solid white; transition: transform 0.2s;
         }
-        .play-button:hover {
-            transform: scale(1.1);
-        }
+        .play-button:hover { transform: scale(1.1); }
         .video-file-badge {
-            position: absolute; top: 8px; right: 8px; 
-            padding: 4px 10px; border-radius: 20px; 
-            font-size: 12px; font-weight: 600; z-index: 2;
+            position: absolute; top: 8px; right: 8px; padding: 4px 10px;
+            border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 2;
             background: var(--primary); color: white;
         }
-        .result-title { 
-            font-size: 18px; 
-            font-weight: 700; 
-            color: #00ccff; 
-            margin-bottom: 10px;
-            word-break: break-word;
-            padding: 0 4px;
-        }
+        .result-title { font-size: 18px; font-weight: 700; color: #00ccff; margin-bottom: 10px; word-break: break-word; padding: 0 4px; }
         
         .result-post-content {
-            background: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 0; 
-            padding: 12px; 
-            margin: 10px 0;
-            font-size: 14px; 
-            position: relative;
-            line-height: 1.6;
+            background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 0;
+            padding: 12px; margin: 10px 0; font-size: 14px; position: relative; line-height: 1.6;
         }
-        .post-text {
-            transition: max-height 0.4s ease-in-out;
-            overflow: hidden;
-            color: #cccccc;
-        }
-        .post-text a {
-            color: #00ccff !important;
-            text-decoration: underline !important;
-            word-break: break-all;
-            font-weight: 500;
-        }
-        .fade-effect {
-            position: absolute;
-            bottom: 40px;
-            left: 0;
-            right: 0;
-            height: 40px;
-            background: linear-gradient(transparent, #0a0a0a);
-            pointer-events: none;
-        }
+        .post-text { transition: max-height 0.4s ease-in-out; overflow: hidden; color: #cccccc; }
+        .post-text a { color: #00ccff !important; text-decoration: underline !important; word-break: break-all; font-weight: 500; }
+        .fade-effect { position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #0a0a0a); pointer-events: none; }
         .show-more-btn {
-            background: transparent;
-            border: none;
-            color: #00ccff;
-            font-weight: 600;
-            margin-top: 5px;
-            cursor: pointer;
-            width: 100%;
-            text-align: center;
-            padding: 8px;
-            border-radius: 0;
-            transition: all 0.2s;
-            position: relative;
-            z-index: 2;
-            font-family: 'Josefin Sans', sans-serif;
+            background: transparent; border: none; color: #00ccff; font-weight: 600;
+            margin-top: 5px; cursor: pointer; width: 100%; text-align: center;
+            padding: 8px; border-radius: 0; transition: all 0.2s;
+            position: relative; z-index: 2; font-family: 'Josefin Sans', sans-serif;
         }
-        .show-more-btn:hover { 
-            background: #1a1a1a; 
-            color: #fff;
-        }
+        .show-more-btn:hover { background: #1a1a1a; color: #fff; }
         
-        .action-buttons-container { 
-            display: flex; 
-            flex-direction: column; 
-            gap: 8px; 
-            margin-top: 10px; 
-            padding: 0 4px;
-        }
-        @media (min-width: 480px) { 
-            .action-buttons-container { flex-direction: row; } 
-        }
+        .action-buttons-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 0 4px; }
+        @media (min-width: 480px) { .action-buttons-container { flex-direction: row; } }
         .btn-stream-now, .btn-download-main {
-            flex: 1; 
-            padding: 12px 16px; 
-            border: none; 
-            border-radius: 4px; 
-            font-weight: 600;
-            font-size: 15px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 8px;
-            color: white; 
-            text-decoration: none; 
-            min-height: 48px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
+            flex: 1; padding: 12px 16px; border: none; border-radius: 4px; font-weight: 600;
+            font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;
+            color: white; text-decoration: none; min-height: 48px;
+            transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
         }
         .btn-stream-now:active, .btn-download-main:active { transform: scale(0.98); }
-        .btn-stream-now:hover, .btn-download-main:hover {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
+        .btn-stream-now:hover, .btn-download-main:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
-        .btn-download-main { 
-            background: linear-gradient(45deg, #28a745, #20c997); 
-            font-family: 'Josefin Sans', sans-serif;
-        }
+        .btn-download-main { background: linear-gradient(45deg, #28a745, #20c997); font-family: 'Josefin Sans', sans-serif; }
         
-        /* Episodes Dropdown */
-        .episodes-dropdown { 
-            display: none; 
-            background: #0a0a0a; 
-            border: 1px solid #1a1a1a;
-            border-top: 2px solid #00ccff;
-            padding: 8px; 
-            margin: 4px 4px 0 4px;
-            animation: slideDown 0.3s ease;
-            max-height: 350px;
-            overflow-y: auto;
+        /* ====== HORIZONTAL EPISODES DROPDOWN (NO ICON) ====== */
+        .episodes-dropdown {
+            display: none; background: #0a0a0a; border: 1px solid #1a1a1a;
+            border-top: 2px solid #00ccff; padding: 10px; margin: 4px 4px 0 4px;
+            animation: slideDown 0.3s ease; max-height: 250px; overflow-y: auto;
         }
-        .episodes-dropdown::-webkit-scrollbar {
-            width: 4px;
-        }
-        .episodes-dropdown::-webkit-scrollbar-track {
-            background: #000000;
-        }
-        .episodes-dropdown::-webkit-scrollbar-thumb {
-            background: #00ccff;
-            border-radius: 2px;
-        }
+        .episodes-dropdown::-webkit-scrollbar { width: 4px; }
+        .episodes-dropdown::-webkit-scrollbar-track { background: #000000; }
+        .episodes-dropdown::-webkit-scrollbar-thumb { background: #00ccff; border-radius: 2px; }
         
-        .episode-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 12px;
-            margin: 2px 0;
-            background: #000000;
-            border: 1px solid #1a1a1a;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-        .episode-item:hover {
-            background: #0a0a0a;
-            border-color: #333333;
-        }
-        .episode-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            flex: 1;
-        }
-        .episode-name {
-            font-weight: 600;
-            color: #ffffff;
-            font-size: 13px;
-        }
-        .episode-size {
-            font-size: 11px;
-            color: #888888;
-        }
-        .episode-download-btn {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            border: none;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: 'Josefin Sans', sans-serif;
-            white-space: nowrap;
-            min-width: 70px;
-            text-align: center;
-        }
-        .episode-download-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-        }
-        .episode-download-btn:active {
-            transform: scale(0.95);
-        }
-        .episode-badge {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 10px;
-            margin-left: 6px;
-        }
-        .episode-badge.new {
-            background: rgba(255,215,0,0.15);
-            border: 1px solid gold;
-            color: gold;
-        }
+        .episodes-grid { display: flex; flex-wrap: wrap; gap: 8px; }
         
-        .quality-dropdown { 
-            display: none; 
-            background: #0a0a0a; 
-            border: 1px solid #1a1a1a;
-            border-top: 2px solid #00ccff;
-            padding: 12px; 
-            margin: 4px 4px 0 4px;
-            animation: slideDown 0.3s ease;
+        .episode-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #000000; border: 1px solid #1a1a1a; border-radius: 6px;
+            padding: 8px 12px; transition: all 0.2s;
+            cursor: pointer; white-space: nowrap; user-select: none;
         }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .episode-chip:hover { background: #111111; border-color: #28a745; transform: translateY(-1px); }
+        .episode-chip:active { transform: scale(0.96); }
+        .episode-chip-label { font-weight: 700; color: #ffffff; font-size: 13px; }
+        .episode-chip-size { font-size: 10px; color: #888888; }
+        .episode-badge { font-size: 9px; padding: 1px 5px; border-radius: 8px; background: rgba(255,215,0,0.15); border: 1px solid gold; color: gold; }
+        
+        .quality-dropdown { display: none; background: #0a0a0a; border: 1px solid #1a1a1a; border-top: 2px solid #00ccff; padding: 12px; margin: 4px 4px 0 4px; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .quality-option-2click {
-            background: #1a1a1a;
-            padding: 10px 12px;
-            border-radius: 4px;
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-            text-align: center;
-            cursor: pointer;
-            border: 1px solid #333333;
-            margin: 4px;
-            display: inline-block;
-            box-shadow: none;
-            transition: all 0.2s;
-            font-family: 'Josefin Sans', sans-serif;
+            background: #1a1a1a; padding: 10px 12px; border-radius: 4px; color: white;
+            font-weight: 600; font-size: 14px; text-align: center; cursor: pointer;
+            border: 1px solid #333333; margin: 4px; display: inline-block;
+            box-shadow: none; transition: all 0.2s; font-family: 'Josefin Sans', sans-serif;
         }
-        .quality-option-2click:hover {
-            background: #28a745;
-            border-color: #28a745;
-            transform: translateY(-2px);
-        }
-        .quality-option-2click:active {
-            transform: scale(0.95);
-        }
+        .quality-option-2click:hover { background: #28a745; border-color: #28a745; transform: translateY(-2px); }
+        .quality-option-2click:active { transform: scale(0.95); }
         
-        .pagination { 
-            margin: 20px 0; 
-            flex-wrap: wrap; 
-            justify-content: center; 
-            gap: 4px; 
-        }
-        .page-link {
-            background: #0a0a0a; 
-            color: var(--accent); 
-            border: 1px solid #1a1a1a;
-            padding: 8px 12px; 
-            font-size: 14px; 
-            border-radius: 4px; 
-            text-decoration: none; 
-            display: inline-block;
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-        .page-link:hover { 
-            background: #1a1a1a; 
-            transform: translateY(-1px);
-        }
-        .page-link.disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-        .page-item.active .page-link { 
-            background: var(--accent); 
-            color: #000000; 
-            font-weight: 700;
-            border-color: var(--accent);
-        }
-        .results-info { 
-            text-align: center; 
-            margin: 0; 
-            font-size: 14px; 
-            color: rgba(255,255,255,0.7); 
-            padding: 12px 16px;
-            background: #0a0a0a;
-            border-bottom: 1px solid #1a1a1a;
-            border-radius: 0;
-        }
-        .disclaimer {
-            background: #0a0a0a; 
-            border-radius: 4px; 
-            padding: 12px; 
-            margin-top: 15px;
-            font-size: 13px; 
-            text-align: center;
-            border-left: 3px solid var(--primary);
-            border: 1px solid #1a1a1a;
-        }
+        .pagination { margin: 20px 0; flex-wrap: wrap; justify-content: center; gap: 4px; }
+        .page-link { background: #0a0a0a; color: var(--accent); border: 1px solid #1a1a1a; padding: 8px 12px; font-size: 14px; border-radius: 4px; text-decoration: none; display: inline-block; transition: all 0.2s; cursor: pointer; }
+        .page-link:hover { background: #1a1a1a; transform: translateY(-1px); }
+        .page-link.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+        .page-item.active .page-link { background: var(--accent); color: #000000; font-weight: 700; border-color: var(--accent); }
+        .results-info { text-align: center; margin: 0; font-size: 14px; color: rgba(255,255,255,0.7); padding: 12px 16px; background: #0a0a0a; border-bottom: 1px solid #1a1a1a; border-radius: 0; }
+        .disclaimer { background: #0a0a0a; border-radius: 4px; padding: 12px; margin-top: 15px; font-size: 13px; text-align: center; border-left: 3px solid var(--primary); border: 1px solid #1a1a1a; }
+        .one-time-badge { background: rgba(255,215,0,0.15); border: 1px solid gold; color: gold; font-size: 11px; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-left: 8px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
         
-        .one-time-badge {
-            background: rgba(255,215,0,0.15);
-            border: 1px solid gold;
-            color: gold;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-left: 8px;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-        
-        /* Redirect Overlay */
-        #redirectOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 999999;
-            backdrop-filter: blur(10px);
-        }
-        
+        #redirectOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000; display: none; align-items: center; justify-content: center; z-index: 999999; backdrop-filter: blur(10px); }
         #redirectOverlay.active { display: flex; }
+        .redirect-content { text-align: center; background: #0a0a0a; padding: 40px 30px; border-radius: 0; border: 2px solid #00ccff; max-width: 350px; width: 90%; animation: slideUp 0.5s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+        .redirect-content i { font-size: 60px; color: #00ccff; margin-bottom: 20px; animation: bounce 1s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .redirect-timer { font-size: 48px; font-weight: 800; color: #00ccff; margin: 20px 0; }
+        .progress-bar { width: 100%; height: 6px; background: #1a1a1a; border-radius: 0; overflow: hidden; margin: 20px 0; }
+        .progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff0000, #0066ff); transition: width 0.1s linear; }
+        .redirect-cancel-btn { background: transparent; border: 2px solid #00ccff; color: white; padding: 10px 30px; border-radius: 0; font-weight: 600; cursor: pointer; margin-top: 20px; transition: all 0.3s; font-family: 'Josefin Sans', sans-serif; }
+        .redirect-cancel-btn:hover { background: rgba(0,204,255,0.1); transform: scale(1.05); }
         
-        .redirect-content {
-            text-align: center;
-            background: #0a0a0a;
-            padding: 40px 30px;
-            border-radius: 0;
-            border: 2px solid #00ccff;
-            max-width: 350px;
-            width: 90%;
-            animation: slideUp 0.5s ease;
-        }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .redirect-content i {
-            font-size: 60px;
-            color: #00ccff;
-            margin-bottom: 20px;
-            animation: bounce 1s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        .redirect-timer {
-            font-size: 48px;
-            font-weight: 800;
-            color: #00ccff;
-            margin: 20px 0;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: #1a1a1a;
-            border-radius: 0;
-            overflow: hidden;
-            margin: 20px 0;
-        }
-        
-        .progress-fill {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #ff0000, #0066ff);
-            transition: width 0.1s linear;
-        }
-        
-        .redirect-cancel-btn {
-            background: transparent; 
-            border: 2px solid #00ccff; 
-            color: white; 
-            padding: 10px 30px; 
-            border-radius: 0; 
-            font-weight: 600; 
-            cursor: pointer; 
-            margin-top: 20px;
-            transition: all 0.3s;
-            font-family: 'Josefin Sans', sans-serif;
-        }
-        .redirect-cancel-btn:hover {
-            background: rgba(0,204,255,0.1);
-            transform: scale(1.05);
-        }
-        
-        #smartlinkContainer {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            pointer-events: none;
-            overflow: hidden;
-            z-index: -1;
-        }
-        
-        .error-state {
-            text-align: center;
-            padding: 40px;
-            background: #000000;
-        }
-        .error-state i {
-            animation: pulse 2s infinite;
-        }
-        
-        .bottom-ads {
-            margin: 20px 0 10px;
-        }
-        
-        .bottom-ad-container {
-            text-align: center;
-            margin: 15px 0;
-            padding: 10px;
-            background: #0a0a0a;
-            border-radius: 4px;
-            border: 1px solid #1a1a1a;
-        }
-        
-        .results-loading {
-            text-align: center;
-            padding: 40px;
-            background: #000000;
-        }
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #1a1a1a;
-            border-top: 4px solid #00ccff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        #resultsInfo.full-width {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            border-radius: 0;
-            padding: 12px 16px;
-            background: #0a0a0a;
-            border-top: 1px solid #1a1a1a;
-            border-bottom: 1px solid #1a1a1a;
-        }
-        
-        #paginationContainer.full-width {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            padding: 10px 16px;
-            background: #0a0a0a;
-            border-top: 1px solid #1a1a1a;
-        }
-        
-        .menu-dropdown {
-            background: #000000 !important;
-            border: 2px solid #00ccff !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
-        }
-        .menu-dropdown a {
-            background: #0a0a0a !important;
-        }
-        .menu-dropdown a:hover {
-            background: #1a1a1a !important;
-        }
-        
-        .episode-count-badge {
-            background: #00ccff;
-            color: #000000;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-left: 6px;
-            font-weight: 700;
-        }
-        
-        /* Series/Episode group header */
-        .episode-group-header {
-            padding: 6px 12px;
-            margin: 4px 0;
-            background: #111111;
-            border-radius: 4px;
-            color: #00ccff;
-            font-weight: 700;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-left: 3px solid #00ccff;
-        }
+        #smartlinkContainer { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; z-index: -1; }
+        .error-state { text-align: center; padding: 40px; background: #000000; }
+        .error-state i { animation: pulse 2s infinite; }
+        .bottom-ads { margin: 20px 0 10px; }
+        .bottom-ad-container { text-align: center; margin: 15px 0; padding: 10px; background: #0a0a0a; border-radius: 4px; border: 1px solid #1a1a1a; }
+        .results-loading { text-align: center; padding: 40px; background: #000000; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #1a1a1a; border-top: 4px solid #00ccff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #resultsInfo.full-width { width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw; border-radius: 0; padding: 12px 16px; background: #0a0a0a; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; }
+        #paginationContainer.full-width { width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw; padding: 10px 16px; background: #0a0a0a; border-top: 1px solid #1a1a1a; }
+        .menu-dropdown { background: #000000 !important; border: 2px solid #00ccff !important; box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important; }
+        .menu-dropdown a { background: #0a0a0a !important; }
+        .menu-dropdown a:hover { background: #1a1a1a !important; }
+        .episode-count-badge { background: #00ccff; color: #000000; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -765,21 +236,13 @@
             <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn" aria-label="Menu">
                 <div class="menu-lines"><div></div><div></div><div></div></div>
             </button>
-            <div class="menu-dropdown" id="menuDropdown" style="display: none; position: absolute; top: 60px; right: 0; width: 260px; background: rgba(10,20,40,0.98); border: 2px solid #00ccff; border-radius: 16px; padding: 1.2rem 1rem; z-index: 10000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="menu-dropdown" id="menuDropdown" style="display: none; position: absolute; top: 60px; right: 0; width: 260px; border-radius: 16px; padding: 1.2rem 1rem; z-index: 10000;">
                 <h4 style="color: white; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px;"><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none; transition: all 0.3s;">
-                        <i class="fab fa-telegram" style="color: #0088cc; font-size: 1.3rem; width: 28px;"></i><span>Telegram</span>
-                    </a>
-                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none; transition: all 0.3s;">
-                        <i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.3rem; width: 28px;"></i><span>WhatsApp</span>
-                    </a>
-                    <a href="https://youtube.com/@Skcreator7" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none; transition: all 0.3s;">
-                        <i class="fab fa-youtube" style="color: #ff0000; font-size: 1.3rem; width: 28px;"></i><span>YouTube</span>
-                    </a>
-                    <a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none; transition: all 0.3s;">
-                        <i class="fas fa-play-circle" style="color: #ff6b6b; font-size: 1.3rem; width: 28px;"></i><span>Live Channels</span>
-                    </a>
+                    <a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-telegram" style="color: #0088cc; font-size: 1.3rem; width: 28px;"></i><span>Telegram</span></a>
+                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.3rem; width: 28px;"></i><span>WhatsApp</span></a>
+                    <a href="https://youtube.com/@Skcreator7" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-youtube" style="color: #ff0000; font-size: 1.3rem; width: 28px;"></i><span>YouTube</span></a>
+                    <a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fas fa-play-circle" style="color: #ff6b6b; font-size: 1.3rem; width: 28px;"></i><span>Live Channels</span></a>
                 </div>
             </div>
         </div>
@@ -798,49 +261,16 @@
     </div>
 
     <div id="resultsInfo" class="results-info full-width" style="display: none;"></div>
-
-    <div class="results-wrapper">
-        <div id="resultsContainer"></div>
-    </div>
-
+    <div class="results-wrapper"><div id="resultsContainer"></div></div>
     <div id="paginationContainer" class="full-width"></div>
 
     <div class="bottom-ads">
-        <div class="bottom-ad-container">
-            <script type="text/javascript">
-                atOptions = {
-                    'key': '3118cf3c0d1d908e59d96fac6de40e1f',
-                    'format': 'iframe',
-                    'height': 90,
-                    'width': 728,
-                    'params': {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
-        </div>
-        
-        <div class="bottom-ad-container">
-            <script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
-        </div>
-        
-        <div class="bottom-ad-container">
-            <script type="text/javascript">
-                atOptions = {
-                    'key': 'c628de75b51e4c70d2f3bebebbaaf335',
-                    'format': 'iframe',
-                    'height': 50,
-                    'width': 320,
-                    'params': {}
-                };
-            </script>
-            <script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script>
-        </div>
+        <div class="bottom-ad-container"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
+        <div class="bottom-ad-container"><script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script><div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div></div>
+        <div class="bottom-ad-container"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div>
     </div>
 
-    <div class="disclaimer">
-        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong> This site does not store any file, it links to media hosted on Telegram.
-    </div>
+    <div class="disclaimer"><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong> This site does not store any file, it links to media hosted on Telegram.</div>
 </div>
 
 <div id="redirectOverlay">
@@ -848,738 +278,187 @@
         <i class="fas fa-external-link-alt"></i>
         <h3>Redirecting to Telegram</h3>
         <div class="redirect-timer" id="redirectTimer">3</div>
-        <div class="progress-bar">
-            <div class="progress-fill" id="redirectProgressBar"></div>
-        </div>
+        <div class="progress-bar"><div class="progress-fill" id="redirectProgressBar"></div></div>
         <p>You will be redirected in <span id="redirectSeconds">3</span> seconds</p>
         <button class="redirect-cancel-btn" onclick="closeRedirect()">Cancel</button>
     </div>
 </div>
-
 <div id="smartlinkContainer"></div>    
 
 <script>
-// ========== TOGGLE MENU ==========
-function toggleMenu() {
-    const dropdown = document.getElementById('menuDropdown');
-    if (!dropdown) return;
-    const isVisible = dropdown.style.display === 'block';
-    dropdown.style.display = isVisible ? 'none' : 'block';
-    if (!isVisible) dropdown.style.animation = 'slideUp 0.3s ease';
-}
+function toggleMenu() { const d=document.getElementById('menuDropdown'); if(d) d.style.display=d.style.display==='block'?'none':'block'; }
+document.addEventListener('click',(e)=>{ const b=document.getElementById('menuToggleBtn'),d=document.getElementById('menuDropdown'); if(b&&d&&!b.contains(e.target)&&!d.contains(e.target)) d.style.display='none'; });
 
-document.addEventListener('click', function(event) {
-    const btn = document.getElementById('menuToggleBtn');
-    const dropdown = document.getElementById('menuDropdown');
-    if (btn && dropdown && !btn.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.style.display = 'none';
-    }
-});
+const API_ENDPOINTS=['https://sk4film.koyeb.app','https://sk4film-backup.herokuapp.com','https://sk4film-alternate.onrender.com'];
+const FALLBACK_THUMBNAIL='https://iili.io/fAeIwv9.th.png',RESULTS_PER_PAGE=10;
+const SMARTLINK_LINK='https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb';
+const FILE_CHANNEL_ID="-1001768249569",BOT_USERNAME='sk4filmbot',REDIRECT_KEY='sk4film_redirect_shown';
+let hasUserSeenRedirect=localStorage.getItem(REDIRECT_KEY)==='true';
+let currentQuery='',currentPage=1,redirectTimeout=null,redirectCountdown=3,pendingTelegramLink='';
+const searchCache=new Map();
 
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        const dropdown = document.getElementById('menuDropdown');
-        if (dropdown) dropdown.style.display = 'none';
-    }
-});
-
-// ========== GLOBALS ==========
-const API_ENDPOINTS = ['https://sk4film.koyeb.app', 'https://sk4film-backup.herokuapp.com', 'https://sk4film-alternate.onrender.com'];
-const FALLBACK_THUMBNAIL = 'https://iili.io/fAeIwv9.th.png';
-const RESULTS_PER_PAGE = 10;
-const SMARTLINK_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb';
-const FILE_CHANNEL_ID = "-1001768249569";
-const BOT_USERNAME = 'sk4filmbot';
-const REDIRECT_KEY = 'sk4film_redirect_shown';
-let hasUserSeenRedirect = localStorage.getItem(REDIRECT_KEY) === 'true';
-let currentQuery = '';
-let currentPage = 1;
-let redirectTimeout = null;
-let redirectCountdown = 3;
-let pendingTelegramLink = '';
-const searchCache = new Map();
-
-// ========== GROUP EPISODES BY SERIES ==========
-function groupEpisodesBySeries(results) {
-    const grouped = [];
-    const seriesMap = new Map();
-    const standalone = [];
-    
-    results.forEach(result => {
-        const title = result.title || '';
-        // Check if it's an episode (contains patterns like E01, EP01, Episode 01, S01E01, etc.)
-        const epMatch = title.match(/(.*?)\s*[\(\[\s]*(?:E(?:p(?:isode)?)?[\.\s\-]*(\d+)|S(\d+)\s*E(?:p(?:isode)?)?[\.\s\-]*(\d+))/i);
-        
-        if (epMatch) {
-            let seriesName = epMatch[1].trim();
-            let epNumber = epMatch[2] || epMatch[4] || '';
-            
-            // Clean series name
-            seriesName = seriesName.replace(/[\(\[]\s*(?:Season|S)\s*\d+\s*[\)\]]/gi, '').trim();
-            seriesName = seriesName.replace(/\s+-\s*$/g, '').trim();
-            
-            if (!seriesMap.has(seriesName.toLowerCase())) {
-                seriesMap.set(seriesName.toLowerCase(), {
-                    seriesName: seriesName,
-                    episodes: [],
-                    thumbnail: result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL,
-                    post_content: result.post_content || result.content || '',
-                    has_file: result.has_file === true,
-                    firstResult: result
-                });
-            }
-            
-            const series = seriesMap.get(seriesName.toLowerCase());
-            series.episodes.push({
-                ...result,
-                episodeNumber: epNumber,
-                episodeTitle: title
-            });
-            // Keep the best thumbnail
-            if (result.thumbnail_url && !series.thumbnail) {
-                series.thumbnail = result.thumbnail_url;
-            }
-        } else {
-            standalone.push(result);
-        }
+function groupEpisodesBySeries(results){
+    const grouped=[],seriesMap=new Map(),standalone=[];
+    results.forEach(r=>{
+        const t=r.title||'';
+        const m=t.match(/(.*?)\s*[\(\[\s]*(?:E(?:p(?:isode)?)?[\.\s\-]*(\d+)|S(\d+)\s*E(?:p(?:isode)?)?[\.\s\-]*(\d+))/i);
+        if(m){
+            let sn=m[1].trim(),en=m[2]||m[4]||'';
+            sn=sn.replace(/[\(\[]\s*(?:Season|S)\s*\d+\s*[\)\]]/gi,'').trim().replace(/\s+-\s*$/g,'').trim();
+            if(!seriesMap.has(sn.toLowerCase())) seriesMap.set(sn.toLowerCase(),{seriesName:sn,episodes:[],thumbnail:r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL,post_content:r.post_content||r.content||'',has_file:r.has_file===true});
+            const s=seriesMap.get(sn.toLowerCase()); s.episodes.push({...r,episodeNumber:en}); if(r.thumbnail_url) s.thumbnail=r.thumbnail_url;
+        }else{standalone.push(r);}
     });
-    
-    // Add grouped series
-    seriesMap.forEach(series => {
-        // Sort episodes by number
-        series.episodes.sort((a, b) => {
-            const aNum = parseInt(a.episodeNumber) || 0;
-            const bNum = parseInt(b.episodeNumber) || 0;
-            return aNum - bNum;
-        });
-        grouped.push(series);
+    seriesMap.forEach(s=>{s.episodes.sort((a,b)=>(parseInt(a.episodeNumber)||0)-(parseInt(b.episodeNumber)||0));grouped.push(s);});
+    return{grouped,standalone};
+}
+
+function getValidSearchQuery(){const s=document.getElementById('searchInput');return s?s.value.trim().replace(/\s+/g,' '):'';}
+function triggerBackgroundSmartlink(){try{const a=document.createElement('a');a.href=SMARTLINK_LINK;a.target='_blank';a.rel='noopener noreferrer';a.style.display='none';document.body.appendChild(a);a.click();document.body.removeChild(a);}catch(e){}}
+
+async function performSearchWithPopup(page=1){
+    const rc=document.getElementById('resultsContainer'),ri=document.getElementById('resultsInfo'),pc=document.getElementById('paginationContainer');
+    let q=getValidSearchQuery();
+    if(!q){if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>Enter a search term</h4><p>Example: Animal, Jawan, Pathaan</p></div>';if(ri)ri.style.display='none';if(pc)pc.innerHTML='';return;}
+    currentQuery=q;currentPage=page;window.history.pushState({},'',`?query=${encodeURIComponent(q)}&page=${page}`);
+    if(rc)rc.innerHTML='<div class="results-loading"><div class="spinner"></div><p style="color:#00ccff;">Searching...</p></div>';
+    if(ri)ri.style.display='none';if(pc)pc.innerHTML='';
+    const ck=`${q}-${page}`;
+    if(searchCache.has(ck)){const c=searchCache.get(ck);renderResults(c.results,c.pagination);return;}
+    try{
+        const d=await fetchAPI(q,page);
+        if(d&&d.results&&d.results.length>0){const{g,standalone}=groupEpisodesBySeries(d.results);const pr={series:g,standalone};searchCache.set(ck,{results:pr,pagination:d.pagination});renderResults(pr,d.pagination);}
+        else{if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';}
+    }catch(e){if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Connection Error</h4><button onclick="performSearchWithPopup('+page+')" style="background:#00ccff;border:none;padding:10px 25px;border-radius:4px;color:#000;font-weight:600;margin-top:10px;cursor:pointer;">Retry</button></div>';}
+}
+
+async function fetchAPI(q,p){for(let i=0;i<API_ENDPOINTS.length;i++){try{const r=await fetch(`${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(q)}&page=${p}&limit=${RESULTS_PER_PAGE}`,{signal:AbortSignal.timeout(10000)});if(r.ok){const d=await r.json();if(d.status==='success')return d;}}catch(e){continue;}}return null;}
+
+function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+function formatSize(b){if(!b||b===0)return'';const k=1024,s=['B','KB','MB','GB'];const i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i];}
+
+function createPostContent(c,i){if(!c||!c.trim())return'';const l=c.length>1200;let h=`<div class="result-post-content"><div class="post-text" style="max-height:${l?'150px':'none'};overflow:hidden;">${escapeHtml(c).replace(/\n/g,'<br>')}</div>`;if(l)h+=`<div class="fade-effect" style="position:absolute;bottom:40px;left:0;right:0;height:40px;background:linear-gradient(transparent,#0a0a0a);pointer-events:none;"></div><button class="show-more-btn" onclick="this.parentElement.querySelector('.post-text').style.maxHeight='none';this.parentElement.querySelector('.fade-effect').style.display='none';this.style.display='none';">Show More ↓</button>`;h+=`</div>`;return h;}
+
+// ====== EPISODES DROPDOWN - NO ICON, CHIP STYLE ======
+function generateEpisodesDropdown(episodes,index){
+    if(!episodes||!Array.isArray(episodes)||episodes.length===0)return'';
+    let h=`<div class="episodes-dropdown" id="episodes-dropdown-${index}" style="display:none;"><div class="episodes-grid">`;
+    episodes.forEach((ep,epIndex)=>{
+        const epNum=ep.episodeNumber||(epIndex+1);
+        const epSize=ep.file_size?formatSize(ep.file_size):'';
+        let epMsgId=String(ep.real_message_id||ep.message_id||ep.id||'0').replace(/\D/g,'');
+        const fileId=`${FILE_CHANNEL_ID}_${epMsgId}_ep_${epIndex}`;
+        const telegramLink=`https://t.me/${BOT_USERNAME}?start=${fileId}`;
+        const paddedNum=String(epNum).padStart(2,'0');
+        const badge=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
+        h+=`<div class="episode-chip" onclick="handleQualityClick('${telegramLink}')">
+            <span class="episode-chip-label">EP ${paddedNum}</span>
+            ${epSize?`<span class="episode-chip-size">${epSize}</span>`:''}
+            ${badge}
+        </div>`;
     });
-    
-    return { grouped, standalone };
+    h+=`</div></div>`;return h;
 }
 
-// ========== SEARCH FUNCTIONS ==========
-function getValidSearchQuery() {
-    const searchInput = document.getElementById('searchInput');
-    if (!searchInput) return '';
-    return searchInput.value.trim().replace(/\s+/g, ' ');
-}
-
-function triggerBackgroundSmartlink() {
-    try {
-        const link = document.createElement('a');
-        link.href = SMARTLINK_LINK;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        const smartlinkContainer = document.getElementById('smartlinkContainer');
-        if (smartlinkContainer) {
-            const iframe = document.createElement('iframe');
-            iframe.src = SMARTLINK_LINK;
-            iframe.style.cssText = 'width:0;height:0;border:none;opacity:0;position:absolute;pointer-events:none;';
-            smartlinkContainer.innerHTML = '';
-            smartlinkContainer.appendChild(iframe);
-        }
-    } catch (e) {
-        console.error('Smartlink error:', e);
-    }
-}
-
-async function performSearchWithPopup(page = 1) {
-    const searchInput = document.getElementById('searchInput');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const resultsInfo = document.getElementById('resultsInfo');
-    const paginationContainer = document.getElementById('paginationContainer');
-    
-    let query = getValidSearchQuery();
-    
-    if (!query || query === '') {
-        if (resultsContainer) {
-            resultsContainer.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i>
-                    <h4>Enter a search term</h4>
-                    <p>Example: Animal, Jawan, Pathaan</p>
-                </div>`;
-        }
-        if (resultsInfo) resultsInfo.style.display = 'none';
-        if (paginationContainer) paginationContainer.innerHTML = '';
-        return;
-    }
-
-    currentQuery = query;
-    currentPage = page;
-    
-    const url = new URL(window.location);
-    url.searchParams.set('query', query);
-    url.searchParams.set('page', page);
-    window.history.pushState({}, '', url);
-
-    if (resultsContainer) {
-        resultsContainer.innerHTML = `
-            <div class="results-loading">
-                <div class="spinner"></div>
-                <p style="color: #00ccff;">Searching for "${escapeHtml(query)}"...</p>
-            </div>`;
-    }
-    if (resultsInfo) resultsInfo.style.display = 'none';
-    if (paginationContainer) paginationContainer.innerHTML = '';
-
-    const cacheKey = `${query}-${page}`;
-    
-    if (searchCache.has(cacheKey)) {
-        const cached = searchCache.get(cacheKey);
-        renderResults(cached.results, cached.pagination);
-        return;
-    }
-
-    try {
-        const data = await fetchAPI(query, page);
-        
-        if (data && data.results && data.results.length > 0) {
-            // Group episodes by series before caching
-            const { grouped, standalone } = groupEpisodesBySeries(data.results);
-            const processedResults = { series: grouped, standalone: standalone };
-            
-            searchCache.set(cacheKey, { results: processedResults, pagination: data.pagination });
-            renderResults(processedResults, data.pagination);
-        } else if (data && data.results && data.results.length === 0) {
-            if (resultsContainer) {
-                resultsContainer.innerHTML = `
-                    <div class="error-state">
-                        <i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i>
-                        <h4>No results found</h4>
-                        <p>Try different keywords or check spelling</p>
-                    </div>`;
-            }
-            if (resultsInfo) resultsInfo.style.display = 'none';
-        } else {
-            if (resultsContainer) {
-                resultsContainer.innerHTML = `
-                    <div class="error-state">
-                        <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
-                        <h4>Connection Error</h4>
-                        <p>Unable to connect to server. Please try again.</p>
-                        <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 4px; color: #000000; font-weight: 600; margin-top: 10px; cursor: pointer; font-family: 'Josefin Sans', sans-serif;">
-                            <i class="fas fa-redo"></i> Retry
-                        </button>
-                    </div>
-                `;
-            }
-            if (resultsInfo) resultsInfo.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Search error:', error);
-        if (resultsContainer) {
-            resultsContainer.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
-                    <h4>Something went wrong</h4>
-                    <p>Please try again later.</p>
-                </div>`;
-        }
-        if (resultsInfo) resultsInfo.style.display = 'none';
-    }
-}
-
-async function fetchAPI(query, page) {
-    for (let i = 0; i < API_ENDPOINTS.length; i++) {
-        try {
-            const encodedQuery = encodeURIComponent(query);
-            const url = `${API_ENDPOINTS[i]}/api/search?query=${encodedQuery}&page=${page}&limit=${RESULTS_PER_PAGE}`;
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
-            const response = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeout);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'success') return data;
-            }
-        } catch (e) {
-            console.error('API Error:', e);
-            continue;
-        }
-    }
-    return null;
-}
-
-// ========== HELPER FUNCTIONS ==========
-function escapeHtml(text) { 
-    if (!text) return ''; 
-    const div = document.createElement('div'); 
-    div.textContent = text; 
-    return div.innerHTML; 
-}
-
-function formatSize(bytes) { 
-    if (!bytes || bytes === 0) return ''; 
-    const k = 1024; 
-    const sizes = ['B','KB','MB','GB']; 
-    const i = Math.floor(Math.log(bytes)/Math.log(k)); 
-    return parseFloat((bytes/Math.pow(k,i)).toFixed(1))+' '+sizes[i]; 
-}
-
-function formatTitle(title) {
-    if (!title) return '';
-    let formatted = escapeHtml(title);
-    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    return formatted;
-}
-
-function formatPostContent(content) {
-    if (!content) return '';
-    let formatted = escapeHtml(content);
-    formatted = formatted.replace(/\n/g, '<br>');
-    formatted = formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">https://t.me/sk4film</a>');
-    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)(?![^<]*>|[^<>]*<\/)/g, '<a href="$&" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">$&</a>');
-    return formatted;
-}
-
-function createPostContent(content, index) {
-    if (!content || !content.trim()) return '';
-    const isLong = content.length > 1200;
-    let html = `<div class="result-post-content" id="post-content-${index}" style="position: relative;">`;
-    html += `<div class="post-text" style="max-height: ${isLong ? '150px' : 'none'}; overflow: hidden; transition: max-height 0.4s ease-in-out;">`;
-    html += formatPostContent(content);
-    html += `</div>`;
-    if (isLong) {
-        html += `
-            <div class="fade-effect" style="position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #0a0a0a); pointer-events: none;"></div>
-            <button class="show-more-btn" onclick="togglePostContent(${index})" id="post-toggle-${index}" aria-label="Toggle content">
-                <i class="fas fa-chevron-down"></i> Show More ↓
-            </button>
-        `;
-    }
-    html += `</div>`;
-    return html;
-}
-
-function togglePostContent(index) {
-    const contentDiv = document.getElementById(`post-content-${index}`);
-    if (!contentDiv) return;
-    const toggleBtn = document.getElementById(`post-toggle-${index}`);
-    const textDiv = contentDiv.querySelector('.post-text');
-    const fadeEffect = contentDiv.querySelector('.fade-effect');
-    
-    if (textDiv.style.maxHeight === 'none') {
-        textDiv.style.maxHeight = '150px';
-        if (fadeEffect) fadeEffect.style.display = 'block';
-        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show More ↓';
-    } else {
-        textDiv.style.maxHeight = 'none';
-        if (fadeEffect) fadeEffect.style.display = 'none';
-        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑';
-    }
-}
-
-// ========== EPISODES DROPDOWN ==========
-function generateEpisodesDropdown(episodes, index) {
-    if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return '';
-    
-    let html = `<div class="episodes-dropdown" id="episodes-dropdown-${index}" style="display: none;">`;
-    
-    episodes.forEach((ep, epIndex) => {
-        const epName = ep.episodeTitle || ep.title || `Episode ${ep.episodeNumber || epIndex + 1}`;
-        const epSize = ep.file_size ? formatSize(ep.file_size) : '';
-        let epMsgId = ep.real_message_id || ep.message_id || ep.id || '0';
-        epMsgId = String(epMsgId).replace(/\D/g, '');
-        
-        const fileId = `${FILE_CHANNEL_ID}_${epMsgId}_ep_${epIndex}`;
-        const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-        const badge = !hasUserSeenRedirect ? '<span class="episode-badge new">NEW</span>' : '';
-        const epNum = ep.episodeNumber ? `EP ${ep.episodeNumber}` : '';
-        
-        html += `
-            <div class="episode-item">
-                <div class="episode-info">
-                    <span class="episode-name">${epNum} ${escapeHtml(epName)} ${badge}</span>
-                    ${epSize ? `<span class="episode-size">${epSize}</span>` : ''}
-                </div>
-                <button class="episode-download-btn" onclick="handleQualityClick('${telegramLink}')">
-                    <i class="fas fa-download"></i> DL
-                </button>
-            </div>`;
-    });
-    
-    html += `</div>`;
-    return html;
-}
-
-// ========== REDIRECT HANDLING ==========
-function handleQualityClick(telegramLink) {
+function handleQualityClick(telegramLink){
     triggerBackgroundSmartlink();
-    
-    if (hasUserSeenRedirect) {
-        window.open(telegramLink, '_blank');
-        return;
-    }
-    
-    localStorage.setItem(REDIRECT_KEY, 'true');
-    hasUserSeenRedirect = true;
-    
-    pendingTelegramLink = telegramLink;
-    redirectCountdown = 3;
-    
-    const redirectTimer = document.getElementById('redirectTimer');
-    const redirectSeconds = document.getElementById('redirectSeconds');
-    const redirectProgressBar = document.getElementById('redirectProgressBar');
-    const redirectOverlay = document.getElementById('redirectOverlay');
-    
-    if (redirectTimer) redirectTimer.textContent = redirectCountdown;
-    if (redirectSeconds) redirectSeconds.textContent = redirectCountdown;
-    if (redirectProgressBar) redirectProgressBar.style.width = '0%';
-    if (redirectOverlay) redirectOverlay.classList.add('active');
-    
-    setTimeout(() => { 
-        if (redirectProgressBar) redirectProgressBar.style.width = '100%'; 
-    }, 50);
-    
-    if (redirectTimeout) clearInterval(redirectTimeout);
-    
-    redirectTimeout = setInterval(() => {
+    if(hasUserSeenRedirect){window.open(telegramLink,'_blank');return;}
+    localStorage.setItem(REDIRECT_KEY,'true');hasUserSeenRedirect=true;
+    pendingTelegramLink=telegramLink;redirectCountdown=3;
+    document.getElementById('redirectTimer').textContent=redirectCountdown;
+    document.getElementById('redirectSeconds').textContent=redirectCountdown;
+    document.getElementById('redirectProgressBar').style.width='0%';
+    document.getElementById('redirectOverlay').classList.add('active');
+    setTimeout(()=>{document.getElementById('redirectProgressBar').style.width='100%';},50);
+    if(redirectTimeout)clearInterval(redirectTimeout);
+    redirectTimeout=setInterval(()=>{
         redirectCountdown--;
-        if (redirectTimer) redirectTimer.textContent = redirectCountdown;
-        if (redirectSeconds) redirectSeconds.textContent = redirectCountdown;
-        
-        if (redirectCountdown <= 0) {
-            clearInterval(redirectTimeout);
-            redirectTimeout = null;
-            window.open(pendingTelegramLink, '_blank');
-            closeRedirect();
-        }
-    }, 1000);
+        document.getElementById('redirectTimer').textContent=redirectCountdown;
+        document.getElementById('redirectSeconds').textContent=redirectCountdown;
+        if(redirectCountdown<=0){clearInterval(redirectTimeout);redirectTimeout=null;window.open(pendingTelegramLink,'_blank');closeRedirect();}
+    },1000);
 }
 
-function triggerAdLink() { 
-    triggerBackgroundSmartlink();
-}
+function triggerAdLink(){triggerBackgroundSmartlink();}
+function toggleEpisodes(index){const d=document.getElementById(`episodes-dropdown-${index}`);if(d)d.style.display=d.style.display==='block'?'none':'block';document.querySelectorAll('.episodes-dropdown').forEach(x=>{if(x.id!==`episodes-dropdown-${index}`)x.style.display='none';});document.querySelectorAll('.quality-dropdown').forEach(x=>x.style.display='none');}
+function toggleDownload(index){const d=document.getElementById(`download-quality-${index}`);if(d)d.style.display=d.style.display==='block'?'none':'block';document.querySelectorAll('.quality-dropdown').forEach(x=>{if(x.id!==`download-quality-${index}`)x.style.display='none';});document.querySelectorAll('.episodes-dropdown').forEach(x=>x.style.display='none');}
 
-// ========== TOGGLE FUNCTIONS ==========
-function toggleEpisodes(index) {
-    const dropdown = document.getElementById(`episodes-dropdown-${index}`);
-    if (dropdown) {
-        const isVisible = dropdown.style.display === 'block';
-        dropdown.style.display = isVisible ? 'none' : 'block';
-    }
-    document.querySelectorAll('.episodes-dropdown').forEach(d => {
-        if (d.id !== `episodes-dropdown-${index}`) d.style.display = 'none';
-    });
-    document.querySelectorAll('.quality-dropdown').forEach(d => d.style.display = 'none');
-}
-
-function toggleDownload(index) { 
-    const dropdown = document.getElementById(`download-quality-${index}`); 
-    if (dropdown) {
-        const isVisible = dropdown.style.display === 'block';
-        dropdown.style.display = isVisible ? 'none' : 'block';
-    }
-    document.querySelectorAll('.quality-dropdown').forEach(d => {
-        if (d.id !== `download-quality-${index}`) d.style.display = 'none';
-    });
-    document.querySelectorAll('.episodes-dropdown').forEach(d => d.style.display = 'none');
-}
-
-function generateQualityOptionsHTML(qualityOptions, result) {
-    if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options available</p>';
-    
-    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
-    let count = 0;
-    
-    let defaultMsgId = result.real_message_id || result.message_id || result.id || '0';
-    defaultMsgId = String(defaultMsgId).replace(/\D/g, '');
-    
-    for (const [quality, data] of Object.entries(qualityOptions)) {
-        if (data && typeof data === 'object') {
-            let qualityMsgId = data.message_id || defaultMsgId;
-            qualityMsgId = String(qualityMsgId).replace(/\D/g, '');
-            
-            if (qualityMsgId && qualityMsgId !== '0') {
-                const fileId = `${FILE_CHANNEL_ID}_${qualityMsgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
-                const size = data.file_size ? formatSize(data.file_size) : '';
-                const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
-                
-                html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')" aria-label="Download ${quality}">${quality} ${size} ${badge}</button>`;
-                count++;
+function generateQualityOptionsHTML(qo,r){
+    if(!qo||typeof qo!=='object')return'<p style="color:#999;">No options</p>';
+    let h='<div style="display:flex;flex-wrap:wrap;gap:8px;">',c=0;
+    let dmi=String(r.real_message_id||r.message_id||r.id||'0').replace(/\D/g,'');
+    for(const[q,d]of Object.entries(qo)){
+        if(d&&typeof d==='object'){
+            let qmi=String(d.message_id||dmi).replace(/\D/g,'');
+            if(qmi&&qmi!=='0'){
+                const fi=`${FILE_CHANNEL_ID}_${qmi}_${q.toLowerCase().replace(/\s+/g,'_')}`;
+                const sz=d.file_size?formatSize(d.file_size):'';
+                const tl=`https://t.me/${BOT_USERNAME}?start=${fi}`;
+                const bd=!hasUserSeenRedirect?'<span class="one-time-badge">NEW</span>':'';
+                h+=`<button class="quality-option-2click" onclick="handleQualityClick('${tl}')">${q} ${sz} ${bd}</button>`;c++;
             }
         }
     }
-    
-    if (count === 0) {
-        const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
-        html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')" aria-label="Get from Bot">Get from Bot ${badge}</button>`;
-    }
-    
-    html += '</div>';
-    return html;
+    if(c===0)h+=`<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')">Get from Bot</button>`;
+    h+='</div>';return h;
 }
 
-// ========== RENDER RESULTS ==========
-function renderResults(processedResults, pagination) {
-    const resultsContainer = document.getElementById('resultsContainer');
-    const resultsInfo = document.getElementById('resultsInfo');
-    const paginationContainer = document.getElementById('paginationContainer');
-    
-    if (!resultsContainer) return;
-    
-    const { series, standalone } = processedResults;
-    const totalResults = (series ? series.reduce((sum, s) => sum + s.episodes.length, 0) : 0) + (standalone ? standalone.length : 0);
-    
-    if (totalResults === 0) { 
-        resultsContainer.innerHTML = `
-            <div class="error-state" style="text-align: center; padding: 40px;">
-                <i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i>
-                <h4>No results found</h4>
-                <p>Try different keywords</p>
-            </div>`; 
-        if (resultsInfo) resultsInfo.style.display = 'none';
-        if (paginationContainer) paginationContainer.innerHTML = '';
-        return; 
-    }
-    
-    if (resultsInfo && pagination) {
-        const displayCount = series ? series.length + (standalone ? standalone.length : 0) : 0;
-        resultsInfo.innerHTML = `Found <strong>${displayCount}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
-        resultsInfo.style.display = 'block';
-    }
-    
-    let html = '';
-    let cardIndex = 0;
-    
-    // Render series/season cards with episodes dropdown
-    if (series && series.length > 0) {
-        series.forEach((s) => {
-            const seriesTitle = s.seriesName;
-            const thumbUrl = s.thumbnail || FALLBACK_THUMBNAIL;
-            const hasFile = s.has_file;
-            const postContent = s.post_content || '';
-            const episodeCount = s.episodes.length;
-            
-            // Get first episode message_id for stream link
-            let firstMsgId = '0';
-            if (s.episodes[0]) {
-                firstMsgId = String(s.episodes[0].real_message_id || s.episodes[0].message_id || s.episodes[0].id || '0').replace(/\D/g, '');
-            }
-            const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${firstMsgId}`;
-            
-            html += `<div class="result-card">`;
-            html += `<div class="result-thumbnail-top">`;
-            html += `<div class="thumbnail-container" onclick="triggerAdLink()">`;
-            html += `<img src="${thumbUrl}" alt="${escapeHtml(seriesTitle)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'">`;
-            html += `<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
-            if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
-            html += `</div></div>`;
-            html += `<h3 class="result-title">${formatTitle(seriesTitle)}</h3>`;
-            
-            if (postContent && postContent.trim().length > 0) {
-                html += createPostContent(postContent, cardIndex);
-            }
-            
-            if (hasFile) {
-                html += `<div class="action-buttons-container">`;
-                html += `<a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
-                html += `<button class="btn-download-main" onclick="toggleEpisodes(${cardIndex})">
-                    <i class="fas fa-download"></i> Download Episodes <span class="episode-count-badge">${episodeCount}</span> <i class="fas fa-chevron-down ms-1"></i>
-                </button>`;
-                html += `</div>`;
-                html += generateEpisodesDropdown(s.episodes, cardIndex);
-            } else {
-                html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`;
-            }
-            
-            html += `</div>`;
-            cardIndex++;
+function renderResults(pr,pag){
+    const rc=document.getElementById('resultsContainer'),ri=document.getElementById('resultsInfo'),pc=document.getElementById('paginationContainer');
+    if(!rc)return;
+    const{series,standalone}=pr;
+    const dc=(series?series.length:0)+(standalone?standalone.length:0);
+    if(dc===0){rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';return;}
+    if(ri&&pag){ri.innerHTML=`Found <strong>${dc}</strong> results · Page ${pag.current_page} of ${pag.total_pages}`;ri.style.display='block';}
+    let h='',ci=0;
+
+    if(series&&series.length>0){
+        series.forEach(s=>{
+            const st=s.seriesName,tu=s.thumbnail||FALLBACK_THUMBNAIL,hf=s.has_file,pct=s.post_content||'',ec=s.episodes.length;
+            let fmi='0';if(s.episodes[0])fmi=String(s.episodes[0].real_message_id||s.episodes[0].message_id||s.episodes[0].id||'0').replace(/\D/g,'');
+            const sl=`view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${fmi}`;
+            h+=`<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${tu}" alt="${escapeHtml(st)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hf?'<div class="video-file-badge">SK4FiLM</div>':''}</div></div><h3 class="result-title">${escapeHtml(st)}</h3>`;
+            if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
+            if(hf){h+=`<div class="action-buttons-container"><a href="${sl}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="toggleEpisodes(${ci})"><i class="fas fa-download"></i> Episodes <span class="episode-count-badge">${ec}</span> <i class="fas fa-chevron-down ms-1"></i></button></div>`;h+=generateEpisodesDropdown(s.episodes,ci);}
+            else{h+='<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>';}
+            h+=`</div>`;ci++;
         });
     }
-    
-    // Render standalone (non-episode) results
-    if (standalone && standalone.length > 0) {
-        standalone.forEach((result) => {
-            const title = result.title || 'Untitled';
-            const thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
-            const hasFile = result.has_file === true;
-            const qualityOptions = result.qualities || result.quality_options || {};
-            const hasQualities = Object.keys(qualityOptions).length > 0;
-            const postContent = result.post_content || result.content || '';
-            
-            let msgIdForStream = result.real_message_id || result.message_id || result.id || '0';
-            msgIdForStream = String(msgIdForStream).replace(/\D/g, '');
-            
-            if ((msgIdForStream === '0' || msgIdForStream === '') && hasQualities) {
-                const firstQuality = Object.values(qualityOptions)[0];
-                if (firstQuality && firstQuality.message_id) {
-                    msgIdForStream = String(firstQuality.message_id).replace(/\D/g, '');
-                }
-            }
-            
-            const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgIdForStream}`;
-            
-            html += `<div class="result-card">`;
-            html += `<div class="result-thumbnail-top">`;
-            html += `<div class="thumbnail-container" onclick="triggerAdLink()">`;
-            html += `<img src="${thumbUrl}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'">`;
-            html += `<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
-            if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
-            html += `</div></div>`;
-            html += `<h3 class="result-title">${formatTitle(title)}</h3>`;
-            
-            if (postContent && postContent.trim().length > 0) {
-                html += createPostContent(postContent, cardIndex);
-            }
-            
-            if (hasFile) {
-                html += `<div class="action-buttons-container">`;
-                html += `<a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
-                
-                if (hasQualities) {
-                    html += `<button class="btn-download-main" onclick="toggleDownload(${cardIndex})"><i class="fas fa-download"></i> Download <i class="fas fa-chevron-down ms-1"></i></button>`;
-                    html += `</div>`;
-                    html += `<div class="quality-dropdown" id="download-quality-${cardIndex}" style="display: none;">`;
-                    html += generateQualityOptionsHTML(qualityOptions, result);
-                    html += `</div>`;
-                } else {
-                    const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`;
-                    const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
-                    html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i> Download ${badge}</button>`;
-                    html += `</div>`;
-                }
-            } else {
-                html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`;
-            }
-            
-            html += `</div>`;
-            cardIndex++;
+
+    if(standalone&&standalone.length>0){
+        standalone.forEach(r=>{
+            const t=r.title||'Untitled',tu=r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL,hf=r.has_file===true;
+            const qo=r.qualities||r.quality_options||{},hq=Object.keys(qo).length>0;
+            const pct=r.post_content||r.content||'';
+            let msi=String(r.real_message_id||r.message_id||r.id||'0').replace(/\D/g,'');
+            if((msi==='0'||msi==='')&&hq){const fq=Object.values(qo)[0];if(fq&&fq.message_id)msi=String(fq.message_id).replace(/\D/g,'');}
+            const sl=`view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msi}`;
+            h+=`<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${tu}" alt="${escapeHtml(t)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hf?'<div class="video-file-badge">SK4FiLM</div>':''}</div></div><h3 class="result-title">${escapeHtml(t)}</h3>`;
+            if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
+            if(hf){h+='<div class="action-buttons-container">';h+=`<a href="${sl}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;if(hq){h+=`<button class="btn-download-main" onclick="toggleDownload(${ci})"><i class="fas fa-download"></i> Download <i class="fas fa-chevron-down ms-1"></i></button></div><div class="quality-dropdown" id="download-quality-${ci}" style="display:none;">${generateQualityOptionsHTML(qo,r)}</div>`;}else{const dl=`https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msi}`;h+=`<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i> Download</button></div>`;}}
+            else{h+='<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>';}
+            h+=`</div>`;ci++;
         });
     }
-    
-    resultsContainer.innerHTML = html;
-    
-    if (pagination && pagination.total_pages > 1) {
-        renderPagination(pagination);
-    } else {
-        if (paginationContainer) paginationContainer.innerHTML = '';
-    }
+    rc.innerHTML=h;
+    if(pag&&pag.total_pages>1)renderPagination(pag);else if(pc)pc.innerHTML='';
 }
 
-function renderPagination(pag) {
-    const paginationContainer = document.getElementById('paginationContainer');
-    if (!paginationContainer) return;
-    
-    let p = '<nav aria-label="Search results pages"><ul style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; list-style: none; padding: 0; margin: 20px 0;">';
-    
-    p += `<li><a class="page-link ${!pag.has_previous ? 'disabled' : ''}" href="#" onclick="${pag.has_previous ? `changePage(${pag.current_page - 1}); return false;` : 'return false;'}" aria-label="Previous page">«</a></li>`;
-    
-    for (let i = 1; i <= pag.total_pages; i++) {
-        if (i === 1 || i === pag.total_pages || (i >= pag.current_page - 2 && i <= pag.current_page + 2)) {
-            p += `<li class="page-item ${i === pag.current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="changePage(${i}); return false;" aria-label="Page ${i}" ${i === pag.current_page ? 'aria-current="page"' : ''}>${i}</a></li>`;
-        } else if (i === pag.current_page - 3 || i === pag.current_page + 3) { 
-            p += '<li><span style="padding:8px 12px; color: rgba(255,255,255,0.3);">…</span></li>'; 
-        }
-    }
-    
-    p += `<li><a class="page-link ${!pag.has_next ? 'disabled' : ''}" href="#" onclick="${pag.has_next ? `changePage(${pag.current_page + 1}); return false;` : 'return false;'}" aria-label="Next page">»</a></li>`;
-    
-    p += '</ul></nav>'; 
-    paginationContainer.innerHTML = p;
-}
+function renderPagination(pag){const pc=document.getElementById('paginationContainer');if(!pc)return;let p='<nav><ul style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px;list-style:none;padding:0;margin:20px 0;">';p+=`<li><a class="page-link ${!pag.has_previous?'disabled':''}" href="#" onclick="${pag.has_previous?`changePage(${pag.current_page-1});return false;`:'return false;'}">«</a></li>`;for(let i=1;i<=pag.total_pages;i++){if(i===1||i===pag.total_pages||(i>=pag.current_page-2&&i<=pag.current_page+2))p+=`<li class="page-item ${i===pag.current_page?'active':''}"><a class="page-link" href="#" onclick="changePage(${i});return false;">${i}</a></li>`;else if(i===pag.current_page-3||i===pag.current_page+3)p+='<li><span style="padding:8px 12px;color:rgba(255,255,255,0.3);">…</span></li>';}p+=`<li><a class="page-link ${!pag.has_next?'disabled':''}" href="#" onclick="${pag.has_next?`changePage(${pag.current_page+1});return false;`:'return false;'}">»</a></li></ul></nav>`;pc.innerHTML=p;}
 
-window.changePage = function(page) { 
-    if (page > 0) {
-        performSearchWithPopup(page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-};
+window.changePage=function(page){if(page>0){performSearchWithPopup(page);window.scrollTo({top:0,behavior:'smooth'});}};
+function closeRedirect(){if(redirectTimeout){clearInterval(redirectTimeout);redirectTimeout=null;}document.getElementById('redirectOverlay').classList.remove('active');pendingTelegramLink='';}
 
-function closeRedirect() {
-    if (redirectTimeout) {
-        clearInterval(redirectTimeout);
-        redirectTimeout = null;
-    }
-    const redirectOverlay = document.getElementById('redirectOverlay');
-    if (redirectOverlay) redirectOverlay.classList.remove('active');
-    pendingTelegramLink = '';
-}
+document.getElementById('searchButton').addEventListener('click',(e)=>{e.preventDefault();performSearchWithPopup(1);});
+document.getElementById('searchInput').addEventListener('keypress',(e)=>{if(e.key==='Enter'){e.preventDefault();performSearchWithPopup(1);}});
+window.addEventListener('load',()=>{const p=new URLSearchParams(window.location.search);const q=p.get('query');if(q){document.getElementById('searchInput').value=q;performSearchWithPopup(parseInt(p.get('page'))||1);}});
+document.addEventListener('click',(e)=>{if(!e.target.closest('.action-buttons-container')&&!e.target.closest('.quality-dropdown')&&!e.target.closest('.episodes-dropdown')){document.querySelectorAll('.quality-dropdown,.episodes-dropdown').forEach(d=>d.style.display='none');}});
 
-// ========== EVENT LISTENERS ==========
-const searchButton = document.getElementById('searchButton');
-const searchInput = document.getElementById('searchInput');
-
-if (searchButton) {
-    searchButton.addEventListener('click', function(e) {
-        e.preventDefault();
-        performSearchWithPopup(1);
-    });
-    searchButton.addEventListener('touchend', function(e) {
-        e.preventDefault();
-        performSearchWithPopup(1);
-    });
-}
-
-if (searchInput) {
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            performSearchWithPopup(1);
-        }
-    });
-    searchInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            searchInput.value = '';
-            searchInput.blur();
-        }
-    });
-}
-
-window.addEventListener('load', function() {
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get('query');
-    const page = parseInt(params.get('page')) || 1;
-    if (query && searchInput) { 
-        searchInput.value = query; 
-        performSearchWithPopup(page); 
-    }
-});
-
-window.addEventListener('popstate', function() {
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get('query');
-    const page = parseInt(params.get('page')) || 1;
-    if (query && searchInput) { 
-        searchInput.value = query; 
-        performSearchWithPopup(page); 
-    }
-});
-
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('.action-buttons-container') && 
-        !event.target.closest('.quality-dropdown') && 
-        !event.target.closest('.episodes-dropdown')) {
-        document.querySelectorAll('.quality-dropdown').forEach(d => d.style.display = 'none');
-        document.querySelectorAll('.episodes-dropdown').forEach(d => d.style.display = 'none');
-    }
-});
-
-// Make functions globally available
-window.triggerAdLink = triggerAdLink;
-window.toggleDownload = toggleDownload;
-window.toggleEpisodes = toggleEpisodes;
-window.handleQualityClick = handleQualityClick;
-window.closeRedirect = closeRedirect;
-window.togglePostContent = togglePostContent;
-window.performSearchWithPopup = performSearchWithPopup;
-window.toggleMenu = toggleMenu;
+window.toggleEpisodes=toggleEpisodes;window.toggleDownload=toggleDownload;window.handleQualityClick=handleQualityClick;
+window.closeRedirect=closeRedirect;window.performSearchWithPopup=performSearchWithPopup;
+window.toggleMenu=toggleMenu;window.triggerAdLink=triggerAdLink;
 </script>
-<script type="text/javascript">
-    aclib.runAutoTag({
-        zoneId: 'upm8dczty',
-    });
-</script>
+<script type="text/javascript">aclib.runAutoTag({zoneId:'upm8dczty'});</script>
 <script src="https://marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js"></script>
 </body>
 </html>
