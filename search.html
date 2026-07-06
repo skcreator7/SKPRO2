@@ -101,7 +101,6 @@
             background: #000000;
         }
         
-        /* Results wrapper - full width edge to edge */
         .results-wrapper {
             width: 100vw;
             position: relative;
@@ -351,13 +350,100 @@
             background: linear-gradient(45deg, #28a745, #20c997); 
             font-family: 'Josefin Sans', sans-serif;
         }
+        
+        /* Episodes Dropdown - Episode files only */
+        .episodes-dropdown { 
+            display: none; 
+            background: #0a0a0a; 
+            border: 1px solid #1a1a1a;
+            border-top: 2px solid #00ccff;
+            padding: 8px; 
+            margin: 4px 4px 0 4px;
+            animation: slideDown 0.3s ease;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .episodes-dropdown::-webkit-scrollbar {
+            width: 4px;
+        }
+        .episodes-dropdown::-webkit-scrollbar-track {
+            background: #000000;
+        }
+        .episodes-dropdown::-webkit-scrollbar-thumb {
+            background: #00ccff;
+            border-radius: 2px;
+        }
+        
+        .episode-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            margin: 2px 0;
+            background: #000000;
+            border: 1px solid #1a1a1a;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .episode-item:hover {
+            background: #0a0a0a;
+            border-color: #333333;
+        }
+        .episode-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .episode-name {
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 13px;
+        }
+        .episode-size {
+            font-size: 11px;
+            color: #888888;
+        }
+        .episode-download-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Josefin Sans', sans-serif;
+            white-space: nowrap;
+            min-width: 70px;
+            text-align: center;
+        }
+        .episode-download-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+        }
+        .episode-download-btn:active {
+            transform: scale(0.95);
+        }
+        .episode-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 6px;
+        }
+        .episode-badge.new {
+            background: rgba(255,215,0,0.15);
+            border: 1px solid gold;
+            color: gold;
+        }
+        
         .quality-dropdown { 
             display: none; 
             background: #0a0a0a; 
             border: 1px solid #1a1a1a;
             border-top: 2px solid #00ccff;
             padding: 12px; 
-            margin: 0;
+            margin: 4px 4px 0 4px;
             animation: slideDown 0.3s ease;
         }
         @keyframes slideDown {
@@ -581,7 +667,6 @@
             border: 1px solid #1a1a1a;
         }
         
-        /* Loading spinner for results */
         .results-loading {
             text-align: center;
             padding: 40px;
@@ -601,7 +686,6 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* Full width utility classes */
         #resultsInfo.full-width {
             width: 100vw;
             position: relative;
@@ -638,6 +722,17 @@
         }
         .menu-dropdown a:hover {
             background: #1a1a1a !important;
+        }
+        
+        /* Episode count badge */
+        .episode-count-badge {
+            background: #00ccff;
+            color: #000000;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 6px;
+            font-weight: 700;
         }
     </style>
 </head>
@@ -757,20 +852,15 @@
 <div id="smartlinkContainer"></div>    
 
 <script>
-// ========== IMPROVED TOGGLE MENU ==========
+// ========== TOGGLE MENU ==========
 function toggleMenu() {
     const dropdown = document.getElementById('menuDropdown');
     if (!dropdown) return;
-    
     const isVisible = dropdown.style.display === 'block';
     dropdown.style.display = isVisible ? 'none' : 'block';
-    
-    if (!isVisible) {
-        dropdown.style.animation = 'slideUp 0.3s ease';
-    }
+    if (!isVisible) dropdown.style.animation = 'slideUp 0.3s ease';
 }
 
-// Close menu when clicking outside
 document.addEventListener('click', function(event) {
     const btn = document.getElementById('menuToggleBtn');
     const dropdown = document.getElementById('menuDropdown');
@@ -779,7 +869,6 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Close menu on escape key
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         const dropdown = document.getElementById('menuDropdown');
@@ -794,24 +883,20 @@ const RESULTS_PER_PAGE = 10;
 const SMARTLINK_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb';
 const FILE_CHANNEL_ID = "-1001768249569";
 const BOT_USERNAME = 'sk4filmbot';
-
 const REDIRECT_KEY = 'sk4film_redirect_shown';
 let hasUserSeenRedirect = localStorage.getItem(REDIRECT_KEY) === 'true';
-
 let currentQuery = '';
 let currentPage = 1;
 let redirectTimeout = null;
 let redirectCountdown = 3;
 let pendingTelegramLink = '';
-
 const searchCache = new Map();
 
-// ========== IMPROVED SEARCH FUNCTIONS ==========
+// ========== SEARCH FUNCTIONS ==========
 function getValidSearchQuery() {
     const searchInput = document.getElementById('searchInput');
     if (!searchInput) return '';
-    let query = searchInput.value.trim().replace(/\s+/g, ' ');
-    return query;
+    return searchInput.value.trim().replace(/\s+/g, ' ');
 }
 
 function triggerBackgroundSmartlink() {
@@ -824,7 +909,6 @@ function triggerBackgroundSmartlink() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
         const smartlinkContainer = document.getElementById('smartlinkContainer');
         if (smartlinkContainer) {
             const iframe = document.createElement('iframe');
@@ -838,7 +922,6 @@ function triggerBackgroundSmartlink() {
     }
 }
 
-// ========== MAIN SEARCH FUNCTION ==========
 async function performSearchWithPopup(page = 1) {
     const searchInput = document.getElementById('searchInput');
     const resultsContainer = document.getElementById('resultsContainer');
@@ -864,13 +947,11 @@ async function performSearchWithPopup(page = 1) {
     currentQuery = query;
     currentPage = page;
     
-    // Update URL without reloading
     const url = new URL(window.location);
     url.searchParams.set('query', query);
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
 
-    // Show loading spinner in results area
     if (resultsContainer) {
         resultsContainer.innerHTML = `
             <div class="results-loading">
@@ -883,14 +964,12 @@ async function performSearchWithPopup(page = 1) {
 
     const cacheKey = `${query}-${page}`;
     
-    // Check cache first for instant results
     if (searchCache.has(cacheKey)) {
         const cached = searchCache.get(cacheKey);
         renderResults(cached.results, cached.pagination);
         return;
     }
 
-    // Fetch results
     try {
         const data = await fetchAPI(query, page);
         
@@ -957,7 +1036,7 @@ async function fetchAPI(query, page) {
     return null;
 }
 
-// ========== RENDERING FUNCTIONS ==========
+// ========== HELPER FUNCTIONS ==========
 function escapeHtml(text) { 
     if (!text) return ''; 
     const div = document.createElement('div'); 
@@ -966,11 +1045,11 @@ function escapeHtml(text) {
 }
 
 function formatSize(bytes) { 
-    if (!bytes || bytes === 0) return '0 B'; 
+    if (!bytes || bytes === 0) return ''; 
     const k = 1024; 
     const sizes = ['B','KB','MB','GB']; 
     const i = Math.floor(Math.log(bytes)/Math.log(k)); 
-    return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; 
+    return parseFloat((bytes/Math.pow(k,i)).toFixed(1))+' '+sizes[i]; 
 }
 
 function formatTitle(title) {
@@ -1029,39 +1108,35 @@ function togglePostContent(index) {
     }
 }
 
-function generateQualityOptions(qualityOptions, result) {
-    if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options available</p>';
+// ========== EPISODES DROPDOWN - ONLY FOR EPISODE FILES ==========
+function generateEpisodesDropdown(episodes, index) {
+    if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return '';
     
-    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
-    let count = 0;
+    let html = `<div class="episodes-dropdown" id="episodes-dropdown-${index}" style="display: none;">`;
     
-    let defaultMsgId = result.real_message_id || result.message_id || result.id || '0';
-    defaultMsgId = String(defaultMsgId).replace(/\D/g, '');
+    episodes.forEach((ep, epIndex) => {
+        const epName = ep.name || ep.title || `Episode ${epIndex + 1}`;
+        const epSize = ep.file_size ? formatSize(ep.file_size) : '';
+        let epMsgId = ep.message_id || ep.id || '';
+        epMsgId = String(epMsgId).replace(/\D/g, '');
+        
+        const fileId = `${FILE_CHANNEL_ID}_${epMsgId}_ep_${epIndex}`;
+        const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
+        const badge = !hasUserSeenRedirect ? '<span class="episode-badge new">NEW</span>' : '';
+        
+        html += `
+            <div class="episode-item">
+                <div class="episode-info">
+                    <span class="episode-name">${escapeHtml(epName)} ${badge}</span>
+                    ${epSize ? `<span class="episode-size">${epSize}</span>` : ''}
+                </div>
+                <button class="episode-download-btn" onclick="handleQualityClick('${telegramLink}')">
+                    <i class="fas fa-download"></i> DL
+                </button>
+            </div>`;
+    });
     
-    for (const [quality, data] of Object.entries(qualityOptions)) {
-        if (data && typeof data === 'object') {
-            let qualityMsgId = data.message_id || defaultMsgId;
-            qualityMsgId = String(qualityMsgId).replace(/\D/g, '');
-            
-            if (qualityMsgId && qualityMsgId !== '0') {
-                const fileId = `${FILE_CHANNEL_ID}_${qualityMsgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
-                const size = data.file_size ? formatSize(data.file_size) : '';
-                const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
-                
-                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
-                
-                html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')" aria-label="Download ${quality}">${quality} ${size} ${badge}</button>`;
-                count++;
-            }
-        }
-    }
-    
-    if (count === 0) {
-        const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
-        html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')" aria-label="Get from Bot">Get from Bot ${badge}</button>`;
-    }
-    
-    html += '</div>';
+    html += `</div>`;
     return html;
 }
 
@@ -1114,20 +1189,68 @@ function triggerAdLink() {
     triggerBackgroundSmartlink();
 }
 
+// ========== TOGGLE FUNCTIONS ==========
+function toggleEpisodes(index) {
+    const dropdown = document.getElementById(`episodes-dropdown-${index}`);
+    if (dropdown) {
+        const isVisible = dropdown.style.display === 'block';
+        dropdown.style.display = isVisible ? 'none' : 'block';
+    }
+    // Close other dropdowns
+    document.querySelectorAll('.episodes-dropdown').forEach(d => {
+        if (d.id !== `episodes-dropdown-${index}`) d.style.display = 'none';
+    });
+    document.querySelectorAll('.quality-dropdown').forEach(d => d.style.display = 'none');
+}
+
 function toggleDownload(index) { 
     const dropdown = document.getElementById(`download-quality-${index}`); 
     if (dropdown) {
         const isVisible = dropdown.style.display === 'block';
         dropdown.style.display = isVisible ? 'none' : 'block';
     }
-    
     document.querySelectorAll('.quality-dropdown').forEach(d => {
-        if (d.id !== `download-quality-${index}`) {
-            d.style.display = 'none';
-        }
+        if (d.id !== `download-quality-${index}`) d.style.display = 'none';
     });
+    document.querySelectorAll('.episodes-dropdown').forEach(d => d.style.display = 'none');
 }
 
+function generateQualityOptionsHTML(qualityOptions, result) {
+    if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options available</p>';
+    
+    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+    let count = 0;
+    
+    let defaultMsgId = result.real_message_id || result.message_id || result.id || '0';
+    defaultMsgId = String(defaultMsgId).replace(/\D/g, '');
+    
+    for (const [quality, data] of Object.entries(qualityOptions)) {
+        if (data && typeof data === 'object') {
+            let qualityMsgId = data.message_id || defaultMsgId;
+            qualityMsgId = String(qualityMsgId).replace(/\D/g, '');
+            
+            if (qualityMsgId && qualityMsgId !== '0') {
+                const fileId = `${FILE_CHANNEL_ID}_${qualityMsgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
+                const size = data.file_size ? formatSize(data.file_size) : '';
+                const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
+                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
+                
+                html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')" aria-label="Download ${quality}">${quality} ${size} ${badge}</button>`;
+                count++;
+            }
+        }
+    }
+    
+    if (count === 0) {
+        const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
+        html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')" aria-label="Get from Bot">Get from Bot ${badge}</button>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// ========== RENDER RESULTS ==========
 function renderResults(results, pagination) {
     const resultsContainer = document.getElementById('resultsContainer');
     const resultsInfo = document.getElementById('resultsInfo');
@@ -1161,6 +1284,11 @@ function renderResults(results, pagination) {
         const hasQualities = Object.keys(qualityOptions).length > 0;
         const postContent = result.post_content || result.content || '';
         
+        // Check for episodes
+        const episodes = result.episodes || result.episode_list || [];
+        const hasEpisodes = Array.isArray(episodes) && episodes.length > 0;
+        const episodeCount = hasEpisodes ? episodes.length : 0;
+        
         let msgIdForStream = result.real_message_id || result.message_id || result.id || '0';
         msgIdForStream = String(msgIdForStream).replace(/\D/g, '');
         
@@ -1188,18 +1316,44 @@ function renderResults(results, pagination) {
         
         if (hasFile) {
             html += `<div class="action-buttons-container">`;
-            html += `<a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
             
-            if (hasQualities) {
-                html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button>`;
-                html += `</div>`;
-                html += `<div class="quality-dropdown" id="download-quality-${index}" style="display: none;">`;
-                html += generateQualityOptions(qualityOptions, result);
-                html += `</div>`;
+            // Stream button
+            if (hasEpisodes && episodes[0] && episodes[0].message_id) {
+                const firstEpMsgId = String(episodes[0].message_id).replace(/\D/g, '');
+                const epStreamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${firstEpMsgId}`;
+                html += `<a href="${epStreamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
             } else {
+                html += `<a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
+            }
+            
+            // Episode files: Show Download button that opens episodes dropdown
+            if (hasEpisodes) {
+                html += `<button class="btn-download-main" onclick="toggleEpisodes(${index})">
+                    <i class="fas fa-download"></i> Download Episodes <span class="episode-count-badge">${episodeCount}</span> <i class="fas fa-chevron-down ms-1"></i>
+                </button>`;
+            }
+            // Non-episode files with qualities: Show normal quality download dropdown
+            else if (hasQualities) {
+                html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i> Download <i class="fas fa-chevron-down ms-1"></i></button>`;
+            }
+            // Non-episode files without qualities: Simple download button
+            else {
                 const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`;
                 const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
-                html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i>Download ${badge}</button>`;
+                html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i> Download ${badge}</button>`;
+            }
+            
+            html += `</div>`;
+            
+            // Episodes dropdown (only for episode files)
+            if (hasEpisodes) {
+                html += generateEpisodesDropdown(episodes, index);
+            }
+            
+            // Quality dropdown (only for non-episode files with qualities)
+            if (!hasEpisodes && hasQualities) {
+                html += `<div class="quality-dropdown" id="download-quality-${index}" style="display: none;">`;
+                html += generateQualityOptionsHTML(qualityOptions, result);
                 html += `</div>`;
             }
         } else { 
@@ -1266,7 +1420,6 @@ if (searchButton) {
         e.preventDefault();
         performSearchWithPopup(1);
     });
-    
     searchButton.addEventListener('touchend', function(e) {
         e.preventDefault();
         performSearchWithPopup(1);
@@ -1280,7 +1433,6 @@ if (searchInput) {
             performSearchWithPopup(1);
         }
     });
-    
     searchInput.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             searchInput.value = '';
@@ -1310,14 +1462,18 @@ window.addEventListener('popstate', function() {
 });
 
 document.addEventListener('click', function(event) {
-    if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) {
+    if (!event.target.closest('.action-buttons-container') && 
+        !event.target.closest('.quality-dropdown') && 
+        !event.target.closest('.episodes-dropdown')) {
         document.querySelectorAll('.quality-dropdown').forEach(d => d.style.display = 'none');
+        document.querySelectorAll('.episodes-dropdown').forEach(d => d.style.display = 'none');
     }
 });
 
 // Make functions globally available
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
+window.toggleEpisodes = toggleEpisodes;
 window.handleQualityClick = handleQualityClick;
 window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
