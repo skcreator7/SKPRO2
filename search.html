@@ -346,42 +346,6 @@ let hasUserSeenRedirect=localStorage.getItem(REDIRECT_KEY)==='true';
 let currentQuery='',currentPage=1,redirectTimeout=null,redirectCountdown=3,pendingTelegramLink='';
 const searchCache=new Map();
 
-function groupEpisodesBySeries(results){
-    const grouped=[],seriesMap=new Map(),standalone=[];
-    results.forEach(r=>{
-        const t=r.title||'';
-        const m=t.match(/(.*?)\s*[\(\[\s]*(?:E(?:p(?:isode)?)?[\.\s\-]*(\d+)|S(\d+)\s*E(?:p(?:isode)?)?[\.\s\-]*(\d+)|Part[\.\s\-]*(\d+))/i);
-        if(m){
-            let sn=m[1].trim(),en=m[2]||m[4]||m[5]||'';
-            sn=sn.replace(/[\(\[]\s*(?:Season|S)\s*\d+\s*[\)\]]/gi,'').trim().replace(/\s+-\s*$/g,'').trim().replace(/\s*\(\d{4}\)\s*/g,' ').trim().replace(/\s+/g,' ').trim();
-            if(!en||en==='0'){standalone.push(r);return;}
-            const key=sn.toLowerCase();
-            if(!seriesMap.has(key)) seriesMap.set(key,{seriesName:sn,episodes:[],thumbnail:r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL,post_content:r.post_content||r.content||'',has_file:false});
-            const s=seriesMap.get(key);
-            const episodeData={...r,episodeNumber:en};
-            if(r.real_message_id) episodeData.real_message_id=r.real_message_id;
-            if(r.message_id) episodeData.message_id=r.message_id;
-            if(r.id) episodeData.id=r.id;
-            const msgId=String(r.real_message_id||r.message_id||r.id||'');
-            const isDuplicate=s.episodes.some(ep=>{const epMsgId=String(ep.real_message_id||ep.message_id||ep.id||'');return ep.episodeNumber===en||(msgId!==''&&epMsgId!==''&&msgId===epMsgId);});
-            if(!isDuplicate){
-                s.episodes.push(episodeData);
-                if(r.has_file===true) s.has_file=true;
-                if(r.thumbnail_url)s.thumbnail=r.thumbnail_url;
-                if(!s.post_content&&(r.post_content||r.content))s.post_content=r.post_content||r.content;
-            }
-        }else{standalone.push(r);}
-    });
-    seriesMap.forEach(s=>{
-        s.episodes.sort((a,b)=>(parseInt(a.episodeNumber)||0)-(parseInt(b.episodeNumber)||0));
-        if(!s.has_file){s.has_file=s.episodes.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));}
-        console.log('📺 Series:',s.seriesName,'| Episodes:',s.episodes.length,'| has_file:',s.has_file);
-        grouped.push(s);
-    });
-    console.log('📊 Total series found:',grouped.length,'| Standalone:',standalone.length);
-    return{grouped,standalone};
-}
-
 function getValidSearchQuery(){const s=document.getElementById('searchInput');return s?s.value.trim().replace(/\s+/g,' '):'';}
 function triggerBackgroundSmartlink(){try{const a=document.createElement('a');a.href=SMARTLINK_LINK;a.target='_blank';a.rel='noopener noreferrer';a.style.display='none';document.body.appendChild(a);a.click();document.body.removeChild(a);}catch(e){}}
 function triggerAdLink(){triggerBackgroundSmartlink();}
@@ -389,41 +353,67 @@ function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.te
 function formatSize(b){if(!b||b===0)return'';const k=1024,s=['B','KB','MB','GB'];const i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i];}
 
 function getEpisodeColorClass(epNum){const num=parseInt(epNum)||0;const colorMap={1:'ep-chip-01',2:'ep-chip-02',3:'ep-chip-03',4:'ep-chip-04',5:'ep-chip-05',6:'ep-chip-06',7:'ep-chip-07',8:'ep-chip-08',9:'ep-chip-09',10:'ep-chip-10',11:'ep-chip-11',12:'ep-chip-12'};return colorMap[num]||'ep-chip-01';}
-
 function getQualityColorClass(quality){if(!quality)return'';const q=quality.toLowerCase().replace(/[\s\.\-]/g,'');if(q.includes('4k')||q.includes('2160')||q.includes('uhd'))return'quality-4k';if(q.includes('1080')||q.includes('fullhd')||q.includes('fhd'))return'quality-1080p';if((q.includes('720')&&q.includes('hevc'))||q.includes('720phevc')||q.includes('720hevc'))return'quality-720phevc';if(q.includes('720'))return'quality-720p';if(q.includes('480'))return'quality-480p';if(q.includes('360'))return'quality-360p';if(q.includes('240'))return'quality-240p';if(q.includes('hdrip')||q.includes('hdcam')||q.includes('hdts'))return'quality-hdrip';if(q.includes('webdl')||q.includes('webrip')||q.includes('web-dl'))return'quality-webdl';if(q.includes('bluray')||q.includes('bdrip')||q.includes('bd-rip'))return'quality-bluray';return'';}
 
 function formatPostContent(content){if(!content)return'';let formatted=escapeHtml(content);formatted=formatted.replace(/\n/g,'<br>');formatted=formatted.replace(/(https?:\/\/[^\s<]+)/g,function(match){return'<a href="'+match+'" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:500;">'+match+'</a>';});formatted=formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g,function(match){const url=match.startsWith('http')?match:'https://'+match;return'<a href="'+url+'" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:500;">'+match+'</a>';});formatted=formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g,'<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@$1</a>');formatted=formatted.replace(/@sk4film\b/g,'<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@sk4film</a>');return formatted;}
 
 function createPostContent(content,index){if(!content||!content.trim())return'';const isLong=content.length>1200;let html='<div class="result-post-content" id="post-content-'+index+'" style="position:relative;">';html+='<div class="post-text" style="max-height:'+(isLong?'150px':'none')+';overflow:hidden;transition:max-height 0.4s ease-in-out;">';html+=formatPostContent(content);html+='</div>';if(isLong){html+='<div class="fade-effect" style="position:absolute;bottom:40px;left:0;right:0;height:40px;background:linear-gradient(transparent,#0a0a0a);pointer-events:none;"></div>';html+='<button class="show-more-btn" onclick="var p=document.getElementById(\'post-content-'+index+'\');var t=p.querySelector(\'.post-text\');var f=p.querySelector(\'.fade-effect\');var b=p.querySelector(\'.show-more-btn\');if(t.style.maxHeight===\'none\'){t.style.maxHeight=\'150px\';f.style.display=\'block\';b.innerHTML=\'<i class=\\\'fas fa-chevron-down\\\'></i> Show More ↓\';}else{t.style.maxHeight=\'none\';f.style.display=\'none\';b.innerHTML=\'<i class=\\\'fas fa-chevron-up\\\'></i> Show Less ↑\';}" id="post-toggle-'+index+'" aria-label="Toggle content"><i class="fas fa-chevron-down"></i> Show More ↓</button>';}html+='</div>';return html;}
 
-function generateEpisodesDropdown(episodes,index){
-    if(!episodes||!Array.isArray(episodes)||episodes.length===0)return'<div class="episodes-dropdown" id="episodes-dropdown-'+index+'" style="display:none;"><p style="color:#999;padding:10px;">No episodes available</p></div>';
-    console.log('📺 Generating dropdown for index:',index,'| Episodes:',episodes.length);
-    let h='<div class="episodes-dropdown" id="episodes-dropdown-'+index+'" style="display:none;"><div class="episodes-grid">';
-    episodes.forEach((ep,epIndex)=>{
-        const epNum=ep.episodeNumber||(epIndex+1);
-        const epSize=ep.file_size?formatSize(ep.file_size):'';
-        let epMsgId='';
-        if(ep.real_message_id&&String(ep.real_message_id).replace(/\D/g,'')!=='')epMsgId=String(ep.real_message_id).replace(/\D/g,'');
-        else if(ep.message_id&&String(ep.message_id).replace(/\D/g,'')!=='')epMsgId=String(ep.message_id).replace(/\D/g,'');
-        else if(ep.id&&String(ep.id).replace(/\D/g,'')!=='')epMsgId=String(ep.id).replace(/\D/g,'');
-        else if(ep.file_id&&String(ep.file_id).replace(/\D/g,'')!=='')epMsgId=String(ep.file_id).replace(/\D/g,'');
-        else if(ep.msg_id&&String(ep.msg_id).replace(/\D/g,'')!=='')epMsgId=String(ep.msg_id).replace(/\D/g,'');
-        if(!epMsgId||epMsgId==='0'){for(const key in ep){if(key.includes('id')||key.includes('msg')){const val=String(ep[key]).replace(/\D/g,'');if(val&&val!=='0'&&val.length>3){epMsgId=val;break;}}}}
-        if(!epMsgId||epMsgId==='0'){console.warn('⚠️ Skipping EP '+epNum+' - no valid ID');return;}
-        const startParam=FILE_CHANNEL_ID+'_'+epMsgId;
-        const telegramLink='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(startParam);
-        const paddedNum=String(epNum).padStart(2,'0');
-        const badge=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
-        const colorClass=getEpisodeColorClass(epNum);
-        h+='<div class="episode-chip '+colorClass+'" onclick="handleQualityClick(\''+telegramLink.replace(/'/g,"\\'")+'\')" title="Episode '+paddedNum+(epSize?' - '+epSize:'')+'"><span class="episode-chip-label">EP '+paddedNum+'</span>'+(epSize?'<span class="episode-chip-size">'+epSize+'</span>':'')+badge+'</div>';
+function getMsgId(r){
+    let id='';
+    if(r.real_message_id&&String(r.real_message_id).replace(/\D/g,'')!=='')id=String(r.real_message_id).replace(/\D/g,'');
+    else if(r.message_id&&String(r.message_id).replace(/\D/g,'')!=='')id=String(r.message_id).replace(/\D/g,'');
+    else if(r.id&&String(r.id).replace(/\D/g,'')!=='')id=String(r.id).replace(/\D/g,'');
+    if(!id||id==='0'){for(const key in r){if(key.includes('id')||key.includes('msg')){const val=String(r[key]).replace(/\D/g,'');if(val&&val!=='0'&&val.length>3){id=val;break;}}}}
+    return id||'0';
+}
+
+function generateActionButtons(r,index){
+    const qo=r.qualities||r.quality_options||{};
+    const keys=Object.keys(qo);
+    const msgId=getMsgId(r);
+    
+    // If no qualities, show single download button
+    if(keys.length===0){
+        const link='https://t.me/'+BOT_USERNAME+'?start='+FILE_CHANNEL_ID+'_'+msgId;
+        return{
+            html:'<div class="action-buttons-container"><a href="view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+msgId+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="handleQualityClick(\''+link+'\')"><i class="fas fa-download"></i> Download</button></div>',
+            count:1
+        };
+    }
+    
+    // Build quality buttons dropdown
+    let dd='<div class="episodes-dropdown" id="episodes-dropdown-'+index+'" style="display:none;"><div class="episodes-grid">';
+    let cnt=0;
+    
+    keys.forEach(q=>{
+        const d=qo[q];
+        if(d&&typeof d==='object'){
+            let qmi='';
+            if(d.message_id&&String(d.message_id).replace(/\D/g,'')!=='')qmi=String(d.message_id).replace(/\D/g,'');
+            else if(d.real_message_id&&String(d.real_message_id).replace(/\D/g,'')!=='')qmi=String(d.real_message_id).replace(/\D/g,'');
+            else qmi=msgId;
+            
+            if(qmi&&qmi!=='0'){
+                const sp=FILE_CHANNEL_ID+'_'+qmi;
+                const sz=d.file_size?formatSize(d.file_size):'';
+                const tl='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(sp);
+                const bd=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
+                const cc=getQualityColorClass(q);
+                dd+='<div class="episode-chip '+cc+'" onclick="handleQualityClick(\''+tl.replace(/'/g,"\\'")+'\')"><span class="episode-chip-label">'+q+'</span>'+(sz?'<span class="episode-chip-size">'+sz+'</span>':'')+bd+'</div>';
+                cnt++;
+            }
+        }
     });
-    h+='</div></div>';return h;
+    dd+='</div></div>';
+    
+    const html='<div class="action-buttons-container"><a href="view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+msgId+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="toggleEpisodes('+index+')"><i class="fas fa-download"></i> Qualities <span class="episode-count-badge">'+cnt+'</span> <i class="fas fa-chevron-down ms-1"></i></button></div>'+dd;
+    
+    return{html:html,count:cnt};
 }
 
 function handleQualityClick(telegramLink){
-    if(!telegramLink||typeof telegramLink!=='string'){console.error('Invalid link');return;}
-    console.log('🔗 Opening:',telegramLink);
+    if(!telegramLink||typeof telegramLink!=='string')return;
     triggerBackgroundSmartlink();
     if(hasUserSeenRedirect){window.open(telegramLink,'_blank','noopener,noreferrer');return;}
     localStorage.setItem(REDIRECT_KEY,'true');hasUserSeenRedirect=true;
@@ -436,36 +426,8 @@ function handleQualityClick(telegramLink){
     redirectTimeout=setInterval(()=>{redirectCountdown--;if(timerEl)timerEl.textContent=redirectCountdown;if(secondsEl)secondsEl.textContent=redirectCountdown;if(redirectCountdown<=0){clearInterval(redirectTimeout);redirectTimeout=null;window.open(pendingTelegramLink,'_blank','noopener,noreferrer');closeRedirect();}},1000);
 }
 
-function toggleEpisodes(index){const d=document.getElementById('episodes-dropdown-'+index);if(d)d.style.display=d.style.display==='block'?'none':'block';document.querySelectorAll('.episodes-dropdown').forEach(x=>{if(x.id!=='episodes-dropdown-'+index)x.style.display='none';});document.querySelectorAll('.quality-dropdown').forEach(x=>x.style.display='none');}
-function toggleDownload(index){const d=document.getElementById('download-quality-'+index);if(d)d.style.display=d.style.display==='block'?'none':'block';document.querySelectorAll('.quality-dropdown').forEach(x=>{if(x.id!=='download-quality-'+index)x.style.display='none';});document.querySelectorAll('.episodes-dropdown').forEach(x=>x.style.display='none');}
-
-function generateQualityOptionsHTML(qo,r){
-    if(!qo||typeof qo!=='object')return'<p style="color:#999;">No options</p>';
-    let h='<div style="display:flex;flex-wrap:wrap;gap:8px;">',c=0;
-    let baseMsgId='';
-    if(r.real_message_id&&String(r.real_message_id).replace(/\D/g,'')!=='')baseMsgId=String(r.real_message_id).replace(/\D/g,'');
-    else if(r.message_id&&String(r.message_id).replace(/\D/g,'')!=='')baseMsgId=String(r.message_id).replace(/\D/g,'');
-    else if(r.id&&String(r.id).replace(/\D/g,'')!=='')baseMsgId=String(r.id).replace(/\D/g,'');
-    for(const[q,d] of Object.entries(qo)){
-        if(d&&typeof d==='object'){
-            let qmi='';
-            if(d.message_id&&String(d.message_id).replace(/\D/g,'')!=='')qmi=String(d.message_id).replace(/\D/g,'');
-            else if(d.real_message_id&&String(d.real_message_id).replace(/\D/g,'')!=='')qmi=String(d.real_message_id).replace(/\D/g,'');
-            else if(d.id&&String(d.id).replace(/\D/g,'')!=='')qmi=String(d.id).replace(/\D/g,'');
-            else if(baseMsgId&&baseMsgId!=='0')qmi=baseMsgId;
-            if(qmi&&qmi!=='0'){
-                const startParam=FILE_CHANNEL_ID+'_'+qmi;
-                const sz=d.file_size?formatSize(d.file_size):'';
-                const tl='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(startParam);
-                const bd=!hasUserSeenRedirect?'<span class="one-time-badge">NEW</span>':'';
-                const colorClass=getQualityColorClass(q);
-                h+='<button class="quality-option-2click '+colorClass+'" onclick="handleQualityClick(\''+tl.replace(/'/g,"\\'")+'\')">'+q+' '+sz+' '+bd+'</button>';c++;
-            }
-        }
-    }
-    if(c===0){if(baseMsgId&&baseMsgId!=='0'){const startParam=FILE_CHANNEL_ID+'_'+baseMsgId;const tl='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(startParam);h+='<button class="quality-option-2click" onclick="handleQualityClick(\''+tl+'\')">Get from Bot</button>';}else{h+='<button class="quality-option-2click" onclick="handleQualityClick(\'https://t.me/'+BOT_USERNAME+'\')">Get from Bot</button>';}}
-    h+='</div>';return h;
-}
+function toggleEpisodes(index){const d=document.getElementById('episodes-dropdown-'+index);if(d)d.style.display=d.style.display==='block'?'none':'block';document.querySelectorAll('.episodes-dropdown').forEach(x=>{if(x.id!=='episodes-dropdown-'+index)x.style.display='none';});}
+function closeRedirect(){if(redirectTimeout){clearInterval(redirectTimeout);redirectTimeout=null;}document.getElementById('redirectOverlay').classList.remove('active');pendingTelegramLink='';}
 
 async function fetchAPI(q,p){for(let i=0;i<API_ENDPOINTS.length;i++){try{const r=await fetch(API_ENDPOINTS[i]+'/api/search?query='+encodeURIComponent(q)+'&page='+p+'&limit='+RESULTS_PER_PAGE,{signal:AbortSignal.timeout(10000)});if(r.ok){const d=await r.json();if(d.status==='success')return d;}}catch(e){continue;}}return null;}
 
@@ -473,82 +435,64 @@ async function performSearchWithPopup(page=1){
     const rc=document.getElementById('resultsContainer'),ri=document.getElementById('resultsInfo'),pc=document.getElementById('paginationContainer');
     let q=getValidSearchQuery();
     if(!q){if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>Enter a search term</h4><p>Example: Animal, Jawan, Pathaan</p></div>';if(ri)ri.style.display='none';if(pc)pc.innerHTML='';return;}
-    currentQuery=q;currentPage=page;window.history.pushState({},'','?query='+encodeURIComponent(q)+'&page='+page);
+    currentQuery=q;currentPage=page;
     if(rc)rc.innerHTML='<div class="results-loading"><div class="spinner"></div><p style="color:#00ccff;">Searching...</p></div>';
     if(ri)ri.style.display='none';if(pc)pc.innerHTML='';
-    const ck=q+'-'+page;
-    if(searchCache.has(ck)){const c=searchCache.get(ck);renderResults(c.results,c.pagination);return;}
     try{
         const d=await fetchAPI(q,page);
-        if(d&&d.results&&d.results.length>0){const{grouped,standalone}=groupEpisodesBySeries(d.results);const pr={series:grouped,standalone};searchCache.set(ck,{results:pr,pagination:d.pagination});renderResults(pr,d.pagination);}
-        else{if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';}
-    }catch(e){if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Connection Error</h4><button onclick="performSearchWithPopup('+page+')" style="background:#00ccff;border:none;padding:10px 25px;border-radius:4px;color:#000;font-weight:600;margin-top:10px;cursor:pointer;">Retry</button></div>';}
+        if(d&&d.results&&d.results.length>0){
+            console.log('📦 API returned',d.results.length,'results');
+            console.log('📄 First result:',d.results[0]);
+            renderDirectResults(d.results,d.pagination);
+        }else{
+            if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';
+            if(ri)ri.style.display='none';
+        }
+    }catch(e){
+        if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Connection Error</h4><button onclick="performSearchWithPopup('+page+')" style="background:#00ccff;border:none;padding:10px 25px;border-radius:4px;color:#000;font-weight:600;margin-top:10px;cursor:pointer;">Retry</button></div>';
+    }
 }
 
-// ====== FINAL FIXED renderResults ======
-function renderResults(pr,pag){
+function renderDirectResults(results,pag){
     const rc=document.getElementById('resultsContainer'),ri=document.getElementById('resultsInfo'),pc=document.getElementById('paginationContainer');
     if(!rc)return;
-    const{series,standalone}=pr;
-    const dc=(series?series.length:0)+(standalone?standalone.length:0);
-    console.log('🎬 Rendering:',dc,'results | Series:',series?.length||0,'| Standalone:',standalone?.length||0);
-    if(dc===0){rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';return;}
-    if(ri&&pag){ri.innerHTML='Found <strong>'+dc+'</strong> results · Page '+pag.current_page+' of '+pag.total_pages;ri.style.display='block';}
+    
+    if(ri&&pag){ri.innerHTML='Found <strong>'+results.length+'</strong> results · Page '+pag.current_page+' of '+pag.total_pages;ri.style.display='block';}
+    
     let h='',ci=0;
     
-    if(series&&series.length>0){
-        series.forEach(s=>{
-            const st=s.seriesName||'Untitled',tu=s.thumbnail||FALLBACK_THUMBNAIL;
-            const eps=s.episodes||[],ec=eps.length;
-            let hf=s.has_file;
-            if(!hf&&ec>0){hf=eps.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));}
-            const pct=s.post_content||'';
-            let fmi='0';if(eps.length>0&&eps[0]){let mid=String(eps[0].real_message_id||eps[0].message_id||eps[0].id||'0').replace(/\D/g,'');if(mid&&mid!=='0')fmi=mid;}
-            const sl='view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+fmi;
-            
-            h+='<div class="result-card">';
-            h+='<div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()">';
-            h+='<img src="'+tu+'" alt="'+escapeHtml(st)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'">';
-            h+='<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>';
-            h+=(hf?'<div class="video-file-badge">SK4FiLM</div>':'');
-            h+='</div></div>';
-            h+='<h3 class="result-title">'+escapeHtml(st)+'</h3>';
-            if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
-            
-            // ====== GUARANTEED EPISODES BUTTON ======
-            if(ec>0){
-                h+='<div class="action-buttons-container">';
-                h+='<a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>';
-                h+='<button class="btn-download-main" onclick="toggleEpisodes('+ci+')"><i class="fas fa-download"></i> Episodes <span class="episode-count-badge">'+ec+'</span> <i class="fas fa-chevron-down ms-1"></i></button>';
-                h+='</div>';
-                h+=generateEpisodesDropdown(eps,ci);
-            }else{
-                console.warn('⚠️ Series "'+st+'" has 0 episodes, showing fallback');
-                h+='<div class="action-buttons-container">';
-                h+='<a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>';
-                const fbLink='https://t.me/'+BOT_USERNAME+'?start='+FILE_CHANNEL_ID+'_'+fmi;
-                h+='<button class="btn-download-main" onclick="handleQualityClick(\''+fbLink+'\')"><i class="fas fa-download"></i> Download</button>';
-                h+='</div>';
-            }
-            h+='</div>';ci++;
-        });
-    }
+    results.forEach(r=>{
+        const t=r.title||'Untitled';
+        const tu=r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL;
+        const hf=r.has_file===true||(r.file_size&&r.file_size>0);
+        const pct=r.post_content||r.content||'';
+        const msgId=getMsgId(r);
+        const qo=r.qualities||r.quality_options||{};
+        const hasQualities=Object.keys(qo).length>0;
+        
+        console.log('📄 Rendering:',t,'| has_file:',hf,'| msgId:',msgId,'| qualities:',hasQualities);
+        
+        h+='<div class="result-card">';
+        h+='<div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()">';
+        h+='<img src="'+tu+'" alt="'+escapeHtml(t)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'">';
+        h+='<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>';
+        h+=(hf?'<div class="video-file-badge">SK4FiLM</div>':'');
+        h+='</div></div>';
+        h+='<h3 class="result-title">'+escapeHtml(t)+'</h3>';
+        
+        if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
+        
+        // ALWAYS show buttons if has_file or has qualities or valid msgId
+        if(hf||hasQualities||msgId!=='0'){
+            const btns=generateActionButtons(r,ci);
+            h+=btns.html;
+        }else{
+            h+='<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>';
+        }
+        
+        h+='</div>';ci++;
+    });
     
-    if(standalone&&standalone.length>0){
-        standalone.forEach(r=>{
-            const t=r.title||'Untitled',tu=r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL,hf=r.has_file===true;
-            const qo=r.qualities||r.quality_options||{},hq=Object.keys(qo).length>0;
-            const pct=r.post_content||r.content||'';
-            let msi=String(r.real_message_id||r.message_id||r.id||'0').replace(/\D/g,'');
-            if((msi==='0'||msi==='')&&hq){const fq=Object.values(qo)[0];if(fq&&fq.message_id)msi=String(fq.message_id).replace(/\D/g,'');}
-            const sl='view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+msi;
-            h+='<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="'+tu+'" alt="'+escapeHtml(t)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>'+(hf?'<div class="video-file-badge">SK4FiLM</div>':'')+'</div></div><h3 class="result-title">'+escapeHtml(t)+'</h3>';
-            if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
-            if(hf){h+='<div class="action-buttons-container">';h+='<a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>';if(hq){h+='<button class="btn-download-main" onclick="toggleDownload('+ci+')"><i class="fas fa-download"></i> Download <i class="fas fa-chevron-down ms-1"></i></button></div><div class="quality-dropdown" id="download-quality-'+ci+'" style="display:none;">'+generateQualityOptionsHTML(qo,r)+'</div>';}else{const dl='https://t.me/'+BOT_USERNAME+'?start='+FILE_CHANNEL_ID+'_'+msi;h+='<button class="btn-download-main" onclick="handleQualityClick(\''+dl+'\')"><i class="fas fa-download"></i> Download</button></div>';}}
-            else{h+='<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>';}
-            h+='</div>';ci++;
-        });
-    }
     rc.innerHTML=h;
     if(pag&&pag.total_pages>1)renderPagination(pag);else if(pc)pc.innerHTML='';
 }
@@ -556,14 +500,13 @@ function renderResults(pr,pag){
 function renderPagination(pag){const pc=document.getElementById('paginationContainer');if(!pc)return;let p='<nav><ul style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px;list-style:none;padding:0;margin:20px 0;">';p+='<li><a class="page-link '+(pag.has_previous?'':'disabled')+'" href="#" onclick="'+(pag.has_previous?'changePage('+(pag.current_page-1)+');return false;':'return false;')+'">«</a></li>';for(let i=1;i<=pag.total_pages;i++){if(i===1||i===pag.total_pages||(i>=pag.current_page-2&&i<=pag.current_page+2))p+='<li class="page-item '+(i===pag.current_page?'active':'')+'"><a class="page-link" href="#" onclick="changePage('+i+');return false;">'+i+'</a></li>';else if(i===pag.current_page-3||i===pag.current_page+3)p+='<li><span style="padding:8px 12px;color:rgba(255,255,255,0.3);">…</span></li>';}p+='<li><a class="page-link '+(pag.has_next?'':'disabled')+'" href="#" onclick="'+(pag.has_next?'changePage('+(pag.current_page+1)+');return false;':'return false;')+'">»</a></li></ul></nav>';pc.innerHTML=p;}
 
 window.changePage=function(page){if(page>0){performSearchWithPopup(page);window.scrollTo({top:0,behavior:'smooth'});}};
-function closeRedirect(){if(redirectTimeout){clearInterval(redirectTimeout);redirectTimeout=null;}document.getElementById('redirectOverlay').classList.remove('active');pendingTelegramLink='';}
 
 document.getElementById('searchButton').addEventListener('click',(e)=>{e.preventDefault();performSearchWithPopup(1);});
 document.getElementById('searchInput').addEventListener('keypress',(e)=>{if(e.key==='Enter'){e.preventDefault();performSearchWithPopup(1);}});
 window.addEventListener('load',()=>{const p=new URLSearchParams(window.location.search);const q=p.get('query');if(q){document.getElementById('searchInput').value=q;performSearchWithPopup(parseInt(p.get('page'))||1);}});
-document.addEventListener('click',(e)=>{if(!e.target.closest('.action-buttons-container')&&!e.target.closest('.quality-dropdown')&&!e.target.closest('.episodes-dropdown')){document.querySelectorAll('.quality-dropdown,.episodes-dropdown').forEach(d=>d.style.display='none');}});
+document.addEventListener('click',(e)=>{if(!e.target.closest('.action-buttons-container')&&!e.target.closest('.episodes-dropdown')){document.querySelectorAll('.episodes-dropdown').forEach(d=>d.style.display='none');}});
 
-window.toggleEpisodes=toggleEpisodes;window.toggleDownload=toggleDownload;window.handleQualityClick=handleQualityClick;
+window.toggleEpisodes=toggleEpisodes;window.handleQualityClick=handleQualityClick;
 window.closeRedirect=closeRedirect;window.performSearchWithPopup=performSearchWithPopup;
 window.toggleMenu=toggleMenu;window.triggerAdLink=triggerAdLink;
 </script>
