@@ -351,7 +351,7 @@
             font-family: 'Josefin Sans', sans-serif;
         }
         
-        /* Episodes Dropdown - Episode files only */
+        /* Episodes Dropdown */
         .episodes-dropdown { 
             display: none; 
             background: #0a0a0a; 
@@ -360,7 +360,7 @@
             padding: 8px; 
             margin: 4px 4px 0 4px;
             animation: slideDown 0.3s ease;
-            max-height: 300px;
+            max-height: 350px;
             overflow-y: auto;
         }
         .episodes-dropdown::-webkit-scrollbar {
@@ -393,6 +393,7 @@
             display: flex;
             flex-direction: column;
             gap: 2px;
+            flex: 1;
         }
         .episode-name {
             font-weight: 600;
@@ -407,7 +408,7 @@
             background: linear-gradient(45deg, #28a745, #20c997);
             border: none;
             color: white;
-            padding: 6px 14px;
+            padding: 8px 16px;
             border-radius: 4px;
             font-weight: 600;
             font-size: 12px;
@@ -724,7 +725,6 @@
             background: #1a1a1a !important;
         }
         
-        /* Episode count badge */
         .episode-count-badge {
             background: #00ccff;
             color: #000000;
@@ -733,6 +733,20 @@
             border-radius: 10px;
             margin-left: 6px;
             font-weight: 700;
+        }
+        
+        /* Series/Episode group header */
+        .episode-group-header {
+            padding: 6px 12px;
+            margin: 4px 0;
+            background: #111111;
+            border-radius: 4px;
+            color: #00ccff;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 3px solid #00ccff;
         }
     </style>
 </head>
@@ -773,30 +787,24 @@
 </nav>
 
 <div class="main-container">
-    <!-- Top Ads -->
     <div class="ad-container">
         <div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
         <div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div>
     </div>
 
-    <!-- Search Section -->
     <div class="search-container">
         <input type="text" id="searchInput" class="search-box" placeholder="Search movies... (e.g., Animal, Jawan, Pathaan)" aria-label="Search movies">
         <button class="search-btn" id="searchButton" aria-label="Search"><i class="fas fa-search"></i></button>
     </div>
 
-    <!-- Results Info - Full Width -->
     <div id="resultsInfo" class="results-info full-width" style="display: none;"></div>
 
-    <!-- Results Container - Full Width Wrapper -->
     <div class="results-wrapper">
         <div id="resultsContainer"></div>
     </div>
 
-    <!-- Pagination - Full Width -->
     <div id="paginationContainer" class="full-width"></div>
 
-    <!-- Bottom Ads -->
     <div class="bottom-ads">
         <div class="bottom-ad-container">
             <script type="text/javascript">
@@ -835,7 +843,6 @@
     </div>
 </div>
 
-<!-- Redirect Overlay (Only for first-time users) -->
 <div id="redirectOverlay">
     <div class="redirect-content">
         <i class="fas fa-external-link-alt"></i>
@@ -891,6 +898,65 @@ let redirectTimeout = null;
 let redirectCountdown = 3;
 let pendingTelegramLink = '';
 const searchCache = new Map();
+
+// ========== GROUP EPISODES BY SERIES ==========
+function groupEpisodesBySeries(results) {
+    const grouped = [];
+    const seriesMap = new Map();
+    const standalone = [];
+    
+    results.forEach(result => {
+        const title = result.title || '';
+        // Check if it's an episode (contains patterns like E01, EP01, Episode 01, S01E01, etc.)
+        const epMatch = title.match(/(.*?)\s*[\(\[\s]*(?:E(?:p(?:isode)?)?[\.\s\-]*(\d+)|S(\d+)\s*E(?:p(?:isode)?)?[\.\s\-]*(\d+))/i);
+        
+        if (epMatch) {
+            let seriesName = epMatch[1].trim();
+            let epNumber = epMatch[2] || epMatch[4] || '';
+            
+            // Clean series name
+            seriesName = seriesName.replace(/[\(\[]\s*(?:Season|S)\s*\d+\s*[\)\]]/gi, '').trim();
+            seriesName = seriesName.replace(/\s+-\s*$/g, '').trim();
+            
+            if (!seriesMap.has(seriesName.toLowerCase())) {
+                seriesMap.set(seriesName.toLowerCase(), {
+                    seriesName: seriesName,
+                    episodes: [],
+                    thumbnail: result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL,
+                    post_content: result.post_content || result.content || '',
+                    has_file: result.has_file === true,
+                    firstResult: result
+                });
+            }
+            
+            const series = seriesMap.get(seriesName.toLowerCase());
+            series.episodes.push({
+                ...result,
+                episodeNumber: epNumber,
+                episodeTitle: title
+            });
+            // Keep the best thumbnail
+            if (result.thumbnail_url && !series.thumbnail) {
+                series.thumbnail = result.thumbnail_url;
+            }
+        } else {
+            standalone.push(result);
+        }
+    });
+    
+    // Add grouped series
+    seriesMap.forEach(series => {
+        // Sort episodes by number
+        series.episodes.sort((a, b) => {
+            const aNum = parseInt(a.episodeNumber) || 0;
+            const bNum = parseInt(b.episodeNumber) || 0;
+            return aNum - bNum;
+        });
+        grouped.push(series);
+    });
+    
+    return { grouped, standalone };
+}
 
 // ========== SEARCH FUNCTIONS ==========
 function getValidSearchQuery() {
@@ -974,8 +1040,12 @@ async function performSearchWithPopup(page = 1) {
         const data = await fetchAPI(query, page);
         
         if (data && data.results && data.results.length > 0) {
-            searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
-            renderResults(data.results, data.pagination);
+            // Group episodes by series before caching
+            const { grouped, standalone } = groupEpisodesBySeries(data.results);
+            const processedResults = { series: grouped, standalone: standalone };
+            
+            searchCache.set(cacheKey, { results: processedResults, pagination: data.pagination });
+            renderResults(processedResults, data.pagination);
         } else if (data && data.results && data.results.length === 0) {
             if (resultsContainer) {
                 resultsContainer.innerHTML = `
@@ -1108,26 +1178,27 @@ function togglePostContent(index) {
     }
 }
 
-// ========== EPISODES DROPDOWN - ONLY FOR EPISODE FILES ==========
+// ========== EPISODES DROPDOWN ==========
 function generateEpisodesDropdown(episodes, index) {
     if (!episodes || !Array.isArray(episodes) || episodes.length === 0) return '';
     
     let html = `<div class="episodes-dropdown" id="episodes-dropdown-${index}" style="display: none;">`;
     
     episodes.forEach((ep, epIndex) => {
-        const epName = ep.name || ep.title || `Episode ${epIndex + 1}`;
+        const epName = ep.episodeTitle || ep.title || `Episode ${ep.episodeNumber || epIndex + 1}`;
         const epSize = ep.file_size ? formatSize(ep.file_size) : '';
-        let epMsgId = ep.message_id || ep.id || '';
+        let epMsgId = ep.real_message_id || ep.message_id || ep.id || '0';
         epMsgId = String(epMsgId).replace(/\D/g, '');
         
         const fileId = `${FILE_CHANNEL_ID}_${epMsgId}_ep_${epIndex}`;
         const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
         const badge = !hasUserSeenRedirect ? '<span class="episode-badge new">NEW</span>' : '';
+        const epNum = ep.episodeNumber ? `EP ${ep.episodeNumber}` : '';
         
         html += `
             <div class="episode-item">
                 <div class="episode-info">
-                    <span class="episode-name">${escapeHtml(epName)} ${badge}</span>
+                    <span class="episode-name">${epNum} ${escapeHtml(epName)} ${badge}</span>
                     ${epSize ? `<span class="episode-size">${epSize}</span>` : ''}
                 </div>
                 <button class="episode-download-btn" onclick="handleQualityClick('${telegramLink}')">
@@ -1196,7 +1267,6 @@ function toggleEpisodes(index) {
         const isVisible = dropdown.style.display === 'block';
         dropdown.style.display = isVisible ? 'none' : 'block';
     }
-    // Close other dropdowns
     document.querySelectorAll('.episodes-dropdown').forEach(d => {
         if (d.id !== `episodes-dropdown-${index}`) d.style.display = 'none';
     });
@@ -1251,14 +1321,17 @@ function generateQualityOptionsHTML(qualityOptions, result) {
 }
 
 // ========== RENDER RESULTS ==========
-function renderResults(results, pagination) {
+function renderResults(processedResults, pagination) {
     const resultsContainer = document.getElementById('resultsContainer');
     const resultsInfo = document.getElementById('resultsInfo');
     const paginationContainer = document.getElementById('paginationContainer');
     
     if (!resultsContainer) return;
     
-    if (!results || results.length === 0) { 
+    const { series, standalone } = processedResults;
+    const totalResults = (series ? series.reduce((sum, s) => sum + s.episodes.length, 0) : 0) + (standalone ? standalone.length : 0);
+    
+    if (totalResults === 0) { 
         resultsContainer.innerHTML = `
             <div class="error-state" style="text-align: center; padding: 40px;">
                 <i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i>
@@ -1271,97 +1344,119 @@ function renderResults(results, pagination) {
     }
     
     if (resultsInfo && pagination) {
-        resultsInfo.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
+        const displayCount = series ? series.length + (standalone ? standalone.length : 0) : 0;
+        resultsInfo.innerHTML = `Found <strong>${displayCount}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
         resultsInfo.style.display = 'block';
     }
     
     let html = '';
-    results.forEach((result, index) => {
-        const title = result.title || 'Untitled';
-        const thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
-        const hasFile = result.has_file === true;
-        const qualityOptions = result.qualities || result.quality_options || {};
-        const hasQualities = Object.keys(qualityOptions).length > 0;
-        const postContent = result.post_content || result.content || '';
-        
-        // Check for episodes
-        const episodes = result.episodes || result.episode_list || [];
-        const hasEpisodes = Array.isArray(episodes) && episodes.length > 0;
-        const episodeCount = hasEpisodes ? episodes.length : 0;
-        
-        let msgIdForStream = result.real_message_id || result.message_id || result.id || '0';
-        msgIdForStream = String(msgIdForStream).replace(/\D/g, '');
-        
-        if ((msgIdForStream === '0' || msgIdForStream === '') && hasQualities) {
-            const firstQuality = Object.values(qualityOptions)[0];
-            if (firstQuality && firstQuality.message_id) {
-                msgIdForStream = String(firstQuality.message_id).replace(/\D/g, '');
-            }
-        }
-        
-        const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgIdForStream}`;
-        
-        html += `<div class="result-card">`;
-        html += `<div class="result-thumbnail-top">`;
-        html += `<div class="thumbnail-container" onclick="triggerAdLink()">`;
-        html += `<img src="${thumbUrl}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'">`;
-        html += `<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
-        if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
-        html += `</div></div>`;
-        html += `<h3 class="result-title">${formatTitle(title)}</h3>`;
-        
-        if (postContent && postContent.trim().length > 0) {
-            html += createPostContent(postContent, index);
-        }
-        
-        if (hasFile) {
-            html += `<div class="action-buttons-container">`;
+    let cardIndex = 0;
+    
+    // Render series/season cards with episodes dropdown
+    if (series && series.length > 0) {
+        series.forEach((s) => {
+            const seriesTitle = s.seriesName;
+            const thumbUrl = s.thumbnail || FALLBACK_THUMBNAIL;
+            const hasFile = s.has_file;
+            const postContent = s.post_content || '';
+            const episodeCount = s.episodes.length;
             
-            // Stream button
-            if (hasEpisodes && episodes[0] && episodes[0].message_id) {
-                const firstEpMsgId = String(episodes[0].message_id).replace(/\D/g, '');
-                const epStreamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${firstEpMsgId}`;
-                html += `<a href="${epStreamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
-            } else {
+            // Get first episode message_id for stream link
+            let firstMsgId = '0';
+            if (s.episodes[0]) {
+                firstMsgId = String(s.episodes[0].real_message_id || s.episodes[0].message_id || s.episodes[0].id || '0').replace(/\D/g, '');
+            }
+            const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${firstMsgId}`;
+            
+            html += `<div class="result-card">`;
+            html += `<div class="result-thumbnail-top">`;
+            html += `<div class="thumbnail-container" onclick="triggerAdLink()">`;
+            html += `<img src="${thumbUrl}" alt="${escapeHtml(seriesTitle)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'">`;
+            html += `<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
+            if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
+            html += `</div></div>`;
+            html += `<h3 class="result-title">${formatTitle(seriesTitle)}</h3>`;
+            
+            if (postContent && postContent.trim().length > 0) {
+                html += createPostContent(postContent, cardIndex);
+            }
+            
+            if (hasFile) {
+                html += `<div class="action-buttons-container">`;
                 html += `<a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
-            }
-            
-            // Episode files: Show Download button that opens episodes dropdown
-            if (hasEpisodes) {
-                html += `<button class="btn-download-main" onclick="toggleEpisodes(${index})">
+                html += `<button class="btn-download-main" onclick="toggleEpisodes(${cardIndex})">
                     <i class="fas fa-download"></i> Download Episodes <span class="episode-count-badge">${episodeCount}</span> <i class="fas fa-chevron-down ms-1"></i>
                 </button>`;
-            }
-            // Non-episode files with qualities: Show normal quality download dropdown
-            else if (hasQualities) {
-                html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i> Download <i class="fas fa-chevron-down ms-1"></i></button>`;
-            }
-            // Non-episode files without qualities: Simple download button
-            else {
-                const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`;
-                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
-                html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i> Download ${badge}</button>`;
+                html += `</div>`;
+                html += generateEpisodesDropdown(s.episodes, cardIndex);
+            } else {
+                html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`;
             }
             
             html += `</div>`;
+            cardIndex++;
+        });
+    }
+    
+    // Render standalone (non-episode) results
+    if (standalone && standalone.length > 0) {
+        standalone.forEach((result) => {
+            const title = result.title || 'Untitled';
+            const thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
+            const hasFile = result.has_file === true;
+            const qualityOptions = result.qualities || result.quality_options || {};
+            const hasQualities = Object.keys(qualityOptions).length > 0;
+            const postContent = result.post_content || result.content || '';
             
-            // Episodes dropdown (only for episode files)
-            if (hasEpisodes) {
-                html += generateEpisodesDropdown(episodes, index);
+            let msgIdForStream = result.real_message_id || result.message_id || result.id || '0';
+            msgIdForStream = String(msgIdForStream).replace(/\D/g, '');
+            
+            if ((msgIdForStream === '0' || msgIdForStream === '') && hasQualities) {
+                const firstQuality = Object.values(qualityOptions)[0];
+                if (firstQuality && firstQuality.message_id) {
+                    msgIdForStream = String(firstQuality.message_id).replace(/\D/g, '');
+                }
             }
             
-            // Quality dropdown (only for non-episode files with qualities)
-            if (!hasEpisodes && hasQualities) {
-                html += `<div class="quality-dropdown" id="download-quality-${index}" style="display: none;">`;
-                html += generateQualityOptionsHTML(qualityOptions, result);
-                html += `</div>`;
+            const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgIdForStream}`;
+            
+            html += `<div class="result-card">`;
+            html += `<div class="result-thumbnail-top">`;
+            html += `<div class="thumbnail-container" onclick="triggerAdLink()">`;
+            html += `<img src="${thumbUrl}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'">`;
+            html += `<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
+            if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
+            html += `</div></div>`;
+            html += `<h3 class="result-title">${formatTitle(title)}</h3>`;
+            
+            if (postContent && postContent.trim().length > 0) {
+                html += createPostContent(postContent, cardIndex);
             }
-        } else { 
-            html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`;
-        }
-        
-        html += `</div>`;
-    });
+            
+            if (hasFile) {
+                html += `<div class="action-buttons-container">`;
+                html += `<a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
+                
+                if (hasQualities) {
+                    html += `<button class="btn-download-main" onclick="toggleDownload(${cardIndex})"><i class="fas fa-download"></i> Download <i class="fas fa-chevron-down ms-1"></i></button>`;
+                    html += `</div>`;
+                    html += `<div class="quality-dropdown" id="download-quality-${cardIndex}" style="display: none;">`;
+                    html += generateQualityOptionsHTML(qualityOptions, result);
+                    html += `</div>`;
+                } else {
+                    const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`;
+                    const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
+                    html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i> Download ${badge}</button>`;
+                    html += `</div>`;
+                }
+            } else {
+                html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`;
+            }
+            
+            html += `</div>`;
+            cardIndex++;
+        });
+    }
     
     resultsContainer.innerHTML = html;
     
