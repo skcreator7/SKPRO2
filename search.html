@@ -11,166 +11,71 @@
     <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        :root {
-            --primary: #ff0000;
-            --secondary: #0066ff;
-            --accent: #00ccff;
-            --bg-dark: #000000;
-            --card-bg: #000000;
-            --card-border: #1a1a1a;
-        }
+        :root { --primary: #ff0000; --secondary: #0066ff; --accent: #00ccff; --bg-dark: #000000; --card-bg: #000000; --card-border: #1a1a1a; }
         html, body { width: 100%; overflow-x: hidden; position: relative; }
-        body {
-            font-family: 'Josefin Sans', sans-serif;
-            background: #000000;
-            color: #f8f9fa;
-            min-height: 100vh;
-            padding-top: 70px;
-            font-size: 16px;
-            -webkit-font-smoothing: antialiased;
-        }
-        
-        .top-navbar {
-            background: #000000;
-            backdrop-filter: blur(10px);
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 70px;
-            z-index: 9999;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.8);
-            display: flex; align-items: center;
-            border-bottom: 2px solid var(--accent);
-        }
-        .navbar-content {
-            display: flex; align-items: center; justify-content: space-between;
-            width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 15px; height: 100%;
-        }
+        body { font-family: 'Josefin Sans', sans-serif; background: #000000; color: #f8f9fa; min-height: 100vh; padding-top: 70px; font-size: 16px; -webkit-font-smoothing: antialiased; }
+        .top-navbar { background: #000000; backdrop-filter: blur(10px); position: fixed; top: 0; left: 0; right: 0; height: 70px; z-index: 9999; box-shadow: 0 2px 15px rgba(0,0,0,0.8); display: flex; align-items: center; border-bottom: 2px solid var(--accent); }
+        .navbar-content { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 15px; height: 100%; }
         .logo-section { display: flex; align-items: center; text-decoration: none; color: white; }
         .logo-img { height: 45px; width: 45px; margin-right: 10px; border-radius: 10px; object-fit: contain; }
         .brand-content { display: flex; flex-direction: column; }
-        .brand-text {
-            font-family: 'Montserrat', sans-serif; font-size: 1.4rem;
-            background: linear-gradient(90deg, #ff0000, #0066ff);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            line-height: 1.2; font-weight: 800;
-        }
+        .brand-text { font-family: 'Montserrat', sans-serif; font-size: 1.4rem; background: linear-gradient(90deg, #ff0000, #0066ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2; font-weight: 800; }
         .brand-subtitle { font-size: 0.65rem; color: #00ccff; font-weight: 300; }
         .menu-section { position: relative; }
-        .menu-button {
-            background: rgba(0,204,255,0.15); border: 2px solid var(--accent);
-            border-radius: 12px; padding: 10px 12px; cursor: pointer; transition: all 0.3s ease;
-        }
+        .menu-button { background: rgba(0,204,255,0.15); border: 2px solid var(--accent); border-radius: 12px; padding: 10px 12px; cursor: pointer; transition: all 0.3s ease; }
         .menu-button:hover { background: rgba(0,204,255,0.25); transform: scale(1.05); }
         .menu-lines div { width: 22px; height: 2px; background: #00ccff; margin: 4px 0; border-radius: 2px; }
-        
         .main-container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 8px 12px 20px; background: #000000; }
         .results-wrapper { width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw; background: #000000; }
         .ad-container { text-align: center; margin: 8px 0; min-height: auto; background: #0a0a0a; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #1a1a1a; }
         #adTopDesktop, #adBottomDesktop { display: none; max-width: 728px; margin: 0 auto; }
         #adTopMobile, #adBottomMobile { display: block; max-width: 320px; margin: 0 auto; }
         @media (min-width: 768px) { #adTopDesktop, #adBottomDesktop { display: block; } #adTopMobile, #adBottomMobile { display: none; } }
-        
         .search-container { margin: 8px 0 12px; position: relative; width: 100%; }
-        .search-box {
-            background: #0a0a0a; border: 2px solid #1a1a1a; border-radius: 50px;
-            padding: 12px 20px; color: white; font-size: 16px; width: 100%; height: 50px;
-            transition: all 0.3s ease; padding-right: 55px;
-        }
+        .search-box { background: #0a0a0a; border: 2px solid #1a1a1a; border-radius: 50px; padding: 12px 20px; color: white; font-size: 16px; width: 100%; height: 50px; transition: all 0.3s ease; padding-right: 55px; }
         .search-box:focus { border-color: #00ccff; outline: none; box-shadow: 0 0 15px rgba(0,204,255,0.3); background: #000000; }
         .search-box::placeholder { color: rgba(255,255,255,0.4); }
-        .search-btn {
-            position: absolute; right: 5px; top: 5px;
-            background: linear-gradient(45deg, #ff0000, #0066ff); border: none;
-            border-radius: 50px; width: 42px; height: 42px; color: white;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;
-        }
+        .search-btn { position: absolute; right: 5px; top: 5px; background: linear-gradient(45deg, #ff0000, #0066ff); border: none; border-radius: 50px; width: 42px; height: 42px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
         .search-btn:hover { background: linear-gradient(45deg, #ff3333, #3388ff); }
         .search-btn:active { transform: scale(0.95); }
-        
         #resultsContainer { display: flex; flex-direction: column; gap: 0; margin: 10px 0; width: 100%; background: #000000; }
-        .result-card {
-            background: #000000; border-bottom: 1px solid #1a1a1a; padding: 16px;
-            width: 100%; box-shadow: none; animation: fadeIn 0.5s ease;
-            transition: background 0.2s ease; border-radius: 0;
-        }
+        .result-card { background: #000000; border-bottom: 1px solid #1a1a1a; padding: 16px; width: 100%; box-shadow: none; animation: fadeIn 0.5s ease; transition: background 0.2s ease; border-radius: 0; }
         .result-card:first-child { border-top: 1px solid #1a1a1a; }
         .result-card:hover { background: #0a0a0a; position: relative; z-index: 10; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
         .result-thumbnail-top { width: 100%; aspect-ratio: 16/9; overflow: hidden; margin-bottom: 12px; background: #0a0a0a; border-radius: 0; }
         .thumbnail-container { width: 100%; height: 100%; position: relative; cursor: pointer; }
         .thumbnail-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
         .thumbnail-container:hover img { transform: scale(1.05); }
-        .play-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.3s;
-        }
+        .play-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; }
         .thumbnail-container:hover .play-overlay, .thumbnail-container:active .play-overlay { opacity: 1; }
-        .play-button {
-            width: 60px; height: 60px; background: var(--primary); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px; color: white; border: 3px solid white; transition: transform 0.2s;
-        }
+        .play-button { width: 60px; height: 60px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; border: 3px solid white; transition: transform 0.2s; }
         .play-button:hover { transform: scale(1.1); }
-        .video-file-badge {
-            position: absolute; top: 8px; right: 8px; padding: 4px 10px;
-            border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 2;
-            background: var(--primary); color: white;
-        }
+        .video-file-badge { position: absolute; top: 8px; right: 8px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 2; background: var(--primary); color: white; }
         .result-title { font-size: 18px; font-weight: 700; color: #00ccff; margin-bottom: 10px; word-break: break-word; padding: 0 4px; }
-        
-        .result-post-content {
-            background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 0;
-            padding: 12px; margin: 10px 0; font-size: 14px; position: relative; line-height: 1.6;
-        }
+        .result-post-content { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 0; padding: 12px; margin: 10px 0; font-size: 14px; position: relative; line-height: 1.6; }
         .post-text { transition: max-height 0.4s ease-in-out; overflow: hidden; color: #cccccc; }
         .post-text a { color: #00ccff !important; text-decoration: underline !important; word-break: break-all; font-weight: 500; pointer-events: auto !important; }
         .post-text a:hover { color: #fff !important; }
         .fade-effect { position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #0a0a0a); pointer-events: none; }
-        .show-more-btn {
-            background: transparent; border: none; color: #00ccff; font-weight: 600;
-            margin-top: 5px; cursor: pointer; width: 100%; text-align: center;
-            padding: 8px; border-radius: 0; transition: all 0.2s;
-            position: relative; z-index: 2; font-family: 'Josefin Sans', sans-serif;
-        }
+        .show-more-btn { background: transparent; border: none; color: #00ccff; font-weight: 600; margin-top: 5px; cursor: pointer; width: 100%; text-align: center; padding: 8px; border-radius: 0; transition: all 0.2s; position: relative; z-index: 2; font-family: 'Josefin Sans', sans-serif; }
         .show-more-btn:hover { background: #1a1a1a; color: #fff; }
-        
         .action-buttons-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 0 4px; }
         @media (min-width: 480px) { .action-buttons-container { flex-direction: row; } }
-        .btn-stream-now, .btn-download-main {
-            flex: 1; padding: 12px 16px; border: none; border-radius: 4px; font-weight: 600;
-            font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px;
-            color: white; text-decoration: none; min-height: 48px;
-            transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
-        }
+        .btn-stream-now, .btn-download-main { flex: 1; padding: 12px 16px; border: none; border-radius: 4px; font-weight: 600; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; color: white; text-decoration: none; min-height: 48px; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
         .btn-stream-now:active, .btn-download-main:active { transform: scale(0.98); }
         .btn-stream-now:hover, .btn-download-main:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
         .btn-download-main { background: linear-gradient(45deg, #28a745, #20c997); font-family: 'Josefin Sans', sans-serif; }
-        
-        /* Episodes Dropdown */
-        .episodes-dropdown {
-            display: none; background: #0a0a0a; border: 1px solid #1a1a1a;
-            border-top: 2px solid #00ccff; padding: 10px; margin: 4px 4px 0 4px;
-            animation: slideDown 0.3s ease; max-height: 250px; overflow-y: auto;
-        }
+        .episodes-dropdown { display: none; background: #0a0a0a; border: 1px solid #1a1a1a; border-top: 2px solid #00ccff; padding: 10px; margin: 4px 4px 0 4px; animation: slideDown 0.3s ease; max-height: 250px; overflow-y: auto; }
         .episodes-dropdown::-webkit-scrollbar { width: 4px; }
         .episodes-dropdown::-webkit-scrollbar-track { background: #000000; }
         .episodes-dropdown::-webkit-scrollbar-thumb { background: #00ccff; border-radius: 2px; }
         .episodes-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-        
-        /* ========== COLORFUL EPISODE BUTTONS ========== */
-        .episode-chip {
-            display: inline-flex; align-items: center; gap: 6px;
-            border-radius: 8px; padding: 10px 14px; cursor: pointer;
-            white-space: nowrap; user-select: none; font-weight: 600;
-            transition: all 0.3s ease; border: 2px solid transparent;
-        }
+        .episode-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 10px 14px; cursor: pointer; white-space: nowrap; user-select: none; font-weight: 600; transition: all 0.3s ease; border: 2px solid transparent; }
         .episode-chip:active { transform: scale(0.95); }
         .episode-chip-label { font-weight: 700; font-size: 13px; }
         .episode-chip-size { font-size: 10px; opacity: 0.8; padding: 2px 6px; background: rgba(255,255,255,0.1); border-radius: 10px; }
-        
         .ep-chip-01 { background: linear-gradient(135deg, #1a0f00, #3a2500); border-color: #FFD700; color: #FFD700; }
         .ep-chip-01:hover { background: linear-gradient(135deg, #3a2500, #FFD700); color: #000; border-color: #FFF; box-shadow: 0 4px 15px rgba(255,215,0,0.5); transform: translateY(-2px); }
         .ep-chip-02 { background: linear-gradient(135deg, #0a0a2e, #1a1a5e); border-color: #448AFF; color: #448AFF; }
@@ -195,43 +100,9 @@
         .ep-chip-11:hover { background: linear-gradient(135deg, #1a3a3a, #009688); color: #fff; border-color: #80CBC4; box-shadow: 0 4px 15px rgba(0,150,136,0.5); transform: translateY(-2px); }
         .ep-chip-12 { background: linear-gradient(135deg, #2e200a, #5e401a); border-color: #FFC107; color: #FFCA28; }
         .ep-chip-12:hover { background: linear-gradient(135deg, #5e401a, #FFC107); color: #000; border-color: #FFE082; box-shadow: 0 4px 15px rgba(255,193,7,0.5); transform: translateY(-2px); }
-        
         .episode-badge { font-size: 9px; padding: 1px 5px; border-radius: 8px; background: rgba(255,215,0,0.15); border: 1px solid gold; color: gold; }
-        
         .quality-dropdown { display: none; background: #0a0a0a; border: 1px solid #1a1a1a; border-top: 2px solid #00ccff; padding: 12px; margin: 4px 4px 0 4px; animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* ========== COLORFUL QUALITY BUTTONS ========== */
-        .quality-option-2click {
-            padding: 10px 14px; border-radius: 8px; color: white;
-            font-weight: 600; font-size: 14px; text-align: center;
-            cursor: pointer; border: 2px solid #333333; margin: 4px;
-            display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            transition: all 0.3s ease; font-family: 'Josefin Sans', sans-serif;
-        }
-        .quality-option-2click:active { transform: scale(0.95); }
-        
-        .quality-4k { background: linear-gradient(135deg, #1a0f00, #3a2a0a); border-color: #FFD700; color: #FFD700; }
-        .quality-4k:hover { background: linear-gradient(135deg, #3a2a0a, #FFD700); color: #000; border-color: #FFF; box-shadow: 0 4px 20px rgba(255,215,0,0.6); transform: translateY(-3px); }
-        .quality-1080p { background: linear-gradient(135deg, #0a1929, #1a3a6c); border-color: #2196F3; color: #42A5F5; }
-        .quality-1080p:hover { background: linear-gradient(135deg, #1a3a6c, #2196F3); color: #fff; border-color: #64B5F6; box-shadow: 0 4px 20px rgba(33,150,243,0.6); transform: translateY(-3px); }
-        .quality-720phevc { background: linear-gradient(135deg, #2e0a0a, #5e1a1a); border-color: #f44336; color: #EF5350; }
-        .quality-720phevc:hover { background: linear-gradient(135deg, #5e1a1a, #f44336); color: #fff; border-color: #EF9A9A; box-shadow: 0 4px 20px rgba(244,67,54,0.6); transform: translateY(-3px); }
-        .quality-720p { background: linear-gradient(135deg, #0a1f0a, #1a4a1a); border-color: #4CAF50; color: #66BB6A; }
-        .quality-720p:hover { background: linear-gradient(135deg, #1a4a1a, #4CAF50); color: #fff; border-color: #81C784; box-shadow: 0 4px 20px rgba(76,175,80,0.6); transform: translateY(-3px); }
-        .quality-480p { background: linear-gradient(135deg, #2e1a0a, #5e3a1a); border-color: #FF9800; color: #FFA726; }
-        .quality-480p:hover { background: linear-gradient(135deg, #5e3a1a, #FF9800); color: #fff; border-color: #FFB74D; box-shadow: 0 4px 20px rgba(255,152,0,0.6); transform: translateY(-3px); }
-        .quality-360p { background: linear-gradient(135deg, #1a0a2e, #3a1a6e); border-color: #9C27B0; color: #AB47BC; }
-        .quality-360p:hover { background: linear-gradient(135deg, #3a1a6e, #9C27B0); color: #fff; border-color: #CE93D8; box-shadow: 0 4px 20px rgba(156,39,176,0.6); transform: translateY(-3px); }
-        .quality-240p { background: linear-gradient(135deg, #0a1a1a, #1a3a3a); border-color: #009688; color: #26A69A; }
-        .quality-240p:hover { background: linear-gradient(135deg, #1a3a3a, #009688); color: #fff; border-color: #80CBC4; box-shadow: 0 4px 20px rgba(0,150,136,0.6); transform: translateY(-3px); }
-        .quality-hdrip { background: linear-gradient(135deg, #2e0a1a, #5e1a3a); border-color: #E91E63; color: #EC407A; }
-        .quality-hdrip:hover { background: linear-gradient(135deg, #5e1a3a, #E91E63); color: #fff; border-color: #F48FB1; box-shadow: 0 4px 20px rgba(233,30,99,0.6); transform: translateY(-3px); }
-        .quality-webdl { background: linear-gradient(135deg, #0a0a2e, #1a1a5e); border-color: #3F51B5; color: #5C6BC0; }
-        .quality-webdl:hover { background: linear-gradient(135deg, #1a1a5e, #3F51B5); color: #fff; border-color: #9FA8DA; box-shadow: 0 4px 20px rgba(63,81,181,0.6); transform: translateY(-3px); }
-        .quality-bluray { background: linear-gradient(135deg, #1a0a2e, #3a1a6e); border-color: #673AB7; color: #7E57C2; }
-        .quality-bluray:hover { background: linear-gradient(135deg, #3a1a6e, #673AB7); color: #fff; border-color: #B39DDB; box-shadow: 0 4px 20px rgba(103,58,183,0.6); transform: translateY(-3px); }
-        
         .pagination { margin: 20px 0; flex-wrap: wrap; justify-content: center; gap: 4px; }
         .page-link { background: #0a0a0a; color: var(--accent); border: 1px solid #1a1a1a; padding: 8px 12px; font-size: 14px; border-radius: 4px; text-decoration: none; display: inline-block; transition: all 0.2s; cursor: pointer; }
         .page-link:hover { background: #1a1a1a; transform: translateY(-1px); }
@@ -241,7 +112,6 @@
         .disclaimer { background: #0a0a0a; border-radius: 4px; padding: 12px; margin-top: 15px; font-size: 13px; text-align: center; border-left: 3px solid var(--primary); border: 1px solid #1a1a1a; }
         .one-time-badge { background: rgba(255,215,0,0.15); border: 1px solid gold; color: gold; font-size: 11px; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-left: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        
         #redirectOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000; display: none; align-items: center; justify-content: center; z-index: 999999; backdrop-filter: blur(10px); }
         #redirectOverlay.active { display: flex; }
         .redirect-content { text-align: center; background: #0a0a0a; padding: 40px 30px; border-radius: 0; border: 2px solid #00ccff; max-width: 350px; width: 90%; animation: slideUp 0.5s ease; }
@@ -253,7 +123,6 @@
         .progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff0000, #0066ff); transition: width 0.1s linear; }
         .redirect-cancel-btn { background: transparent; border: 2px solid #00ccff; color: white; padding: 10px 30px; border-radius: 0; font-weight: 600; cursor: pointer; margin-top: 20px; transition: all 0.3s; font-family: 'Josefin Sans', sans-serif; }
         .redirect-cancel-btn:hover { background: rgba(0,204,255,0.1); transform: scale(1.05); }
-        
         #smartlinkContainer { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; z-index: -1; }
         .error-state { text-align: center; padding: 40px; background: #000000; }
         .error-state i { animation: pulse 2s infinite; }
@@ -271,72 +140,59 @@
     </style>
 </head>
 <body>
-
 <nav class="top-navbar">
     <div class="navbar-content">
         <a href="/" class="logo-section">
             <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
-            <div class="brand-content">
-                <div class="brand-text">SK4FiLM</div>
-                <div class="brand-subtitle">House of Entertainment</div>
-            </div>
+            <div class="brand-content"><div class="brand-text">SK4FiLM</div><div class="brand-subtitle">House of Entertainment</div></div>
         </a>
         <div class="menu-section">
-            <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn" aria-label="Menu">
-                <div class="menu-lines"><div></div><div></div><div></div></div>
-            </button>
-            <div class="menu-dropdown" id="menuDropdown" style="display: none; position: absolute; top: 60px; right: 0; width: 260px; border-radius: 16px; padding: 1.2rem 1rem; z-index: 10000;">
-                <h4 style="color: white; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px;"><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-telegram" style="color: #0088cc; font-size: 1.3rem; width: 28px;"></i><span>Telegram</span></a>
-                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.3rem; width: 28px;"></i><span>WhatsApp</span></a>
-                    <a href="https://youtube.com/@Skcreator7" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fab fa-youtube" style="color: #ff0000; font-size: 1.3rem; width: 28px;"></i><span>YouTube</span></a>
-                    <a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; border-radius: 12px; color: white; text-decoration: none;"><i class="fas fa-play-circle" style="color: #ff6b6b; font-size: 1.3rem; width: 28px;"></i><span>Live Channels</span></a>
+            <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn" aria-label="Menu"><div class="menu-lines"><div></div><div></div><div></div></div></button>
+            <div class="menu-dropdown" id="menuDropdown" style="display:none;position:absolute;top:60px;right:0;width:260px;border-radius:16px;padding:1.2rem 1rem;z-index:10000;">
+                <h4 style="color:white;border-bottom:1px solid #1a1a1a;padding-bottom:10px;"><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:15px;padding:10px 12px;border-radius:12px;color:white;text-decoration:none;"><i class="fab fa-telegram" style="color:#0088cc;font-size:1.3rem;width:28px;"></i><span>Telegram</span></a>
+                    <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:15px;padding:10px 12px;border-radius:12px;color:white;text-decoration:none;"><i class="fab fa-whatsapp" style="color:#25d366;font-size:1.3rem;width:28px;"></i><span>WhatsApp</span></a>
+                    <a href="https://youtube.com/@Skcreator7" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:15px;padding:10px 12px;border-radius:12px;color:white;text-decoration:none;"><i class="fab fa-youtube" style="color:#ff0000;font-size:1.3rem;width:28px;"></i><span>YouTube</span></a>
+                    <a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:15px;padding:10px 12px;border-radius:12px;color:white;text-decoration:none;"><i class="fas fa-play-circle" style="color:#ff6b6b;font-size:1.3rem;width:28px;"></i><span>Live Channels</span></a>
                 </div>
             </div>
         </div>
     </div>
 </nav>
-
 <div class="main-container">
     <div class="ad-container">
         <div id="adTopDesktop"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
         <div id="adTopMobile"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div>
     </div>
-
     <div class="search-container">
         <input type="text" id="searchInput" class="search-box" placeholder="Search movies... (e.g., Animal, Jawan, Pathaan)" aria-label="Search movies">
         <button class="search-btn" id="searchButton" aria-label="Search"><i class="fas fa-search"></i></button>
     </div>
-
-    <div id="resultsInfo" class="results-info full-width" style="display: none;"></div>
+    <div id="resultsInfo" class="results-info full-width" style="display:none;"></div>
     <div class="results-wrapper"><div id="resultsContainer"></div></div>
     <div id="paginationContainer" class="full-width"></div>
-
     <div class="bottom-ads">
         <div class="bottom-ad-container"><script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script></div>
         <div class="bottom-ad-container"><script async="async" data-cfasync="false" src="//marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script><div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div></div>
         <div class="bottom-ad-container"><script type="text/javascript">atOptions={'key':'c628de75b51e4c70d2f3bebebbaaf335','format':'iframe','height':50,'width':320,'params':{}};</script><script type="text/javascript" src="//marksdespitelinear.com/c628de75b51e4c70d2f3bebebbaaf335/invoke.js"></script></div>
     </div>
-
     <div class="disclaimer"><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong> This site does not store any file, it links to media hosted on Telegram.</div>
 </div>
-
 <div id="redirectOverlay">
     <div class="redirect-content">
-        <i class="fas fa-external-link-alt"></i>
-        <h3>Redirecting to Telegram</h3>
+        <i class="fas fa-external-link-alt"></i><h3>Redirecting to Telegram</h3>
         <div class="redirect-timer" id="redirectTimer">3</div>
         <div class="progress-bar"><div class="progress-fill" id="redirectProgressBar"></div></div>
         <p>You will be redirected in <span id="redirectSeconds">3</span> seconds</p>
         <button class="redirect-cancel-btn" onclick="closeRedirect()">Cancel</button>
     </div>
 </div>
-<div id="smartlinkContainer"></div>    
+<div id="smartlinkContainer"></div>
 
 <script>
-function toggleMenu() { const d=document.getElementById('menuDropdown'); if(d) d.style.display=d.style.display==='block'?'none':'block'; }
-document.addEventListener('click',(e)=>{ const b=document.getElementById('menuToggleBtn'),d=document.getElementById('menuDropdown'); if(b&&d&&!b.contains(e.target)&&!d.contains(e.target)) d.style.display='none'; });
+function toggleMenu(){const d=document.getElementById('menuDropdown');if(d)d.style.display=d.style.display==='block'?'none':'block';}
+document.addEventListener('click',(e)=>{const b=document.getElementById('menuToggleBtn'),d=document.getElementById('menuDropdown');if(b&&d&&!b.contains(e.target)&&!d.contains(e.target))d.style.display='none';});
 
 const API_ENDPOINTS=['https://sk4film.koyeb.app','https://sk4film-backup.herokuapp.com','https://sk4film-alternate.onrender.com'];
 const FALLBACK_THUMBNAIL='https://iili.io/fAeIwv9.th.png',RESULTS_PER_PAGE=10;
@@ -351,12 +207,10 @@ function triggerBackgroundSmartlink(){try{const a=document.createElement('a');a.
 function triggerAdLink(){triggerBackgroundSmartlink();}
 function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
 function formatSize(b){if(!b||b===0)return'';const k=1024,s=['B','KB','MB','GB'];const i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i];}
-
 function getEpisodeColorClass(epNum){const num=parseInt(epNum)||0;const colorMap={1:'ep-chip-01',2:'ep-chip-02',3:'ep-chip-03',4:'ep-chip-04',5:'ep-chip-05',6:'ep-chip-06',7:'ep-chip-07',8:'ep-chip-08',9:'ep-chip-09',10:'ep-chip-10',11:'ep-chip-11',12:'ep-chip-12'};return colorMap[num]||'ep-chip-01';}
 function getQualityColorClass(quality){if(!quality)return'';const q=quality.toLowerCase().replace(/[\s\.\-]/g,'');if(q.includes('4k')||q.includes('2160')||q.includes('uhd'))return'quality-4k';if(q.includes('1080')||q.includes('fullhd')||q.includes('fhd'))return'quality-1080p';if((q.includes('720')&&q.includes('hevc'))||q.includes('720phevc')||q.includes('720hevc'))return'quality-720phevc';if(q.includes('720'))return'quality-720p';if(q.includes('480'))return'quality-480p';if(q.includes('360'))return'quality-360p';if(q.includes('240'))return'quality-240p';if(q.includes('hdrip')||q.includes('hdcam')||q.includes('hdts'))return'quality-hdrip';if(q.includes('webdl')||q.includes('webrip')||q.includes('web-dl'))return'quality-webdl';if(q.includes('bluray')||q.includes('bdrip')||q.includes('bd-rip'))return'quality-bluray';return'';}
 
 function formatPostContent(content){if(!content)return'';let formatted=escapeHtml(content);formatted=formatted.replace(/\n/g,'<br>');formatted=formatted.replace(/(https?:\/\/[^\s<]+)/g,function(match){return'<a href="'+match+'" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:500;">'+match+'</a>';});formatted=formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g,function(match){const url=match.startsWith('http')?match:'https://'+match;return'<a href="'+url+'" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:500;">'+match+'</a>';});formatted=formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g,'<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@$1</a>');formatted=formatted.replace(/@sk4film\b/g,'<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@sk4film</a>');return formatted;}
-
 function createPostContent(content,index){if(!content||!content.trim())return'';const isLong=content.length>1200;let html='<div class="result-post-content" id="post-content-'+index+'" style="position:relative;">';html+='<div class="post-text" style="max-height:'+(isLong?'150px':'none')+';overflow:hidden;transition:max-height 0.4s ease-in-out;">';html+=formatPostContent(content);html+='</div>';if(isLong){html+='<div class="fade-effect" style="position:absolute;bottom:40px;left:0;right:0;height:40px;background:linear-gradient(transparent,#0a0a0a);pointer-events:none;"></div>';html+='<button class="show-more-btn" onclick="var p=document.getElementById(\'post-content-'+index+'\');var t=p.querySelector(\'.post-text\');var f=p.querySelector(\'.fade-effect\');var b=p.querySelector(\'.show-more-btn\');if(t.style.maxHeight===\'none\'){t.style.maxHeight=\'150px\';f.style.display=\'block\';b.innerHTML=\'<i class=\\\'fas fa-chevron-down\\\'></i> Show More ↓\';}else{t.style.maxHeight=\'none\';f.style.display=\'none\';b.innerHTML=\'<i class=\\\'fas fa-chevron-up\\\'></i> Show Less ↑\';}" id="post-toggle-'+index+'" aria-label="Toggle content"><i class="fas fa-chevron-down"></i> Show More ↓</button>';}html+='</div>';return html;}
 
 function getMsgId(r){
@@ -368,7 +222,6 @@ function getMsgId(r){
     return id||'0';
 }
 
-// ====== SERIES GROUPING ======
 function groupEpisodesBySeries(results){
     const grouped=[],seriesMap=new Map(),standalone=[];
     console.log('🔍 Grouping',results.length,'results...');
@@ -384,7 +237,7 @@ function groupEpisodesBySeries(results){
             seriesName=seriesName.replace(/[\(\[]\s*(?:Season|S)\s*\d+\s*[\)\]]/gi,'').trim().replace(/\s+-\s*$/g,'').trim().replace(/\s*\(\d{4}\)\s*/g,' ').trim().replace(/\s+/g,' ').trim();
             if(seriesName.length<2){standalone.push(r);return;}
             const key=seriesName.toLowerCase();
-            if(!seriesMap.has(key)) seriesMap.set(key,{seriesName:seriesName,episodes:[],thumbnail:r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL,post_content:r.post_content||r.content||'',has_file:false});
+            if(!seriesMap.has(key))seriesMap.set(key,{seriesName:seriesName,episodes:[],thumbnail:r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL,post_content:r.post_content||r.content||'',has_file:false});
             const s=seriesMap.get(key);
             const episodeData={...r,episodeNumber:epNum};
             if(r.real_message_id)episodeData.real_message_id=r.real_message_id;
@@ -394,34 +247,39 @@ function groupEpisodesBySeries(results){
             const isDuplicate=s.episodes.some(ep=>{const epMsgId=String(ep.real_message_id||ep.message_id||ep.id||'');return ep.episodeNumber===epNum||(msgId!==''&&epMsgId!==''&&msgId===epMsgId);});
             if(!isDuplicate){s.episodes.push(episodeData);if(r.has_file===true)s.has_file=true;if(r.thumbnail_url)s.thumbnail=r.thumbnail_url;if(!s.post_content&&(r.post_content||r.content))s.post_content=r.post_content||r.content;}
             console.log('✅ Grouped:',seriesName,'EP',epNum);
-        }else{standalone.push(r);console.log('📄 Standalone:',t);}
+        }else{standalone.push(r);}
     });
-    seriesMap.forEach(s=>{s.episodes.sort((a,b)=>(parseInt(a.episodeNumber)||0)-(parseInt(b.episodeNumber)||0));if(!s.has_file){s.has_file=s.episodes.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));}grouped.push(s);});
+    seriesMap.forEach(s=>{s.episodes.sort((a,b)=>(parseInt(a.episodeNumber)||0)-(parseInt(b.episodeNumber)||0));if(!s.has_file)s.has_file=s.episodes.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));grouped.push(s);});
     console.log('📊 Grouped:',grouped.length,'series | Standalone:',standalone.length);
     return{grouped,standalone};
 }
 
-// ====== GENERATE EPISODES DROPDOWN ======
+// ====== GUARANTEED EPISODES DROPDOWN ======
 function generateEpisodesDropdown(episodes,index){
     if(!episodes||!Array.isArray(episodes)||episodes.length===0)return'';
-    console.log('📺 Episodes dropdown index:',index,'Total:',episodes.length);
+    console.log('📺 Gen dropdown idx:'+index+' total:'+episodes.length);
     let h='<div class="episodes-dropdown" id="episodes-dropdown-'+index+'" style="display:none;"><div class="episodes-grid">';
+    let cnt=0;
     episodes.forEach((ep,epIndex)=>{
         const epNum=ep.episodeNumber||(epIndex+1);
         const epSize=ep.file_size?formatSize(ep.file_size):'';
         let epMsgId=getMsgId(ep);
-        if(!epMsgId||epMsgId==='0'){console.warn('⚠️ Skipping EP '+epNum);return;}
+        console.log('🔍 EP'+epNum+' msgId:'+epMsgId);
+        // ALWAYS generate button - even if msgId is 0
         const startParam=FILE_CHANNEL_ID+'_'+epMsgId;
         const telegramLink='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(startParam);
         const paddedNum=String(epNum).padStart(2,'0');
         const badge=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
         const colorClass=getEpisodeColorClass(epNum);
         h+='<div class="episode-chip '+colorClass+'" onclick="handleQualityClick(\''+telegramLink.replace(/'/g,"\\'")+'\')" title="Episode '+paddedNum+(epSize?' - '+epSize:'')+'"><span class="episode-chip-label">EP '+paddedNum+'</span>'+(epSize?'<span class="episode-chip-size">'+epSize+'</span>':'')+badge+'</div>';
+        cnt++;
     });
-    h+='</div></div>';return h;
+    h+='</div></div>';
+    console.log('📺 Generated '+cnt+' buttons');
+    return h;
 }
 
-// ====== GENERATE QUALITY BUTTONS (for standalone) ======
+// ====== QUALITY BUTTONS FOR STANDALONE ======
 function generateActionButtons(r,index){
     const qo=r.qualities||r.quality_options||{};
     const keys=Object.keys(qo);
@@ -439,15 +297,13 @@ function generateActionButtons(r,index){
             if(d.message_id&&String(d.message_id).replace(/\D/g,'')!=='')qmi=String(d.message_id).replace(/\D/g,'');
             else if(d.real_message_id&&String(d.real_message_id).replace(/\D/g,'')!=='')qmi=String(d.real_message_id).replace(/\D/g,'');
             else qmi=msgId;
-            if(qmi&&qmi!=='0'){
-                const sp=FILE_CHANNEL_ID+'_'+qmi;
-                const sz=d.file_size?formatSize(d.file_size):'';
-                const tl='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(sp);
-                const bd=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
-                const cc=getQualityColorClass(q);
-                dd+='<div class="episode-chip '+cc+'" onclick="handleQualityClick(\''+tl.replace(/'/g,"\\'")+'\')"><span class="episode-chip-label">'+q+'</span>'+(sz?'<span class="episode-chip-size">'+sz+'</span>':'')+bd+'</div>';
-                cnt++;
-            }
+            const sp=FILE_CHANNEL_ID+'_'+qmi;
+            const sz=d.file_size?formatSize(d.file_size):'';
+            const tl='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(sp);
+            const bd=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
+            const cc=getQualityColorClass(q);
+            dd+='<div class="episode-chip '+cc+'" onclick="handleQualityClick(\''+tl.replace(/'/g,"\\'")+'\')"><span class="episode-chip-label">'+q+'</span>'+(sz?'<span class="episode-chip-size">'+sz+'</span>':'')+bd+'</div>';
+            cnt++;
         }
     });
     dd+='</div></div>';
@@ -486,43 +342,38 @@ async function performSearchWithPopup(page=1){
     try{
         const d=await fetchAPI(q,page);
         if(d&&d.results&&d.results.length>0){
-            console.log('📦 API returned',d.results.length,'results');
             const{grouped,standalone}=groupEpisodesBySeries(d.results);
             const pr={grouped,standalone};
             searchCache.set(ck,{results:pr,pagination:d.pagination});
             renderResults(pr,d.pagination);
-        }else{
-            if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';
-            if(ri)ri.style.display='none';
-        }
-    }catch(e){
-        if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Connection Error</h4><button onclick="performSearchWithPopup('+page+')" style="background:#00ccff;border:none;padding:10px 25px;border-radius:4px;color:#000;font-weight:600;margin-top:10px;cursor:pointer;">Retry</button></div>';
-    }
+        }else{if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';}
+    }catch(e){if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Connection Error</h4><button onclick="performSearchWithPopup('+page+')" style="background:#00ccff;border:none;padding:10px 25px;border-radius:4px;color:#000;font-weight:600;margin-top:10px;cursor:pointer;">Retry</button></div>';}
 }
 
-// ====== RENDER RESULTS ======
+// ====== GUARANTEED RENDER ======
 function renderResults(pr,pag){
     const rc=document.getElementById('resultsContainer'),ri=document.getElementById('resultsInfo'),pc=document.getElementById('paginationContainer');
     if(!rc)return;
     const{grouped:series,standalone}=pr;
-    const totalResults=(series?series.length:0)+(standalone?standalone.length:0);
-    console.log('🎬 Rendering:',totalResults,'| Series:',series?.length||0,'| Standalone:',standalone?.length||0);
-    if(totalResults===0){rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';return;}
-    if(ri&&pag){ri.innerHTML='Found <strong>'+totalResults+'</strong> results · Page '+pag.current_page+' of '+pag.total_pages;ri.style.display='block';}
+    const total=(series?series.length:0)+(standalone?standalone.length:0);
+    console.log('🎬 RENDER: total='+total+' series='+(series?.length||0)+' standalone='+(standalone?.length||0));
+    if(total===0){rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';return;}
+    if(ri&&pag){ri.innerHTML='Found <strong>'+total+'</strong> results · Page '+pag.current_page+' of '+pag.total_pages;ri.style.display='block';}
     let h='',ci=0;
-    
-    // Render grouped series
+    // SERIES
     if(series&&series.length>0){
         series.forEach(s=>{
             const st=s.seriesName||'Untitled',tu=s.thumbnail||FALLBACK_THUMBNAIL;
             const eps=s.episodes||[],ec=eps.length;
-            let hf=s.has_file;if(!hf&&ec>0){hf=eps.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));}
+            let hf=s.has_file;if(!hf&&ec>0)hf=eps.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));
             const pct=s.post_content||'';
             let fmi='0';if(eps.length>0&&eps[0])fmi=getMsgId(eps[0]);
             const sl='view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+fmi;
-            h+='<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="'+tu+'" alt="'+escapeHtml(st)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>'+(hf?'<div class="video-file-badge">SK4FiLM</div>':'')+'</div></div><h3 class="result-title">'+escapeHtml(st)+'</h3>';
+            h+='<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="'+tu+'" alt="'+escapeHtml(st)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>'+(hf?'<div class="video-file-badge">SK4FiLM</div>':'')+'</div></div><h3 class="result-title">'+escapeHtml(st)+' <small style="color:#888;">('+ec+' eps)</small></h3>';
             if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
+            // GUARANTEED: ec>0 hone par Episodes button
             if(ec>0){
+                console.log('✅ BTN: '+st+' ('+ec+' eps)');
                 h+='<div class="action-buttons-container"><a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="toggleEpisodes('+ci+')"><i class="fas fa-download"></i> Episodes <span class="episode-count-badge">'+ec+'</span> <i class="fas fa-chevron-down ms-1"></i></button></div>';
                 h+=generateEpisodesDropdown(eps,ci);
             }else{
@@ -532,8 +383,7 @@ function renderResults(pr,pag){
             h+='</div>';ci++;
         });
     }
-    
-    // Render standalone
+    // STANDALONE
     if(standalone&&standalone.length>0){
         standalone.forEach(r=>{
             const t=r.title||'Untitled',tu=r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL;
@@ -556,7 +406,6 @@ function renderResults(pr,pag){
 function renderPagination(pag){const pc=document.getElementById('paginationContainer');if(!pc)return;let p='<nav><ul style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px;list-style:none;padding:0;margin:20px 0;">';p+='<li><a class="page-link '+(pag.has_previous?'':'disabled')+'" href="#" onclick="'+(pag.has_previous?'changePage('+(pag.current_page-1)+');return false;':'return false;')+'">«</a></li>';for(let i=1;i<=pag.total_pages;i++){if(i===1||i===pag.total_pages||(i>=pag.current_page-2&&i<=pag.current_page+2))p+='<li class="page-item '+(i===pag.current_page?'active':'')+'"><a class="page-link" href="#" onclick="changePage('+i+');return false;">'+i+'</a></li>';else if(i===pag.current_page-3||i===pag.current_page+3)p+='<li><span style="padding:8px 12px;color:rgba(255,255,255,0.3);">…</span></li>';}p+='<li><a class="page-link '+(pag.has_next?'':'disabled')+'" href="#" onclick="'+(pag.has_next?'changePage('+(pag.current_page+1)+');return false;':'return false;')+'">»</a></li></ul></nav>';pc.innerHTML=p;}
 
 window.changePage=function(page){if(page>0){performSearchWithPopup(page);window.scrollTo({top:0,behavior:'smooth'});}};
-
 document.getElementById('searchButton').addEventListener('click',(e)=>{e.preventDefault();performSearchWithPopup(1);});
 document.getElementById('searchInput').addEventListener('keypress',(e)=>{if(e.key==='Enter'){e.preventDefault();performSearchWithPopup(1);}});
 window.addEventListener('load',()=>{const p=new URLSearchParams(window.location.search);const q=p.get('query');if(q){document.getElementById('searchInput').value=q;performSearchWithPopup(parseInt(p.get('page'))||1);}});
