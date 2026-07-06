@@ -452,7 +452,7 @@ function renderResults(pr,groupedPagination){
     
     // Use groupedPagination for display
     if(ri&&groupedPagination){
-        ri.innerHTML='Found <strong>'+displayCount+'</strong> results;
+        ri.innerHTML='Found <strong>'+displayCount+'</strong> results (grouped) · Page '+groupedPagination.current_page+' of '+groupedPagination.total_pages;
         ri.style.display='block';
     }
     
