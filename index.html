@@ -50,7 +50,6 @@
         
         body.search-active { padding-top: 154px; }
 
-        /* ========== Fixed Top Navbar ========== */
         .top-navbar {
             background: #000000;
             backdrop-filter: blur(15px);
@@ -76,78 +75,20 @@
             width: 100%;
         }
 
-        .logo-section {
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
-        }
+        .logo-section { display: flex; align-items: center; flex-shrink: 0; }
+        .logo-link { display: flex; align-items: center; color: white; text-decoration: none; gap: 10px; }
+        .logo-img { height: 40px; width: 40px; border-radius: 8px; box-shadow: 0 0 15px rgba(255, 0, 0, 0.3); object-fit: contain; transition: transform 0.3s ease; }
+        .logo-link:hover .logo-img { transform: scale(1.1); }
+        .brand-content { display: flex; flex-direction: column; }
+        .brand-text { font-family: 'Montserrat', sans-serif; font-size: clamp(1.2rem, 2.5vw, 1.5rem); background: linear-gradient(90deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.2; font-weight: 800; }
+        .brand-subtitle { font-size: 0.6rem; color: var(--accent); font-weight: 300; letter-spacing: 0.5px; font-style: italic; }
+        .action-buttons { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-        .logo-link {
-            display: flex;
-            align-items: center;
-            color: white;
-            text-decoration: none;
-            gap: 10px;
-        }
-
-        .logo-img {
-            height: 40px;
-            width: 40px;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
-            object-fit: contain;
-            transition: transform 0.3s ease;
-        }
-
-        .logo-link:hover .logo-img {
-            transform: scale(1.1);
-        }
-
-        .brand-content {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .brand-text {
-            font-family: 'Montserrat', sans-serif;
-            font-size: clamp(1.2rem, 2.5vw, 1.5rem);
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            line-height: 1.2;
-            font-weight: 800;
-        }
-
-        .brand-subtitle {
-            font-size: 0.6rem;
-            color: var(--accent);
-            font-weight: 300;
-            letter-spacing: 0.5px;
-            font-style: italic;
-        }
-
-        .action-buttons {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-
-        /* Search Icon Button */
         .search-icon-btn {
             background: linear-gradient(45deg, var(--primary), var(--secondary));
-            color: white;
-            border: none;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            transition: all 0.3s ease;
+            color: white; border: none; width: 42px; height: 42px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
             animation: searchPulse 2s ease-in-out infinite;
         }
@@ -158,27 +99,13 @@
             100% { box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4); }
         }
 
-        .search-icon-btn:hover {
-            transform: scale(1.15);
-            box-shadow: 0 6px 25px rgba(255, 0, 0, 0.6);
-            animation: none;
-        }
+        .search-icon-btn:hover { transform: scale(1.15); box-shadow: 0 6px 25px rgba(255, 0, 0, 0.6); animation: none; }
+        .search-icon-btn.active { background: var(--accent); color: var(--bg-dark); animation: none; }
 
-        .search-icon-btn.active {
-            background: var(--accent);
-            color: var(--bg-dark);
-            animation: none;
-        }
-
-        /* Menu Button */
         .menu-button {
-            background: rgba(0, 204, 255, 0.1);
-            border: 2px solid var(--accent);
-            color: var(--accent);
-            padding: 9px 11px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(0, 204, 255, 0.1); border: 2px solid var(--accent);
+            color: var(--accent); padding: 9px 11px; border-radius: 10px;
+            cursor: pointer; transition: all 0.3s ease;
             animation: menuGlow 2s ease-in-out infinite;
         }
 
@@ -188,390 +115,131 @@
             100% { box-shadow: 0 0 5px rgba(0, 204, 255, 0.3); }
         }
 
-        .menu-button:hover {
-            background: rgba(0, 204, 255, 0.2);
-            box-shadow: 0 0 25px rgba(0, 204, 255, 0.7);
-            animation: none;
-        }
+        .menu-button:hover { background: rgba(0, 204, 255, 0.2); box-shadow: 0 0 25px rgba(0, 204, 255, 0.7); animation: none; }
+        .menu-button.active { background: var(--accent); animation: none; }
+        .menu-lines { display: flex; flex-direction: column; gap: 4px; width: 20px; }
+        .menu-line { width: 100%; height: 2px; background: var(--accent); border-radius: 2px; transition: all 0.3s ease; }
+        .menu-button.active .menu-line { background: var(--bg-dark); }
+        .menu-button.active .menu-line:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+        .menu-button.active .menu-line:nth-child(2) { opacity: 0; }
+        .menu-button.active .menu-line:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
 
-        .menu-button.active {
-            background: var(--accent);
-            animation: none;
-        }
-
-        .menu-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            width: 20px;
-        }
-
-        .menu-line {
-            width: 100%;
-            height: 2px;
-            background: var(--accent);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-
-        .menu-button.active .menu-line {
-            background: var(--bg-dark);
-        }
-
-        .menu-button.active .menu-line:nth-child(1) {
-            transform: rotate(45deg) translate(4px, 4px);
-        }
-
-        .menu-button.active .menu-line:nth-child(2) {
-            opacity: 0;
-        }
-
-        .menu-button.active .menu-line:nth-child(3) {
-            transform: rotate(-45deg) translate(4px, -4px);
-        }
-
-        /* Search Container */
         .search-container {
-            position: fixed;
-            top: 69px;
-            left: 0;
-            right: 0;
-            z-index: 999;
-            background: #000000;
-            border-bottom: 2px solid var(--accent);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            padding: 0 15px;
-            max-height: 0;
-            overflow: hidden;
-            transition: all 0.3s ease;
+            position: fixed; top: 69px; left: 0; right: 0; z-index: 999;
+            background: #000000; border-bottom: 2px solid var(--accent);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); padding: 0 15px;
+            max-height: 0; overflow: hidden; transition: all 0.3s ease;
         }
 
-        .search-container.active {
-            max-height: 85px;
-            padding: 15px;
-        }
-
-        .search-wrapper {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            max-width: 600px;
-            margin: 0 auto;
-        }
+        .search-container.active { max-height: 85px; padding: 15px; }
+        .search-wrapper { display: flex; gap: 10px; align-items: center; max-width: 600px; margin: 0 auto; }
 
         .inline-search-input {
-            flex: 1;
-            background: #1a1a1a;
-            border: 2px solid var(--accent);
-            color: white;
-            padding: 10px 20px;
-            font-size: 0.9rem;
-            border-radius: 25px;
-            outline: none;
-            transition: all 0.3s ease;
+            flex: 1; background: #1a1a1a; border: 2px solid var(--accent);
+            color: white; padding: 10px 20px; font-size: 0.9rem;
+            border-radius: 25px; outline: none; transition: all 0.3s ease;
         }
 
-        .inline-search-input:focus {
-            box-shadow: 0 0 15px rgba(0, 204, 255, 0.5);
-            border-color: #00e6ff;
-        }
+        .inline-search-input:focus { box-shadow: 0 0 15px rgba(0, 204, 255, 0.5); border-color: #00e6ff; }
 
         .inline-search-btn {
-            background: var(--accent);
-            color: #000000;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            white-space: nowrap;
+            background: var(--accent); color: #000000; border: none;
+            padding: 10px 20px; border-radius: 25px; cursor: pointer;
+            font-weight: 600; transition: all 0.3s ease; white-space: nowrap;
         }
 
-        .inline-search-btn:hover {
-            background: #00e6ff;
-            transform: scale(1.05);
-        }
+        .inline-search-btn:hover { background: #00e6ff; transform: scale(1.05); }
 
-        /* Menu Dropdown */
         .menu-dropdown {
-            position: fixed;
-            top: 69px;
-            right: 15px;
-            left: 15px;
-            background: #000000;
-            border: 2px solid var(--accent);
-            border-radius: 15px;
-            padding: 20px;
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-            z-index: 998;
+            position: fixed; top: 69px; right: 15px; left: 15px;
+            background: #000000; border: 2px solid var(--accent);
+            border-radius: 15px; padding: 20px; max-height: 0;
+            overflow: hidden; opacity: 0; transition: all 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8); z-index: 998;
         }
 
-        .menu-dropdown.active {
-            max-height: 400px;
-            opacity: 1;
-        }
-
-        .menu-dropdown h4 {
-            color: var(--accent);
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-            text-align: center;
-        }
-
-        .menu-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        .menu-dropdown.active { max-height: 400px; opacity: 1; }
+        .menu-dropdown h4 { color: var(--accent); margin-bottom: 15px; font-size: 1.2rem; text-align: center; }
+        .menu-links { display: flex; flex-direction: column; gap: 10px; }
 
         .menu-link {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 15px;
-            background: #1a1a1a;
-            border: 1px solid rgba(0, 204, 255, 0.3);
-            border-radius: 10px;
-            color: white;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            font-weight: 500;
+            display: flex; align-items: center; gap: 10px; padding: 12px 15px;
+            background: #1a1a1a; border: 1px solid rgba(0, 204, 255, 0.3);
+            border-radius: 10px; color: white; text-decoration: none;
+            transition: all 0.3s ease; font-weight: 500;
         }
 
-        .menu-link:hover {
-            background: #2a2a2a;
-            transform: translateX(5px);
-            border-color: var(--accent);
-        }
+        .menu-link:hover { background: #2a2a2a; transform: translateX(5px); border-color: var(--accent); }
+        .menu-link i { font-size: 1.2rem; width: 25px; text-align: center; }
 
-        .menu-link i {
-            font-size: 1.2rem;
-            width: 25px;
-            text-align: center;
-        }
-
-        /* Desktop Responsive */
         @media (min-width: 992px) {
             body { padding-top: 90px; }
             body.search-active { padding-top: 90px; }
-            
             .logo-img { height: 50px; width: 50px; }
             .brand-text { font-size: 1.8rem; }
             .brand-subtitle { font-size: 0.7rem; }
             .search-icon-btn { width: 50px; height: 50px; font-size: 1.3rem; }
-            
-            .search-container {
-                position: static;
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                padding: 0;
-                max-height: none;
-                overflow: visible;
-                display: inline-flex;
-                margin-right: 15px;
-            }
-            
-            .search-wrapper {
-                width: 0;
-                opacity: 0;
-                overflow: hidden;
-                transition: all 0.4s ease;
-            }
-            
-            .search-container.active .search-wrapper {
-                width: 400px;
-                opacity: 1;
-            }
-            
-            .menu-dropdown {
-                position: absolute;
-                top: calc(100% + 15px);
-                right: 0;
-                left: auto;
-                width: 280px;
-            }
+            .search-container { position: static; background: transparent; border: none; box-shadow: none; padding: 0; max-height: none; overflow: visible; display: inline-flex; margin-right: 15px; }
+            .search-wrapper { width: 0; opacity: 0; overflow: hidden; transition: all 0.4s ease; }
+            .search-container.active .search-wrapper { width: 400px; opacity: 1; }
+            .menu-dropdown { position: absolute; top: calc(100% + 15px); right: 0; left: auto; width: 280px; }
         }
 
-        /* ========== Category Strip ========== */
-        .category-strip {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0px;
-            margin: 0;
-            padding: 8px 4px;
-            justify-content: center;
-            background: #000000;
-            border-bottom: 1px solid rgba(0, 204, 255, 0.15);
-        }
+        .category-strip { display: flex; flex-wrap: wrap; gap: 0px; margin: 0; padding: 8px 4px; justify-content: center; background: #000000; border-bottom: 1px solid rgba(0, 204, 255, 0.15); }
 
         .cat-btn {
-            flex: 0 1 auto;
-            padding: 7px 14px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            border: none;
-            border-radius: 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #fff;
-            background: #1a1a1a;
-            text-align: center;
-            font-family: 'Josefin Sans', sans-serif;
-            position: relative;
-            overflow: hidden;
-            border-right: 1px solid rgba(255,255,255,0.05);
+            flex: 0 1 auto; padding: 7px 14px; font-size: 0.7rem; font-weight: 700;
+            border: none; border-radius: 0; cursor: pointer; transition: all 0.3s ease;
+            text-transform: uppercase; letter-spacing: 0.5px; color: #fff;
+            background: #1a1a1a; text-align: center; font-family: 'Josefin Sans', sans-serif;
+            position: relative; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05);
         }
 
-        .cat-btn:hover {
-            transform: scale(1.05);
-            filter: brightness(1.25);
-            z-index: 2;
-            box-shadow: 0 8px 25px rgba(255,255,255,0.4);
-        }
+        .cat-btn:hover { transform: scale(1.05); filter: brightness(1.25); z-index: 2; box-shadow: 0 8px 25px rgba(255,255,255,0.4); }
+        .cat-btn:nth-child(1) { background: #dc3545; } .cat-btn:nth-child(2) { background: #0d6efd; }
+        .cat-btn:nth-child(3) { background: #fd7e14; } .cat-btn:nth-child(4) { background: #20c997; }
+        .cat-btn:nth-child(5) { background: #6f42c1; } .cat-btn:nth-child(6) { background: #e83e8c; }
+        .cat-btn:nth-child(7) { background: #d63384; } .cat-btn:nth-child(8) { background: #fd7e14; }
+        .cat-btn:nth-child(9) { background: #198754; } .cat-btn:nth-child(10) { background: #0dcaf0; color:#000; }
+        .cat-btn:nth-child(11) { background: #adb5bd; color:#000; } .cat-btn:nth-child(12) { background: #343a40; }
+        .cat-btn:nth-child(13) { background: #6610f2; } .cat-btn:nth-child(14) { background: #d63384; }
+        .cat-btn:nth-child(15) { background: #ffc107; color:#000; } .cat-btn:nth-child(16) { background: #212529; }
+        .cat-btn:nth-child(17) { background: #20c997; } .cat-btn:nth-child(18) { background: #0d6efd; }
+        .cat-btn:nth-child(19) { background: #6f42c1; } .cat-btn:nth-child(20) { background: #fd7e14; }
 
-        .cat-btn:nth-child(1) { background: #dc3545; }
-        .cat-btn:nth-child(2) { background: #0d6efd; }
-        .cat-btn:nth-child(3) { background: #fd7e14; }
-        .cat-btn:nth-child(4) { background: #20c997; }
-        .cat-btn:nth-child(5) { background: #6f42c1; }
-        .cat-btn:nth-child(6) { background: #e83e8c; }
-        .cat-btn:nth-child(7) { background: #d63384; }
-        .cat-btn:nth-child(8) { background: #fd7e14; }
-        .cat-btn:nth-child(9) { background: #198754; }
-        .cat-btn:nth-child(10) { background: #0dcaf0; color:#000; }
-        .cat-btn:nth-child(11) { background: #adb5bd; color:#000; }
-        .cat-btn:nth-child(12) { background: #343a40; }
-        .cat-btn:nth-child(13) { background: #6610f2; }
-        .cat-btn:nth-child(14) { background: #d63384; }
-        .cat-btn:nth-child(15) { background: #ffc107; color:#000; }
-        .cat-btn:nth-child(16) { background: #212529; }
-        .cat-btn:nth-child(17) { background: #20c997; }
-        .cat-btn:nth-child(18) { background: #0d6efd; }
-        .cat-btn:nth-child(19) { background: #6f42c1; }
-        .cat-btn:nth-child(20) { background: #fd7e14; }
-
-        /* ========== Welcome Blurb ========== */
-        .welcome-blurb {
-            background: #000000;
-            padding: 15px 15px;
-            margin: 0;
-            border-bottom: 1px solid rgba(0, 204, 255, 0.2);
-            text-align: center;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            color: #e8f0f8;
-        }
-
+        .welcome-blurb { background: #000000; padding: 15px 15px; margin: 0; border-bottom: 1px solid rgba(0, 204, 255, 0.2); text-align: center; font-size: 0.95rem; line-height: 1.6; color: #e8f0f8; }
         .welcome-blurb strong { color: var(--accent); }
         .welcome-blurb .highlight { color: #ffcc00; }
 
-        /* ========== Movie Grid ========== */
-        #homeMoviesContainer {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0px;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            background: #000000;
-        }
-
-        @media (min-width: 768px) {
-            #homeMoviesContainer {
-                grid-template-columns: repeat(4, 1fr);
-            }
-        }
-
-        @media (min-width: 992px) {
-            #homeMoviesContainer {
-                grid-template-columns: repeat(6, 1fr);
-            }
-        }
+        #homeMoviesContainer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0px; margin: 0; padding: 0; width: 100%; background: #000000; }
+        @media (min-width: 768px) { #homeMoviesContainer { grid-template-columns: repeat(4, 1fr); } }
+        @media (min-width: 992px) { #homeMoviesContainer { grid-template-columns: repeat(6, 1fr); } }
 
         .movie-card {
-            background: #000000;
-            border: none;
+            background: #000000; border: none;
             border-right: 1px solid rgba(0, 204, 255, 0.1);
             border-bottom: 1px solid rgba(0, 204, 255, 0.1);
-            overflow: hidden;
-            transition: all 0.3s ease;
-            height: 100%;
-            cursor: pointer;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            animation: cardFadeIn 0.6s ease-out;
+            overflow: hidden; transition: all 0.3s ease; height: 100%;
+            cursor: pointer; position: relative; display: flex; flex-direction: column;
+            animation: cardFadeIn 0.4s ease-out;
         }
 
-        @keyframes cardFadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes cardFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .movie-card:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 20px 40px rgba(0, 204, 255, 0.4);
-            border-color: var(--accent);
-            z-index: 10;
-        }
-
-        .click-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 10;
-            cursor: pointer;
-        }
-
-        .poster-wrapper {
-            position: relative;
-            aspect-ratio: 2/3;
-            width: 100%;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-
-        .hq-poster {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-            background: #000;
-            transition: all 0.5s ease;
-            display: block;
-        }
-
-        .movie-card:hover .hq-poster {
-            transform: scale(1.05);
-            filter: brightness(1.1);
-        }
+        .movie-card:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 20px 40px rgba(0, 204, 255, 0.4); border-color: var(--accent); z-index: 10; }
+        .click-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10; cursor: pointer; }
+        .poster-wrapper { position: relative; aspect-ratio: 2/3; width: 100%; overflow: hidden; flex-shrink: 0; }
+        .hq-poster { width: 100%; height: 100%; object-fit: cover; object-position: center; background: #000; transition: all 0.5s ease; display: block; }
+        .movie-card:hover .hq-poster { transform: scale(1.05); filter: brightness(1.1); }
 
         .new-badge {
-            position: absolute;
-            top: 6px;
-            left: 6px;
+            position: absolute; top: 6px; left: 6px;
             background: linear-gradient(135deg, #ff0000, #cc0000);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-size: 0.55rem;
-            font-weight: 700;
-            z-index: 5;
-            letter-spacing: 0.3px;
-            box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
+            color: white; padding: 2px 6px; border-radius: 12px;
+            font-size: 0.55rem; font-weight: 700; z-index: 5;
+            letter-spacing: 0.3px; box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
             animation: redPulse 1.2s ease-in-out infinite;
-            text-transform: uppercase;
-            white-space: nowrap;
+            text-transform: uppercase; white-space: nowrap;
         }
 
         @keyframes redPulse {
@@ -580,218 +248,34 @@
             100% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.5); }
         }
 
-        .movie-info {
-            background: #000000;
-            padding: 8px 5px;
-            text-align: center;
-            border-top: 1px solid rgba(0, 204, 255, 0.2);
-            flex-shrink: 0;
-            min-height: 55px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
+        .movie-info { background: #000000; padding: 8px 5px; text-align: center; border-top: 1px solid rgba(0, 204, 255, 0.2); flex-shrink: 0; min-height: 55px; display: flex; flex-direction: column; justify-content: center; }
+        .movie-title { font-size: 0.65rem; font-weight: 700; color: #ffffff; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 
-        .movie-title {
-            font-size: 0.65rem;
-            font-weight: 700;
-            color: #ffffff;
-            line-height: 1.2;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        .pagination-wrapper { display: flex; justify-content: center; align-items: center; gap: 4px; flex-wrap: wrap; margin: 0; padding: 15px 0; background: #000000; border-top: 1px solid rgba(0, 204, 255, 0.15); }
 
-        /* ========== Pagination ========== */
-        .pagination-wrapper {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 4px;
-            flex-wrap: wrap;
-            margin: 0;
-            padding: 15px 0;
-            background: #000000;
-            border-top: 1px solid rgba(0, 204, 255, 0.15);
-        }
+        .page-btn { background: #1a1a1a; border: 1px solid rgba(0, 204, 255, 0.3); color: #e0e0e0; padding: 6px 14px; border-radius: 0; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: 0.3s ease; min-width: 40px; text-align: center; }
+        .page-btn.active { background: var(--accent); color: #000; box-shadow: 0 0 20px rgba(0,204,255,0.4); border-color: var(--accent); }
+        .page-btn:hover:not(.active):not(:disabled) { background: #2a2a2a; transform: translateY(-2px); }
+        .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-        .page-btn {
-            background: #1a1a1a;
-            border: 1px solid rgba(0, 204, 255, 0.3);
-            color: #e0e0e0;
-            padding: 6px 14px;
-            border-radius: 0;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: 0.3s ease;
-            min-width: 40px;
-            text-align: center;
-        }
+        .bottom-popup-modal { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0, 0, 0, 0.98); backdrop-filter: blur(20px); border-top: 2px solid var(--accent); box-shadow: 0 -5px 30px rgba(0, 204, 255, 0.3); z-index: 1100; padding: 8px 10px; transition: all 0.3s ease; animation: slideUp 0.5s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .popup-inner { display: flex; flex-direction: column; gap: 6px; max-width: 100%; margin: 0 auto; }
+        .popup-buttons { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; padding: 0; }
+        .popup-banner { display: flex; align-items: center; justify-content: center; background: #000000; min-height: auto; max-height: 50px; overflow: hidden; }
+        .banner-ad-container { width: 100%; max-width: 300px; min-height: auto; display: flex; align-items: center; justify-content: center; }
 
-        .page-btn.active {
-            background: var(--accent);
-            color: #000;
-            box-shadow: 0 0 20px rgba(0,204,255,0.4);
-            border-color: var(--accent);
-        }
-
-        .page-btn:hover:not(.active):not(:disabled) {
-            background: #2a2a2a;
-            transform: translateY(-2px);
-        }
-
-        .page-btn:disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-        }
-
-        /* ========== Bottom Popup Modal - Compact Size ========== */
-        .bottom-popup-modal {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.98);
-            backdrop-filter: blur(20px);
-            border-top: 2px solid var(--accent);
-            box-shadow: 0 -5px 30px rgba(0, 204, 255, 0.3);
-            z-index: 1100;
-            padding: 8px 10px;
-            transition: all 0.3s ease;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-
-        .popup-inner {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            max-width: 100%;
-            margin: 0 auto;
-        }
-
-        .popup-buttons {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 0;
-        }
-
-        .popup-banner {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000000;
-            min-height: auto;
-            max-height: 50px;
-            overflow: hidden;
-        }
-
-        .banner-ad-container {
-            width: 100%;
-            max-width: 300px;
-            min-height: auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Popup Buttons - Compact Size */
-        .popup-icon-btn {
-            background: #1a1a1a;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 6px 10px;
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            min-width: 50px;
-            max-width: 70px;
-            height: 50px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .popup-icon-btn::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.03);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .popup-icon-btn:hover::before {
-            width: 200px;
-            height: 200px;
-        }
-
-        .popup-icon-btn:hover {
-            background: #2a2a2a;
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-        }
-
-        .popup-icon-btn i {
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            position: relative;
-            z-index: 1;
-            line-height: 1;
-        }
-
-        .popup-icon-btn span {
-            font-size: 0.5rem;
-            letter-spacing: 0.2px;
-            font-weight: 500;
-            color: #ffffff;
-            opacity: 0.9;
-            text-transform: uppercase;
-            font-family: 'Josefin Sans', sans-serif;
-            position: relative;
-            z-index: 1;
-            line-height: 1;
-            white-space: nowrap;
-        }
-
-        .popup-icon-btn:hover span {
-            opacity: 1;
-            color: var(--accent);
-        }
-
-        /* Individual button icon colors */
-        .popup-icon-btn:nth-child(1) i { color: #0088cc; }
-        .popup-icon-btn:nth-child(2) i { color: #f39c12; }
-        .popup-icon-btn:nth-child(3) i { color: #2ecc71; }
-        .popup-icon-btn:nth-child(4) i { color: #e74c3c; }
+        .popup-icon-btn { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 10px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: all 0.3s ease; text-decoration: none; min-width: 50px; max-width: 70px; height: 50px; position: relative; overflow: hidden; }
+        .popup-icon-btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.03); transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+        .popup-icon-btn:hover::before { width: 200px; height: 200px; }
+        .popup-icon-btn:hover { background: #2a2a2a; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+        .popup-icon-btn i { font-size: 1.1rem; transition: all 0.3s ease; position: relative; z-index: 1; line-height: 1; }
+        .popup-icon-btn span { font-size: 0.5rem; letter-spacing: 0.2px; font-weight: 500; color: #ffffff; opacity: 0.9; text-transform: uppercase; font-family: 'Josefin Sans', sans-serif; position: relative; z-index: 1; line-height: 1; white-space: nowrap; }
+        .popup-icon-btn:hover span { opacity: 1; color: var(--accent); }
+        .popup-icon-btn:nth-child(1) i { color: #0088cc; } .popup-icon-btn:nth-child(2) i { color: #f39c12; }
+        .popup-icon-btn:nth-child(3) i { color: #2ecc71; } .popup-icon-btn:nth-child(4) i { color: #e74c3c; }
         .popup-icon-btn:nth-child(5) i { color: #9b59b6; }
-
-        /* Live Button Special Styling */
-        .popup-icon-btn.live-btn i {
-            color: #ff0000;
-            text-shadow: 0 0 8px #ff0000;
-            animation: livePulse 1.5s ease-in-out infinite;
-        }
+        .popup-icon-btn.live-btn i { color: #ff0000; text-shadow: 0 0 8px #ff0000; animation: livePulse 1.5s ease-in-out infinite; }
 
         @keyframes livePulse {
             0% { text-shadow: 0 0 5px #ff0000; transform: scale(1); }
@@ -799,10 +283,7 @@
             100% { text-shadow: 0 0 5px #ff0000; transform: scale(1); }
         }
 
-        .popup-icon-btn.live-btn {
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            animation: liveBorderPulse 1.5s ease-in-out infinite;
-        }
+        .popup-icon-btn.live-btn { border: 1px solid rgba(255, 0, 0, 0.3); animation: liveBorderPulse 1.5s ease-in-out infinite; }
 
         @keyframes liveBorderPulse {
             0% { border-color: rgba(255, 0, 0, 0.3); box-shadow: 0 0 5px rgba(255, 0, 0, 0.2); }
@@ -810,231 +291,48 @@
             100% { border-color: rgba(255, 0, 0, 0.3); box-shadow: 0 0 5px rgba(255, 0, 0, 0.2); }
         }
 
-        .popup-icon-btn.live-btn:hover {
-            background: #1a0000;
-            animation: none;
-            border-color: #ff0000;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
-        }
+        .popup-icon-btn.live-btn:hover { background: #1a0000; animation: none; border-color: #ff0000; box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); }
+        .popup-icon-btn.live-btn:hover i { color: #ff3333; animation: none; text-shadow: 0 0 20px #ff0000; }
+        .popup-icon-btn.live-btn:hover span { color: #ff6b6b; font-weight: 700; }
 
-        .popup-icon-btn.live-btn:hover i {
-            color: #ff3333;
-            animation: none;
-            text-shadow: 0 0 20px #ff0000;
-        }
+        .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 20px; margin: 0; padding: 20px 0; font-size: 0.9rem; background: #000000; border-top: 1px solid rgba(0,204,255,0.15); }
+        .footer-links a { color: var(--accent); text-decoration: none; transition: 0.3s ease; position: relative; }
+        .footer-links a:hover { color: #fff; transform: translateY(-2px); }
+        .footer-copy { text-align: center; font-size: 0.8rem; opacity: 0.7; padding: 10px 0; background: #000000; margin: 0; }
+        .top-ad-container { display: flex; justify-content: center; align-items: center; margin: 0; min-height: 280px; background: #000000; border-bottom: 1px solid rgba(0, 204, 255, 0.15); overflow: hidden; }
+        .section-box { background: #000000; padding: 15px 0px; margin: 0; border: none; border-bottom: 1px solid rgba(0, 204, 255, 0.15); }
+        .info-box { background: #000000; padding: 20px; margin: 0; border-top: 1px solid rgba(0,204,255,0.15); border-bottom: 1px solid rgba(0,204,255,0.15); }
+        .disclaimer-box { background: #0a0000; padding: 15px; margin: 0; text-align: center; border-top: 1px solid rgba(255,0,0,0.3); border-bottom: 1px solid rgba(255,0,0,0.3); }
+        .native-ad-wrapper, .below-tutorial-ad { margin: 0; text-align: center; display: flex; justify-content: center; align-items: center; background: #000000; padding: 20px; border-top: 1px solid rgba(0,204,255,0.15); }
 
-        .popup-icon-btn.live-btn:hover span {
-            color: #ff6b6b;
-            font-weight: 700;
-        }
-
-        /* ========== Footer ========== */
-        .footer-links {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px 20px;
-            margin: 0;
-            padding: 20px 0;
-            font-size: 0.9rem;
-            background: #000000;
-            border-top: 1px solid rgba(0,204,255,0.15);
-        }
-
-        .footer-links a {
-            color: var(--accent);
-            text-decoration: none;
-            transition: 0.3s ease;
-            position: relative;
-        }
-
-        .footer-links a:hover {
-            color: #fff;
-            transform: translateY(-2px);
-        }
-
-        .footer-copy {
-            text-align: center;
-            font-size: 0.8rem;
-            opacity: 0.7;
-            padding: 10px 0;
-            background: #000000;
-            margin: 0;
-        }
-
-        /* ========== Ad Containers ========== */
-        .top-ad-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0;
-            min-height: 280px;
-            background: #000000;
-            border-bottom: 1px solid rgba(0, 204, 255, 0.15);
-            overflow: hidden;
-        }
-
-        .section-box {
-            background: #000000;
-            padding: 15px 0px;
-            margin: 0;
-            border: none;
-            border-bottom: 1px solid rgba(0, 204, 255, 0.15);
-        }
-
-        .info-box {
-            background: #000000;
-            padding: 20px;
-            margin: 0;
-            border-top: 1px solid rgba(0,204,255,0.15);
-            border-bottom: 1px solid rgba(0,204,255,0.15);
-        }
-
-        .disclaimer-box {
-            background: #0a0000;
-            padding: 15px;
-            margin: 0;
-            text-align: center;
-            border-top: 1px solid rgba(255,0,0,0.3);
-            border-bottom: 1px solid rgba(255,0,0,0.3);
-        }
-
-        .native-ad-wrapper, .below-tutorial-ad {
-            margin: 0;
-            text-align: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000000;
-            padding: 20px;
-            border-top: 1px solid rgba(0,204,255,0.15);
-        }
-
-        .batch-loading-indicator {
-            text-align: center;
-            padding: 20px;
-            background: #000000;
-            display: none;
-        }
-
-        .batch-loading-indicator.active {
-            display: block;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .loading-spinner {
-            width: 3rem;
-            height: 3rem;
-            border: 5px solid #1a1a1a;
-            border-top: 5px solid #28a745;
-            border-radius: 50%;
-            animation: spin 1.2s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* ========== Responsive Adjustments ========== */
         @media (max-width: 768px) {
-            .bottom-popup-modal {
-                padding: 6px 8px;
-            }
-
-            .popup-buttons {
-                gap: 4px;
-            }
-
-            .popup-icon-btn {
-                padding: 5px 8px;
-                min-width: 45px;
-                max-width: 60px;
-                height: 45px;
-                border-radius: 6px;
-            }
-
-            .popup-icon-btn i {
-                font-size: 1rem;
-            }
-
-            .popup-icon-btn span {
-                font-size: 0.45rem;
-            }
-
-            .popup-banner {
-                max-height: 40px;
-            }
+            .bottom-popup-modal { padding: 6px 8px; }
+            .popup-buttons { gap: 4px; }
+            .popup-icon-btn { padding: 5px 8px; min-width: 45px; max-width: 60px; height: 45px; border-radius: 6px; }
+            .popup-icon-btn i { font-size: 1rem; }
+            .popup-icon-btn span { font-size: 0.45rem; }
         }
 
         @media (max-width: 480px) {
-            .bottom-popup-modal {
-                padding: 5px 6px;
-            }
-
-            .popup-buttons {
-                gap: 3px;
-            }
-
-            .popup-icon-btn {
-                padding: 4px 6px;
-                min-width: 40px;
-                max-width: 55px;
-                height: 40px;
-                border-radius: 5px;
-            }
-
-            .popup-icon-btn i {
-                font-size: 0.9rem;
-            }
-
-            .popup-icon-btn span {
-                font-size: 0.4rem;
-                letter-spacing: 0.1px;
-            }
-
-            .popup-banner {
-                max-height: 35px;
-            }
+            .bottom-popup-modal { padding: 5px 6px; }
+            .popup-buttons { gap: 3px; }
+            .popup-icon-btn { padding: 4px 6px; min-width: 40px; max-width: 55px; height: 40px; border-radius: 5px; }
+            .popup-icon-btn i { font-size: 0.9rem; }
+            .popup-icon-btn span { font-size: 0.4rem; }
         }
 
         @media (min-width: 992px) {
-            .bottom-popup-modal {
-                padding: 10px 15px;
-            }
-
-            .popup-buttons {
-                gap: 8px;
-            }
-
-            .popup-icon-btn {
-                padding: 8px 12px;
-                min-width: 60px;
-                max-width: 80px;
-                height: 55px;
-            }
-
-            .popup-icon-btn i {
-                font-size: 1.2rem;
-            }
-
-            .popup-icon-btn span {
-                font-size: 0.55rem;
-            }
+            .bottom-popup-modal { padding: 10px 15px; }
+            .popup-buttons { gap: 8px; }
+            .popup-icon-btn { padding: 8px 12px; min-width: 60px; max-width: 80px; height: 55px; }
+            .popup-icon-btn i { font-size: 1.2rem; }
+            .popup-icon-btn span { font-size: 0.55rem; }
         }
     </style>
 </head>
 <body>
-    <!-- ========== Fixed Top Navbar ========== -->
     <nav class="top-navbar">
         <div class="navbar-content">
-            <!-- Logo Section -->
             <div class="logo-section">
                 <a href="/" class="logo-link">
                     <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
@@ -1044,41 +342,17 @@
                     </div>
                 </a>
             </div>
-
-            <!-- Action Buttons -->
             <div class="action-buttons">
-                <button class="search-icon-btn" id="searchIconBtn" onclick="toggleSearch()" aria-label="Search movies">
-                    <i class="fas fa-search"></i>
-                </button>
-                
+                <button class="search-icon-btn" id="searchIconBtn" onclick="toggleSearch()"><i class="fas fa-search"></i></button>
                 <div class="menu-section" style="position: relative;">
-                    <button class="menu-button" id="menuToggleBtn" onclick="toggleMenu()" aria-label="Menu">
-                        <div class="menu-lines">
-                            <div class="menu-line"></div>
-                            <div class="menu-line"></div>
-                            <div class="menu-line"></div>
-                        </div>
-                    </button>
-                    
+                    <button class="menu-button" id="menuToggleBtn" onclick="toggleMenu()"><div class="menu-lines"><div class="menu-line"></div><div class="menu-line"></div><div class="menu-line"></div></div></button>
                     <div class="menu-dropdown" id="menuDropdown">
                         <h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
                         <div class="menu-links">
-                            <a href="https://t.me/sk4film" target="_blank" class="menu-link">
-                                <i class="fab fa-telegram"></i>
-                                <span>Telegram Channel</span>
-                            </a>
-                            <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
-                                <i class="fab fa-whatsapp"></i>
-                                <span>WhatsApp Channel</span>
-                            </a>
-                            <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
-                                <i class="fab fa-youtube"></i>
-                                <span>YouTube</span>
-                            </a>
-                            <a href="https://sk4film.vercel.app/view.html" target="_blank" class="menu-link">
-                                <i class="fas fa-play-circle"></i>
-                                <span>Live Stream</span>
-                            </a>
+                            <a href="https://t.me/sk4film" target="_blank" class="menu-link"><i class="fab fa-telegram"></i><span>Telegram Channel</span></a>
+                            <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link"><i class="fab fa-whatsapp"></i><span>WhatsApp Channel</span></a>
+                            <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link"><i class="fab fa-youtube"></i><span>YouTube</span></a>
+                            <a href="https://sk4film.vercel.app/view.html" target="_blank" class="menu-link"><i class="fas fa-play-circle"></i><span>Live Stream</span></a>
                         </div>
                     </div>
                 </div>
@@ -1086,222 +360,92 @@
         </div>
     </nav>
 
-    <!-- ========== Search Panel ========== -->
     <div class="search-container" id="searchContainer">
         <div class="search-wrapper">
             <input type="text" class="inline-search-input" id="inlineSearchInput" placeholder="Search movies..." onkeypress="if(event.key==='Enter') doInlineSearch()">
-            <button class="inline-search-btn" onclick="doInlineSearch()">
-                <i class="fas fa-search"></i> Search
-            </button>
+            <button class="inline-search-btn" onclick="doInlineSearch()"><i class="fas fa-search"></i> Search</button>
         </div>
     </div>
 
-    <!-- ========== Main Content ========== -->
     <div class="container-fluid p-0">
-        <!-- Category Strip -->
-        <div class="category-strip" id="categoryStrip">
-            <button class="cat-btn" data-cat="bollywood">Bollywood</button>
-            <button class="cat-btn" data-cat="hollywood">Hollywood</button>
-            <button class="cat-btn" data-cat="south">South Indian</button>
-            <button class="cat-btn" data-cat="hindidubbed">Hindi Dubbed</button>
-            <button class="cat-btn" data-cat="dualaudio">Dual Audio</button>
-            <button class="cat-btn" data-cat="webseries">Web Series</button>
-            <button class="cat-btn" data-cat="tamil">Tamil</button>
-            <button class="cat-btn" data-cat="telugu">Telugu</button>
-            <button class="cat-btn" data-cat="punjabi">Punjabi</button>
-            <button class="cat-btn" data-cat="action">Action</button>
-            <button class="cat-btn" data-cat="thriller">Thriller</button>
-            <button class="cat-btn" data-cat="crime">Crime</button>
-            <button class="cat-btn" data-cat="drama">Drama</button>
-            <button class="cat-btn" data-cat="romance">Romance</button>
-            <button class="cat-btn" data-cat="comedy">Comedy</button>
-            <button class="cat-btn" data-cat="horror">Horror</button>
-            <button class="cat-btn" data-cat="mystery">Mystery</button>
-            <button class="cat-btn" data-cat="adventure">Adventure</button>
-            <button class="cat-btn" data-cat="fantasy">Fantasy</button>
-            <button class="cat-btn" data-cat="animation">Animation</button>
+        <div class="category-strip">
+            <button class="cat-btn">Bollywood</button><button class="cat-btn">Hollywood</button><button class="cat-btn">South Indian</button>
+            <button class="cat-btn">Hindi Dubbed</button><button class="cat-btn">Dual Audio</button><button class="cat-btn">Web Series</button>
+            <button class="cat-btn">Tamil</button><button class="cat-btn">Telugu</button><button class="cat-btn">Punjabi</button>
+            <button class="cat-btn">Action</button><button class="cat-btn">Thriller</button><button class="cat-btn">Crime</button>
+            <button class="cat-btn">Drama</button><button class="cat-btn">Romance</button><button class="cat-btn">Comedy</button>
+            <button class="cat-btn">Horror</button><button class="cat-btn">Mystery</button><button class="cat-btn">Adventure</button>
+            <button class="cat-btn">Fantasy</button><button class="cat-btn">Animation</button>
         </div>
 
-        <!-- Welcome Blurb -->
         <div class="welcome-blurb">
-            <strong>Welcome to SK4FiLM</strong> – latest Bollywood, South Indian, Hollywood, Dual Audio, Hindi Dubbed Movies & Web Series updates with quality tags like <span class="highlight">480p, 720p, 1080p, HEVC x265 and 4K</span>.<br>
-            Explore trending genres with clean navigation, fast browsing and updated posts.
+            <strong>Welcome to SK4FiLM</strong> – latest Bollywood, South Indian, Hollywood, Dual Audio, Hindi Dubbed Movies & Web Series updates with quality tags like <span class="highlight">480p, 720p, 1080p, HEVC x265 and 4K</span>.
         </div>
 
-        <!-- Top Ad (Original Placement) -->
-        <div class="top-ad-container">
-            <div>
-                <script type="text/javascript">
-                    aclib.runBanner({
-                        zoneId: '11576274',
-                    });
-                </script>
-            </div>
-        </div>
+        <div class="top-ad-container"><div><script type="text/javascript">aclib.runBanner({zoneId:'11576274'});</script></div></div>
 
-        <!-- Movies Section -->
-        <div class="section-box animate__animated animate__fadeIn">
-            <div style="margin-bottom:15px; padding-left: 12px;">
-                <h2 style="color:var(--accent);font-size:2rem;">
-                    <i class="fas fa-film me-3" style="color:var(--primary);"></i>Latest Movies
-                </h2>
-            </div>
-            
-            <div class="batch-loading-indicator" id="batchLoadingIndicator">
-                <div class="loading-spinner"></div>
-                <p>Loading next batch...</p>
-            </div>
-            
+        <div class="section-box">
+            <div style="margin-bottom:15px;padding-left:12px;"><h2 style="color:var(--accent);font-size:2rem;"><i class="fas fa-film me-3" style="color:var(--primary);"></i>Latest Movies</h2></div>
             <div id="homeMoviesContainer"></div>
         </div>
 
-        <!-- Pagination -->
         <div class="pagination-wrapper" id="paginationWrapper"></div>
 
-        <!-- Info Box -->
-        <div class="info-box">
-            <h4 style="color:var(--accent);"><i class="fas fa-film me-2"></i>SK4FiLM Movies Collection</h4>
-            <p style="font-size:0.95rem; line-height:1.7; margin-bottom:0;">SK4FiLM focuses on South Indian Hindi Dubbed movies, Bollywood releases and Hollywood Hindi content with quality labels like 480p, 720p, 1080p and HEVC.</p>
-        </div>
+        <div class="info-box"><h4 style="color:var(--accent);"><i class="fas fa-film me-2"></i>SK4FiLM Movies Collection</h4><p style="font-size:0.95rem;line-height:1.7;margin-bottom:0;">SK4FiLM focuses on South Indian Hindi Dubbed movies, Bollywood releases and Hollywood Hindi content with quality labels like 480p, 720p, 1080p and HEVC.</p></div>
 
-        <!-- Native Ad -->
-        <div class="native-ad-wrapper">
-            <script async="async" data-cfasync="false" src="https://marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script>
-            <div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div>
-        </div>
+        <div class="native-ad-wrapper"><script async="async" data-cfasync="false" src="https://marksdespitelinear.com/5573755ef934011c90bfd5fd2a87ab2a/invoke.js"></script><div id="container-5573755ef934011c90bfd5fd2a87ab2a"></div></div>
 
-        <!-- Tutorial Videos -->
         <div class="section-box">
-            <h2 style="color:var(--accent);text-align:center; margin-top: 0;">
-                <i class="fas fa-play-circle me-2"></i>Tutorial Videos
-            </h2>
+            <h2 style="color:var(--accent);text-align:center;"><i class="fas fa-play-circle me-2"></i>Tutorial Videos</h2>
             <div class="row gy-4 mt-2 px-2">
-                <div class="col-md-4">
-                    <div style="background:#0a0a0a;padding:15px;">
-                        <h5 style="color:var(--accent);">How to Search</h5>
-                        <div class="ratio ratio-16x9">
-                            <iframe src="https://www.youtube.com/embed/PSQ9_KLzm8s" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div style="background:#0a0a0a;padding:15px;">
-                        <h5 style="color:var(--accent);">StreamNet Link</h5>
-                        <div class="ratio ratio-16x9">
-                            <iframe src="https://www.youtube.com/embed/fVL7DfhnwWM" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div style="background:#0a0a0a;padding:15px;">
-                        <h5 style="color:var(--accent);">DiskWala Link</h5>
-                        <div class="ratio ratio-16x9">
-                            <iframe src="https://www.youtube.com/embed/ZNKeL-pcIDw" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                </div>
+                <div class="col-md-4"><div style="background:#0a0a0a;padding:15px;"><h5 style="color:var(--accent);">How to Search</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/PSQ9_KLzm8s" allowfullscreen></iframe></div></div></div>
+                <div class="col-md-4"><div style="background:#0a0a0a;padding:15px;"><h5 style="color:var(--accent);">StreamNet Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/fVL7DfhnwWM" allowfullscreen></iframe></div></div></div>
+                <div class="col-md-4"><div style="background:#0a0a0a;padding:15px;"><h5 style="color:var(--accent);">DiskWala Link</h5><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/ZNKeL-pcIDw" allowfullscreen></iframe></div></div></div>
             </div>
         </div>
 
-        <!-- Below Tutorial Ad -->
-        <div class="below-tutorial-ad">
-            <script>atOptions={'key':'567936a964b0784aedd11f237d26bee0','format':'iframe','height':250,'width':300,'params':{}};</script>
-            <script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-        </div>
+        <div class="below-tutorial-ad"><script>atOptions={'key':'567936a964b0784aedd11f237d26bee0','format':'iframe','height':250,'width':300,'params':{}};</script><script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script></div>
 
-        <!-- Disclaimer -->
-        <div class="disclaimer-box">
-            <p style="margin-bottom:0;">
-                <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> 
-                This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted on Telegram or Internet.
-            </p>
-        </div>
+        <div class="disclaimer-box"><p style="margin-bottom:0;"><strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer:</strong> This Site Does Not Store Any File On The Server, It Only Links To Media Files Which Are Already Hosted on Telegram or Internet.</p></div>
 
-        <!-- Footer Links -->
-        <div class="footer-links">
-            <a href="/about.html">About Us</a>
-            <a href="/contact.html">Contact Us</a>
-            <a href="/dmca.html">DMCA</a>
-            <a href="/privacy.html">Privacy Policy</a>
-            <a href="/terms.html">Terms of Service</a>
-        </div>
-        
-        <div class="footer-copy">
-            Copyright © 2026. Created by <strong style="color:var(--accent);">SK4FiLM Team</strong>
-        </div>
+        <div class="footer-links"><a href="/about.html">About Us</a><a href="/contact.html">Contact Us</a><a href="/dmca.html">DMCA</a><a href="/privacy.html">Privacy Policy</a><a href="/terms.html">Terms of Service</a></div>
+        <div class="footer-copy">Copyright © 2026. Created by <strong style="color:var(--accent);">SK4FiLM Team</strong></div>
     </div>
 
-    <!-- ========== Bottom Popup Modal (Compact) ========== -->
     <div id="bottomPopupModal" class="bottom-popup-modal">
         <div class="popup-inner">
-            <!-- Popup Banner Ad (Hidden by default) -->
-            <div class="popup-banner" id="popupBanner" style="display: none;">
-                <div class="banner-ad-container">
-                    <!-- Banner ad content can be placed here -->
-                </div>
-            </div>
-            
-            <!-- Popup Buttons - Compact Layout -->
-            <div class="popup-buttons" id="popupButtons">
-                <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM', '_blank')" title="Backup Channel">
-                    <i class="fab fa-telegram-plane"></i>
-                    <span>Backup</span>
-                </button>
-                
-                <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk', '_blank')" title="Download App">
-                    <i class="fas fa-download"></i>
-                    <span>App</span>
-                </button>
-                
-                <button class="popup-icon-btn" onclick="copyShareLinkWithMessage()" title="Copy Link">
-                    <i class="fas fa-copy"></i>
-                    <span>Copy</span>
-                </button>
-                
-                <button class="popup-icon-btn" onclick="shareWithMessage()" title="Share">
-                    <i class="fas fa-share-alt"></i>
-                    <span>Share</span>
-                </button>
-                
-                <a href="https://t.me/+0iMDc7jCLThkNmRl" target="_blank" class="popup-icon-btn" title="Request Movie">
-                    <i class="fas fa-hand-pointer"></i>
-                    <span>Request</span>
-                </a>
-                
-                <a href="https://sk4film.vercel.app/view.html" target="_blank" class="popup-icon-btn live-btn" title="Live Stream">
-                    <i class="fas fa-play-circle"></i>
-                    <span>Live</span>
-                </a>
+            <div class="popup-buttons">
+                <button class="popup-icon-btn" onclick="window.open('https://broadcaster24.com/join/CCM33FHM','_blank')"><i class="fab fa-telegram-plane"></i><span>Backup</span></button>
+                <button class="popup-icon-btn" onclick="window.open('https://github.com/sk4film/Web/releases/download/v1.0/SK4Film.apk','_blank')"><i class="fas fa-download"></i><span>App</span></button>
+                <button class="popup-icon-btn" onclick="copyShareLink()"><i class="fas fa-copy"></i><span>Copy</span></button>
+                <button class="popup-icon-btn" onclick="shareLink()"><i class="fas fa-share-alt"></i><span>Share</span></button>
+                <a href="https://t.me/+0iMDc7jCLThkNmRl" target="_blank" class="popup-icon-btn"><i class="fas fa-hand-pointer"></i><span>Request</span></a>
+                <a href="https://sk4film.vercel.app/view.html" target="_blank" class="popup-icon-btn live-btn"><i class="fas fa-play-circle"></i><span>Live</span></a>
             </div>
         </div>
     </div>
 
-    <!-- Footer Ad -->
     <footer>
-        <div class="ad-container" style="display: flex; justify-content: center; padding: 20px 0; background: #000;">
+        <div style="display:flex;justify-content:center;padding:20px 0;background:#000;">
             <div id="adFooterDesktop">
-                <script type="text/javascript">
-                    atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};
-                </script>
+                <script type="text/javascript">atOptions={'key':'3118cf3c0d1d908e59d96fac6de40e1f','format':'iframe','height':90,'width':728,'params':{}};</script>
                 <script type="text/javascript" src="//marksdespitelinear.com/3118cf3c0d1d908e59d96fac6de40e1f/invoke.js"></script>
             </div>
         </div>
     </footer>
 
     <script>
-        // ========== Configuration ==========
-        const TELEGRAM_CHANNEL = 'sk4film';
-        const TELEGRAM_POSTER_API = 'https://sk4film.koyeb.app/api/telegram/poster';
+        // ========== CONFIGURATION ==========
         const BACKEND_URL = 'https://sk4film.koyeb.app';
         const FALLBACK_IMAGE = 'https://iili.io/fAeIwv9.th.png';
         const AD_LINK = 'https://marksdespitelinear.com/euy7z0tfu8?key=34374a488a1c64bc290dbe0e697dcde0';
+        const PER_PAGE = 24;
 
         let allMovies = [];
-        const PER_PAGE = 25;
         let currentPage = 1;
         let totalPages = 1;
 
-        // ========== Category Button Click ==========
+        // ========== CATEGORY BUTTONS ==========
         document.querySelectorAll('.cat-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -1309,226 +453,170 @@
             });
         });
 
-        // ========== Format Movie Title ==========
+        // ========== FORMAT MOVIE TITLE ==========
         function formatMovieTitle(movie) {
-            let title = movie.title || 'Unknown';
-            let year = movie.year || '2024';
-            let language = movie.language || 'Hindi';
-            let isDualAudio = movie.is_dual_audio || false;
-            let sourceType = movie.source || movie.quality || 'WEB-DL';
+            const title = movie.title || 'Unknown';
+            const year = movie.year || '';
+            const language = movie.language || '';
+            const isDualAudio = movie.is_dual_audio || false;
+            const sourceType = movie.source || movie.quality || '';
             
-            let formattedTitle = title;
-            if (year && year !== 'N/A') formattedTitle += ' <span style="color:#ffaa00;">(' + year + ')</span>';
-            if (language && language !== 'N/A') formattedTitle += ' <span style="color:#ff6b6b;">' + language + '</span>';
+            let ft = title;
+            if (year && year !== 'N/A') ft += ' <span style="color:#ffaa00;">(' + year + ')</span>';
+            if (language && language !== 'N/A') ft += ' <span style="color:#ff6b6b;">' + language + '</span>';
             if (sourceType && sourceType !== 'N/A') {
-                let sourceDisplay = sourceType.toUpperCase();
-                if (sourceDisplay.includes('WEB')) sourceDisplay = 'WEB-DL';
-                else if (sourceDisplay.includes('HDTC')) sourceDisplay = 'HDTC';
-                else if (sourceDisplay.includes('ORG')) sourceDisplay = 'ORG';
-                else if (sourceDisplay.includes('BLURAY')) sourceDisplay = 'BluRay';
-                else if (sourceDisplay.includes('DVD')) sourceDisplay = 'DVD-Rip';
-                formattedTitle += ' <span style="color:#2ecc71;">' + sourceDisplay + '</span>';
+                let sd = sourceType.toUpperCase();
+                if (sd.includes('WEB')) sd = 'WEB-DL';
+                else if (sd.includes('HDTC')) sd = 'HDTC';
+                else if (sd.includes('ORG')) sd = 'ORG';
+                else if (sd.includes('BLURAY')) sd = 'BluRay';
+                ft += ' <span style="color:#2ecc71;">' + sd + '</span>';
             }
-            if (isDualAudio || language === 'Dual Audio' || language === 'Multi Audio') {
-                formattedTitle += ' <span style="color:#e74c3c;font-weight:800;">MULTi</span>';
-                formattedTitle += ' <span style="color:#2ecc71;">Dual Audio</span>';
+            if (isDualAudio || language === 'Dual Audio') {
+                ft += ' <span style="color:#e74c3c;">MULTi</span>';
             }
-            formattedTitle += ' <span style="color:#00ccff;">Full Movie</span>';
-            return formattedTitle;
+            ft += ' <span style="color:#00ccff;">Full Movie</span>';
+            return ft;
         }
 
-        // ========== Get Telegram Poster URL ==========
-        function getTelegramPosterUrl(movieTitle, year) {
-            return `${TELEGRAM_POSTER_API}?channel=${TELEGRAM_CHANNEL}&title=${encodeURIComponent(movieTitle)}&year=${year || ''}`;
-        }
-
-        // ========== Format Release Date ==========
-        function formatReleaseDate(movie) {
-            if(movie.release_date && movie.release_date !== 'N/A') return movie.release_date;
-            if(movie.year && movie.year !== 'N/A') return movie.year;
+        // ========== FORMAT DATE ==========
+        function formatDate(movie) {
+            if (movie.release_date && movie.release_date !== 'N/A') return movie.release_date;
+            if (movie.year && movie.year !== 'N/A') return movie.year;
             return 'Coming Soon';
         }
 
-        // ========== Generate Skeleton Grid ==========
-        function generateSkeletonGrid(count = 25) {
+        // ========== SKELETON GRID ==========
+        function showSkeleton() {
             let html = '';
-            for(let i=0; i<count; i++) {
-                html += '<div style="aspect-ratio: 2/3; background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border: 1px solid rgba(255,255,255,0.05);"></div>';
+            for (let i = 0; i < PER_PAGE; i++) {
+                html += '<div style="aspect-ratio:2/3;background:linear-gradient(90deg,#1a1a1a 25%,#2a2a2a 50%,#1a1a1a 75%);background-size:200% 100%;animation:skeleton-loading 1.5s infinite;border:1px solid rgba(255,255,255,0.05);"></div>';
             }
             document.getElementById('homeMoviesContainer').innerHTML = html;
         }
 
-        // ========== Render Page ==========
+        // ========== RENDER PAGE ==========
         function renderPage(page) {
             const container = document.getElementById('homeMoviesContainer');
             container.innerHTML = '';
+            
             const start = (page - 1) * PER_PAGE;
             const end = Math.min(start + PER_PAGE, allMovies.length);
-            const pageMovies = allMovies.slice(start, end);
+            const movies = allMovies.slice(start, end);
             
-            if (!pageMovies.length) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;grid-column:1/-1;"><i class="fas fa-film fa-3x text-muted"></i><p>No movies found.</p></div>';
+            if (!movies.length) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;grid-column:1/-1;"><p>No movies found.</p></div>';
                 updatePagination();
                 return;
             }
             
             const frag = document.createDocumentFragment();
-            pageMovies.forEach((m) => {
+            movies.forEach(m => {
                 const title = m.title || 'Unknown';
                 const isNew = m.is_new || false;
-                const rating = m.poster_rating || '0.0';
-                const releaseInfo = formatReleaseDate(m);
                 const card = document.createElement('div');
-                card.className = 'movie-card animate__animated animate__fadeInUp';
+                card.className = 'movie-card';
                 
                 let badges = '';
-                if(isNew) badges += '<div class="new-badge"><i class="fas fa-bolt me-1" style="font-size: 0.45rem;"></i>NEW</div>';
-                if(rating !== '0.0') badges += '<div class="rating-badge" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.8);color:#ffd700;padding:2px 6px;border-radius:12px;font-size:0.55rem;font-weight:700;z-index:5;border:1px solid rgba(255,215,0,0.3);"><i class="fas fa-star me-1"></i>' + rating + '</div>';
+                if (isNew) badges += '<div class="new-badge">NEW</div>';
                 
-                const formattedTitle = formatMovieTitle(m);
-                let posterUrl = m.thumbnail_url || m.poster_url;
-                if (!posterUrl || !posterUrl.startsWith('http')) {
-                    posterUrl = getTelegramPosterUrl(title, m.year);
-                }
+                let posterUrl = m.thumbnail_url || m.poster_url || FALLBACK_IMAGE;
+                if (!posterUrl.startsWith('http')) posterUrl = FALLBACK_IMAGE;
                 
                 card.innerHTML = `
-                    <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}');"></div>
+                    <div class="click-overlay" onclick="handleMovieClick('${escapeJS(title)}')"></div>
                     <div class="poster-wrapper">
-                        <img class="hq-poster" alt="${escapeHTML(title)}" loading="lazy" src="${FALLBACK_IMAGE}" data-poster="${escapeHTML(posterUrl)}" style="filter: blur(15px); transition: filter 0.7s ease-out, opacity 0.5s ease-out;">
+                        <img class="hq-poster" alt="${escapeHTML(title)}" loading="lazy" src="${posterUrl}" onerror="this.src='${FALLBACK_IMAGE}'">
                         ${badges}
                     </div>
                     <div class="movie-info">
-                        <div class="movie-title">${formattedTitle}</div>
-                        <div style="font-size:0.5rem;color:#888;margin-top:2px;"><i class="far fa-calendar-alt me-1"></i>${escapeHTML(releaseInfo)}</div>
+                        <div class="movie-title">${formatMovieTitle(m)}</div>
+                        <div style="font-size:0.5rem;color:#888;">${escapeHTML(formatDate(m))}</div>
                     </div>
                 `;
                 frag.appendChild(card);
             });
             container.appendChild(frag);
-            
-            // Lazy load posters
-            const cards = container.querySelectorAll('.movie-card');
-            cards.forEach((card, idx) => {
-                const img = card.querySelector('.hq-poster');
-                const movie = pageMovies[idx];
-                if (!img || !movie) return;
-                
-                let posterUrl = movie.thumbnail_url || movie.poster_url;
-                if (!posterUrl || !posterUrl.startsWith('http')) {
-                    posterUrl = getTelegramPosterUrl(movie.title || '', movie.year || '');
-                }
-                
-                const highImg = new Image();
-                const timeout = setTimeout(() => {
-                    img.style.filter = 'blur(0px)';
-                    img.style.opacity = '1';
-                }, 8000);
-                
-                highImg.onload = () => {
-                    clearTimeout(timeout);
-                    img.src = highImg.src;
-                    setTimeout(() => { img.style.filter = 'blur(0px)'; img.style.opacity = '1'; }, 100);
-                };
-                
-                highImg.onerror = () => {
-                    clearTimeout(timeout);
-                    img.src = FALLBACK_IMAGE;
-                    img.style.filter = 'blur(0px)';
-                    img.style.opacity = '1';
-                };
-                
-                highImg.src = posterUrl;
-            });
-            
             updatePagination();
         }
 
-        // ========== Update Pagination ==========
+        // ========== PAGINATION ==========
         function updatePagination() {
             const wrapper = document.getElementById('paginationWrapper');
             wrapper.innerHTML = '';
             if (totalPages <= 1) return;
             
-            const prevBtn = document.createElement('button');
-            prevBtn.className = 'page-btn arrow';
-            prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i> Prev';
-            prevBtn.disabled = currentPage === 1;
-            prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; renderPage(currentPage); window.scrollTo({top: 0, behavior: 'smooth'}); } };
-            wrapper.appendChild(prevBtn);
+            // Prev button
+            const prev = document.createElement('button');
+            prev.className = 'page-btn'; prev.innerHTML = '« Prev';
+            prev.disabled = currentPage === 1;
+            prev.onclick = () => { if (currentPage > 1) goToPage(currentPage - 1); };
+            wrapper.appendChild(prev);
             
-            const maxVisible = 7;
-            let startPage = Math.max(1, currentPage - 3);
-            let endPage = Math.min(totalPages, currentPage + 3);
-            if (endPage - startPage < maxVisible - 1) {
-                if (startPage === 1) endPage = Math.min(totalPages, startPage + maxVisible - 1);
-                else if (endPage === totalPages) startPage = Math.max(1, endPage - maxVisible + 1);
-            }
-            
-            if (startPage > 1) {
-                const firstBtn = document.createElement('button');
-                firstBtn.className = 'page-btn';
-                firstBtn.textContent = '1';
-                firstBtn.onclick = () => { currentPage = 1; renderPage(1); window.scrollTo({top: 0, behavior: 'smooth'}); };
-                wrapper.appendChild(firstBtn);
-                if (startPage > 2) {
-                    const dots = document.createElement('span');
-                    dots.className = 'page-btn';
-                    dots.textContent = '…';
-                    dots.style.background = 'transparent';
-                    dots.style.border = 'none';
-                    dots.style.cursor = 'default';
-                    wrapper.appendChild(dots);
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (totalPages > 10 && i > 3 && i < totalPages - 2 && i !== currentPage && i !== currentPage - 1 && i !== currentPage + 1) {
+                    if (i === 4) { const dots = document.createElement('span'); dots.textContent = '...'; dots.style.cssText = 'color:#888;padding:6px;'; wrapper.appendChild(dots); }
+                    continue;
                 }
-            }
-            
-            for (let i = startPage; i <= endPage; i++) {
                 const btn = document.createElement('button');
                 btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
                 btn.textContent = i;
-                btn.onclick = () => { currentPage = i; renderPage(currentPage); window.scrollTo({top: 0, behavior: 'smooth'}); };
+                btn.onclick = () => goToPage(i);
                 wrapper.appendChild(btn);
             }
             
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                    const dots = document.createElement('span');
-                    dots.className = 'page-btn';
-                    dots.textContent = '…';
-                    dots.style.background = 'transparent';
-                    dots.style.border = 'none';
-                    dots.style.cursor = 'default';
-                    wrapper.appendChild(dots);
-                }
-                const lastBtn = document.createElement('button');
-                lastBtn.className = 'page-btn';
-                lastBtn.textContent = totalPages;
-                lastBtn.onclick = () => { currentPage = totalPages; renderPage(totalPages); window.scrollTo({top: 0, behavior: 'smooth'}); };
-                wrapper.appendChild(lastBtn);
-            }
-            
-            const nextBtn = document.createElement('button');
-            nextBtn.className = 'page-btn arrow';
-            nextBtn.innerHTML = 'Next <i class="fas fa-chevron-right"></i>';
-            nextBtn.disabled = currentPage === totalPages;
-            nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; renderPage(currentPage); window.scrollTo({top: 0, behavior: 'smooth'}); } };
-            wrapper.appendChild(nextBtn);
+            // Next button
+            const next = document.createElement('button');
+            next.className = 'page-btn'; next.innerHTML = 'Next »';
+            next.disabled = currentPage === totalPages;
+            next.onclick = () => { if (currentPage < totalPages) goToPage(currentPage + 1); };
+            wrapper.appendChild(next);
         }
 
-        // ========== Load Home Movies ==========
-        async function loadHomeMovies() {
+        // ========== GO TO PAGE (WITH INTERSTITIAL) ==========
+        function goToPage(pageNumber) {
+            if (pageNumber !== currentPage) {
+                aclib.runInterstitial({ zoneId: '11576834' });
+                setTimeout(() => {
+                    currentPage = pageNumber;
+                    renderPage(currentPage);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }, 1200);
+            }
+        }
+
+        // ========== LOAD MOVIES ==========
+        async function loadMovies() {
+            console.log('Fetching movies from:', BACKEND_URL + '/api/movies');
             try {
-                const resp = await fetch(`${BACKEND_URL}/api/movies`);
-                const data = await resp.json();
-                if (data.status === 'success' && data.movies?.length) {
+                const response = await fetch(BACKEND_URL + '/api/movies');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                
+                const data = await response.json();
+                console.log('Data received:', data);
+                
+                if (data && Array.isArray(data.movies) && data.movies.length > 0) {
                     allMovies = data.movies;
                     totalPages = Math.ceil(allMovies.length / PER_PAGE);
                     currentPage = 1;
+                    console.log('Loaded', allMovies.length, 'movies,', totalPages, 'pages');
+                    renderPage(1);
+                } else if (Array.isArray(data) && data.length > 0) {
+                    // API might return array directly
+                    allMovies = data;
+                    totalPages = Math.ceil(allMovies.length / PER_PAGE);
+                    currentPage = 1;
+                    console.log('Loaded', allMovies.length, 'movies (direct array)');
                     renderPage(1);
                 } else {
+                    console.warn('No movies in response');
                     showError();
                 }
-            } catch(e) {
-                console.error('Error loading movies:', e);
+            } catch (error) {
+                console.error('Fetch error:', error);
                 showError();
             }
         }
@@ -1536,161 +624,99 @@
         function showError() {
             document.getElementById('homeMoviesContainer').innerHTML = `
                 <div style="text-align:center;padding:40px;grid-column:1/-1;">
-                    <i class="fas fa-exclamation-triangle fa-5x text-warning"></i>
-                    <h3>Error loading movies</h3>
-                    <button onclick="location.reload()" style="background:#28a745;color:white;border:none;padding:10px 20px;cursor:pointer;border-radius:5px;">Retry</button>
-                </div>
-            `;
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+                    <h4 style="color:#fff;">Movies Load Nahi Ho Rahe</h4>
+                    <p style="color:#888;">API Connection Error</p>
+                    <button onclick="retryLoad()" style="background:#28a745;color:#fff;border:none;padding:10px 25px;border-radius:5px;cursor:pointer;font-size:1rem;">🔄 Retry</button>
+                </div>`;
         }
 
-        // ========== Toggle Search ==========
+        function retryLoad() {
+            showSkeleton();
+            setTimeout(loadMovies, 500);
+        }
+
+        // ========== SEARCH & MENU TOGGLE ==========
         function toggleSearch() {
             const sc = document.getElementById('searchContainer');
             const md = document.getElementById('menuDropdown');
-            const mb = document.getElementById('menuToggleBtn');
             const sb = document.getElementById('searchIconBtn');
-            
-            if (md && md.classList.contains('active')) {
-                md.classList.remove('active');
-                if(mb) mb.classList.remove('active');
-            }
-            
-            if (sc) {
-                sc.classList.toggle('active');
-                document.body.classList.toggle('search-active', sc.classList.contains('active'));
-                if (sb) sb.classList.toggle('active', sc.classList.contains('active'));
-                if (sc.classList.contains('active')) {
-                    setTimeout(() => { document.getElementById('inlineSearchInput')?.focus(); }, 100);
-                }
-            }
+            if (md && md.classList.contains('active')) { md.classList.remove('active'); document.getElementById('menuToggleBtn')?.classList.remove('active'); }
+            if (sc) { sc.classList.toggle('active'); document.body.classList.toggle('search-active', sc.classList.contains('active')); if (sb) sb.classList.toggle('active', sc.classList.contains('active')); if (sc.classList.contains('active')) setTimeout(() => document.getElementById('inlineSearchInput')?.focus(), 100); }
         }
 
-        // ========== Toggle Menu ==========
         function toggleMenu() {
             const md = document.getElementById('menuDropdown');
-            const mb = document.getElementById('menuToggleBtn');
             const sc = document.getElementById('searchContainer');
             const sb = document.getElementById('searchIconBtn');
-            
-            if (sc && sc.classList.contains('active')) {
-                sc.classList.remove('active');
-                document.body.classList.remove('search-active');
-                if (sb) sb.classList.remove('active');
-            }
-            
-            if (md) md.classList.toggle('active');
-            if (mb) mb.classList.toggle('active');
+            if (sc && sc.classList.contains('active')) { sc.classList.remove('active'); document.body.classList.remove('search-active'); if (sb) sb.classList.remove('active'); }
+            if (md) { md.classList.toggle('active'); document.getElementById('menuToggleBtn')?.classList.toggle('active'); }
         }
 
-        // ========== Inline Search ==========
         function doInlineSearch() {
             const q = document.getElementById('inlineSearchInput').value.trim();
-            if (q.length >= 2) {
-                window.location.href = `search.html?query=${encodeURIComponent(q)}`;
-            } else {
-                alert('Please enter at least 2 characters to search');
-            }
+            if (q.length >= 2) window.location.href = 'search.html?query=' + encodeURIComponent(q);
+            else alert('Please enter at least 2 characters');
         }
 
-        // ========== Handle Movie Click ==========
         function handleMovieClick(title) {
-            aclib.runInterstitial({
-                zoneId: '11576834'
-            });
-            setTimeout(() => {
-                window.location.href = `search.html?query=${encodeURIComponent(title)}`;
-            }, 1200);
+            window.location.href = 'search.html?query=' + encodeURIComponent(title);
         }
 
-        // ========== Utility Functions ==========
-        function escapeHTML(s) {
-            if(!s) return '';
-            const div = document.createElement('div');
-            div.textContent = s;
-            return div.innerHTML;
+        // ========== UTILS ==========
+        function escapeHTML(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function escapeJS(s) { if (!s) return ''; return s.replace(/[\\"']/g, '\\$&'); }
+
+        function copyShareLink() {
+            const msg = '🔥 Download Latest HD Movies at SK4FiLM! 🎬 https://tinyurl.com/y9ca8mcx';
+            navigator.clipboard.writeText(msg).then(() => alert('✅ Copied!')).catch(() => prompt('Copy:', msg));
         }
 
-        function escapeJS(s) {
-            if(!s) return '';
-            return s.replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0');
-        }
-
-        // ========== Copy & Share Functions ==========
-        function copyShareLinkWithMessage() {
+        function shareLink() {
             const url = 'https://tinyurl.com/y9ca8mcx';
-            const msg = '🔥 Download Latest HD Movies at SK4FiLM! 🎬 Get your favorite movies now: ' + url;
-            navigator.clipboard.writeText(msg).then(() => {
-                alert('✅ Copied!\n' + msg);
-            }).catch(() => {
-                prompt('Copy this link:', msg);
-            });
+            const text = '🔥 Download Latest HD Movies at SK4FiLM! 🎬';
+            if (navigator.share) navigator.share({ title: 'SK4FiLM', text, url }).catch(() => {});
+            else { navigator.clipboard.writeText(text + ' ' + url).then(() => alert('✅ Link copied!')); }
         }
 
-        function shareWithMessage() {
-            const url = 'https://tinyurl.com/y9ca8mcx';
-            const text = '🔥 Download Latest HD Movies at SK4FiLM! 🎬 Watch now:';
-            if (navigator.share) {
-                navigator.share({ title: 'SK4FiLM', text: text, url: url }).catch(() => {});
-            } else {
-                const msg = text + ' ' + url;
-                navigator.clipboard.writeText(msg).then(() => alert('✅ Share message copied!')).catch(() => {
-                    prompt('Copy this message:', msg);
-                });
-            }
-        }
-
-        // ========== Close panels on outside click ==========
+        // ========== CLOSE PANELS ==========
         document.addEventListener('click', function(e) {
-            const searchContainer = document.getElementById('searchContainer');
-            const searchBtn = document.getElementById('searchIconBtn');
-            const menuDropdown = document.getElementById('menuDropdown');
-            const menuBtn = document.getElementById('menuToggleBtn');
-            
-            if (searchContainer && searchBtn && !searchContainer.contains(e.target) && !searchBtn.contains(e.target)) {
-                searchContainer.classList.remove('active');
-                document.body.classList.remove('search-active');
-                searchBtn.classList.remove('active');
-            }
-            
-            if (menuDropdown && menuBtn && !menuDropdown.contains(e.target) && !menuBtn.contains(e.target)) {
-                menuDropdown.classList.remove('active');
-                if (menuBtn) menuBtn.classList.remove('active');
-            }
+            const sc = document.getElementById('searchContainer');
+            const sb = document.getElementById('searchIconBtn');
+            const md = document.getElementById('menuDropdown');
+            const mb = document.getElementById('menuToggleBtn');
+            if (sc && sb && !sc.contains(e.target) && !sb.contains(e.target)) { sc.classList.remove('active'); document.body.classList.remove('search-active'); sb.classList.remove('active'); }
+            if (md && mb && !md.contains(e.target) && !mb.contains(e.target)) { md.classList.remove('active'); mb.classList.remove('active'); }
         });
 
-        // ========== Keyboard Shortcuts ==========
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 const sc = document.getElementById('searchContainer');
                 const md = document.getElementById('menuDropdown');
-                const sb = document.getElementById('searchIconBtn');
-                const mb = document.getElementById('menuToggleBtn');
-                
-                if (sc && sc.classList.contains('active')) {
-                    sc.classList.remove('active');
-                    document.body.classList.remove('search-active');
-                    if (sb) sb.classList.remove('active');
-                }
-                if (md && md.classList.contains('active')) {
-                    md.classList.remove('active');
-                    if (mb) mb.classList.remove('active');
-                }
+                if (sc?.classList.contains('active')) { sc.classList.remove('active'); document.body.classList.remove('search-active'); document.getElementById('searchIconBtn')?.classList.remove('active'); }
+                if (md?.classList.contains('active')) { md.classList.remove('active'); document.getElementById('menuToggleBtn')?.classList.remove('active'); }
             }
         });
 
-        // ========== Initialize ==========
-        document.addEventListener('DOMContentLoaded', function() {
-            generateSkeletonGrid(25);
-            setTimeout(loadHomeMovies, 600);
+        // ========== INIT ==========
+        window.addEventListener('load', function() {
+            // Page load interstitial
+            aclib.runInterstitial({ zoneId: '11576834' });
+            
+            showSkeleton();
+            
+            // Load movies after short delay
+            setTimeout(loadMovies, 1000);
         });
 
-        // ========== Expose to global scope ==========
+        // Expose to global
         window.toggleSearch = toggleSearch;
         window.toggleMenu = toggleMenu;
         window.doInlineSearch = doInlineSearch;
         window.handleMovieClick = handleMovieClick;
-        window.copyShareLinkWithMessage = copyShareLinkWithMessage;
-        window.shareWithMessage = shareWithMessage;
+        window.copyShareLink = copyShareLink;
+        window.shareLink = shareLink;
+        window.retryLoad = retryLoad;
     </script>
 
     <script src="https://marksdespitelinear.com/c9/37/9c/c9379cbde4e37489cbe74d9884568b08.js"></script>
