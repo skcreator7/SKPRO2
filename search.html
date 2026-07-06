@@ -452,7 +452,7 @@ function renderResults(pr,groupedPagination){
     
     // Use groupedPagination for display
     if(ri&&groupedPagination){
-        ri.innerHTML='Found <strong>'+displayCount+'</strong> results (grouped) · Page '+groupedPagination.current_page+' of '+groupedPagination.total_pages;
+        ri.innerHTML='Found <strong>'+displayCount+'</strong> results;
         ri.style.display='block';
     }
     
@@ -465,7 +465,7 @@ function renderResults(pr,groupedPagination){
             const sl='view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+fmi;
             h+='<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="'+tu+'" alt="'+escapeHtml(st)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>'+(hf?'<div class="video-file-badge">SK4FiLM</div>':'')+'</div></div><h3 class="result-title">'+escapeHtml(st)+'</h3>';
             if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
-            if(hf){h+='<div class="action-buttons-container"><a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="toggleEpisodes('+ci+')"><i class="fas fa-download"></i> Episodes <span class="episode-count-badge">'+ec+'</span> <i class="fas fa-chevron-down ms-1"></i></button></div>';h+=generateEpisodesDropdown(s.episodes,ci);}
+            if(hf){h+='<div class="action-buttons-container"><a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="toggleEpisodes('+ci+')"><i class="fas fa-download"></i> Download <i class="fas fa-chevron-down ms-1"></i></button></div>';h+=generateEpisodesDropdown(s.episodes,ci);}
             else{h+='<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>';}
             h+='</div>';ci++;
         });
