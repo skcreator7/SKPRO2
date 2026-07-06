@@ -164,8 +164,6 @@
         }
         .search-btn:active { transform: scale(0.95); }
         
-        /* Removed search-loader styles */
-        
         #resultsContainer { 
             display: flex; 
             flex-direction: column; 
@@ -288,6 +286,7 @@
             transition: all 0.2s;
             position: relative;
             z-index: 2;
+            font-family: 'Josefin Sans', sans-serif;
         }
         .show-more-btn:hover { 
             background: rgba(0,204,255,0.1); 
@@ -433,84 +432,7 @@
             50% { opacity: 0.6; }
         }
         
-        /* 🔥 FULL SCREEN INTERSTITIAL AD UI */
-        #interstitialAd {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
-            color: white;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            z-index: 999999;
-            backdrop-filter: blur(10px);
-        }
-        
-        .interstitial-content {
-            max-width: 350px;
-            width: 90%;
-            text-align: center;
-            padding: 40px 30px;
-            background: rgba(15, 23, 42, 0.95);
-            border: 2px solid #00ccff;
-            border-radius: 40px;
-            box-shadow: 0 20px 40px rgba(0,204,255,0.3);
-            animation: slideUp 0.5s ease;
-        }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .interstitial-content h2 {
-            font-size: 28px;
-            font-weight: 800;
-            margin-bottom: 30px;
-            background: linear-gradient(90deg, #ff0000, #0066ff, #00ccff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .interstitial-loader {
-            width: 100%;
-            height: 4px;
-            background: #334155;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 30px;
-        }
-        
-        .interstitial-progress {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #ff0000, #0066ff, #00ccff);
-            animation: progressLoad 3s linear forwards;
-        }
-        
-        @keyframes progressLoad {
-            0% { width: 0%; }
-            100% { width: 100%; }
-        }
-        
-        .interstitial-content iframe {
-            max-width: 100%;
-            border: none;
-            border-radius: 12px;
-            margin-top: 10px;
-        }
-        
-        /* Redirect Overlay - Improved */
+        /* Redirect Overlay */
         #redirectOverlay {
             position: fixed;
             top: 0;
@@ -536,6 +458,17 @@
             max-width: 350px;
             width: 90%;
             animation: slideUp 0.5s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .redirect-content i {
@@ -572,7 +505,7 @@
             transition: width 0.1s linear;
         }
         
-        .interstitial-close-btn, .redirect-cancel-btn {
+        .redirect-cancel-btn {
             background: transparent; 
             border: 2px solid #00ccff; 
             color: white; 
@@ -584,7 +517,7 @@
             transition: all 0.3s;
             font-family: 'Josefin Sans', sans-serif;
         }
-        .interstitial-close-btn:hover, .redirect-cancel-btn:hover {
+        .redirect-cancel-btn:hover {
             background: rgba(0,204,255,0.1);
             transform: scale(1.05);
         }
@@ -617,6 +550,25 @@
             padding: 10px;
             background: rgba(0,0,0,0.2);
             border-radius: 12px;
+        }
+        
+        /* Loading spinner for results */
+        .results-loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(0,204,255,0.1);
+            border-top: 4px solid #00ccff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -713,27 +665,7 @@
     </div>
 </div>
 
-<!-- Interstitial Ad -->
-<div id="interstitialAd">
-    <div class="interstitial-content">
-        <h2>Loading Results</h2>
-        <div class="interstitial-loader">
-            <div class="interstitial-progress"></div>
-        </div>
-        <script>
-            atOptions = {
-                'key': '567936a964b0784aedd11f237d26bee0',
-                'format': 'iframe',
-                'height': 250,
-                'width': 300,
-                'params': {}
-            };
-        </script>
-        <script src="https://marksdespitelinear.com/567936a964b0784aedd11f237d26bee0/invoke.js"></script>
-    </div>
-</div>
-
-<!-- Redirect Overlay -->
+<!-- Redirect Overlay (Only for first-time users) -->
 <div id="redirectOverlay">
     <div class="redirect-content">
         <i class="fas fa-external-link-alt"></i>
@@ -758,7 +690,6 @@ function toggleMenu() {
     const isVisible = dropdown.style.display === 'block';
     dropdown.style.display = isVisible ? 'none' : 'block';
     
-    // Add animation class
     if (!isVisible) {
         dropdown.style.animation = 'slideUp 0.3s ease';
     }
@@ -797,7 +728,6 @@ let currentPage = 1;
 let redirectTimeout = null;
 let redirectCountdown = 3;
 let pendingTelegramLink = '';
-let interstitialTimeout = null;
 
 const searchCache = new Map();
 
@@ -811,7 +741,6 @@ function getValidSearchQuery() {
 
 function triggerBackgroundSmartlink() {
     try {
-        // Open smartlink in new tab
         const link = document.createElement('a');
         link.href = SMARTLINK_LINK;
         link.target = '_blank';
@@ -821,7 +750,6 @@ function triggerBackgroundSmartlink() {
         link.click();
         document.body.removeChild(link);
         
-        // Also load in hidden iframe
         const smartlinkContainer = document.getElementById('smartlinkContainer');
         if (smartlinkContainer) {
             const iframe = document.createElement('iframe');
@@ -835,47 +763,13 @@ function triggerBackgroundSmartlink() {
     }
 }
 
-function showInterstitial() {
-    const interstitialAd = document.getElementById('interstitialAd');
-    if (interstitialAd) {
-        interstitialAd.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        
-        // Reset animation
-        const progress = interstitialAd.querySelector('.interstitial-progress');
-        if (progress) {
-            progress.style.animation = 'none';
-            progress.offsetHeight; // Trigger reflow
-            progress.style.animation = 'progressLoad 3s linear forwards';
-        }
-    }
-    
-    if (interstitialTimeout) clearTimeout(interstitialTimeout);
-    interstitialTimeout = setTimeout(() => {
-        closeInterstitial();
-    }, 5000);
-}
-
-function closeInterstitial() {
-    const interstitialAd = document.getElementById('interstitialAd');
-    if (interstitialAd) {
-        interstitialAd.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-    if (interstitialTimeout) {
-        clearTimeout(interstitialTimeout);
-        interstitialTimeout = null;
-    }
-}
-
-// ========== MAIN SEARCH FUNCTION (WITHOUT LOADER) ==========
+// ========== MAIN SEARCH FUNCTION (WITHOUT LOADER & INTERSTITIAL) ==========
 async function performSearchWithPopup(page = 1) {
     const searchInput = document.getElementById('searchInput');
     const resultsContainer = document.getElementById('resultsContainer');
     const resultsInfo = document.getElementById('resultsInfo');
     const paginationContainer = document.getElementById('paginationContainer');
     
-    // Get trimmed query
     let query = getValidSearchQuery();
     
     if (!query || query === '') {
@@ -901,64 +795,58 @@ async function performSearchWithPopup(page = 1) {
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
 
-    // Clear previous results
-    if (resultsContainer) resultsContainer.innerHTML = '';
+    // Show loading spinner in results area
+    if (resultsContainer) {
+        resultsContainer.innerHTML = `
+            <div class="results-loading">
+                <div class="spinner"></div>
+                <p style="color: #00ccff;">Searching for "${escapeHtml(query)}"...</p>
+            </div>`;
+    }
     if (resultsInfo) resultsInfo.innerHTML = '';
     if (paginationContainer) paginationContainer.innerHTML = '';
 
     const cacheKey = `${query}-${page}`;
     
-    // Check cache first
+    // Check cache first for instant results
     if (searchCache.has(cacheKey)) {
         const cached = searchCache.get(cacheKey);
-        showInterstitial();
-        setTimeout(() => {
-            renderResults(cached.results, cached.pagination);
-            closeInterstitial();
-        }, 3000);
+        renderResults(cached.results, cached.pagination);
         return;
     }
 
-    // Show interstitial ad while fetching
-    showInterstitial();
-    
+    // Fetch results directly without interstitial
     try {
         const data = await fetchAPI(query, page);
         
-        setTimeout(() => {
-            if (data && data.results && data.results.length > 0) {
-                // Cache successful results
-                searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
-                renderResults(data.results, data.pagination);
-            } else if (data && data.results && data.results.length === 0) {
-                if (resultsContainer) {
-                    resultsContainer.innerHTML = `
-                        <div class="error-state">
-                            <i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i>
-                            <h4>No results found</h4>
-                            <p>Try different keywords or check spelling</p>
-                        </div>`;
-                }
-            } else {
-                // API error
-                if (resultsContainer) {
-                    resultsContainer.innerHTML = `
-                        <div class="error-state">
-                            <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
-                            <h4>Connection Error</h4>
-                            <p>Unable to connect to server. Please try again.</p>
-                            <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer; font-family: 'Josefin Sans', sans-serif;">
-                                <i class="fas fa-redo"></i> Retry
-                            </button>
-                        </div>
-                    `;
-                }
+        if (data && data.results && data.results.length > 0) {
+            searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
+            renderResults(data.results, data.pagination);
+        } else if (data && data.results && data.results.length === 0) {
+            if (resultsContainer) {
+                resultsContainer.innerHTML = `
+                    <div class="error-state">
+                        <i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i>
+                        <h4>No results found</h4>
+                        <p>Try different keywords or check spelling</p>
+                    </div>`;
             }
-            closeInterstitial();
-        }, 3000);
+        } else {
+            if (resultsContainer) {
+                resultsContainer.innerHTML = `
+                    <div class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
+                        <h4>Connection Error</h4>
+                        <p>Unable to connect to server. Please try again.</p>
+                        <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 25px; color: #0a0a0f; font-weight: 600; margin-top: 10px; cursor: pointer; font-family: 'Josefin Sans', sans-serif;">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
     } catch (error) {
         console.error('Search error:', error);
-        closeInterstitial();
         if (resultsContainer) {
             resultsContainer.innerHTML = `
                 <div class="error-state">
@@ -985,7 +873,7 @@ async function fetchAPI(query, page) {
             }
         } catch (e) {
             console.error('API Error:', e);
-            continue; // Try next endpoint
+            continue;
         }
     }
     return null;
@@ -1125,12 +1013,10 @@ function handleQualityClick(telegramLink) {
     if (redirectProgressBar) redirectProgressBar.style.width = '0%';
     if (redirectOverlay) redirectOverlay.classList.add('active');
     
-    // Animate progress bar
     setTimeout(() => { 
         if (redirectProgressBar) redirectProgressBar.style.width = '100%'; 
     }, 50);
     
-    // Clear any existing timeout
     if (redirectTimeout) clearInterval(redirectTimeout);
     
     redirectTimeout = setInterval(() => {
@@ -1281,7 +1167,6 @@ function renderPagination(pag) {
 window.changePage = function(page) { 
     if (page > 0) {
         performSearchWithPopup(page);
-        // Scroll to top smoothly
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 };
@@ -1306,7 +1191,6 @@ if (searchButton) {
         performSearchWithPopup(1);
     });
     
-    // Add touch support for mobile
     searchButton.addEventListener('touchend', function(e) {
         e.preventDefault();
         performSearchWithPopup(1);
@@ -1321,7 +1205,6 @@ if (searchInput) {
         }
     });
     
-    // Clear search with Escape key
     searchInput.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             searchInput.value = '';
@@ -1365,7 +1248,6 @@ window.toggleDownload = toggleDownload;
 window.handleQualityClick = handleQualityClick;
 window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
-window.closeInterstitial = closeInterstitial;
 window.performSearchWithPopup = performSearchWithPopup;
 window.toggleMenu = toggleMenu;
 </script>
