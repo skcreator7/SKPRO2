@@ -368,24 +368,70 @@ function getMsgId(r){
     return id||'0';
 }
 
+// ====== SERIES GROUPING ======
+function groupEpisodesBySeries(results){
+    const grouped=[],seriesMap=new Map(),standalone=[];
+    console.log('🔍 Grouping',results.length,'results...');
+    results.forEach(r=>{
+        const t=r.title||'';
+        let match=null,epNum='',seriesName='';
+        match=t.match(/^(.*?)\s*[\(\[]?\s*E(?:p(?:isode)?)?[\.\s\-]*(\d+)/i);
+        if(match){seriesName=match[1].trim();epNum=match[2];}
+        if(!match){match=t.match(/^(.*?)\s*S(?:eason)?[\.\s\-]*\d+\s*E(?:p(?:isode)?)?[\.\s\-]*(\d+)/i);if(match){seriesName=match[1].trim();epNum=match[2];}}
+        if(!match){match=t.match(/^(.*?)\s*[\(\[]?\s*Part[\.\s\-]*(\d+)/i);if(match){seriesName=match[1].trim();epNum=match[2];}}
+        if(!match){match=t.match(/^(.*?)\s*[\(\[]?\s*(\d{2,3})\s*[\)\]]?\s*$/);if(match&&parseInt(match[2])>=1&&parseInt(match[2])<=99){seriesName=match[1].trim();epNum=match[2];}}
+        if(match&&seriesName&&epNum){
+            seriesName=seriesName.replace(/[\(\[]\s*(?:Season|S)\s*\d+\s*[\)\]]/gi,'').trim().replace(/\s+-\s*$/g,'').trim().replace(/\s*\(\d{4}\)\s*/g,' ').trim().replace(/\s+/g,' ').trim();
+            if(seriesName.length<2){standalone.push(r);return;}
+            const key=seriesName.toLowerCase();
+            if(!seriesMap.has(key)) seriesMap.set(key,{seriesName:seriesName,episodes:[],thumbnail:r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL,post_content:r.post_content||r.content||'',has_file:false});
+            const s=seriesMap.get(key);
+            const episodeData={...r,episodeNumber:epNum};
+            if(r.real_message_id)episodeData.real_message_id=r.real_message_id;
+            if(r.message_id)episodeData.message_id=r.message_id;
+            if(r.id)episodeData.id=r.id;
+            const msgId=String(r.real_message_id||r.message_id||r.id||'');
+            const isDuplicate=s.episodes.some(ep=>{const epMsgId=String(ep.real_message_id||ep.message_id||ep.id||'');return ep.episodeNumber===epNum||(msgId!==''&&epMsgId!==''&&msgId===epMsgId);});
+            if(!isDuplicate){s.episodes.push(episodeData);if(r.has_file===true)s.has_file=true;if(r.thumbnail_url)s.thumbnail=r.thumbnail_url;if(!s.post_content&&(r.post_content||r.content))s.post_content=r.post_content||r.content;}
+            console.log('✅ Grouped:',seriesName,'EP',epNum);
+        }else{standalone.push(r);console.log('📄 Standalone:',t);}
+    });
+    seriesMap.forEach(s=>{s.episodes.sort((a,b)=>(parseInt(a.episodeNumber)||0)-(parseInt(b.episodeNumber)||0));if(!s.has_file){s.has_file=s.episodes.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));}grouped.push(s);});
+    console.log('📊 Grouped:',grouped.length,'series | Standalone:',standalone.length);
+    return{grouped,standalone};
+}
+
+// ====== GENERATE EPISODES DROPDOWN ======
+function generateEpisodesDropdown(episodes,index){
+    if(!episodes||!Array.isArray(episodes)||episodes.length===0)return'';
+    console.log('📺 Episodes dropdown index:',index,'Total:',episodes.length);
+    let h='<div class="episodes-dropdown" id="episodes-dropdown-'+index+'" style="display:none;"><div class="episodes-grid">';
+    episodes.forEach((ep,epIndex)=>{
+        const epNum=ep.episodeNumber||(epIndex+1);
+        const epSize=ep.file_size?formatSize(ep.file_size):'';
+        let epMsgId=getMsgId(ep);
+        if(!epMsgId||epMsgId==='0'){console.warn('⚠️ Skipping EP '+epNum);return;}
+        const startParam=FILE_CHANNEL_ID+'_'+epMsgId;
+        const telegramLink='https://t.me/'+BOT_USERNAME+'?start='+encodeURIComponent(startParam);
+        const paddedNum=String(epNum).padStart(2,'0');
+        const badge=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
+        const colorClass=getEpisodeColorClass(epNum);
+        h+='<div class="episode-chip '+colorClass+'" onclick="handleQualityClick(\''+telegramLink.replace(/'/g,"\\'")+'\')" title="Episode '+paddedNum+(epSize?' - '+epSize:'')+'"><span class="episode-chip-label">EP '+paddedNum+'</span>'+(epSize?'<span class="episode-chip-size">'+epSize+'</span>':'')+badge+'</div>';
+    });
+    h+='</div></div>';return h;
+}
+
+// ====== GENERATE QUALITY BUTTONS (for standalone) ======
 function generateActionButtons(r,index){
     const qo=r.qualities||r.quality_options||{};
     const keys=Object.keys(qo);
     const msgId=getMsgId(r);
-    
-    // If no qualities, show single download button
     if(keys.length===0){
         const link='https://t.me/'+BOT_USERNAME+'?start='+FILE_CHANNEL_ID+'_'+msgId;
-        return{
-            html:'<div class="action-buttons-container"><a href="view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+msgId+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="handleQualityClick(\''+link+'\')"><i class="fas fa-download"></i> Download</button></div>',
-            count:1
-        };
+        return{html:'<div class="action-buttons-container"><a href="view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+msgId+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="handleQualityClick(\''+link+'\')"><i class="fas fa-download"></i> Download</button></div>',count:1};
     }
-    
-    // Build quality buttons dropdown
     let dd='<div class="episodes-dropdown" id="episodes-dropdown-'+index+'" style="display:none;"><div class="episodes-grid">';
     let cnt=0;
-    
     keys.forEach(q=>{
         const d=qo[q];
         if(d&&typeof d==='object'){
@@ -393,7 +439,6 @@ function generateActionButtons(r,index){
             if(d.message_id&&String(d.message_id).replace(/\D/g,'')!=='')qmi=String(d.message_id).replace(/\D/g,'');
             else if(d.real_message_id&&String(d.real_message_id).replace(/\D/g,'')!=='')qmi=String(d.real_message_id).replace(/\D/g,'');
             else qmi=msgId;
-            
             if(qmi&&qmi!=='0'){
                 const sp=FILE_CHANNEL_ID+'_'+qmi;
                 const sz=d.file_size?formatSize(d.file_size):'';
@@ -406,9 +451,7 @@ function generateActionButtons(r,index){
         }
     });
     dd+='</div></div>';
-    
     const html='<div class="action-buttons-container"><a href="view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+msgId+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="toggleEpisodes('+index+')"><i class="fas fa-download"></i> Qualities <span class="episode-count-badge">'+cnt+'</span> <i class="fas fa-chevron-down ms-1"></i></button></div>'+dd;
-    
     return{html:html,count:cnt};
 }
 
@@ -438,12 +481,16 @@ async function performSearchWithPopup(page=1){
     currentQuery=q;currentPage=page;
     if(rc)rc.innerHTML='<div class="results-loading"><div class="spinner"></div><p style="color:#00ccff;">Searching...</p></div>';
     if(ri)ri.style.display='none';if(pc)pc.innerHTML='';
+    const ck=q+'-'+page;
+    if(searchCache.has(ck)){const c=searchCache.get(ck);renderResults(c.results,c.pagination);return;}
     try{
         const d=await fetchAPI(q,page);
         if(d&&d.results&&d.results.length>0){
             console.log('📦 API returned',d.results.length,'results');
-            console.log('📄 First result:',d.results[0]);
-            renderDirectResults(d.results,d.pagination);
+            const{grouped,standalone}=groupEpisodesBySeries(d.results);
+            const pr={grouped,standalone};
+            searchCache.set(ck,{results:pr,pagination:d.pagination});
+            renderResults(pr,d.pagination);
         }else{
             if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';
             if(ri)ri.style.display='none';
@@ -453,46 +500,55 @@ async function performSearchWithPopup(page=1){
     }
 }
 
-function renderDirectResults(results,pag){
+// ====== RENDER RESULTS ======
+function renderResults(pr,pag){
     const rc=document.getElementById('resultsContainer'),ri=document.getElementById('resultsInfo'),pc=document.getElementById('paginationContainer');
     if(!rc)return;
-    
-    if(ri&&pag){ri.innerHTML='Found <strong>'+results.length+'</strong> results · Page '+pag.current_page+' of '+pag.total_pages;ri.style.display='block';}
-    
+    const{grouped:series,standalone}=pr;
+    const totalResults=(series?series.length:0)+(standalone?standalone.length:0);
+    console.log('🎬 Rendering:',totalResults,'| Series:',series?.length||0,'| Standalone:',standalone?.length||0);
+    if(totalResults===0){rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';return;}
+    if(ri&&pag){ri.innerHTML='Found <strong>'+totalResults+'</strong> results · Page '+pag.current_page+' of '+pag.total_pages;ri.style.display='block';}
     let h='',ci=0;
     
-    results.forEach(r=>{
-        const t=r.title||'Untitled';
-        const tu=r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL;
-        const hf=r.has_file===true||(r.file_size&&r.file_size>0);
-        const pct=r.post_content||r.content||'';
-        const msgId=getMsgId(r);
-        const qo=r.qualities||r.quality_options||{};
-        const hasQualities=Object.keys(qo).length>0;
-        
-        console.log('📄 Rendering:',t,'| has_file:',hf,'| msgId:',msgId,'| qualities:',hasQualities);
-        
-        h+='<div class="result-card">';
-        h+='<div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()">';
-        h+='<img src="'+tu+'" alt="'+escapeHtml(t)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'">';
-        h+='<div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>';
-        h+=(hf?'<div class="video-file-badge">SK4FiLM</div>':'');
-        h+='</div></div>';
-        h+='<h3 class="result-title">'+escapeHtml(t)+'</h3>';
-        
-        if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
-        
-        // ALWAYS show buttons if has_file or has qualities or valid msgId
-        if(hf||hasQualities||msgId!=='0'){
-            const btns=generateActionButtons(r,ci);
-            h+=btns.html;
-        }else{
-            h+='<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>';
-        }
-        
-        h+='</div>';ci++;
-    });
+    // Render grouped series
+    if(series&&series.length>0){
+        series.forEach(s=>{
+            const st=s.seriesName||'Untitled',tu=s.thumbnail||FALLBACK_THUMBNAIL;
+            const eps=s.episodes||[],ec=eps.length;
+            let hf=s.has_file;if(!hf&&ec>0){hf=eps.some(ep=>ep.has_file===true||(ep.file_size&&ep.file_size>0));}
+            const pct=s.post_content||'';
+            let fmi='0';if(eps.length>0&&eps[0])fmi=getMsgId(eps[0]);
+            const sl='view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+fmi;
+            h+='<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="'+tu+'" alt="'+escapeHtml(st)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>'+(hf?'<div class="video-file-badge">SK4FiLM</div>':'')+'</div></div><h3 class="result-title">'+escapeHtml(st)+'</h3>';
+            if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
+            if(ec>0){
+                h+='<div class="action-buttons-container"><a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="toggleEpisodes('+ci+')"><i class="fas fa-download"></i> Episodes <span class="episode-count-badge">'+ec+'</span> <i class="fas fa-chevron-down ms-1"></i></button></div>';
+                h+=generateEpisodesDropdown(eps,ci);
+            }else{
+                const fbLink='https://t.me/'+BOT_USERNAME+'?start='+FILE_CHANNEL_ID+'_'+fmi;
+                h+='<div class="action-buttons-container"><a href="'+sl+'" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a><button class="btn-download-main" onclick="handleQualityClick(\''+fbLink+'\')"><i class="fas fa-download"></i> Download</button></div>';
+            }
+            h+='</div>';ci++;
+        });
+    }
     
+    // Render standalone
+    if(standalone&&standalone.length>0){
+        standalone.forEach(r=>{
+            const t=r.title||'Untitled',tu=r.thumbnail_url||r.poster_url||FALLBACK_THUMBNAIL;
+            const hf=r.has_file===true||(r.file_size&&r.file_size>0);
+            const qo=r.qualities||r.quality_options||{},hq=Object.keys(qo).length>0;
+            const pct=r.post_content||r.content||'';
+            const msgId=getMsgId(r);
+            const sl='view.html?channel_id='+FILE_CHANNEL_ID+'&message_id='+msgId;
+            h+='<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="'+tu+'" alt="'+escapeHtml(t)+'" loading="lazy" onerror="this.src=\''+FALLBACK_THUMBNAIL+'\'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>'+(hf?'<div class="video-file-badge">SK4FiLM</div>':'')+'</div></div><h3 class="result-title">'+escapeHtml(t)+'</h3>';
+            if(pct&&pct.trim().length>0)h+=createPostContent(pct,ci);
+            if(hf||hq||msgId!=='0'){const btns=generateActionButtons(r,ci);h+=btns.html;}
+            else{h+='<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>';}
+            h+='</div>';ci++;
+        });
+    }
     rc.innerHTML=h;
     if(pag&&pag.total_pages>1)renderPagination(pag);else if(pc)pc.innerHTML='';
 }
