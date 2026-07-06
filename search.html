@@ -125,7 +125,8 @@
             padding: 12px; margin: 10px 0; font-size: 14px; position: relative; line-height: 1.6;
         }
         .post-text { transition: max-height 0.4s ease-in-out; overflow: hidden; color: #cccccc; }
-        .post-text a { color: #00ccff !important; text-decoration: underline !important; word-break: break-all; font-weight: 500; }
+        .post-text a { color: #00ccff !important; text-decoration: underline !important; word-break: break-all; font-weight: 500; pointer-events: auto !important; }
+        .post-text a:hover { color: #fff !important; }
         .fade-effect { position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #0a0a0a); pointer-events: none; }
         .show-more-btn {
             background: transparent; border: none; color: #00ccff; font-weight: 600;
@@ -148,7 +149,7 @@
         .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
         .btn-download-main { background: linear-gradient(45deg, #28a745, #20c997); font-family: 'Josefin Sans', sans-serif; }
         
-        /* ====== HORIZONTAL EPISODES DROPDOWN (NO ICON) ====== */
+        /* Episodes Dropdown */
         .episodes-dropdown {
             display: none; background: #0a0a0a; border: 1px solid #1a1a1a;
             border-top: 2px solid #00ccff; padding: 10px; margin: 4px 4px 0 4px;
@@ -157,9 +158,7 @@
         .episodes-dropdown::-webkit-scrollbar { width: 4px; }
         .episodes-dropdown::-webkit-scrollbar-track { background: #000000; }
         .episodes-dropdown::-webkit-scrollbar-thumb { background: #00ccff; border-radius: 2px; }
-        
         .episodes-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-        
         .episode-chip {
             display: inline-flex; align-items: center; gap: 6px;
             background: #000000; border: 1px solid #1a1a1a; border-radius: 6px;
@@ -327,7 +326,7 @@ async function performSearchWithPopup(page=1){
     if(searchCache.has(ck)){const c=searchCache.get(ck);renderResults(c.results,c.pagination);return;}
     try{
         const d=await fetchAPI(q,page);
-        if(d&&d.results&&d.results.length>0){const{g,standalone}=groupEpisodesBySeries(d.results);const pr={series:g,standalone};searchCache.set(ck,{results:pr,pagination:d.pagination});renderResults(pr,d.pagination);}
+        if(d&&d.results&&d.results.length>0){const{grouped,standalone}=groupEpisodesBySeries(d.results);const pr={series:grouped,standalone};searchCache.set(ck,{results:pr,pagination:d.pagination});renderResults(pr,d.pagination);}
         else{if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4></div>';if(ri)ri.style.display='none';}
     }catch(e){if(rc)rc.innerHTML='<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Connection Error</h4><button onclick="performSearchWithPopup('+page+')" style="background:#00ccff;border:none;padding:10px 25px;border-radius:4px;color:#000;font-weight:600;margin-top:10px;cursor:pointer;">Retry</button></div>';}
 }
@@ -335,11 +334,57 @@ async function performSearchWithPopup(page=1){
 async function fetchAPI(q,p){for(let i=0;i<API_ENDPOINTS.length;i++){try{const r=await fetch(`${API_ENDPOINTS[i]}/api/search?query=${encodeURIComponent(q)}&page=${p}&limit=${RESULTS_PER_PAGE}`,{signal:AbortSignal.timeout(10000)});if(r.ok){const d=await r.json();if(d.status==='success')return d;}}catch(e){continue;}}return null;}
 
 function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+
+// ====== FIXED: formatPostContent WITH CLICKABLE LINKS ======
+function formatPostContent(content) {
+    if (!content) return '';
+    
+    // First escape HTML to prevent XSS
+    let formatted = escapeHtml(content);
+    
+    // Replace newlines with <br>
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Make URLs clickable - matches http/https links
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, function(match) {
+        return '<a href="' + match + '" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 500;">' + match + '</a>';
+    });
+    
+    // Make Telegram links clickable
+    formatted = formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g, function(match) {
+        const url = match.startsWith('http') ? match : 'https://' + match;
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 500;">' + match + '</a>';
+    });
+    
+    // Make @mentions clickable (except @sk4film)
+    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/$1" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@$1</a>');
+    
+    // Make @sk4film clickable
+    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
+    
+    return formatted;
+}
+
+function createPostContent(content, index) {
+    if (!content || !content.trim()) return '';
+    const isLong = content.length > 1200;
+    
+    let html = '<div class="result-post-content" id="post-content-' + index + '" style="position: relative;">';
+    html += '<div class="post-text" style="max-height: ' + (isLong ? '150px' : 'none') + '; overflow: hidden; transition: max-height 0.4s ease-in-out;">';
+    html += formatPostContent(content);
+    html += '</div>';
+    
+    if (isLong) {
+        html += '<div class="fade-effect" style="position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #0a0a0a); pointer-events: none;"></div>';
+        html += '<button class="show-more-btn" onclick="var p=document.getElementById(\'post-content-' + index + '\'); var t=p.querySelector(\'.post-text\'); var f=p.querySelector(\'.fade-effect\'); var b=p.querySelector(\'.show-more-btn\'); if(t.style.maxHeight===\'none\'){t.style.maxHeight=\'150px\';f.style.display=\'block\';b.innerHTML=\'<i class=\\\'fas fa-chevron-down\\\'></i> Show More ↓\';}else{t.style.maxHeight=\'none\';f.style.display=\'none\';b.innerHTML=\'<i class=\\\'fas fa-chevron-up\\\'></i> Show Less ↑\';}" id="post-toggle-' + index + '" aria-label="Toggle content"><i class="fas fa-chevron-down"></i> Show More ↓</button>';
+    }
+    
+    html += '</div>';
+    return html;
+}
+
 function formatSize(b){if(!b||b===0)return'';const k=1024,s=['B','KB','MB','GB'];const i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i];}
 
-function createPostContent(c,i){if(!c||!c.trim())return'';const l=c.length>1200;let h=`<div class="result-post-content"><div class="post-text" style="max-height:${l?'150px':'none'};overflow:hidden;">${escapeHtml(c).replace(/\n/g,'<br>')}</div>`;if(l)h+=`<div class="fade-effect" style="position:absolute;bottom:40px;left:0;right:0;height:40px;background:linear-gradient(transparent,#0a0a0a);pointer-events:none;"></div><button class="show-more-btn" onclick="this.parentElement.querySelector('.post-text').style.maxHeight='none';this.parentElement.querySelector('.fade-effect').style.display='none';this.style.display='none';">Show More ↓</button>`;h+=`</div>`;return h;}
-
-// ====== EPISODES DROPDOWN - NO ICON, CHIP STYLE ======
 function generateEpisodesDropdown(episodes,index){
     if(!episodes||!Array.isArray(episodes)||episodes.length===0)return'';
     let h=`<div class="episodes-dropdown" id="episodes-dropdown-${index}" style="display:none;"><div class="episodes-grid">`;
@@ -351,11 +396,7 @@ function generateEpisodesDropdown(episodes,index){
         const telegramLink=`https://t.me/${BOT_USERNAME}?start=${fileId}`;
         const paddedNum=String(epNum).padStart(2,'0');
         const badge=!hasUserSeenRedirect?'<span class="episode-badge">NEW</span>':'';
-        h+=`<div class="episode-chip" onclick="handleQualityClick('${telegramLink}')">
-            <span class="episode-chip-label">EP ${paddedNum}</span>
-            ${epSize?`<span class="episode-chip-size">${epSize}</span>`:''}
-            ${badge}
-        </div>`;
+        h+=`<div class="episode-chip" onclick="handleQualityClick('${telegramLink}')"><span class="episode-chip-label">EP ${paddedNum}</span>${epSize?`<span class="episode-chip-size">${epSize}</span>`:''}${badge}</div>`;
     });
     h+=`</div></div>`;return h;
 }
