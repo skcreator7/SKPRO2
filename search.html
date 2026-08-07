@@ -28,6 +28,8 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             --bg-dark: #000000;
             --card-bg: #000000;
             --card-border: #1a1a1a;
+            --imdb-gold: #f5c518;
+            --imdb-dark: #1a1a1a;
         }
         html, body { width: 100%; overflow-x: hidden; position: relative; }
         body {
@@ -188,6 +190,148 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             background: linear-gradient(45deg, #ff3333, #3388ff);
         }
         .search-btn:active { transform: scale(0.95); }
+        
+        /* IMDb Info Section */
+        .imdb-info-container {
+            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+            border: 2px solid var(--imdb-gold);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px 16px;
+            position: relative;
+            overflow: hidden;
+            animation: slideDown 0.5s ease;
+        }
+        
+        .imdb-info-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--imdb-gold);
+        }
+        
+        .imdb-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(245, 197, 24, 0.2);
+        }
+        
+        .imdb-logo {
+            background: var(--imdb-gold);
+            color: #000;
+            font-weight: 900;
+            font-size: 20px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 1px;
+        }
+        
+        .imdb-rating {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .imdb-star {
+            color: var(--imdb-gold);
+            font-size: 24px;
+        }
+        
+        .imdb-score {
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .imdb-votes {
+            font-size: 12px;
+            color: #999;
+            margin-left: 4px;
+        }
+        
+        .imdb-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .imdb-detail-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .imdb-detail-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        
+        .imdb-detail-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .imdb-plot {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 3px solid var(--imdb-gold);
+        }
+        
+        .imdb-plot-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--imdb-gold);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .imdb-plot-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        
+        .imdb-genres {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .imdb-genre-tag {
+            background: rgba(245, 197, 24, 0.15);
+            color: var(--imdb-gold);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid rgba(245, 197, 24, 0.3);
+        }
+        
+        .imdb-loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--imdb-gold);
+        }
+        
+        .imdb-loading .spinner {
+            border-top-color: var(--imdb-gold);
+        }
         
         #resultsContainer { 
             display: flex; 
@@ -702,6 +846,9 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
 
     <!-- Results Info - Full Width -->
     <div id="resultsInfo" class="results-info full-width" style="display: none;"></div>
+    
+    <!-- IMDb Info Container -->
+    <div id="imdbInfoContainer"></div>
 
     <!-- Results Container - Full Width Wrapper -->
     <div class="results-wrapper">
@@ -805,6 +952,10 @@ const SMARTLINK_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff
 const FILE_CHANNEL_ID = "-1001768249569";
 const BOT_USERNAME = 'sk4filmbot';
 
+// OMDB API Key (You'll need to replace this with your own key from http://www.omdbapi.com/)
+const OMDB_API_KEY = 'YOUR_OMDB_API_KEY'; // Replace with your actual OMDB API key
+const OMDB_API_URL = 'https://www.omdbapi.com/';
+
 const REDIRECT_KEY = 'sk4film_redirect_shown';
 let hasUserSeenRedirect = localStorage.getItem(REDIRECT_KEY) === 'true';
 
@@ -815,6 +966,155 @@ let redirectCountdown = 3;
 let pendingTelegramLink = '';
 
 const searchCache = new Map();
+const imdbCache = new Map();
+
+// ========== IMDb INTEGRATION ==========
+async function fetchIMDbInfo(movieTitle) {
+    // Check cache first
+    const cacheKey = movieTitle.toLowerCase().trim();
+    if (imdbCache.has(cacheKey)) {
+        return imdbCache.get(cacheKey);
+    }
+    
+    try {
+        const response = await fetch(`${OMDB_API_URL}?apikey=${OMDB_API_KEY}&t=${encodeURIComponent(movieTitle)}&plot=short`);
+        const data = await response.json();
+        
+        if (data.Response === 'True') {
+            imdbCache.set(cacheKey, data);
+            return data;
+        }
+        
+        // Try with cleaned title (remove year, special characters)
+        const cleanTitle = movieTitle.replace(/\(.*?\)/g, '').replace(/[^\w\s]/g, '').trim();
+        if (cleanTitle !== movieTitle) {
+            const retryResponse = await fetch(`${OMDB_API_URL}?apikey=${OMDB_API_KEY}&t=${encodeURIComponent(cleanTitle)}&plot=short`);
+            const retryData = await retryResponse.json();
+            if (retryData.Response === 'True') {
+                imdbCache.set(cacheKey, retryData);
+                return retryData;
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('IMDb fetch error:', error);
+        return null;
+    }
+}
+
+function renderIMDbInfo(imdbData) {
+    if (!imdbData) return '';
+    
+    const rating = imdbData.imdbRating !== 'N/A' ? imdbData.imdbRating : 'N/A';
+    const votes = imdbData.imdbVotes !== 'N/A' ? parseInt(imdbData.imdbVotes).toLocaleString() : 'N/A';
+    const runtime = imdbData.Runtime !== 'N/A' ? imdbData.Runtime : 'N/A';
+    const year = imdbData.Year !== 'N/A' ? imdbData.Year : 'N/A';
+    const rated = imdbData.Rated !== 'N/A' ? imdbData.Rated : 'N/A';
+    const language = imdbData.Language !== 'N/A' ? imdbData.Language : 'N/A';
+    const director = imdbData.Director !== 'N/A' ? imdbData.Director : 'N/A';
+    const actors = imdbData.Actors !== 'N/A' ? imdbData.Actors : 'N/A';
+    const plot = imdbData.Plot !== 'N/A' ? imdbData.Plot : 'No plot available';
+    const genres = imdbData.Genre !== 'N/A' ? imdbData.Genre.split(', ') : [];
+    const awards = imdbData.Awards !== 'N/A' ? imdbData.Awards : 'N/A';
+    const boxOffice = imdbData.BoxOffice !== 'N/A' ? imdbData.BoxOffice : 'N/A';
+    
+    let html = '<div class="imdb-info-container">';
+    
+    // Header with IMDb logo and rating
+    html += '<div class="imdb-header">';
+    html += '<span class="imdb-logo">IMDb</span>';
+    html += '<div class="imdb-rating">';
+    html += '<i class="fas fa-star imdb-star"></i>';
+    html += `<span class="imdb-score">${rating}</span><span style="color:#999;">/10</span>`;
+    if (votes !== 'N/A') {
+        html += `<span class="imdb-votes">(${votes} votes)</span>`;
+    }
+    html += '</div>';
+    html += '</div>';
+    
+    // Movie details grid
+    html += '<div class="imdb-details">';
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Year</div><div class="imdb-detail-value">${year}</div></div>`;
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Runtime</div><div class="imdb-detail-value">${runtime}</div></div>`;
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Rated</div><div class="imdb-detail-value">${rated}</div></div>`;
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Language</div><div class="imdb-detail-value">${language}</div></div>`;
+    html += '</div>';
+    
+    // Genre tags
+    if (genres.length > 0 && genres[0] !== 'N/A') {
+        html += '<div class="imdb-genres">';
+        genres.forEach(genre => {
+            html += `<span class="imdb-genre-tag">${genre}</span>`;
+        });
+        html += '</div>';
+    }
+    
+    // Plot/Story
+    html += '<div class="imdb-plot">';
+    html += '<div class="imdb-plot-title"><i class="fas fa-book-open me-2"></i>Storyline</div>';
+    html += `<div class="imdb-plot-text">${plot}</div>`;
+    html += '</div>';
+    
+    // Additional info
+    html += '<div class="imdb-details" style="margin-top: 12px;">';
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Director</div><div class="imdb-detail-value" style="font-size: 12px;">${director}</div></div>`;
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Actors</div><div class="imdb-detail-value" style="font-size: 12px;">${actors}</div></div>`;
+    if (awards !== 'N/A') {
+        html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Awards</div><div class="imdb-detail-value" style="font-size: 12px;">${awards}</div></div>`;
+    }
+    if (boxOffice !== 'N/A') {
+        html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Box Office</div><div class="imdb-detail-value" style="font-size: 12px;">${boxOffice}</div></div>`;
+    }
+    html += '</div>';
+    
+    html += '</div>';
+    return html;
+}
+
+function showIMDbLoading() {
+    const container = document.getElementById('imdbInfoContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="imdb-info-container">
+                <div class="imdb-loading">
+                    <div class="spinner" style="border-top-color: #f5c518;"></div>
+                    <p style="color: #f5c518; margin-top: 10px;">Loading movie details from IMDb...</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function showIMDbError() {
+    const container = document.getElementById('imdbInfoContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="imdb-info-container" style="border-color: #ff6b6b;">
+                <div style="text-align: center; color: #ff6b6b; padding: 20px;">
+                    <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
+                    <p>Could not fetch IMDb details. The movie might not be in the database or there was a connection error.</p>
+                    <p style="font-size: 12px; color: #999;">Note: IMDb API requires a valid API key. Get yours at <a href="http://www.omdbapi.com/" target="_blank" style="color: #00ccff;">omdbapi.com</a></p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+async function loadIMDbInfo(query) {
+    const container = document.getElementById('imdbInfoContainer');
+    if (!container || !query) return;
+    
+    showIMDbLoading();
+    
+    const imdbData = await fetchIMDbInfo(query);
+    
+    if (imdbData) {
+        container.innerHTML = renderIMDbInfo(imdbData);
+    } else {
+        showIMDbError();
+    }
+}
 
 // ========== IMPROVED SEARCH FUNCTIONS ==========
 function getValidSearchQuery() {
@@ -854,6 +1154,7 @@ async function performSearchWithPopup(page = 1) {
     const resultsContainer = document.getElementById('resultsContainer');
     const resultsInfo = document.getElementById('resultsInfo');
     const paginationContainer = document.getElementById('paginationContainer');
+    const imdbContainer = document.getElementById('imdbInfoContainer');
     
     let query = getValidSearchQuery();
     
@@ -868,6 +1169,7 @@ async function performSearchWithPopup(page = 1) {
         }
         if (resultsInfo) resultsInfo.style.display = 'none';
         if (paginationContainer) paginationContainer.innerHTML = '';
+        if (imdbContainer) imdbContainer.innerHTML = '';
         return;
     }
 
@@ -890,6 +1192,9 @@ async function performSearchWithPopup(page = 1) {
     }
     if (resultsInfo) resultsInfo.style.display = 'none';
     if (paginationContainer) paginationContainer.innerHTML = '';
+
+    // Load IMDb info
+    loadIMDbInfo(query);
 
     const cacheKey = `${query}-${page}`;
     
