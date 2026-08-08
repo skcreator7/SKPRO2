@@ -29,7 +29,6 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             --card-bg: #000000;
             --card-border: #1a1a1a;
             --imdb-gold: #f5c518;
-            --imdb-dark: #000000;
         }
         html, body { width: 100%; overflow-x: hidden; position: relative; }
         body {
@@ -107,19 +106,14 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         
         .main-container {
             width: 100%;
-            max-width: 1200px;
+            max-width: 100%;
             margin: 0 auto;
-            padding: 8px 12px 20px;
+            padding: 8px 0 20px;
             background: #000000;
         }
         
         .results-wrapper {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
+            width: 100%;
             background: #000000;
         }
         
@@ -128,12 +122,13 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             margin: 8px 0;
             min-height: auto;
             background: #0a0a0a;
-            border-radius: 8px;
+            border-radius: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
             border: 1px solid #1a1a1a;
+            width: 100%;
         }
         
         #adTopDesktop, #adBottomDesktop { display: none; max-width: 728px; margin: 0 auto; }
@@ -141,13 +136,20 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         @media (min-width: 768px) {
             #adTopDesktop, #adBottomDesktop { display: block; }
             #adTopMobile, #adBottomMobile { display: none; }
+            .main-container {
+                max-width: 1200px;
+                padding: 8px 12px 20px;
+            }
         }
         
         .search-container {
-            margin: 8px 0 12px;
+            margin: 8px 12px 12px;
             position: relative;
-            width: 100%;
         }
+        @media (min-width: 768px) {
+            .search-container { margin: 8px 0 12px; }
+        }
+        
         .search-box {
             background: #0a0a0a;
             border: 2px solid #1a1a1a;
@@ -186,63 +188,85 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         .search-btn:hover { background: linear-gradient(45deg, #ff3333, #3388ff); }
         .search-btn:active { transform: scale(0.95); }
         
-        /* IMDb Info Section - BLACK THEME */
+        /* IMDb Info Section - Full Width Mobile, No Color Borders */
         .imdb-info-container {
-            background: #000000;
-            border: 2px solid var(--imdb-gold);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 10px 16px;
-            position: relative;
-            overflow: hidden;
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            padding: 16px;
+            margin: 10px 0;
+            width: 100%;
             animation: slideDown 0.5s ease;
-            box-shadow: 0 4px 20px rgba(245, 197, 24, 0.1);
         }
         
-        .imdb-info-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--imdb-gold);
+        @media (min-width: 768px) {
+            .imdb-info-container {
+                border-radius: 8px;
+                margin: 10px 0;
+            }
         }
         
         .imdb-header {
             display: flex;
             align-items: flex-start;
-            gap: 20px;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
             border-bottom: 1px solid #1a1a1a;
             flex-wrap: wrap;
         }
         
         .imdb-poster-container {
             flex-shrink: 0;
+            width: 100%;
+            max-width: 200px;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 480px) {
+            .imdb-poster-container {
+                max-width: 100%;
+            }
         }
         
         .imdb-poster {
-            width: 200px;
-            height: 300px;
+            width: 100%;
+            aspect-ratio: 2/3;
             object-fit: cover;
-            border-radius: 8px;
-            border: 2px solid var(--imdb-gold);
-            background: #0a0a0a;
-            box-shadow: 0 4px 15px rgba(245, 197, 24, 0.2);
+            background: #000000;
+            border: 1px solid #1a1a1a;
+            display: block;
+        }
+        
+        @media (min-width: 481px) {
+            .imdb-poster {
+                width: 200px;
+                height: 300px;
+                aspect-ratio: auto;
+            }
+            .imdb-poster-container {
+                width: auto;
+                max-width: none;
+                margin: 0;
+            }
         }
         
         .imdb-header-info {
             flex: 1;
-            min-width: 250px;
+            min-width: 0;
+            width: 100%;
+        }
+        
+        @media (min-width: 481px) {
+            .imdb-header-info {
+                width: auto;
+            }
         }
         
         .imdb-logo-rating {
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 12px;
+            gap: 10px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
         }
         
@@ -250,9 +274,9 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             background: var(--imdb-gold);
             color: #000;
             font-weight: 900;
-            font-size: 22px;
-            padding: 5px 14px;
-            border-radius: 6px;
+            font-size: 20px;
+            padding: 4px 10px;
+            border-radius: 4px;
             font-family: 'Montserrat', sans-serif;
             letter-spacing: 1px;
         }
@@ -260,53 +284,66 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         .imdb-rating {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: #0a0a0a;
-            padding: 8px 15px;
-            border-radius: 8px;
+            gap: 6px;
+            background: #000000;
+            padding: 6px 12px;
+            border-radius: 4px;
             border: 1px solid #1a1a1a;
         }
         
         .imdb-star {
             color: var(--imdb-gold);
-            font-size: 24px;
+            font-size: 20px;
         }
         
         .imdb-score {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             color: white;
         }
         
         .imdb-votes {
-            font-size: 12px;
+            font-size: 11px;
             color: #999;
         }
         
         .imdb-movie-title {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
             color: white;
-            margin: 10px 0 5px 0;
+            margin: 8px 0 4px 0;
+            word-break: break-word;
         }
         
         .imdb-movie-year {
-            font-size: 16px;
+            font-size: 14px;
             color: var(--imdb-gold);
             font-weight: 600;
         }
         
         .imdb-details {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        @media (min-width: 600px) {
+            .imdb-details {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (min-width: 900px) {
+            .imdb-details {
+                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            }
         }
         
         .imdb-detail-item {
-            background: #0a0a0a;
-            padding: 12px;
-            border-radius: 8px;
+            background: #000000;
+            padding: 10px;
+            border-radius: 4px;
             text-align: center;
             border: 1px solid #1a1a1a;
             transition: all 0.2s;
@@ -314,140 +351,115 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         
         .imdb-detail-item:hover {
             background: #111111;
-            border-color: #333;
-            transform: translateY(-1px);
         }
         
         .imdb-detail-label {
-            font-size: 11px;
-            color: #999;
+            font-size: 10px;
+            color: #888;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
         }
         
         .imdb-detail-value {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
-            color: white;
+            color: #ddd;
         }
         
         .imdb-plot {
-            background: #0a0a0a;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 3px solid var(--imdb-gold);
+            background: #000000;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 12px;
             border: 1px solid #1a1a1a;
-            border-left: 3px solid var(--imdb-gold);
+            border-left: 2px solid var(--imdb-gold);
         }
         
         .imdb-plot-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             color: var(--imdb-gold);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
         
         .imdb-plot-text {
-            font-size: 14px;
-            line-height: 1.7;
-            color: #ccc;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #bbb;
         }
         
         .imdb-genres {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 15px;
+            gap: 6px;
+            margin-top: 10px;
         }
         
         .imdb-genre-tag {
-            background: #0a0a0a;
-            color: var(--imdb-gold);
-            padding: 6px 14px;
+            background: #000000;
+            color: #ccc;
+            padding: 4px 10px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             border: 1px solid #1a1a1a;
             transition: all 0.2s;
         }
         
         .imdb-genre-tag:hover {
             background: #111111;
-            border-color: var(--imdb-gold);
-            transform: translateY(-1px);
+            border-color: #333;
         }
         
         .imdb-additional-info {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        @media (min-width: 600px) {
+            .imdb-additional-info {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
         
         .imdb-loading {
             text-align: center;
             padding: 30px;
             color: var(--imdb-gold);
-            background: #000000;
+            background: #0a0a0a;
         }
         
         .imdb-loading .spinner {
-            border-top-color: var(--imdb-gold);
             border-color: #1a1a1a;
             border-top-color: var(--imdb-gold);
-        }
-        
-        @media (max-width: 600px) {
-            .imdb-header {
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-            }
-            .imdb-poster {
-                width: 180px;
-                height: 270px;
-            }
-            .imdb-header-info {
-                text-align: center;
-            }
-            .imdb-logo-rating {
-                justify-content: center;
-            }
-            .imdb-details {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .imdb-additional-info {
-                grid-template-columns: 1fr;
-            }
         }
         
         #resultsContainer { 
             display: flex; 
             flex-direction: column; 
             gap: 0;
-            margin: 10px 0; 
+            margin: 0; 
             width: 100%; 
             background: #000000;
         }
         .result-card {
             background: #000000;
             border-bottom: 1px solid #1a1a1a;
-            padding: 16px;
+            padding: 16px 12px;
             width: 100%;
             box-shadow: none;
             animation: fadeIn 0.5s ease;
             transition: background 0.2s ease;
-            border-radius: 0;
+        }
+        @media (min-width: 768px) {
+            .result-card { padding: 16px; }
         }
         .result-card:first-child { border-top: 1px solid #1a1a1a; }
-        .result-card:hover {
-            background: #0a0a0a;
-            position: relative;
-            z-index: 10;
-        }
+        .result-card:hover { background: #0a0a0a; position: relative; z-index: 10; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -459,7 +471,6 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             overflow: hidden;
             margin-bottom: 12px;
             background: #0a0a0a;
-            border-radius: 0;
         }
         .thumbnail-container {
             width: 100%;
@@ -502,13 +513,11 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             color: #00ccff; 
             margin-bottom: 10px;
             word-break: break-word;
-            padding: 0 4px;
         }
         
         .result-post-content {
             background: #0a0a0a;
             border: 1px solid #1a1a1a;
-            border-radius: 0; 
             padding: 12px; 
             margin: 10px 0;
             font-size: 14px; 
@@ -545,23 +554,18 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             width: 100%;
             text-align: center;
             padding: 8px;
-            border-radius: 0;
             transition: all 0.2s;
             position: relative;
             z-index: 2;
             font-family: 'Josefin Sans', sans-serif;
         }
-        .show-more-btn:hover { 
-            background: #1a1a1a; 
-            color: #fff;
-        }
+        .show-more-btn:hover { background: #1a1a1a; color: #fff; }
         
         .action-buttons-container { 
             display: flex; 
             flex-direction: column; 
             gap: 8px; 
-            margin-top: 10px; 
-            padding: 0 4px;
+            margin-top: 10px;
         }
         @media (min-width: 480px) { 
             .action-buttons-container { flex-direction: row; } 
@@ -596,7 +600,6 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             display: none; 
             background: #0a0a0a; 
             border: 1px solid #1a1a1a;
-            border-top: 2px solid #00ccff;
             padding: 12px; 
             margin: 0;
             animation: slideDown 0.3s ease;
@@ -614,10 +617,9 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             font-size: 14px;
             text-align: center;
             cursor: pointer;
-            border: 1px solid #333333;
+            border: 1px solid #333;
             margin: 4px;
             display: inline-block;
-            box-shadow: none;
             transition: all 0.2s;
             font-family: 'Josefin Sans', sans-serif;
         }
@@ -657,17 +659,19 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             padding: 12px 16px;
             background: #0a0a0a;
             border-bottom: 1px solid #1a1a1a;
-            border-radius: 0;
+            width: 100%;
         }
         .disclaimer {
             background: #0a0a0a; 
-            border-radius: 4px; 
             padding: 12px; 
-            margin-top: 15px;
+            margin: 15px 12px 0;
             font-size: 13px; 
             text-align: center;
-            border-left: 3px solid var(--primary);
             border: 1px solid #1a1a1a;
+            border-left: 3px solid var(--primary);
+        }
+        @media (min-width: 768px) {
+            .disclaimer { margin: 15px 0 0; border-radius: 4px; }
         }
         
         .one-time-badge {
@@ -704,8 +708,7 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             text-align: center;
             background: #0a0a0a;
             padding: 40px 30px;
-            border-radius: 0;
-            border: 2px solid #00ccff;
+            border: 2px solid #1a1a1a;
             max-width: 350px;
             width: 90%;
             animation: slideUp 0.5s ease;
@@ -729,7 +732,6 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             width: 100%;
             height: 6px;
             background: #1a1a1a;
-            border-radius: 0;
             overflow: hidden;
             margin: 20px 0;
         }
@@ -741,17 +743,16 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         }
         .redirect-cancel-btn {
             background: transparent; 
-            border: 2px solid #00ccff; 
+            border: 2px solid #1a1a1a; 
             color: white; 
             padding: 10px 30px; 
-            border-radius: 0; 
             font-weight: 600; 
             cursor: pointer; 
             margin-top: 20px;
             transition: all 0.3s;
             font-family: 'Josefin Sans', sans-serif;
         }
-        .redirect-cancel-btn:hover { background: rgba(0,204,255,0.1); transform: scale(1.05); }
+        .redirect-cancel-btn:hover { background: #1a1a1a; transform: scale(1.05); }
         
         #smartlinkContainer {
             position: absolute;
@@ -766,14 +767,16 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         .error-state { text-align: center; padding: 40px; background: #000000; }
         .error-state i { animation: pulse 2s infinite; }
         
-        .bottom-ads { margin: 20px 0 10px; }
+        .bottom-ads { margin: 20px 12px 10px; }
+        @media (min-width: 768px) { .bottom-ads { margin: 20px 0 10px; } }
+        
         .bottom-ad-container {
             text-align: center;
             margin: 15px 0;
             padding: 10px;
             background: #0a0a0a;
-            border-radius: 4px;
             border: 1px solid #1a1a1a;
+            width: 100%;
         }
         
         .results-loading { text-align: center; padding: 40px; background: #000000; }
@@ -791,27 +794,8 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             100% { transform: rotate(360deg); }
         }
         
-        #resultsInfo.full-width {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            border-radius: 0;
-            padding: 12px 16px;
-            background: #0a0a0a;
-            border-top: 1px solid #1a1a1a;
-            border-bottom: 1px solid #1a1a1a;
-        }
-        
-        #paginationContainer.full-width {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
+        #paginationContainer {
+            width: 100%;
             padding: 10px 16px;
             background: #0a0a0a;
             border-top: 1px solid #1a1a1a;
@@ -819,7 +803,7 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
         
         .menu-dropdown {
             background: #000000 !important;
-            border: 2px solid #00ccff !important;
+            border: 2px solid #1a1a1a !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
         }
         .menu-dropdown a { background: #0a0a0a !important; }
@@ -841,7 +825,7 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
             <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn" aria-label="Menu">
                 <div class="menu-lines"><div></div><div></div><div></div></div>
             </button>
-            <div class="menu-dropdown" id="menuDropdown" style="display: none; position: absolute; top: 60px; right: 0; width: 260px; background: rgba(10,20,40,0.98); border: 2px solid #00ccff; border-radius: 16px; padding: 1.2rem 1rem; z-index: 10000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="menu-dropdown" id="menuDropdown" style="display: none; position: absolute; top: 60px; right: 0; width: 260px; background: rgba(10,20,40,0.98); border: 2px solid #1a1a1a; border-radius: 16px; padding: 1.2rem 1rem; z-index: 10000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
                 <h4 style="color: white; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px;"><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 15px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 12px; color: white; text-decoration: none; transition: all 0.3s;">
@@ -871,23 +855,23 @@ window.adk_pdisp = {'h' : 'xml.qualiclicks.com',
 
     <!-- Search Section -->
     <div class="search-container">
-        <input type="text" id="searchInput" class="search-box" placeholder="Search movies... (e.g., Animal 2023, Jawan, Pathaan)" aria-label="Search movies">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search movies... (e.g., Animal 2023, Jawan)" aria-label="Search movies">
         <button class="search-btn" id="searchButton" aria-label="Search"><i class="fas fa-search"></i></button>
     </div>
 
-    <!-- Results Info - Full Width -->
-    <div id="resultsInfo" class="results-info full-width" style="display: none;"></div>
+    <!-- Results Info -->
+    <div id="resultsInfo" class="results-info" style="display: none;"></div>
     
     <!-- IMDb Info Container -->
     <div id="imdbInfoContainer"></div>
 
-    <!-- Results Container - Full Width Wrapper -->
+    <!-- Results Container -->
     <div class="results-wrapper">
         <div id="resultsContainer"></div>
     </div>
 
-    <!-- Pagination - Full Width -->
-    <div id="paginationContainer" class="full-width"></div>
+    <!-- Pagination -->
+    <div id="paginationContainer"></div>
 
     <!-- Bottom Ads -->
     <div class="bottom-ads">
@@ -979,7 +963,6 @@ function extractTitleAndYear(query) {
     let title = query.trim();
     let year = '';
     
-    // Try to extract year from patterns like "Movie Name 2023", "Movie Name (2023)", etc.
     const yearPatterns = [
         /(.+?)\s*[\(\[]?\s*(\d{4})\s*[\)\]]?\s*$/,
         /(.+?)\s+(\d{4})\s*$/,
@@ -995,7 +978,6 @@ function extractTitleAndYear(query) {
         }
     }
     
-    // Clean the title
     title = title
         .replace(/[\(\[]\d{4}[\)\]]/g, '')
         .replace(/HDRip|HDCam|HDTS|WEB-DL|BluRay|BRRip|DVDRip|HDTV|WEBRip|CAM|TS|TC|DVDSCR|HDDVD|BDRip|1080p|720p|480p|2160p|4K|HEVC|x264|x265|AAC|DD5\.1|DDP5\.1|ESub|HQ|HDRip|PreDVDRip/gi, '')
@@ -1012,37 +994,24 @@ async function fetchIMDbInfo(movieTitle, movieYear = '') {
     if (!movieTitle || movieTitle.trim() === '') return null;
     
     const cacheKey = `${movieTitle.toLowerCase().trim()}_${movieYear}`;
-    if (imdbCache.has(cacheKey)) {
-        return imdbCache.get(cacheKey);
-    }
+    if (imdbCache.has(cacheKey)) return imdbCache.get(cacheKey);
     
     try {
-        // Build URL with both title and year for better accuracy
         let apiUrl = `${OMDB_API_URL}?apikey=${OMDB_API_KEY}&t=${encodeURIComponent(movieTitle.trim())}`;
-        if (movieYear) {
-            apiUrl += `&y=${movieYear}`;
-        }
+        if (movieYear) apiUrl += `&y=${movieYear}`;
         apiUrl += `&plot=short`;
         
         let response = await fetch(apiUrl);
         let data = await response.json();
         
-        if (data.Response === 'True') {
-            imdbCache.set(cacheKey, data);
-            return data;
-        }
+        if (data.Response === 'True') { imdbCache.set(cacheKey, data); return data; }
         
-        // If year was provided but no result, try without year
         if (movieYear) {
             response = await fetch(`${OMDB_API_URL}?apikey=${OMDB_API_KEY}&t=${encodeURIComponent(movieTitle.trim())}&plot=short`);
             data = await response.json();
-            if (data.Response === 'True') {
-                imdbCache.set(cacheKey, data);
-                return data;
-            }
+            if (data.Response === 'True') { imdbCache.set(cacheKey, data); return data; }
         }
         
-        // Try search API as fallback
         let searchUrl = `${OMDB_API_URL}?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(movieTitle.trim())}&type=movie`;
         if (movieYear) searchUrl += `&y=${movieYear}`;
         
@@ -1050,13 +1019,9 @@ async function fetchIMDbInfo(movieTitle, movieYear = '') {
         const searchData = await searchResponse.json();
         
         if (searchData.Response === 'True' && searchData.Search && searchData.Search.length > 0) {
-            const firstResult = searchData.Search[0];
-            response = await fetch(`${OMDB_API_URL}?apikey=${OMDB_API_KEY}&i=${firstResult.imdbID}&plot=short`);
+            response = await fetch(`${OMDB_API_URL}?apikey=${OMDB_API_KEY}&i=${searchData.Search[0].imdbID}&plot=short`);
             data = await response.json();
-            if (data.Response === 'True') {
-                imdbCache.set(cacheKey, data);
-                return data;
-            }
+            if (data.Response === 'True') { imdbCache.set(cacheKey, data); return data; }
         }
         
         imdbCache.set(cacheKey, null);
@@ -1093,12 +1058,12 @@ function renderIMDbInfo(imdbData) {
     // Header with Poster and Info
     html += '<div class="imdb-header">';
     
-    // Poster - LARGE SIZE
+    // Poster
     html += '<div class="imdb-poster-container">';
     if (poster && poster !== 'N/A') {
-        html += `<img src="${poster}" alt="${escapeHtml(title)}" class="imdb-poster" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'imdb-poster\\' style=\\'display:flex;align-items:center;justify-content:center;background:#0a0a0a;border:2px solid #1a1a1a;\\'><i class=\\'fas fa-film\\' style=\\'font-size:40px;color:#333;\\'></i></div>';">`;
+        html += `<img src="${poster}" alt="${escapeHtml(title)}" class="imdb-poster" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'imdb-poster\\' style=\\'display:flex;align-items:center;justify-content:center;background:#000;border:1px solid #1a1a1a;min-height:200px;\\'><i class=\\'fas fa-film\\' style=\\'font-size:40px;color:#333;\\'></i></div>';">`;
     } else {
-        html += `<div class="imdb-poster" style="display:flex;align-items:center;justify-content:center;background:#0a0a0a;border:2px solid #1a1a1a;"><i class="fas fa-film" style="font-size:40px;color:#333;"></i></div>`;
+        html += `<div class="imdb-poster" style="display:flex;align-items:center;justify-content:center;background:#000;border:1px solid #1a1a1a;min-height:200px;"><i class="fas fa-film" style="font-size:40px;color:#333;"></i></div>`;
     }
     html += '</div>';
     
@@ -1108,38 +1073,27 @@ function renderIMDbInfo(imdbData) {
     html += '<span class="imdb-logo">IMDb</span>';
     html += '<div class="imdb-rating">';
     html += '<i class="fas fa-star imdb-star"></i>';
-    html += `<span class="imdb-score">${rating}</span><span style="color:#999; font-size:16px;">/10</span>`;
-    if (votes !== 'N/A') {
-        html += `<span class="imdb-votes">(${votes} votes)</span>`;
-    }
-    html += '</div>';
-    html += '</div>';
-    
+    html += `<span class="imdb-score">${rating}</span><span style="color:#999;font-size:14px;">/10</span>`;
+    if (votes !== 'N/A') html += `<span class="imdb-votes">(${votes})</span>`;
+    html += '</div></div>';
     html += `<h3 class="imdb-movie-title">${escapeHtml(title)}</h3>`;
-    html += `<span class="imdb-movie-year"><i class="far fa-calendar-alt me-1"></i> ${year}</span>`;
-    html += '</div>';
-    html += '</div>';
+    html += `<span class="imdb-movie-year"><i class="far fa-calendar-alt me-1"></i>${year}</span>`;
+    html += '</div></div>';
     
     // Details Grid
     html += '<div class="imdb-details">';
-    html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="far fa-clock me-1"></i> Runtime</div><div class="imdb-detail-value">${runtime}</div></div>`;
-    html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-certificate me-1"></i> Rated</div><div class="imdb-detail-value">${rated}</div></div>`;
-    html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-language me-1"></i> Language</div><div class="imdb-detail-value">${language}</div></div>`;
-    html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-video me-1"></i> Type</div><div class="imdb-detail-value" style="text-transform: capitalize;">${type}</div></div>`;
-    if (country !== 'N/A') {
-        html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-globe me-1"></i> Country</div><div class="imdb-detail-value">${country}</div></div>`;
-    }
-    if (boxOffice !== 'N/A') {
-        html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-dollar-sign me-1"></i> Box Office</div><div class="imdb-detail-value">${boxOffice}</div></div>`;
-    }
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Runtime</div><div class="imdb-detail-value">${runtime}</div></div>`;
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Rated</div><div class="imdb-detail-value">${rated}</div></div>`;
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Language</div><div class="imdb-detail-value">${language}</div></div>`;
+    html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Type</div><div class="imdb-detail-value" style="text-transform:capitalize;">${type}</div></div>`;
+    if (country !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Country</div><div class="imdb-detail-value">${country}</div></div>`;
+    if (boxOffice !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Box Office</div><div class="imdb-detail-value">${boxOffice}</div></div>`;
     html += '</div>';
     
     // Genres
     if (genres.length > 0 && genres[0] !== 'N/A') {
         html += '<div class="imdb-genres">';
-        genres.forEach(genre => {
-            html += `<span class="imdb-genre-tag">${genre}</span>`;
-        });
+        genres.forEach(genre => { html += `<span class="imdb-genre-tag">${genre}</span>`; });
         html += '</div>';
     }
     
@@ -1151,18 +1105,10 @@ function renderIMDbInfo(imdbData) {
     
     // Additional Info
     html += '<div class="imdb-additional-info">';
-    if (director !== 'N/A') {
-        html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-user-tie me-1"></i> Director</div><div class="imdb-detail-value" style="font-size: 13px;">${director}</div></div>`;
-    }
-    if (actors !== 'N/A') {
-        html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-users me-1"></i> Cast</div><div class="imdb-detail-value" style="font-size: 12px; line-height: 1.4;">${actors}</div></div>`;
-    }
-    if (awards !== 'N/A') {
-        html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-trophy me-1"></i> Awards</div><div class="imdb-detail-value" style="font-size: 12px;">${awards}</div></div>`;
-    }
-    if (production !== 'N/A') {
-        html += `<div class="imdb-detail-item"><div class="imdb-detail-label"><i class="fas fa-building me-1"></i> Production</div><div class="imdb-detail-value" style="font-size: 12px;">${production}</div></div>`;
-    }
+    if (director !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Director</div><div class="imdb-detail-value" style="font-size:12px;">${director}</div></div>`;
+    if (actors !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Cast</div><div class="imdb-detail-value" style="font-size:12px;line-height:1.4;">${actors}</div></div>`;
+    if (awards !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Awards</div><div class="imdb-detail-value" style="font-size:12px;">${awards}</div></div>`;
+    if (production !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Production</div><div class="imdb-detail-value" style="font-size:12px;">${production}</div></div>`;
     html += '</div>';
     
     html += '</div>';
@@ -1173,16 +1119,13 @@ function showIMDbLoading() {
     const container = document.getElementById('imdbInfoContainer');
     if (container) {
         container.innerHTML = `
-            <div class="imdb-info-container" style="border-color: rgba(245, 197, 24, 0.3);">
+            <div class="imdb-info-container" style="border-color:#1a1a1a;">
                 <div class="imdb-loading">
-                    <div class="spinner" style="border-top-color: #f5c518; width: 40px; height: 40px;"></div>
-                    <p style="color: #f5c518; margin-top: 15px; font-size: 16px;">
-                        <i class="fas fa-database me-2"></i>Loading movie info from IMDb...
-                    </p>
-                    <p style="color: #666; font-size: 12px;">Using title and year for accurate results</p>
+                    <div class="spinner" style="border-top-color:#f5c518;width:40px;height:40px;"></div>
+                    <p style="color:#f5c518;margin-top:15px;font-size:15px;"><i class="fas fa-database me-2"></i>Loading movie info from IMDb...</p>
+                    <p style="color:#666;font-size:11px;">Using title and year for accurate results</p>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 }
 
@@ -1190,35 +1133,25 @@ function showIMDbError(movieTitle) {
     const container = document.getElementById('imdbInfoContainer');
     if (container && movieTitle) {
         container.innerHTML = `
-            <div class="imdb-info-container" style="border-color: rgba(255, 107, 107, 0.3);">
-                <div style="text-align: center; color: #ccc; padding: 30px;">
-                    <i class="fas fa-info-circle fa-2x mb-3" style="color: #ff6b6b;"></i>
-                    <p style="font-size: 16px;">Could not fetch IMDb details for "<strong style="color: #f5c518;">${escapeHtml(movieTitle)}</strong>"</p>
-                    <p style="font-size: 13px; color: #999; margin-top: 8px;">Try searching with the year (e.g., "Animal 2023")</p>
+            <div class="imdb-info-container" style="border-color:#1a1a1a;">
+                <div style="text-align:center;color:#ccc;padding:25px;">
+                    <i class="fas fa-info-circle fa-2x mb-3" style="color:#ff6b6b;"></i>
+                    <p style="font-size:15px;">Could not fetch IMDb details for "<strong style="color:#f5c518;">${escapeHtml(movieTitle)}</strong>"</p>
+                    <p style="font-size:12px;color:#888;margin-top:8px;">Try searching with the year (e.g., "Animal 2023")</p>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 }
 
 async function loadIMDbInfo(query) {
     const container = document.getElementById('imdbInfoContainer');
     if (!container || !query) return;
-    
     showIMDbLoading();
-    
-    // Extract title and year from query
     const { title, year } = extractTitleAndYear(query);
-    
     console.log(`IMDb Search - Title: "${title}", Year: "${year}"`);
-    
     const imdbData = await fetchIMDbInfo(title, year);
-    
-    if (imdbData) {
-        container.innerHTML = renderIMDbInfo(imdbData);
-    } else {
-        showIMDbError(query);
-    }
+    if (imdbData) container.innerHTML = renderIMDbInfo(imdbData);
+    else showIMDbError(query);
 }
 
 // ========== SEARCH FUNCTIONS ==========
@@ -1238,18 +1171,15 @@ function triggerBackgroundSmartlink() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
-        const smartlinkContainer = document.getElementById('smartlinkContainer');
-        if (smartlinkContainer) {
+        const sc = document.getElementById('smartlinkContainer');
+        if (sc) {
             const iframe = document.createElement('iframe');
             iframe.src = SMARTLINK_LINK;
             iframe.style.cssText = 'width:0;height:0;border:none;opacity:0;position:absolute;pointer-events:none;';
-            smartlinkContainer.innerHTML = '';
-            smartlinkContainer.appendChild(iframe);
+            sc.innerHTML = '';
+            sc.appendChild(iframe);
         }
-    } catch (e) {
-        console.error('Smartlink error:', e);
-    }
+    } catch (e) { console.error('Smartlink error:', e); }
 }
 
 async function performSearchWithPopup(page = 1) {
@@ -1260,93 +1190,31 @@ async function performSearchWithPopup(page = 1) {
     const imdbContainer = document.getElementById('imdbInfoContainer');
     
     let query = getValidSearchQuery();
-    
     if (!query || query === '') {
-        if (resultsContainer) {
-            resultsContainer.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-search fa-3x mb-3" style="color: #00ccff;"></i>
-                    <h4>Enter a search term</h4>
-                    <p>Example: Animal 2023, Jawan, Pathaan</p>
-                </div>`;
-        }
+        if (resultsContainer) resultsContainer.innerHTML = `<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>Enter a search term</h4><p>Example: Animal 2023, Jawan</p></div>`;
         if (resultsInfo) resultsInfo.style.display = 'none';
         if (paginationContainer) paginationContainer.innerHTML = '';
         if (imdbContainer) imdbContainer.innerHTML = '';
         return;
     }
-
     currentQuery = query;
     currentPage = page;
-    
     const url = new URL(window.location);
     url.searchParams.set('query', query);
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
-
-    if (resultsContainer) {
-        resultsContainer.innerHTML = `
-            <div class="results-loading">
-                <div class="spinner"></div>
-                <p style="color: #00ccff;">Searching for "${escapeHtml(query)}"...</p>
-            </div>`;
-    }
+    if (resultsContainer) resultsContainer.innerHTML = `<div class="results-loading"><div class="spinner"></div><p style="color:#00ccff;">Searching for "${escapeHtml(query)}"...</p></div>`;
     if (resultsInfo) resultsInfo.style.display = 'none';
     if (paginationContainer) paginationContainer.innerHTML = '';
-
-    // Load IMDb info with extracted title and year
     loadIMDbInfo(query);
-
     const cacheKey = `${query}-${page}`;
-    
-    if (searchCache.has(cacheKey)) {
-        const cached = searchCache.get(cacheKey);
-        renderResults(cached.results, cached.pagination);
-        return;
-    }
-
+    if (searchCache.has(cacheKey)) { const cached = searchCache.get(cacheKey); renderResults(cached.results, cached.pagination); return; }
     try {
         const data = await fetchAPI(query, page);
-        
-        if (data && data.results && data.results.length > 0) {
-            searchCache.set(cacheKey, { results: data.results, pagination: data.pagination });
-            renderResults(data.results, data.pagination);
-        } else if (data && data.results && data.results.length === 0) {
-            if (resultsContainer) {
-                resultsContainer.innerHTML = `
-                    <div class="error-state">
-                        <i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i>
-                        <h4>No results found</h4>
-                        <p>Try different keywords or check spelling</p>
-                    </div>`;
-            }
-            if (resultsInfo) resultsInfo.style.display = 'none';
-        } else {
-            if (resultsContainer) {
-                resultsContainer.innerHTML = `
-                    <div class="error-state">
-                        <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
-                        <h4>Connection Error</h4>
-                        <p>Unable to connect to server. Please try again.</p>
-                        <button onclick="performSearchWithPopup(${page})" style="background: #00ccff; border: none; padding: 10px 25px; border-radius: 4px; color: #000000; font-weight: 600; margin-top: 10px; cursor: pointer; font-family: 'Josefin Sans', sans-serif;">
-                            <i class="fas fa-redo"></i> Retry
-                        </button>
-                    </div>`;
-            }
-            if (resultsInfo) resultsInfo.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Search error:', error);
-        if (resultsContainer) {
-            resultsContainer.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #ff6b6b;"></i>
-                    <h4>Something went wrong</h4>
-                    <p>Please try again later.</p>
-                </div>`;
-        }
-        if (resultsInfo) resultsInfo.style.display = 'none';
-    }
+        if (data && data.results && data.results.length > 0) { searchCache.set(cacheKey, { results: data.results, pagination: data.pagination }); renderResults(data.results, data.pagination); }
+        else if (data && data.results && data.results.length === 0) { if (resultsContainer) resultsContainer.innerHTML = `<div class="error-state"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords or check spelling</p></div>`; if (resultsInfo) resultsInfo.style.display = 'none'; }
+        else { if (resultsContainer) resultsContainer.innerHTML = `<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Connection Error</h4><p>Unable to connect to server. Please try again.</p><button onclick="performSearchWithPopup(${page})" style="background:#00ccff;border:none;padding:10px 25px;border-radius:4px;color:#000;font-weight:600;margin-top:10px;cursor:pointer;font-family:'Josefin Sans',sans-serif;"><i class="fas fa-redo"></i> Retry</button></div>`; if (resultsInfo) resultsInfo.style.display = 'none'; }
+    } catch (error) { console.error('Search error:', error); if (resultsContainer) resultsContainer.innerHTML = `<div class="error-state"><i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:#ff6b6b;"></i><h4>Something went wrong</h4><p>Please try again later.</p></div>`; if (resultsInfo) resultsInfo.style.display = 'none'; }
 }
 
 async function fetchAPI(query, page) {
@@ -1358,66 +1226,31 @@ async function fetchAPI(query, page) {
             const timeout = setTimeout(() => controller.abort(), 10000);
             const response = await fetch(url, { signal: controller.signal });
             clearTimeout(timeout);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'success') return data;
-            }
-        } catch (e) {
-            console.error('API Error:', e);
-            continue;
-        }
+            if (response.ok) { const data = await response.json(); if (data.status === 'success') return data; }
+        } catch (e) { console.error('API Error:', e); continue; }
     }
     return null;
 }
 
-// ========== RENDERING FUNCTIONS ==========
-function escapeHtml(text) { 
-    if (!text) return ''; 
-    const div = document.createElement('div'); 
-    div.textContent = text; 
-    return div.innerHTML; 
-}
-
-function formatSize(bytes) { 
-    if (!bytes || bytes === 0) return '0 B'; 
-    const k = 1024; 
-    const sizes = ['B','KB','MB','GB']; 
-    const i = Math.floor(Math.log(bytes)/Math.log(k)); 
-    return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; 
-}
-
-function formatTitle(title) {
-    if (!title) return '';
-    let formatted = escapeHtml(title);
-    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    return formatted;
-}
+function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+function formatSize(bytes) { if (!bytes || bytes === 0) return '0 B'; const k = 1024; const sizes = ['B','KB','MB','GB']; const i = Math.floor(Math.log(bytes)/Math.log(k)); return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+sizes[i]; }
+function formatTitle(title) { if (!title) return ''; let formatted = escapeHtml(title); formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@sk4film</a>'); formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@sk4film</a>'); return formatted; }
 
 function formatPostContent(content) {
     if (!content) return '';
-    let formatted = escapeHtml(content);
-    formatted = formatted.replace(/\n/g, '<br>');
-    formatted = formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">https://t.me/sk4film</a>');
-    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline; font-weight: 600;">@sk4film</a>');
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)(?![^<]*>|[^<>]*<\/)/g, '<a href="$&" target="_blank" rel="noopener noreferrer" style="color: #00ccff; text-decoration: underline;">$&</a>');
+    let formatted = escapeHtml(content).replace(/\n/g, '<br>');
+    formatted = formatted.replace(/(?:https?:\/\/)?(?:www\.)?(t\.me|telegram\.me|telegram\.dog)\/([a-zA-Z0-9_]+)(?:\/(\d+))?/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;">https://t.me/sk4film</a>');
+    formatted = formatted.replace(/@(?!sk4film\b)([a-zA-Z0-9_]+)/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@sk4film</a>');
+    formatted = formatted.replace(/@sk4film\b/g, '<a href="https://t.me/sk4film" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;font-weight:600;">@sk4film</a>');
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)(?![^<]*>|[^<>]*<\/)/g, '<a href="$&" target="_blank" rel="noopener noreferrer" style="color:#00ccff;text-decoration:underline;">$&</a>');
     return formatted;
 }
 
 function createPostContent(content, index) {
     if (!content || !content.trim()) return '';
     const isLong = content.length > 1200;
-    let html = `<div class="result-post-content" id="post-content-${index}" style="position: relative;">`;
-    html += `<div class="post-text" style="max-height: ${isLong ? '150px' : 'none'}; overflow: hidden; transition: max-height 0.4s ease-in-out;">`;
-    html += formatPostContent(content);
-    html += `</div>`;
-    if (isLong) {
-        html += `<div class="fade-effect" style="position: absolute; bottom: 40px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #0a0a0a); pointer-events: none;"></div>
-            <button class="show-more-btn" onclick="togglePostContent(${index})" id="post-toggle-${index}" aria-label="Toggle content">
-                <i class="fas fa-chevron-down"></i> Show More ↓
-            </button>`;
-    }
+    let html = `<div class="result-post-content" id="post-content-${index}" style="position:relative;"><div class="post-text" style="max-height:${isLong?'150px':'none'};overflow:hidden;">${formatPostContent(content)}</div>`;
+    if (isLong) html += `<div class="fade-effect" style="position:absolute;bottom:40px;left:0;right:0;height:40px;background:linear-gradient(transparent,#0a0a0a);pointer-events:none;"></div><button class="show-more-btn" onclick="togglePostContent(${index})" id="post-toggle-${index}"><i class="fas fa-chevron-down"></i> Show More ↓</button>`;
     html += `</div>`;
     return html;
 }
@@ -1428,189 +1261,93 @@ function togglePostContent(index) {
     const toggleBtn = document.getElementById(`post-toggle-${index}`);
     const textDiv = contentDiv.querySelector('.post-text');
     const fadeEffect = contentDiv.querySelector('.fade-effect');
-    
-    if (textDiv.style.maxHeight === 'none') {
-        textDiv.style.maxHeight = '150px';
-        if (fadeEffect) fadeEffect.style.display = 'block';
-        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show More ↓';
-    } else {
-        textDiv.style.maxHeight = 'none';
-        if (fadeEffect) fadeEffect.style.display = 'none';
-        if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑';
-    }
+    if (textDiv.style.maxHeight === 'none') { textDiv.style.maxHeight = '150px'; if (fadeEffect) fadeEffect.style.display = 'block'; if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show More ↓'; }
+    else { textDiv.style.maxHeight = 'none'; if (fadeEffect) fadeEffect.style.display = 'none'; if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑'; }
 }
 
 function generateQualityOptions(qualityOptions, result) {
-    if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color: #999; margin:0;">No options available</p>';
-    
-    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
-    let count = 0;
+    if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color:#999;margin:0;">No options available</p>';
+    let html = '<div style="display:flex;flex-wrap:wrap;gap:8px;">'; let count = 0;
     let defaultMsgId = result.real_message_id || result.message_id || result.id || '0';
     defaultMsgId = String(defaultMsgId).replace(/\D/g, '');
-    
     for (const [quality, data] of Object.entries(qualityOptions)) {
         if (data && typeof data === 'object') {
             let qualityMsgId = data.message_id || defaultMsgId;
             qualityMsgId = String(qualityMsgId).replace(/\D/g, '');
             if (qualityMsgId && qualityMsgId !== '0') {
-                const fileId = `${FILE_CHANNEL_ID}_${qualityMsgId}_${quality.toLowerCase().replace(/\s+/g, '_')}`;
+                const fileId = `${FILE_CHANNEL_ID}_${qualityMsgId}_${quality.toLowerCase().replace(/\s+/g,'_')}`;
                 const size = data.file_size ? formatSize(data.file_size) : '';
                 const telegramLink = `https://t.me/${BOT_USERNAME}?start=${fileId}`;
                 const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
-                html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')" aria-label="Download ${quality}">${quality} ${size} ${badge}</button>`;
+                html += `<button class="quality-option-2click" onclick="handleQualityClick('${telegramLink}')">${quality} ${size} ${badge}</button>`;
                 count++;
             }
         }
     }
-    
-    if (count === 0) {
-        const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : '';
-        html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')" aria-label="Get from Bot">Get from Bot ${badge}</button>`;
-    }
-    html += '</div>';
-    return html;
+    if (count === 0) { const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">NEW</span>' : ''; html += `<button class="quality-option-2click" onclick="handleQualityClick('https://t.me/${BOT_USERNAME}')">Get from Bot ${badge}</button>`; }
+    html += '</div>'; return html;
 }
 
 function handleQualityClick(telegramLink) {
     triggerBackgroundSmartlink();
     if (hasUserSeenRedirect) { window.open(telegramLink, '_blank'); return; }
-    localStorage.setItem(REDIRECT_KEY, 'true');
-    hasUserSeenRedirect = true;
-    pendingTelegramLink = telegramLink;
-    redirectCountdown = 3;
-    
-    const redirectTimer = document.getElementById('redirectTimer');
-    const redirectSeconds = document.getElementById('redirectSeconds');
-    const redirectProgressBar = document.getElementById('redirectProgressBar');
-    const redirectOverlay = document.getElementById('redirectOverlay');
-    
-    if (redirectTimer) redirectTimer.textContent = redirectCountdown;
-    if (redirectSeconds) redirectSeconds.textContent = redirectCountdown;
-    if (redirectProgressBar) redirectProgressBar.style.width = '0%';
-    if (redirectOverlay) redirectOverlay.classList.add('active');
-    setTimeout(() => { if (redirectProgressBar) redirectProgressBar.style.width = '100%'; }, 50);
+    localStorage.setItem(REDIRECT_KEY, 'true'); hasUserSeenRedirect = true;
+    pendingTelegramLink = telegramLink; redirectCountdown = 3;
+    const rt = document.getElementById('redirectTimer'), rs = document.getElementById('redirectSeconds'), rpb = document.getElementById('redirectProgressBar'), ro = document.getElementById('redirectOverlay');
+    if (rt) rt.textContent = redirectCountdown; if (rs) rs.textContent = redirectCountdown; if (rpb) rpb.style.width = '0%'; if (ro) ro.classList.add('active');
+    setTimeout(() => { if (rpb) rpb.style.width = '100%'; }, 50);
     if (redirectTimeout) clearInterval(redirectTimeout);
-    redirectTimeout = setInterval(() => {
-        redirectCountdown--;
-        if (redirectTimer) redirectTimer.textContent = redirectCountdown;
-        if (redirectSeconds) redirectSeconds.textContent = redirectCountdown;
-        if (redirectCountdown <= 0) { clearInterval(redirectTimeout); redirectTimeout = null; window.open(pendingTelegramLink, '_blank'); closeRedirect(); }
-    }, 1000);
+    redirectTimeout = setInterval(() => { redirectCountdown--; if (rt) rt.textContent = redirectCountdown; if (rs) rs.textContent = redirectCountdown; if (redirectCountdown <= 0) { clearInterval(redirectTimeout); redirectTimeout = null; window.open(pendingTelegramLink, '_blank'); closeRedirect(); } }, 1000);
 }
 
 function triggerAdLink() { triggerBackgroundSmartlink(); }
-
-function toggleDownload(index) { 
-    const dropdown = document.getElementById(`download-quality-${index}`); 
-    if (dropdown) { const isVisible = dropdown.style.display === 'block'; dropdown.style.display = isVisible ? 'none' : 'block'; }
-    document.querySelectorAll('.quality-dropdown').forEach(d => { if (d.id !== `download-quality-${index}`) d.style.display = 'none'; });
-}
+function toggleDownload(index) { const dropdown = document.getElementById(`download-quality-${index}`); if (dropdown) { dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'; } document.querySelectorAll('.quality-dropdown').forEach(d => { if (d.id !== `download-quality-${index}`) d.style.display = 'none'; }); }
 
 function renderResults(results, pagination) {
-    const resultsContainer = document.getElementById('resultsContainer');
-    const resultsInfo = document.getElementById('resultsInfo');
-    const paginationContainer = document.getElementById('paginationContainer');
-    if (!resultsContainer) return;
-    if (!results || results.length === 0) { 
-        resultsContainer.innerHTML = `<div class="error-state" style="text-align: center; padding: 40px;"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>`; 
-        if (resultsInfo) resultsInfo.style.display = 'none';
-        if (paginationContainer) paginationContainer.innerHTML = '';
-        return; 
-    }
-    if (resultsInfo && pagination) {
-        resultsInfo.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`;
-        resultsInfo.style.display = 'block';
-    }
+    const rc = document.getElementById('resultsContainer'), ri = document.getElementById('resultsInfo'), pc = document.getElementById('paginationContainer');
+    if (!rc) return;
+    if (!results || results.length === 0) { rc.innerHTML = `<div class="error-state" style="text-align:center;padding:40px;"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>`; if (ri) ri.style.display = 'none'; if (pc) pc.innerHTML = ''; return; }
+    if (ri && pagination) { ri.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`; ri.style.display = 'block'; }
     let html = '';
     results.forEach((result, index) => {
-        const title = result.title || 'Untitled';
-        const thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
-        const hasFile = result.has_file === true;
-        const qualityOptions = result.qualities || result.quality_options || {};
-        const hasQualities = Object.keys(qualityOptions).length > 0;
-        const postContent = result.post_content || result.content || '';
+        const title = result.title || 'Untitled', thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
+        const hasFile = result.has_file === true, qualityOptions = result.qualities || result.quality_options || {}, hasQualities = Object.keys(qualityOptions).length > 0, postContent = result.post_content || result.content || '';
         let msgIdForStream = result.real_message_id || result.message_id || result.id || '0';
         msgIdForStream = String(msgIdForStream).replace(/\D/g, '');
-        if ((msgIdForStream === '0' || msgIdForStream === '') && hasQualities) {
-            const firstQuality = Object.values(qualityOptions)[0];
-            if (firstQuality && firstQuality.message_id) msgIdForStream = String(firstQuality.message_id).replace(/\D/g, '');
-        }
+        if ((msgIdForStream === '0' || msgIdForStream === '') && hasQualities) { const fq = Object.values(qualityOptions)[0]; if (fq && fq.message_id) msgIdForStream = String(fq.message_id).replace(/\D/g, ''); }
         const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgIdForStream}`;
-        html += `<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${thumbUrl}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>`;
-        if (hasFile) html += '<div class="video-file-badge">SK4FiLM</div>';
-        html += `</div></div><h3 class="result-title">${formatTitle(title)}</h3>`;
+        html += `<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${thumbUrl}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hasFile?'<div class="video-file-badge">SK4FiLM</div>':''}</div></div><h3 class="result-title">${formatTitle(title)}</h3>`;
         if (postContent && postContent.trim().length > 0) html += createPostContent(postContent, index);
         if (hasFile) {
             html += `<div class="action-buttons-container"><a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
-            if (hasQualities) {
-                html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button></div><div class="quality-dropdown" id="download-quality-${index}" style="display: none;">${generateQualityOptions(qualityOptions, result)}</div>`;
-            } else {
-                const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`;
-                const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : '';
-                html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i>Download ${badge}</button></div>`;
-            }
-        } else { 
-            html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`;
-        }
+            if (hasQualities) { html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button></div><div class="quality-dropdown" id="download-quality-${index}" style="display:none;">${generateQualityOptions(qualityOptions, result)}</div>`; }
+            else { const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`; const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : ''; html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i>Download ${badge}</button></div>`; }
+        } else { html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`; }
         html += `</div>`;
     });
-    resultsContainer.innerHTML = html;
-    if (pagination && pagination.total_pages > 1) renderPagination(pagination);
-    else if (paginationContainer) paginationContainer.innerHTML = '';
+    rc.innerHTML = html;
+    if (pagination && pagination.total_pages > 1) renderPagination(pagination); else if (pc) pc.innerHTML = '';
 }
 
 function renderPagination(pag) {
-    const paginationContainer = document.getElementById('paginationContainer');
-    if (!paginationContainer) return;
-    let p = '<nav aria-label="Search results pages"><ul style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; list-style: none; padding: 0; margin: 20px 0;">';
-    p += `<li><a class="page-link ${!pag.has_previous ? 'disabled' : ''}" href="#" onclick="${pag.has_previous ? `changePage(${pag.current_page - 1}); return false;` : 'return false;'}" aria-label="Previous page">«</a></li>`;
-    for (let i = 1; i <= pag.total_pages; i++) {
-        if (i === 1 || i === pag.total_pages || (i >= pag.current_page - 2 && i <= pag.current_page + 2))
-            p += `<li class="page-item ${i === pag.current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="changePage(${i}); return false;" aria-label="Page ${i}" ${i === pag.current_page ? 'aria-current="page"' : ''}>${i}</a></li>`;
-        else if (i === pag.current_page - 3 || i === pag.current_page + 3) 
-            p += '<li><span style="padding:8px 12px; color: rgba(255,255,255,0.3);">…</span></li>';
-    }
-    p += `<li><a class="page-link ${!pag.has_next ? 'disabled' : ''}" href="#" onclick="${pag.has_next ? `changePage(${pag.current_page + 1}); return false;` : 'return false;'}" aria-label="Next page">»</a></li>`;
-    p += '</ul></nav>'; 
-    paginationContainer.innerHTML = p;
+    const pc = document.getElementById('paginationContainer'); if (!pc) return;
+    let p = '<nav><ul style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px;list-style:none;padding:0;margin:20px 0;">';
+    p += `<li><a class="page-link ${!pag.has_previous?'disabled':''}" href="#" onclick="${pag.has_previous?`changePage(${pag.current_page-1});return false;`:'return false;'}">«</a></li>`;
+    for (let i = 1; i <= pag.total_pages; i++) { if (i===1||i===pag.total_pages||(i>=pag.current_page-2&&i<=pag.current_page+2)) p += `<li class="page-item ${i===pag.current_page?'active':''}"><a class="page-link" href="#" onclick="changePage(${i});return false;">${i}</a></li>`; else if (i===pag.current_page-3||i===pag.current_page+3) p += '<li><span style="padding:8px 12px;color:rgba(255,255,255,0.3);">…</span></li>'; }
+    p += `<li><a class="page-link ${!pag.has_next?'disabled':''}" href="#" onclick="${pag.has_next?`changePage(${pag.current_page+1});return false;`:'return false;'}">»</a></li>`;
+    p += '</ul></nav>'; pc.innerHTML = p;
 }
 
 window.changePage = function(page) { if (page > 0) { performSearchWithPopup(page); window.scrollTo({ top: 0, behavior: 'smooth' }); } };
+function closeRedirect() { if (redirectTimeout) { clearInterval(redirectTimeout); redirectTimeout = null; } const ro = document.getElementById('redirectOverlay'); if (ro) ro.classList.remove('active'); pendingTelegramLink = ''; }
 
-function closeRedirect() {
-    if (redirectTimeout) { clearInterval(redirectTimeout); redirectTimeout = null; }
-    const redirectOverlay = document.getElementById('redirectOverlay');
-    if (redirectOverlay) redirectOverlay.classList.remove('active');
-    pendingTelegramLink = '';
-}
-
-// ========== EVENT LISTENERS ==========
-const searchButton = document.getElementById('searchButton');
-const searchInput = document.getElementById('searchInput');
-if (searchButton) {
-    searchButton.addEventListener('click', function(e) { e.preventDefault(); performSearchWithPopup(1); });
-    searchButton.addEventListener('touchend', function(e) { e.preventDefault(); performSearchWithPopup(1); });
-}
-if (searchInput) {
-    searchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') { e.preventDefault(); performSearchWithPopup(1); } });
-    searchInput.addEventListener('keydown', function(e) { if (e.key === 'Escape') { searchInput.value = ''; searchInput.blur(); } });
-}
-window.addEventListener('load', function() {
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get('query');
-    const page = parseInt(params.get('page')) || 1;
-    if (query && searchInput) { searchInput.value = query; performSearchWithPopup(page); }
-});
-window.addEventListener('popstate', function() {
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get('query');
-    const page = parseInt(params.get('page')) || 1;
-    if (query && searchInput) { searchInput.value = query; performSearchWithPopup(page); }
-});
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown'))
-        document.querySelectorAll('.quality-dropdown').forEach(d => d.style.display = 'none');
-});
+// Event Listeners
+const searchButton = document.getElementById('searchButton'), searchInput = document.getElementById('searchInput');
+if (searchButton) { searchButton.addEventListener('click', e => { e.preventDefault(); performSearchWithPopup(1); }); searchButton.addEventListener('touchend', e => { e.preventDefault(); performSearchWithPopup(1); }); }
+if (searchInput) { searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); performSearchWithPopup(1); } }); searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { searchInput.value = ''; searchInput.blur(); } }); }
+window.addEventListener('load', () => { const params = new URLSearchParams(window.location.search), query = params.get('query'), page = parseInt(params.get('page')) || 1; if (query && searchInput) { searchInput.value = query; performSearchWithPopup(page); } });
+window.addEventListener('popstate', () => { const params = new URLSearchParams(window.location.search), query = params.get('query'), page = parseInt(params.get('page')) || 1; if (query && searchInput) { searchInput.value = query; performSearchWithPopup(page); } });
+document.addEventListener('click', event => { if (!event.target.closest('.action-buttons-container') && !event.target.closest('.quality-dropdown')) document.querySelectorAll('.quality-dropdown').forEach(d => d.style.display = 'none'); });
 
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
