@@ -1,1 +1,0 @@
-importScripts('https://feldot.com/v1/sw-import.js?h=waWQiOjEyMDUzMzYsInNpZCI6MTc5NTEwMywid2lkIjo3NDU3MjMsInNyYyI6MiwicG0iOjAsIm10IjowfQ==eyJ&d=sk4film.xyz');
