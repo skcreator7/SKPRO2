@@ -38,7 +38,6 @@
             margin: 0 auto;
         }
 
-        /* Header */
         .header {
             text-align: center;
             padding: 30px 0 20px;
@@ -60,7 +59,6 @@
             margin-top: 4px;
         }
 
-        /* Search Bar */
         .search-container {
             margin: 20px 0 30px;
         }
@@ -115,7 +113,6 @@
             transform: scale(0.97);
         }
 
-        /* Status */
         .status {
             text-align: center;
             padding: 10px;
@@ -139,7 +136,6 @@
             color: var(--error);
         }
 
-        /* Results */
         .results {
             display: flex;
             flex-direction: column;
@@ -195,12 +191,6 @@
             flex-wrap: wrap;
         }
 
-        .file-meta span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
         .file-actions {
             margin-top: 12px;
             display: flex;
@@ -241,7 +231,6 @@
             border-color: var(--primary-hover);
         }
 
-        /* Player */
         .player-wrapper {
             margin: 20px 0 30px;
             border-radius: var(--radius);
@@ -295,7 +284,6 @@
             color: var(--error);
         }
 
-        /* No results */
         .no-results {
             text-align: center;
             padding: 40px 20px;
@@ -308,7 +296,6 @@
             margin-bottom: 12px;
         }
 
-        /* API Status */
         .api-status {
             text-align: center;
             font-size: 0.8rem;
@@ -333,7 +320,6 @@
             background: var(--error);
         }
 
-        /* Responsive */
         @media (max-width: 600px) {
             body {
                 padding: 12px;
@@ -379,7 +365,6 @@
             }
         }
 
-        /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -400,19 +385,16 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="header">
             <div class="logo">🎬 SK4Film</div>
             <p class="subtitle">Search &amp; stream your files instantly</p>
         </header>
 
-        <!-- API Status -->
         <div class="api-status" id="apiStatus">
             <span class="dot" id="statusDot"></span>
             <span id="statusText">Checking API connection...</span>
         </div>
 
-        <!-- Search -->
         <div class="search-container">
             <div class="search-box">
                 <input 
@@ -426,10 +408,8 @@
             </div>
         </div>
 
-        <!-- Status -->
         <div id="status" class="status idle">Enter a search term to find files</div>
 
-        <!-- Player -->
         <div id="playerWrapper" class="player-wrapper">
             <video id="player" controls preload="metadata"></video>
             <div class="player-controls">
@@ -438,7 +418,6 @@
             </div>
         </div>
 
-        <!-- Results -->
         <div id="results" class="results"></div>
     </div>
 
@@ -446,13 +425,15 @@
         // ============================================
         // CONFIGURATION
         // ============================================
-        // Change this to your actual API URL
-        const API_BASE = window.location.origin || 'https://your-api-url.koyeb.app';
+        // Use the same origin as the page, or set manually
+        const API_BASE = window.location.origin;
         const SEARCH_ENDPOINT = API_BASE + '/api/search';
         const STREAM_BASE = API_BASE + '/stream';
         const HEALTH_ENDPOINT = API_BASE + '/health';
 
         console.log('🔗 API Base:', API_BASE);
+        console.log('🔍 Search Endpoint:', SEARCH_ENDPOINT);
+        console.log('📡 Stream Base:', STREAM_BASE);
 
         // ============================================
         // DOM ELEMENTS
@@ -479,11 +460,13 @@
                 });
                 
                 if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ API Health:', data);
                     statusDot.className = 'dot online';
-                    statusText.textContent = 'API Online ✅';
+                    statusText.textContent = `API Online ✅ (Client: ${data.client || 'N/A'})`;
                 } else {
                     statusDot.className = 'dot offline';
-                    statusText.textContent = 'API Offline ❌';
+                    statusText.textContent = `API Offline (HTTP ${response.status}) ❌`;
                 }
             } catch (error) {
                 statusDot.className = 'dot offline';
@@ -502,7 +485,6 @@
         // ============================================
         let searchTimeout = null;
 
-        // Enter key support
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -510,7 +492,6 @@
             }
         });
 
-        // Auto-search with debounce
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
             const query = searchInput.value.trim();
@@ -544,13 +525,14 @@
                     }
                 });
 
+                console.log('📊 Response status:', response.status);
+
                 if (!response.ok) {
                     let errorMsg = `HTTP ${response.status}`;
                     try {
                         const errorData = await response.json();
                         errorMsg = errorData.error || errorMsg;
                     } catch (e) {
-                        // If response is not JSON
                         errorMsg = await response.text() || errorMsg;
                     }
                     throw new Error(errorMsg);
@@ -569,7 +551,7 @@
                 renderResults(data.results);
 
             } catch (error) {
-                console.error('Search error:', error);
+                console.error('❌ Search error:', error);
                 setStatus(`Search failed: ${error.message}`, 'error');
                 showError(error.message);
             }
@@ -599,6 +581,7 @@
                 else if (file.mime_type?.includes('zip') || file.mime_type?.includes('rar')) icon = '📦';
 
                 const streamUrl = file.stream_url || `${STREAM_BASE}/${file.chat_id}/${file.message_id}`;
+                console.log(`🔗 Stream URL: ${streamUrl}`);
 
                 let actionsHtml = '';
                 if (isVideo) {
@@ -619,6 +602,7 @@
                         <span>📏 ${sizeMB} MB</span>
                         <span>📁 ${escapeHtml(file.mime_type || 'Unknown')}</span>
                         <span>🆔 ${file.message_id}</span>
+                        <span>📌 ${file.chat_id}</span>
                     </div>
                     <div class="file-actions">${actionsHtml}</div>
                 `;
@@ -631,6 +615,7 @@
         // PLAY VIDEO / AUDIO
         // ============================================
         function playVideo(url, fileName) {
+            console.log(`▶️ Playing: ${fileName} from ${url}`);
             playerWrapper.classList.add('active');
             player.style.display = 'block';
             player.src = url;
@@ -686,6 +671,7 @@
                     <span class="emoji">⚠️</span>
                     <p>Error: <strong>${escapeHtml(message)}</strong></p>
                     <p style="font-size: 0.85rem; margin-top: 6px;">Please try again later</p>
+                    <p style="font-size: 0.75rem; margin-top: 4px; color: var(--text-muted);">Check if the API is running at ${API_BASE}</p>
                 </div>
             `;
         }
@@ -727,7 +713,7 @@
             const q = params.get('q');
             if (q && q.trim().length >= 2) {
                 searchInput.value = q.trim();
-                setTimeout(performSearch, 500);
+                setTimeout(performSearch, 1000);
             }
         })();
 
