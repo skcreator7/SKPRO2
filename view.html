@@ -1,1644 +1,772 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>SK4FiLM - Live Cricket or Movies Channels</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SK4Film - Stream & Download</title>
     
-    <!-- Video.js CSS & JS -->
-    <meta http-equiv="Delegate-CH" content="Sec-CH-UA https://s.magsrv.com; Sec-CH-UA-Mobile https://s.magsrv.com; Sec-CH-UA-Arch https://s.magsrv.com; Sec-CH-UA-Model https://s.magsrv.com; Sec-CH-UA-Platform https://s.magsrv.com; Sec-CH-UA-Platform-Version https://s.magsrv.com; Sec-CH-UA-Bitness https://s.magsrv.com; Sec-CH-UA-Full-Version-List https://s.magsrv.com; Sec-CH-UA-Full-Version https://s.magsrv.com;">
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-    
-    <!-- Existing Libraries -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"></script>    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://quge5.com/88/tag.min.js" data-zone="269232" async data-cfasync="false"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.29.0/dist/feather.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* Reset & Base */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
+        /* (Same CSS as before - keep all styles) */
         :root {
-            --primary-red: #ff0000;
-            --primary-blue: #0066ff;
-            --dark-bg: #0a0a0f;
-            --darker-bg: #05050a;
-            --accent: #00ccff;
-        }
-        
-        html, body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: var(--dark-bg);
-            color: #fff;
-            min-height: 100vh;
-            width: 100%;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        body {
-            overflow-y: auto;
-            height: auto;
-            position: relative;
-            padding-top: 70px;
-        }
-        
-        /* Navigation */
-        .top-navbar {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(15px);
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            z-index: 1000;
-            padding: 12px 0;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        
-        .navbar-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            position: relative;
-            padding: 0 15px;
-            max-width: 100%;
-        }
-        
-        .logo-section {
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
-            max-width: 60%;
-        }
-        
-        .logo-img {
-            height: 40px;
-            width: 40px;
-            margin-right: 8px;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
-            object-fit: contain;
-        }
-        
-        .brand-content {
-            min-width: 0;
-            flex: 1;
-        }
-        
-        .brand-text {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.3rem;
-            background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            line-height: 1.2;
-            white-space: nowrap;
-        }
-        
-        .brand-subtitle {
-            font-size: 0.6rem;
-            color: var(--accent);
-            font-weight: 300;
-            letter-spacing: 0.5px;
-            font-style: italic;
-            white-space: nowrap;
-        }
-        
-        .action-buttons {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        
-        .search-icon-btn {
-            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue));
-            color: white;
-            border: none;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
-        }
-        
-        .search-icon-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 25px rgba(255, 0, 0, 0.6);
-        }
-        
-        .menu-button {
-            background: rgba(0, 204, 255, 0.15);
-            border: 2px solid var(--accent);
-            color: var(--accent);
-            padding: 9px 11px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .menu-button:hover {
-            background: rgba(0, 204, 255, 0.25);
-            box-shadow: 0 0 20px rgba(0, 204, 255, 0.6);
-        }
-        
-        .menu-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-        
-        .menu-line {
-            width: 18px;
-            height: 2px;
-            background: var(--accent);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-        
-        .menu-button.active .menu-line:nth-child(1) {
-            transform: rotate(45deg) translate(5px, 5px);
-        }
-        
-        .menu-button.active .menu-line:nth-child(2) {
-            opacity: 0;
-        }
-        
-        .menu-button.active .menu-line:nth-child(3) {
-            transform: rotate(-45deg) translate(5px, -5px);
-        }
-        
-        .search-container {
-            position: fixed;
-            top: 70px;
-            left: 0;
-            right: 0;
-            z-index: 999;
-            background: rgba(15, 23, 42, 0.98);
-            border-bottom: 2px solid var(--accent);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            padding: 0 15px;
-            max-height: 0;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .search-container.active {
-            max-height: 85px;
-            padding: 15px;
-        }
-        
-        .search-wrapper {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .inline-search-input {
-            flex: 1;
-            background: rgba(60, 65, 90, 0.9);
-            border: 2px solid var(--accent);
-            color: white;
-            padding: 10px 15px;
-            font-size: 0.9rem;
-            border-radius: 25px;
-            outline: none;
-        }
-        
-        .inline-search-input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .inline-search-input:focus {
-            box-shadow: 0 0 15px rgba(0, 204, 255, 0.5);
-            border-color: #00e6ff;
-        }
-        
-        .inline-search-btn {
-            background: var(--accent);
-            color: #1a1a2e;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        .menu-section {
-            position: relative;
-        }
-        
-        .menu-dropdown {
-            position: fixed;
-            top: 70px;
-            right: 15px;
-            left: 15px;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
-            border: 2px solid var(--accent);
-            border-radius: 15px;
-            padding: 20px;
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            z-index: 998;
-        }
-        
-        .menu-dropdown.active {
-            max-height: 350px;
-            opacity: 1;
-        }
-        
-        .menu-dropdown h4 {
-            color: var(--accent);
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-            text-align: center;
-        }
-        
-        .menu-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .menu-link {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 15px;
-            background: rgba(0, 204, 255, 0.1);
-            border: 1px solid rgba(0, 204, 255, 0.3);
-            border-radius: 10px;
-            color: white;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .menu-link:hover {
-            background: rgba(0, 204, 255, 0.2);
-            transform: translateX(5px);
-        }
-        
-        .menu-link i {
-            font-size: 1.2rem;
-            width: 25px;
-            text-align: center;
-        }
-        
-        @media (min-width: 992px) {
-            body {
-                padding-top: 90px;
-            }
-            
-            .search-container {
-                top: 90px;
-            }
-            
-            .menu-dropdown {
-                top: 90px;
-            }
-        }
-        
-        /* Main Container */
-        .main-container {
-            width: 100%;
-            min-height: calc(100vh - 70px);
-            position: relative;
-        }
-        
-        /* Video Wrapper */
-        .video-wrapper {
-            width: 100%;
-            position: relative;
-            background: #000;
-            margin: 0;
-        }
-        
-        .aspect-ratio-box {
-            position: relative;
-            width: 100%;
-            padding-top: 56.25%;
-            background: #000;
-        }
-        
-        .video-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            overflow: hidden;
-        }
-        
-        /* Video.js Player Customization */
-        #video-element {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            object-fit: contain;
-            background: #000;
-        }
-        
-        .video-js {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        
-        .video-js .vjs-big-play-button {
-            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
-            border: 3px solid white;
-            border-radius: 50%;
-            width: 70px;
-            height: 70px;
-            line-height: 70px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-        
-        .video-js .vjs-control-bar {
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-            height: 50px;
-            padding: 0 15px;
-            align-items: center;
-        }
-        
-        .video-js .vjs-play-progress {
-            background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
-        }
-        
-        .video-js .vjs-volume-panel {
-            margin-right: 10px;
-        }
-        
-        .video-js .vjs-time-control {
-            padding: 0 5px;
-            font-size: 0.85rem;
-        }
-        
-        .video-js .vjs-current-time, 
-        .video-js .vjs-duration {
-            display: block;
-        }
-        
-        .video-js .vjs-progress-control {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: -8px;
-            height: 8px;
-            width: 100%;
-        }
-        
-        .video-js .vjs-progress-holder {
-            height: 6px;
-            border-radius: 3px;
-            margin: 0;
-        }
-        
-        .video-js .vjs-play-progress:before {
-            content: '';
-            width: 12px;
-            height: 12px;
-            background: white;
-            border-radius: 50%;
-            position: absolute;
-            right: -6px;
-            top: -3px;
-            border: 2px solid var(--primary-red);
-        }
-        
-        .video-js.vjs-fullscreen .vjs-control-bar {
-            padding: 0 25px;
-        }
-        
-        /* Category Section */
-        .category-section {
-            margin: 20px 0;
-            padding: 0 10px;
-        }
-        
-        .category-title {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding-left: 10px;
-            border-left: 4px solid var(--primary-red);
-            color: #fff;
-        }
-        
-        .channels-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 12px;
-            padding: 5px;
-        }
-        
-        .channel-card {
-            background: linear-gradient(145deg, #1a1a2e, #16213e);
-            border-radius: 12px;
-            padding: 12px 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255, 0, 0, 0.2);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            position: relative;
-        }
-        
-        .channel-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary-red);
-            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.3);
-        }
-        
-        .channel-logo {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 8px;
-            border: 2px solid var(--primary-red);
-            background: white;
-        }
-        
-        .channel-name {
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-align: center;
-            color: #fff;
-            line-height: 1.2;
-        }
-        
-        .loading-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: var(--primary-red);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .content-section {
-            padding: 15px 10px;
-            max-width: 1400px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 1;
-            background: var(--dark-bg);
-        }
-        
-        .video-info {
-            text-align: center;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-        }
-        
-        .video-title {
-            font-size: 1.3rem;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #fff;
-        }
-        
-        .video-badges {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .badge-red {
-            background: var(--primary-red);
-            color: white;
-        }
-        
-        .badge-blue {
-            background: var(--primary-blue);
-            color: white;
-        }
-        
-        .badge-green {
-            background: #28a745;
-            color: white;
-        }
-        
-        .donation-card {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.2);
-            border-radius: 15px;
-            padding: 25px;
-            margin: 30px 0 10px;
-            text-align: center;
-        }
-        
-        .donation-qr {
-            width: 180px;
-            height: 180px;
-            border-radius: 10px;
-            margin: 0 auto 15px;
-            border: 2px solid rgba(255, 193, 7, 0.3);
-            background: white;
-            padding: 10px;
-        }
-        
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 12px 25px;
-            border-radius: 10px;
-            z-index: 10000;
-            font-size: 0.9rem;
-            display: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,0,0,0.3);
-            backdrop-filter: blur(10px);
-        }
-        
-        .toast.show {
-            display: block;
-            animation: slideUp 0.3s ease;
-        }
-        
-        .toast-error {
-            border-color: #ff4444;
-            background: rgba(0, 0, 0, 0.95);
-        }
-        
-        .toast-warning {
-            border-color: #ffaa00;
-            background: rgba(0, 0, 0, 0.95);
-        }
-        
-        .toast-success {
-            border-color: #00ff00;
-            background: rgba(0, 0, 0, 0.95);
-        }
-        
-        @keyframes slideUp {
-            from { transform: translate(-50%, 100%); opacity: 0; }
-            to { transform: translate(-50%, 0%); opacity: 1; }
-        }
-        
-        /* Fullscreen styles */
-        :fullscreen .video-wrapper,
-        :-webkit-full-screen .video-wrapper,
-        :-moz-full-screen .video-wrapper,
-        :-ms-fullscreen .video-wrapper {
-            width: 100vw;
-            height: 100vh;
-            padding-top: 0 !important;
-            margin: 0 !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            z-index: 999999 !important;
-            background: #000 !important;
-        }
-        
-        :fullscreen .aspect-ratio-box,
-        :-webkit-full-screen .aspect-ratio-box,
-        :-moz-full-screen .aspect-ratio-box,
-        :-msfullscreen .aspect-ratio-box {
-            width: 100vw !important;
-            height: 100vh !important;
-            padding-top: 0 !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-        }
-        
-        :fullscreen .video-container,
-        :-webkit-full-screen .video-container,
-        :-moz-full-screen .video-container,
-        :-msfullscreen .video-container {
-            width: 100vw !important;
-            height: 100vh !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            z-index: 999999 !important;
-        }
-        
-        :fullscreen #video-element,
-        :-webkit-full-screen #video-element,
-        :-moz-full-screen #video-element,
-        :-msfullscreen #video-element {
-            width: 100vw !important;
-            height: 100vh !important;
-            object-fit: contain !important;
-        }
-        
-        /* External Player Modal - बीच में */
-        .external-player-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(8px);
-            z-index: 10001;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .external-player-modal.show {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .modal-content {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            border: 2px solid var(--accent);
-            border-radius: 20px;
-            padding: 25px;
-            width: 90%;
-            max-width: 380px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-            position: relative;
-            text-align: center;
-        }
-        
-        .external-player-modal.show .modal-content {
-            transform: scale(1);
-        }
-        
-        .modal-close {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .modal-close:hover {
-            background: rgba(255,255,255,0.2);
-            transform: rotate(90deg);
-        }
-        
-        .modal-icon {
-            font-size: 3rem;
-            color: var(--accent);
-            margin-bottom: 15px;
-            background: rgba(0, 204, 255, 0.1);
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
-            border: 2px solid var(--accent);
-        }
-        
-        .modal-title {
-            font-size: 1.4rem;
-            color: var(--accent);
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        
-        .modal-message {
-            color: #fff;
-            margin-bottom: 20px;
-            font-size: 1.1rem;
-            background: rgba(255,255,255,0.1);
-            padding: 12px;
-            border-radius: 10px;
-            font-weight: 500;
-        }
-        
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-        
-        .modal-btn {
-            padding: 14px 20px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-            min-width: 120px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .modal-btn-primary {
-            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue));
-            color: white;
-        }
-        
-        .modal-btn-secondary {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        
-        .modal-btn-primary:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 20px rgba(255,0,0,0.4);
-        }
-        
-        .modal-btn-secondary:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .modal-install-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 15px;
-        }
-        
-        /* Mobile Optimizations */
+            --primary: #6C63FF;
+            --primary-dark: #5A52D5;
+            --primary-light: #8B83FF;
+            --secondary: #FF6584;
+            --bg-start: #0a0a1a;
+            --bg-end: #1a1a2e;
+            --card-bg: rgba(26, 26, 46, 0.92);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(108, 99, 255, 0.15);
+            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            --gradient: linear-gradient(135deg, #6C63FF, #FF6584);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, var(--bg-start), var(--bg-end)); min-height: 100vh; color: var(--text-primary); overflow-x: hidden; }
+        .bg-animation { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
+        .bg-animation .circle { position: absolute; border-radius: 50%; background: radial-gradient(circle, rgba(108, 99, 255, 0.08), transparent); animation: float 20s infinite ease-in-out; }
+        .bg-animation .circle:nth-child(1) { width: 400px; height: 400px; top: -100px; right: -100px; animation-delay: 0s; }
+        .bg-animation .circle:nth-child(2) { width: 300px; height: 300px; bottom: -50px; left: -50px; animation-delay: -7s; background: radial-gradient(circle, rgba(255, 101, 132, 0.06), transparent); }
+        .bg-animation .circle:nth-child(3) { width: 200px; height: 200px; top: 50%; left: 50%; transform: translate(-50%, -50%); animation-delay: -14s; background: radial-gradient(circle, rgba(108, 99, 255, 0.04), transparent); }
+        @keyframes float { 0%, 100% { transform: translate(0, 0) scale(1); } 25% { transform: translate(30px, -30px) scale(1.05); } 50% { transform: translate(-20px, 20px) scale(0.95); } 75% { transform: translate(20px, -10px) scale(1.02); } }
+        .navbar-custom { background: rgba(10, 10, 26, 0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-color); padding: 0.8rem 0; position: sticky; top: 0; z-index: 100; }
+        .navbar-custom .brand { font-weight: 800; font-size: 1.5rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .navbar-custom .brand i { -webkit-text-fill-color: initial; color: var(--primary-light); }
+        .navbar-custom .brand span { -webkit-text-fill-color: initial; color: var(--secondary); }
+        .search-section { background: rgba(10, 10, 26, 0.5); border-radius: 14px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color); }
+        .search-section .form-control { background: rgba(10, 10, 26, 0.8); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 10px; padding: 0.7rem 1rem; }
+        .search-section .form-control:focus { border-color: var(--primary); box-shadow: 0 0 30px rgba(108, 99, 255, 0.1); }
+        .search-section .form-control::placeholder { color: var(--text-secondary); opacity: 0.6; }
+        .search-results { max-height: 300px; overflow-y: auto; margin-top: 0.5rem; }
+        .search-results .result-item { padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; border-bottom: 1px solid var(--border-color); }
+        .search-results .result-item:hover { background: rgba(108, 99, 255, 0.1); }
+        .search-results .result-item .file-name { color: var(--text-primary); font-weight: 500; }
+        .search-results .result-item .file-meta { color: var(--text-secondary); font-size: 0.8rem; }
+        .search-results::-webkit-scrollbar { width: 4px; }
+        .search-results::-webkit-scrollbar-track { background: rgba(10, 10, 26, 0.5); border-radius: 2px; }
+        .search-results::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
+        .main-card { background: var(--card-bg); border-radius: 24px; padding: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border-color); backdrop-filter: blur(20px); min-height: 450px; margin-top: 2rem; position: relative; overflow: hidden; }
+        .main-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gradient); }
+        .file-info { background: rgba(10, 10, 26, 0.5); border-radius: 14px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color); }
+        .file-info .label { color: var(--text-secondary); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .file-info .value { color: var(--text-primary); font-weight: 500; word-break: break-all; font-size: 0.95rem; }
+        .file-info .value i { color: var(--primary-light); margin-right: 8px; width: 18px; }
+        .file-badge { display: inline-block; padding: 2px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .file-badge.video { background: rgba(108, 99, 255, 0.2); color: var(--primary-light); }
+        .file-badge.audio { background: rgba(255, 101, 132, 0.2); color: var(--secondary); }
+        .file-badge.image { background: rgba(52, 211, 153, 0.2); color: #34D399; }
+        .file-badge.document { background: rgba(251, 191, 36, 0.2); color: #FBBF24; }
+        .media-wrapper { position: relative; background: #000; border-radius: 16px; overflow: hidden; aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); }
+        .media-wrapper video, .media-wrapper audio { width: 100%; height: 100%; object-fit: contain; }
+        .media-wrapper audio { height: 80px; padding: 20px; background: #0a0a1a; }
+        .image-wrapper { display: flex; align-items: center; justify-content: center; background: #0a0a1a; border-radius: 16px; min-height: 300px; max-height: 75vh; overflow: hidden; border: 1px solid var(--border-color); }
+        .image-wrapper img { max-width: 100%; max-height: 75vh; object-fit: contain; }
+        .image-wrapper img:hover { transform: scale(1.02); }
+        .doc-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 2rem; background: #0a0a1a; border-radius: 16px; min-height: 250px; text-align: center; border: 1px solid var(--border-color); }
+        .doc-wrapper .doc-icon { font-size: 4.5rem; color: var(--primary-light); margin-bottom: 1rem; }
+        .doc-wrapper .doc-name { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); word-break: break-all; }
+        .doc-wrapper .doc-size { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .btn-primary-custom { background: var(--gradient); border: none; padding: 0.7rem 2rem; font-weight: 600; border-radius: 12px; transition: all 0.3s ease; color: #fff; position: relative; overflow: hidden; }
+        .btn-primary-custom::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); transition: left 0.5s ease; }
+        .btn-primary-custom:hover::after { left: 100%; }
+        .btn-primary-custom:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -8px rgba(108, 99, 255, 0.4); color: #fff; }
+        .btn-outline-custom { border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.7rem 2rem; font-weight: 500; border-radius: 12px; transition: all 0.3s ease; background: transparent; }
+        .btn-outline-custom:hover { background: rgba(108, 99, 255, 0.1); border-color: var(--primary); color: #fff; }
+        .loading-spinner { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 350px; }
+        .loading-spinner .spinner { width: 60px; height: 60px; border: 4px solid rgba(255, 255, 255, 0.05); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 0.9s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-spinner .loading-text { color: var(--text-secondary); margin-top: 1.5rem; font-size: 0.95rem; font-weight: 500; }
+        .error-box { text-align: center; padding: 3rem 1.5rem; }
+        .error-box .error-icon { font-size: 4rem; color: #ef4444; margin-bottom: 1rem; }
+        .error-box .error-title { font-size: 1.4rem; font-weight: 700; color: #fca5a5; }
+        .error-box .error-message { color: var(--text-secondary); margin-top: 0.5rem; }
+        .toast-custom { position: fixed; bottom: 24px; right: 24px; background: rgba(26, 26, 46, 0.95); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: 14px; padding: 14px 24px; color: var(--text-primary); font-weight: 500; transform: translateY(100px); opacity: 0; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 9999; box-shadow: var(--shadow); font-size: 0.95rem; display: flex; align-items: center; gap: 12px; }
+        .toast-custom.show { transform: translateY(0); opacity: 1; }
+        .toast-custom .toast-icon { color: var(--primary-light); flex-shrink: 0; }
         @media (max-width: 768px) {
-            .main-container {
-                min-height: calc(100vh - 60px);
-            }
-            
-            .video-js .vjs-big-play-button {
-                width: 60px;
-                height: 60px;
-                line-height: 60px;
-            }
-            
-            .channels-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                gap: 8px;
-            }
-            
-            .channel-logo {
-                width: 70px;
-                height: 70px;
-            }
-            
-            .channel-name {
-                font-size: 0.7rem;
-            }
-            
-            .modal-content {
-                width: 95%;
-                padding: 20px;
-            }
-            
-            .modal-icon {
-                width: 70px;
-                height: 70px;
-                font-size: 2.5rem;
-            }
-            
-            .modal-title {
-                font-size: 1.3rem;
-            }
-            
-            .modal-message {
-                font-size: 1rem;
-                padding: 10px;
-            }
-            
-            .modal-btn {
-                padding: 12px 15px;
-                font-size: 1rem;
-                min-width: 100px;
-            }
+            .main-card { padding: 1rem; border-radius: 16px; margin-top: 1rem; }
+            .navbar-custom .brand { font-size: 1.2rem; }
+            .btn-primary-custom, .btn-outline-custom { width: 100%; text-align: center; }
+            .media-wrapper { aspect-ratio: 4 / 3; }
+            .file-info { padding: 0.8rem 1rem; }
+            .file-info .value { font-size: 0.85rem; }
+            .doc-wrapper .doc-icon { font-size: 3.5rem; }
+            .toast-custom { left: 16px; right: 16px; bottom: 16px; font-size: 0.85rem; padding: 12px 16px; }
+            .action-buttons { flex-direction: column; gap: 8px; }
+            .search-section { padding: 0.8rem 1rem; }
         }
-        
-        @media (max-width: 480px) {
-            .channels-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .modal-content {
-                padding: 18px;
-            }
-            
-            .modal-icon {
-                width: 60px;
-                height: 60px;
-                font-size: 2rem;
-            }
-            
-            .modal-title {
-                font-size: 1.2rem;
-            }
-            
-            .modal-btn {
-                padding: 10px 12px;
-                font-size: 0.95rem;
-                min-width: 90px;
-            }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.6s ease forwards; }
+        .footer-text { text-align: center; color: var(--text-secondary); font-size: 0.8rem; margin-top: 2rem; opacity: 0.6; }
+        .footer-text a { color: var(--primary-light); text-decoration: none; }
+        .footer-text a:hover { color: var(--secondary); }
     </style>
-   <style>
-#floating_ads_container {position: fixed;bottom: 2px;width: 100%; -webkit-transition: width 1s, height 1s; transition: width 1s, height 1s;z-index:999;} #floating_ads_wrap {text-align: center;} #floating_ads_bottom_ad {display:inline-block;position:relative} #floating_ads_bottom_close {position: absolute;top:-20px;display:block; font-size: 20px; font-weight: bold; text-decoration: none; border-radius:50%; cursor: pointer; text-align: center; height: 25px; width:25px; line-height: 25px; background-color: #ccc;z-index:5; color: #fff! important; right:-10px;}
-</style> 
 </head>
-
 <body>
-    <!-- Navigation -->
-    <nav class="top-navbar">
-        <div class="container-fluid">
-            <div class="navbar-content">
-                <div class="logo-section">
-                    <a href="#" style="display: flex; align-items: center; color: white; text-decoration: none;">
-                        <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
-                        <div class="brand-content">
-                            <div class="brand-text">SK4FiLM</div>
-                            <div class="brand-subtitle">House of Entertainment</div>
-                        </div>
-                    </a>
-                </div>
-                
-                <div class="action-buttons">
-                    <button class="search-icon-btn" onclick="toggleSearch()" id="searchToggleBtn" title="Search">
-                        <i class="fas fa-search"></i>
-                    </button>
-                    
-                    <div class="menu-section">
-                        <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn">
-                            <div class="menu-lines">
-                                <div class="menu-line"></div>
-                                <div class="menu-line"></div>
-                                <div class="menu-line"></div>
-                            </div>
-                        </button>
-                        
-                        <div class="menu-dropdown" id="menuDropdown">
-                            <h4><i class="fas fa-share-alt me-2"></i>Follow Us</h4>
-                            <div class="menu-links">
-                                <a href="https://t.me/sk4film" target="_blank" class="menu-link">
-                                    <i class="fab fa-telegram" style="color: #0088cc;"></i>
-                                    <span>Telegram</span>
-                                </a>
-                                <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
-                                    <i class="fab fa-whatsapp" style="color: #25d366;"></i>
-                                    <span>WhatsApp</span>
-                                </a>
-                                <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
-                                    <i class="fab fa-youtube" style="color: #ff0000;"></i>
-                                    <span>YouTube</span>
-                                </a>
-                                <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
-                                    <i class="fas fa-robot" style="color: #7b68ee;"></i>
-                                    <span>Telegram Bot</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+    <div class="bg-animation">
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+    </div>
+
+    <nav class="navbar-custom">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a href="https://sk4film.vercel.app" class="brand text-decoration-none">
+                <i data-feather="film"></i>
+                SK4<span>Film</span>
+            </a>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-custom py-1 px-3" onclick="shareFile()" title="Share">
+                    <i data-feather="share-2" style="width:18px;height:18px;"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-custom py-1 px-3" onclick="copyLink()" title="Copy Link">
+                    <i data-feather="link-2" style="width:18px;height:18px;"></i>
+                </button>
             </div>
         </div>
     </nav>
-    
-    <!-- Search Container -->
-    <div class="search-container" id="searchContainer">
-        <div class="search-wrapper">
-            <input 
-                type="text" 
-                class="inline-search-input" 
-                id="inlineSearchInput" 
-                placeholder="Search channels..."
-                onkeypress="if(event.key==='Enter') doInlineSearch()"
-            >
-            <button class="inline-search-btn" onclick="doInlineSearch()">
-                <i class="fas fa-arrow-right"></i>
-            </button>
-        </div>
-    </div>
-    
-    <!-- External Player Modal - बीच में दिखेगा -->
-    <div class="external-player-modal" id="externalPlayerModal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeExternalModal()">
-                <i class="fas fa-times"></i>
-            </button>
-            
-            <div class="modal-icon">
-                <i class="fas fa-external-link-alt"></i>
-            </div>
-            
-            <div class="modal-title" id="modalTitle">External Player</div>
-            <div class="modal-message" id="modalMessage">Choose a player</div>
-            
-            <div class="modal-buttons" id="mainPlayerButtons">
-                <button class="modal-btn modal-btn-primary" onclick="openWithVLC()">
-                    <i class="fab fa-vlc"></i> VLC
-                </button>
-                <button class="modal-btn modal-btn-primary" onclick="openWithMX()">
-                    <i class="fas fa-play"></i> MX
-                </button>
-            </div>
-            
-            <!-- Install buttons (hidden by default) -->
-            <div class="modal-install-buttons" id="installButtonsContainer">
-                <button class="modal-btn modal-btn-secondary" id="installVLCBtn" onclick="openPlayStore('vlc')" style="display: none;">
-                    <i class="fab fa-google-play"></i> Install VLC
-                </button>
-                <button class="modal-btn modal-btn-secondary" id="installMXBtn" onclick="openPlayStore('mx')" style="display: none;">
-                    <i class="fab fa-google-play"></i> Install MX
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <div class="container-fluid px-0">
-        <!-- Main Container -->
-        <div class="main-container">
-            <!-- Video Wrapper -->
-            <div class="video-wrapper">
-                <div class="aspect-ratio-box">
-                    <div class="video-container" id="videoContainer">
-                        <!-- Video.js Player -->
-                        <video-js id="video-element"
-                                  class="vjs-default-skin vjs-big-play-centered"
-                                  controls
-                                  autoplay
-                                  playsinline
-                                  preload="auto"
-                                  poster="https://i.ibb.co/bZD5DWg/x.jpg"
-                                  data-setup='{
-                                      "fluid": true,
-                                      "responsive": true,
-                                      "liveui": true,
-                                      "controlBar": {
-                                          "volumePanel": {
-                                              "inline": false
-                                          },
-                                          "pictureInPictureToggle": true,
-                                          "fullscreenToggle": true,
-                                          "currentTimeDisplay": true,
-                                          "timeDivider": true,
-                                          "durationDisplay": true,
-                                          "progressControl": {
-                                              "seekBar": true
-                                          }
-                                      },
-                                      "html5": {
-                                          "hls": {
-                                              "enableLowInitialPlaylist": true,
-                                              "overrideNative": true,
-                                              "fastQualityChange": true
-                                          },
-                                          "nativeAudioTracks": false,
-                                          "nativeVideoTracks": false
-                                      }
-                                  }'>
-                            <source src="https://cdn-2.pishow.tv/live/1461/master.m3u8" type="application/x-mpegURL">
-                            <p class="vjs-no-js">
-                                To view this video please enable JavaScript, and consider upgrading to a
-                                web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-                            </p>
-                        </video-js>
+
+    <div class="container py-4">
+        <div class="main-card fade-in">
+
+            <!-- Search Section -->
+            <div class="search-section">
+                <div class="row g-2">
+                    <div class="col-md-10">
+                        <input type="text" class="form-control" id="searchInput" 
+                               placeholder="🔍 Search files... (Type to search)" 
+                               autocomplete="off">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary-custom w-100" onclick="searchFiles()">
+                            <i data-feather="search" class="me-2"></i>Search
+                        </button>
                     </div>
                 </div>
+                <div id="searchResults" class="search-results" style="display: none;"></div>
             </div>
 
-            <!-- Content Section -->
-            <div class="content-section">
-                <!-- Video Info -->
-                <div class="video-info">
-                    <div class="video-title" id="videoTitle">SK4FiLM Live Stream</div>
-                    <div class="video-badges">
-                        <span class="badge badge-red">
-                            <i class="fas fa-file me-1"></i> Live
-                        </span>
-                        <span class="badge badge-blue">
-                            <i class="fas fa-wifi me-1"></i> Direct
-                        </span>
-                        <span class="badge badge-green">
-                            <i class="fas fa-tachometer-alt me-1"></i> Fast
-                        </span>
-                    </div>
-                </div>
-                <!-- 336×280 Ad Above Latest Movies -->
-        <div class="top-ad-container">
-            <div>
-                <script type="text/javascript">
-                    aclib.runBanner({
-                        zoneId: '11576274',
-                    });
-                </script>
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-spinner">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading file...</div>
+                <small style="color:var(--text-secondary);opacity:0.5;margin-top:4px;">Please wait</small>
             </div>
-        </div>
-                
-                <!-- Sports Category -->
-                <div class="category-section">
-                    <div class="category-title">
-                        <i class="fas fa-futbol me-2" style="color: var(--primary-red);"></i> Sports Channels
-                    </div>
-                    <div class="channels-grid" id="sports-channels">
-                        <!-- Sports channels will be loaded here by JavaScript -->
-                    </div>
-                </div>
 
-                <!-- Movies Category -->
-                <div class="category-section">
-                    <div class="category-title">
-                        <i class="fas fa-film me-2" style="color: var(--primary-blue);"></i> Movies Channels
-                    </div>
-                    <div class="channels-grid" id="movies-channels">
-                        <!-- Movies channels will be loaded here by JavaScript -->
-                    </div>
-                </div>
-                
-                <!-- Music Category -->
-                <div class="category-section">
-                    <div class="category-title">
-                        <i class="fas fa-music me-2" style="color: #ff6b6b;"></i> Music Channels
-                    </div>
-                    <div class="channels-grid" id="music-channels">
-                        <!-- Music channels will be loaded here by JavaScript -->
-                    </div>
-                    <div class="text-center mt-3" style="color: #aaa; font-size: 0.9rem;">
-                        <i class="fas fa-plus-circle me-1"></i> More channels adding soon...
-                    </div>
-                </div>
+            <!-- Error State -->
+            <div id="errorState" class="error-box" style="display: none;">
+                <div class="error-icon" data-feather="alert-circle"></div>
+                <div class="error-title">Oops! Something went wrong</div>
+                <p class="error-message" id="errorMessage">Unable to load file.</p>
+                <button class="btn btn-primary-custom mt-3" onclick="location.reload()">
+                    <i data-feather="refresh-ccw" class="me-2"></i>Try Again
+                </button>
+                <button class="btn btn-outline-custom mt-2" onclick="goBack()">
+                    <i data-feather="arrow-left" class="me-2"></i>Go Back
+                </button>
+            </div>
 
-                <!-- Donation Section -->
-                <div class="donation-card">
-                    <h4 class="text-warning mb-3">
-                        <i class="fas fa-heart me-2"></i> Support SK4FiLM
-                    </h4>
-                    <p class="mb-3">Help us maintain this streaming service and add more features.</p>
-                    
-                    <img src="https://i.ibb.co/FkQSTtK3/x.jpg" 
-                         alt="Donation QR Code" 
-                         class="donation-qr">
-                    
-                    <div class="mb-3">
-                        <h6 class="text-light">UPI ID:</h6>
-                        <div class="input-group mx-auto" style="max-width: 300px;">
-                            <input type="text" class="form-control bg-dark text-light text-center" 
-                                   value="skfilmbox718186.rzp@icici" readonly id="upiId">
-                            <button class="btn btn-warning" onclick="copyUPI()">
-                                <i class="fas fa-copy"></i>
-                            </button>
+            <!-- Content State -->
+            <div id="contentState" style="display: none;">
+
+                <div class="file-info fade-in">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-6">
+                            <div class="label">File Name</div>
+                            <div class="value"><i data-feather="file-text"></i><span id="fileName">-</span></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="label">File Size</div>
+                            <div class="value"><i data-feather="hard-drive"></i><span id="fileSize">-</span></div>
+                        </div>
+                        <div class="col-md-3 text-md-end">
+                            <span class="file-badge" id="fileBadge">Unknown</span>
                         </div>
                     </div>
-                    
-                    <a href="https://razorpay.me/@skfilmbox" target="_blank" class="btn btn-warning px-4">
-                        <i class="fas fa-donate me-2"></i> DONATE NOW
-                    </a>
                 </div>
+
+                <div id="playerContainer">
+                    <div id="videoPlayer" class="media-wrapper" style="display: none;">
+                        <video id="videoElement" controls autoplay playsinline></video>
+                    </div>
+                    <div id="audioPlayer" class="media-wrapper" style="display: none;">
+                        <audio id="audioElement" controls autoplay></audio>
+                    </div>
+                    <div id="imagePlayer" class="image-wrapper" style="display: none;">
+                        <img id="imageElement" src="" alt="Image">
+                    </div>
+                    <div id="documentPlayer" class="doc-wrapper" style="display: none;">
+                        <div class="doc-icon" data-feather="file"></div>
+                        <div class="doc-name" id="docName">Document</div>
+                        <div class="doc-size" id="docSize">-</div>
+                        <button class="btn btn-primary-custom mt-3" id="downloadDocBtn">
+                            <i data-feather="download" class="me-2"></i>Download
+                        </button>
+                    </div>
+                    <div id="unsupportedPlayer" class="doc-wrapper" style="display: none;">
+                        <div class="doc-icon" data-feather="file-question"></div>
+                        <div class="doc-name">Unsupported File Type</div>
+                        <div class="doc-size">Download the file to view</div>
+                        <button class="btn btn-primary-custom mt-3" id="downloadUnsupportedBtn">
+                            <i data-feather="download" class="me-2"></i>Download File
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex flex-wrap gap-2 justify-content-center action-buttons">
+                    <button class="btn btn-primary-custom" id="downloadBtn">
+                        <i data-feather="download" class="me-2"></i>Download
+                    </button>
+                    <button class="btn btn-outline-custom" onclick="copyLink()">
+                        <i data-feather="copy" class="me-2"></i>Copy Link
+                    </button>
+                    <button class="btn btn-outline-custom" onclick="shareFile()">
+                        <i data-feather="share-2" class="me-2"></i>Share
+                    </button>
+                    <button class="btn btn-outline-custom" onclick="openExternal()">
+                        <i data-feather="external-link" class="me-2"></i>Open
+                    </button>
+                </div>
+
             </div>
+
+        </div>
+
+        <div class="footer-text">
+            Powered by <a href="https://sk4film.vercel.app">SK4Film</a> &bull; Stream &amp; Download
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div class="toast" id="toast"></div>
+    <div id="toast" class="toast-custom">
+        <span class="toast-icon" data-feather="check-circle"></span>
+        <span id="toastMessage">Copied to clipboard!</span>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Initialize WOW.js
-        if (typeof WOW !== 'undefined') {
-            new WOW().init();
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const CONFIG = {
+            // ✅ Koyeb URL - REPLACE WITH YOUR ACTUAL KOYEB URL
+            apiUrl: 'https://your-app-name.koyeb.app',
+            
+            videoExtensions: ['mp4', 'mkv', 'webm', 'avi', 'mov', 'wmv', 'flv', '3gp', 'm4v', 'mpg', 'mpeg'],
+            audioExtensions: ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'opus'],
+            imageExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif'],
+            documentExtensions: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar', '7z', 'tar', 'gz', 'epub', 'mobi', 'apk', 'csv']
+        };
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const $ = (id) => document.getElementById(id);
+        const elements = {
+            loading: $('loadingState'),
+            error: $('errorState'),
+            errorMessage: $('errorMessage'),
+            content: $('contentState'),
+            fileName: $('fileName'),
+            fileSize: $('fileSize'),
+            fileBadge: $('fileBadge'),
+            videoPlayer: $('videoPlayer'),
+            videoElement: $('videoElement'),
+            audioPlayer: $('audioPlayer'),
+            audioElement: $('audioElement'),
+            imagePlayer: $('imagePlayer'),
+            imageElement: $('imageElement'),
+            documentPlayer: $('documentPlayer'),
+            docName: $('docName'),
+            docSize: $('docSize'),
+            unsupportedPlayer: $('unsupportedPlayer'),
+            downloadBtn: $('downloadBtn'),
+            downloadDocBtn: $('downloadDocBtn'),
+            downloadUnsupportedBtn: $('downloadUnsupportedBtn'),
+            searchInput: $('searchInput'),
+            searchResults: $('searchResults'),
+            toast: $('toast'),
+            toastMessage: $('toastMessage')
+        };
+
+        // ============================================
+        // TOAST SYSTEM
+        // ============================================
+        let toastTimeout = null;
+
+        function showToast(message, icon = 'check-circle') {
+            elements.toastMessage.textContent = message;
+            elements.toast.querySelector('.toast-icon').setAttribute('data-feather', icon);
+            feather.replace();
+            clearTimeout(toastTimeout);
+            elements.toast.classList.add('show');
+            toastTimeout = setTimeout(() => {
+                elements.toast.classList.remove('show');
+            }, 3000);
         }
-        
-        // Global Variables
-        let player = null; // Video.js player instance
-        let currentChannelUrl = '';
-        let currentChannelName = '';
-        let backupUrl = '';
-        
-        // Channel logos mapping
-        const channelLogos = {
-            // Sports
-            'star sports Hd': 'https://i.ibb.co/ywrgTyZ/star-sports-live-cricket-matches-guide-screenshot.png',
-            'star sports 1 hindi': 'https://i.ibb.co/4RFSmjvK/IMG-20260220-190309.png',
-            'star sports 2 hindi': 'https://i.ibb.co/r2cVyTRr/images-1.jpg',
-            'Sony Sports HD': 'https://i.ibb.co/8WvRk5k/images-2.jpg',
-            'Sony Sports 2': 'https://i.ibb.co/qYSpYPw4/1390.webp',
-            'Sony Sports 3': 'https://i.ibb.co/Qv8XHQqf/Ten3-HD.png',
-            // Movies
-            'Sony Max': 'https://i.ibb.co/q3CLCXFY/Sony-Max-new-logo.png',
-            'Sony Pix HD': 'https://i.ibb.co/L3SFy2D/214x0-icon.png',
-            'Sony Wah': 'https://i.ibb.co/d0cgFwKt/images-3.jpg',
-            '&pictures HD': 'https://i.ibb.co/MDvPcjq2/And-Pictures-HD.png',
-            'Colors Cineplex': 'https://i.ibb.co/TMXmZqKm/images-4.jpg',
-            'Zee Action': 'https://i.ibb.co/R42DsF0H/zee-action-advertising-services-500x500.png',
-            'Box Cinema': 'https://upload.wikimedia.org/wikipedia/commons/8/8e/Box_Cinema_logo.png',
-            'B4U Movies': 'https://upload.wikimedia.org/wikipedia/commons/9/92/B4U_Network_logo.png',
-            'Dhamaka Movies B4U': 'https://upload.wikimedia.org/wikipedia/commons/9/92/B4U_Network_logo.png',
-            // Music
-            '9xM': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/9XM_Logo.png',
-            'Mastiii': 'https://upload.wikimedia.org/wikipedia/commons/4/49/Mastiii_logo.png',
-            'B4U Music': 'https://upload.wikimedia.org/wikipedia/commons/9/92/B4U_Network_logo.png'
+
+        // ============================================
+        // URL HELPERS
+        // ============================================
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                fileUrl: params.get('file_url'),
+                fileName: params.get('file_name'),
+                fileSize: params.get('file_size'),
+                channelId: params.get('channel_id'),
+                messageId: params.get('message_id'),
+                query: params.get('q')
+            };
+        }
+
+        function getFileExtension(url, name) {
+            const filename = name || url.split('/').pop().split('?')[0];
+            const ext = filename.split('.').pop().toLowerCase();
+            return ext;
+        }
+
+        function getFileType(extension) {
+            if (CONFIG.videoExtensions.includes(extension)) return 'video';
+            if (CONFIG.audioExtensions.includes(extension)) return 'audio';
+            if (CONFIG.imageExtensions.includes(extension)) return 'image';
+            if (CONFIG.documentExtensions.includes(extension)) return 'document';
+            return 'unsupported';
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + units[i];
+        }
+
+        function getFileNameFromUrl(url) {
+            try {
+                const parts = url.split('/');
+                let name = parts[parts.length - 1].split('?')[0];
+                if (!name || name === '') name = 'file';
+                return decodeURIComponent(name);
+            } catch {
+                return 'file';
+            }
+        }
+
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        let currentFile = {
+            url: '',
+            name: '',
+            size: 0,
+            type: '',
+            extension: '',
+            channelId: '',
+            messageId: ''
         };
 
-        // Channel data
-        const channels = {
-            sports: [
-                { name: 'star sports Hd', url: 'http://103.229.254.25:7001/play/a0a0/index.m3u8' },
-                { name: 'star sports 1 hindi', url: 'http://161.248.38.40:8000/play/a071/index.m3u8' },
-                { name: 'star sports 2 hindi', url: 'http://161.248.38.40:8000/play/a06n/index.m3u8' },
-                { name: 'Sony Sports HD', url: 'http://103.229.254.25:7001/play/a02t/index.m3u8' },
-                { name: 'Sony Sports 2', url: 'http://103.229.254.25:7001/play/a09q/index.m3u8' },
-                { name: 'Sony Sports 3', url: 'http://103.229.254.25:7001/play/a0dw/index.m3u8' }
-            ],
-            movies: [
-                { name: 'Sony Max', url: 'https://streamer2.nexgen.bz/SONYMAX/index.m3u8' },
-                { name: 'Sony Pix HD', url: 'http://103.229.254.25:7001/play/a0ed/index.m3u8' },
-                { name: 'Sony Wah', url: 'http://103.78.149.54:8000/play/a01p/index.m3u8' },
-                { name: '&pictures HD', url: 'http://103.229.254.25:7001/play/a033/index.m3u8' },
-                { name: 'Colors Cineplex', url: 'http://103.182.170.32:8888/play/a01o' },
-                { name: 'Zee Action', url: 'http://103.78.149.54:8000/play/a005/index.m3u8' },
-                { name: 'Box Cinema', url: 'https://d3s7x6kmqcnb6b.cloudfront.net/d/distro001a/QK2TKFREGRYXDI8IJGHW/hls3/now,-1m/m.m3u8?ads.vf=kU8ru-Yl4zG' },
-                { name: 'B4U Movies', url: 'https://amg00877-b4unew-amg00877c2-lg-in-5260.playouts.now.amagi.tv/playlist.m3u8' },
-                { name: 'Dhamaka Movies B4U', url: 'https://cdn-1.pishow.tv/live/235/master.m3u8' }
-            ],
-            music: [
-                { name: '9xM', url: 'https://b.jsrdn.com/strm/channels/9xm/master.m3u8' },
-                { name: 'Mastiii', url: 'https://mumt02.tangotv.in/MASTIII/index.m3u8' },
-                { name: 'B4U Music', url: 'https://cdnb4u.wiseplayout.com/B4U_Music/master.m3u8' }
-            ]
-        };
+        let searchTimeout = null;
 
-        // Working backup streams (in case main streams fail)
-        const backupStreams = {
-            'star sports Hd': 'https://cdn-2.pishow.tv/live/1461/master.m3u8',
-            'Sony Sports HD': 'https://cdn-2.pishow.tv/live/1461/master.m3u8',
-            'Sony Max': 'https://cdn-2.pishow.tv/live/1461/master.m3u8',
-            '9xM': 'https://cdn-2.pishow.tv/live/1461/master.m3u8'
-        };
+        function showLoading() {
+            elements.loading.style.display = 'flex';
+            elements.error.style.display = 'none';
+            elements.content.style.display = 'none';
+        }
 
-        // Initialize on DOM Load
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("🚀 SK4FiLM Player Initializing with Video.js...");
-            
-            fixIOSScrolling();
-            initializeVideoJS();
-            loadChannels();
-            
-            // Close modal when clicking outside
-            document.addEventListener('click', (e) => {
-                const modal = document.getElementById('externalPlayerModal');
-                const modalContent = document.querySelector('.modal-content');
-                
-                if (e.target === modal && modal.classList.contains('show')) {
-                    closeExternalModal();
-                }
+        function showError(message) {
+            elements.loading.style.display = 'none';
+            elements.error.style.display = 'block';
+            elements.content.style.display = 'none';
+            elements.errorMessage.textContent = message;
+        }
+
+        function showContent() {
+            elements.loading.style.display = 'none';
+            elements.error.style.display = 'none';
+            elements.content.style.display = 'block';
+        }
+
+        // ============================================
+        // PLAYER CONTROLS
+        // ============================================
+        function hideAllPlayers() {
+            elements.videoPlayer.style.display = 'none';
+            elements.audioPlayer.style.display = 'none';
+            elements.imagePlayer.style.display = 'none';
+            elements.documentPlayer.style.display = 'none';
+            elements.unsupportedPlayer.style.display = 'none';
+            elements.videoElement.pause();
+            elements.audioElement.pause();
+        }
+
+        function showVideoPlayer(url) {
+            hideAllPlayers();
+            elements.videoPlayer.style.display = 'flex';
+            elements.videoElement.src = url;
+            elements.videoElement.load();
+        }
+
+        function showAudioPlayer(url) {
+            hideAllPlayers();
+            elements.audioPlayer.style.display = 'flex';
+            elements.audioElement.src = url;
+            elements.audioElement.load();
+        }
+
+        function showImagePlayer(url, name) {
+            hideAllPlayers();
+            elements.imagePlayer.style.display = 'flex';
+            elements.imageElement.src = url;
+            elements.imageElement.alt = name || 'Image';
+        }
+
+        function showDocumentPlayer(name, size) {
+            hideAllPlayers();
+            elements.documentPlayer.style.display = 'flex';
+            elements.docName.textContent = name || 'Document';
+            elements.docSize.textContent = formatFileSize(size) || 'Unknown size';
+        }
+
+        function showUnsupportedPlayer(name) {
+            hideAllPlayers();
+            elements.unsupportedPlayer.style.display = 'flex';
+            elements.unsupportedPlayer.querySelector('.doc-name').textContent = name || 'Unsupported file';
+        }
+
+        function updateBadge(type) {
+            const badge = elements.fileBadge;
+            badge.textContent = type.toUpperCase();
+            badge.className = 'file-badge ' + type;
+        }
+
+        // ============================================
+        // DOWNLOAD & SHARE
+        // ============================================
+        function downloadFile(url, name) {
+            if (!url) {
+                showToast('No file URL available!', 'alert-circle');
+                return;
+            }
+            try {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = name || 'file';
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showToast('Download started!', 'download');
+            } catch (e) {
+                window.open(url, '_blank');
+                showToast('Opening file...', 'external-link');
+            }
+        }
+
+        function copyLink() {
+            const params = getUrlParams();
+            let url = '';
+            if (currentFile.url) {
+                url = currentFile.url;
+            } else if (params.fileUrl) {
+                url = params.fileUrl;
+            } else if (params.channelId && params.messageId) {
+                url = window.location.href;
+            }
+            if (!url) {
+                showToast('No link to copy!', 'alert-circle');
+                return;
+            }
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Link copied to clipboard!', 'check-circle');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = url;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('Link copied!', 'check-circle');
             });
-            
-            console.log("✅ Player Ready!");
+        }
+
+        function shareFile() {
+            const url = window.location.href;
+            if (!url) {
+                showToast('No file to share!', 'alert-circle');
+                return;
+            }
+            const shareData = {
+                title: 'SK4Film - ' + (currentFile.name || 'File'),
+                text: 'Check out this file on SK4Film!',
+                url: url
+            };
+            if (navigator.share) {
+                navigator.share(shareData).catch(() => {});
+            } else {
+                copyLink();
+            }
+        }
+
+        function openExternal() {
+            const url = currentFile.url || getUrlParams().fileUrl;
+            if (url) {
+                window.open(url, '_blank');
+            }
+        }
+
+        // ============================================
+        // FILE SIZE FETCH
+        // ============================================
+        async function fetchFileSize(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                const size = response.headers.get('Content-Length');
+                return size ? parseInt(size) : 0;
+            } catch {
+                return 0;
+            }
+        }
+
+        // ============================================
+        // SEARCH FILES VIA API
+        // ============================================
+        async function searchFiles(query) {
+            if (!query || query.length < 2) {
+                elements.searchResults.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${CONFIG.apiUrl}/api/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (!data.results || data.results.length === 0) {
+                    elements.searchResults.innerHTML = `
+                        <div class="result-item text-center text-secondary">
+                            <i data-feather="search" class="me-2"></i> No files found for "${query}"
+                        </div>
+                    `;
+                    elements.searchResults.style.display = 'block';
+                    feather.replace();
+                    return;
+                }
+
+                let html = '';
+                data.results.forEach((file, index) => {
+                    const size = formatFileSize(file.file_size || 0);
+                    const type = getFileType(getFileExtension(file.file_name, file.file_name));
+                    html += `
+                        <div class="result-item" onclick="loadFile('${file.chat_id}', '${file.message_id}', '${file.file_name}')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="file-name">${file.file_name || 'Unknown'}</div>
+                                    <div class="file-meta">📦 ${size} • 🆔 ${file.chat_id}</div>
+                                </div>
+                                <span class="file-badge ${type}">${type}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                elements.searchResults.innerHTML = html;
+                elements.searchResults.style.display = 'block';
+                feather.replace();
+
+            } catch (error) {
+                console.error('Search error:', error);
+                elements.searchResults.innerHTML = `
+                    <div class="result-item text-center text-danger">
+                        <i data-feather="alert-circle" class="me-2"></i> Search failed. Please try again.
+                    </div>
+                `;
+                elements.searchResults.style.display = 'block';
+                feather.replace();
+            }
+        }
+
+        // ============================================
+        // LOAD FILE FROM SEARCH RESULT
+        // ============================================
+        function loadFile(channelId, messageId, fileName) {
+            const viewUrl = `${window.location.origin}${window.location.pathname}?channel_id=${channelId}&message_id=${messageId}&file_name=${encodeURIComponent(fileName)}`;
+            window.location.href = viewUrl;
+        }
+
+        // ============================================
+        // MAIN INITIALIZATION
+        // ============================================
+        async function init() {
+            const params = getUrlParams();
+            let fileUrl = params.fileUrl;
+
+            // Support for channel_id & message_id - using Koyeb URL
+            if (!fileUrl && params.channelId && params.messageId) {
+                fileUrl = `${CONFIG.apiUrl}/stream/${params.channelId}/${params.messageId}`;
+                currentFile.channelId = params.channelId;
+                currentFile.messageId = params.messageId;
+            }
+
+            // Support for search query
+            if (params.query) {
+                elements.searchInput.value = params.query;
+                await searchFiles(params.query);
+            }
+
+            // If no file URL and no channel/message, show search only
+            if (!fileUrl && !params.channelId) {
+                showLoading();
+                elements.loading.innerHTML = `
+                    <div style="text-align:center;">
+                        <i data-feather="search" style="width:60px;height:60px;color:var(--primary-light);"></i>
+                        <h5 class="mt-3">Search for files</h5>
+                        <p class="text-secondary">Type in the search box above to find files</p>
+                        <p class="text-secondary small">Using Koyeb: ${CONFIG.apiUrl}</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            if (!fileUrl) {
+                showError('No file URL or channel/message ID provided.');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const ext = getFileExtension(fileUrl, params.fileName);
+                const fileName = params.fileName || getFileNameFromUrl(fileUrl);
+                const fileType = getFileType(ext);
+                let fileSize = parseInt(params.fileSize) || 0;
+
+                if (!fileSize && isValidUrl(fileUrl)) {
+                    fileSize = await fetchFileSize(fileUrl);
+                }
+
+                currentFile = {
+                    url: fileUrl,
+                    name: fileName,
+                    size: fileSize,
+                    type: fileType,
+                    extension: ext,
+                    channelId: params.channelId || '',
+                    messageId: params.messageId || ''
+                };
+
+                elements.fileName.textContent = fileName;
+                elements.fileSize.textContent = formatFileSize(fileSize);
+                updateBadge(fileType);
+
+                const downloadButtons = [
+                    elements.downloadBtn,
+                    elements.downloadDocBtn,
+                    elements.downloadUnsupportedBtn
+                ];
+                downloadButtons.forEach(btn => {
+                    btn.dataset.url = fileUrl;
+                    btn.dataset.name = fileName;
+                });
+
+                switch (fileType) {
+                    case 'video': showVideoPlayer(fileUrl); break;
+                    case 'audio': showAudioPlayer(fileUrl); break;
+                    case 'image': showImagePlayer(fileUrl, fileName); break;
+                    case 'document': showDocumentPlayer(fileName, fileSize); break;
+                    default: showUnsupportedPlayer(fileName); break;
+                }
+
+                document.title = fileName + ' - SK4Film';
+                showContent();
+                feather.replace();
+
+            } catch (error) {
+                showError('Failed to load file: ' + error.message);
+            }
+        }
+
+        // ============================================
+        // SEARCH INPUT HANDLER
+        // ============================================
+        elements.searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            if (query.length < 2) {
+                elements.searchResults.style.display = 'none';
+                return;
+            }
+            searchTimeout = setTimeout(() => {
+                searchFiles(query);
+            }, 300);
         });
 
-        // Initialize Video.js Player
-        function initializeVideoJS() {
-            // Get the video element and initialize Video.js
-            const videoElement = document.getElementById('video-element');
-            
-            // Initialize player with all controls
-            player = videojs('video-element', {
-                controls: true,
-                autoplay: true,
-                preload: 'auto',
-                fluid: true,
-                responsive: true,
-                liveui: true,
-                html5: {
-                    hls: {
-                        enableLowInitialPlaylist: true,
-                        overrideNative: true,
-                        fastQualityChange: true
-                    },
-                    nativeAudioTracks: false,
-                    nativeVideoTracks: false
+        elements.searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const query = this.value.trim();
+                if (query.length >= 2) {
+                    searchFiles(query);
                 }
-            });
-            
-            // Player event listeners
-            player.on('error', function() {
-                const error = player.error();
-                console.error('Video.js error:', error);
-                
-                // Show external player options on error
-                if (currentChannelName && currentChannelUrl) {
-                    showExternalModal(currentChannelName);
-                }
-            });
-            
-            player.on('waiting', function() {
-                showToast('Buffering...', 2000);
-            });
-            
-            player.on('loadedmetadata', function() {
-                const title = document.getElementById('videoTitle');
-                if (currentChannelName) {
-                    title.textContent = currentChannelName;
-                }
-            });
-            
-            console.log("Video.js player initialized");
-        }
+            }
+        });
 
-        function loadChannels() {
-            // Load Sports Channels
-            const sportsGrid = document.getElementById('sports-channels');
-            channels.sports.forEach(channel => {
-                sportsGrid.appendChild(createChannelCard(channel.name, channel.url, 'sports'));
-            });
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        elements.downloadBtn.addEventListener('click', function() {
+            downloadFile(this.dataset.url, this.dataset.name);
+        });
 
-            // Load Movies Channels
-            const moviesGrid = document.getElementById('movies-channels');
-            channels.movies.forEach(channel => {
-                moviesGrid.appendChild(createChannelCard(channel.name, channel.url, 'movies'));
-            });
+        elements.downloadDocBtn.addEventListener('click', function() {
+            downloadFile(this.dataset.url, this.dataset.name);
+        });
 
-            // Load Music Channels
-            const musicGrid = document.getElementById('music-channels');
-            channels.music.forEach(channel => {
-                musicGrid.appendChild(createChannelCard(channel.name, channel.url, 'music'));
-            });
-        }
+        elements.downloadUnsupportedBtn.addEventListener('click', function() {
+            downloadFile(this.dataset.url, this.dataset.name);
+        });
 
-        function createChannelCard(name, url, category) {
-            const card = document.createElement('div');
-            card.className = 'channel-card';
-            card.onclick = () => playChannel(name, url);
-            
-            const logo = document.createElement('img');
-            logo.className = 'channel-logo';
-            logo.src = channelLogos[name] || '';
-            logo.alt = name;
-            logo.onerror = function() {
-                this.style.display = 'none';
-                const initialSpan = document.createElement('span');
-                initialSpan.style.width = '80px';
-                initialSpan.style.height = '80px';
-                initialSpan.style.borderRadius = '50%';
-                initialSpan.style.background = 'linear-gradient(135deg, var(--primary-red), var(--primary-blue))';
-                initialSpan.style.display = 'flex';
-                initialSpan.style.alignItems = 'center';
-                initialSpan.style.justifyContent = 'center';
-                initialSpan.style.fontSize = '2rem';
-                initialSpan.style.fontWeight = 'bold';
-                initialSpan.style.color = 'white';
-                initialSpan.style.marginBottom = '8px';
-                initialSpan.textContent = name.charAt(0).toUpperCase();
-                card.insertBefore(initialSpan, card.firstChild);
-            };
-            
-            const nameEl = document.createElement('div');
-            nameEl.className = 'channel-name';
-            nameEl.textContent = name;
-            
-            card.appendChild(logo);
-            card.appendChild(nameEl);
-            
-            return card;
-        }
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'c') { copyLink(); }
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                const url = elements.downloadBtn.dataset.url;
+                const name = elements.downloadBtn.dataset.name;
+                downloadFile(url, name);
+            }
+            if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                elements.searchInput.focus();
+            }
+        });
 
-        // Play channel function
-        function playChannel(name, url) {
-            console.log(`Playing: ${name} - ${url}`);
-            
-            currentChannelName = name;
-            currentChannelUrl = url;
-            backupUrl = backupStreams[name] || '';
-            
-            // Update video title
-            document.getElementById('videoTitle').textContent = name;
-            
-            // Load the stream in Video.js
-            loadStream(url, name);
-        }
-        
-        // Load stream in Video.js
-        function loadStream(url, name, useHttps = false) {
-            let streamUrl = url;
-            
-            // Try HTTPS if specified and URL is HTTP
-            if (useHttps && streamUrl.startsWith('http://')) {
-                streamUrl = 'https://' + streamUrl.substring(7);
-                console.log("Trying HTTPS version:", streamUrl);
+        document.addEventListener('click', function(e) {
+            if (!elements.searchInput.contains(e.target) && !elements.searchResults.contains(e.target)) {
+                elements.searchResults.style.display = 'none';
             }
-            
-            showToast(`Loading ${name}...`, 2000);
-            
-            // Update source and play
-            if (player) {
-                player.src({
-                    src: streamUrl,
-                    type: 'application/x-mpegURL'
-                });
-                
-                player.play().catch(e => {
-                    console.log('Auto-play prevented:', e);
-                });
-            }
-        }
-        
-        // Error handler for playback issues
-        function handlePlaybackError() {
-            console.log('Playback error occurred');
-            
-            // Try HTTPS version if original was HTTP and haven't tried yet
-            if (currentChannelUrl && currentChannelUrl.startsWith('http://') && !currentChannelUrl.includes('https')) {
-                showToast("Trying secure connection...", 2000);
-                loadStream(currentChannelUrl, currentChannelName, true);
-            }
-            // Try backup if available
-            else if (backupUrl) {
-                showToast("Trying backup stream...", 2000);
-                loadStream(backupUrl, currentChannelName);
-            } else {
-                // Show external player options
-                showExternalModal(currentChannelName);
-            }
-        }
-        
-        // External Player Modal Functions - बीच में दिखेगा
-        function showExternalModal(channelName) {
-            const modal = document.getElementById('externalPlayerModal');
-            const title = document.getElementById('modalTitle');
-            const message = document.getElementById('modalMessage');
-            const mainButtons = document.getElementById('mainPlayerButtons');
-            const installVLC = document.getElementById('installVLCBtn');
-            const installMX = document.getElementById('installMXBtn');
-            
-            title.textContent = channelName;
-            message.innerHTML = 'Open in external player?';
-            
-            // Show main buttons, hide install buttons
-            mainButtons.style.display = 'flex';
-            installVLC.style.display = 'none';
-            installMX.style.display = 'none';
-            
-            modal.classList.add('show');
-        }
-        
-        function closeExternalModal() {
-            const modal = document.getElementById('externalPlayerModal');
-            modal.classList.remove('show');
-        }
-        
-        function showInstallModal(app) {
-            const title = document.getElementById('modalTitle');
-            const message = document.getElementById('modalMessage');
-            const mainButtons = document.getElementById('mainPlayerButtons');
-            const installVLC = document.getElementById('installVLCBtn');
-            const installMX = document.getElementById('installMXBtn');
-            
-            title.textContent = `${app.toUpperCase()} Player`;
-            message.innerHTML = `Install ${app.toUpperCase()} player from Play Store?`;
-            
-            mainButtons.style.display = 'none';
-            
-            if (app === 'vlc') {
-                installVLC.style.display = 'flex';
-                installMX.style.display = 'none';
-            } else {
-                installVLC.style.display = 'none';
-                installMX.style.display = 'flex';
-            }
-        }
-        
-        // Open in VLC - सभी प्लेटफॉर्म के लिए VLC रीडायरेक्ट
-        function openWithVLC() {
-            showToast("Opening in VLC...", 2000);
-            
-            let streamUrl = currentChannelUrl;
-            
-            // सभी प्लेटफॉर्म के लिए VLC प्रोटोकॉल
-            if (/Android/i.test(navigator.userAgent)) {
-                // Android VLC Intent
-                const vlcIntent = `intent:${streamUrl}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end`;
-                window.location.href = vlcIntent;
-                
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showInstallModal('vlc');
-                    }
-                }, 1500);
-            } 
-            else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                // iOS VLC URL Scheme
-                const iosVlcUrl = `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(streamUrl)}`;
-                window.location.href = iosVlcUrl;
-                
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showInstallModal('vlc');
-                    }
-                }, 1500);
-            }
-            else {
-                // Desktop के लिए VLC प्रोटोकॉल (vlc://)
-                const desktopVlcUrl = `vlc://${streamUrl}`;
-                window.location.href = desktopVlcUrl;
-                
-                // Fallback for desktop if VLC not installed
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showInstallModal('vlc');
-                    }
-                }, 1500);
-            }
-            
-            closeExternalModal();
-        }
-        
-        // Open in MX Player
-        function openWithMX() {
-            showToast("Opening in MX Player...", 2000);
-            
-            let streamUrl = currentChannelUrl;
-            
-            // MX Player only works on Android
-            if (/Android/i.test(navigator.userAgent)) {
-                const mxIntent = `intent:${streamUrl}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
-                window.location.href = mxIntent;
-                
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showInstallModal('mx');
-                    }
-                }, 1500);
-            } 
-            // For non-Android, try VLC
-            else {
-                showToast("MX Player is only available on Android. Trying VLC...", 2000);
-                setTimeout(() => {
-                    openWithVLC();
-                }, 1500);
-            }
-            
-            closeExternalModal();
-        }
-        
-        function openPlayStore(app) {
-            const playStoreUrl = app === 'vlc' 
-                ? 'https://play.google.com/store/apps/details?id=org.videolan.vlc'
-                : 'https://play.google.com/store/apps/details?id=com.mxtech.videoplayer.ad';
-            
-            window.open(playStoreUrl, '_blank');
-            closeExternalModal();
-        }
+        });
 
-        function showToast(message, duration = 3000, type = '') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.classList.add('show');
-            
-            toast.classList.remove('toast-error', 'toast-warning', 'toast-success');
-            
-            if (type === 'error') {
-                toast.classList.add('toast-error');
-            } else if (type === 'warning') {
-                toast.classList.add('toast-warning');
-            } else if (type === 'success') {
-                toast.classList.add('toast-success');
-            }
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, duration);
-        }
-
-        function copyUPI() {
-            const upiInput = document.getElementById('upiId');
-            upiInput.select();
-            document.execCommand('copy');
-            showToast("UPI ID copied!", 2000, 'success');
-        }
-
-        function fixIOSScrolling() {
-            if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-                document.body.style.height = '-webkit-fill-available';
-                document.body.style.overflowY = 'scroll';
-                document.body.style.webkitOverflowScrolling = 'touch';
-            }
-        }
-
-        // Navigation functions
-        window.toggleSearch = () => document.getElementById('searchContainer').classList.toggle('active');
-        window.toggleMenu = () => {
-            document.getElementById('menuDropdown').classList.toggle('active');
-            document.getElementById('menuToggleBtn').classList.toggle('active');
-        };
-        window.doInlineSearch = () => {
-            const query = document.getElementById('inlineSearchInput').value;
-            if (query) {
-                showToast(`Searching for: ${query}`, 2000);
-                // Implement search functionality as needed
-            }
-        };
-        
-        // Export functions
-        window.playChannel = playChannel;
-        window.showExternalModal = showExternalModal;
-        window.closeExternalModal = closeExternalModal;
-        window.openWithVLC = openWithVLC;
-        window.openWithMX = openWithMX;
-        window.openPlayStore = openPlayStore;
-        window.copyUPI = copyUPI;
-        
-        console.log("🎬 SK4FiLM Player Ready with Video.js and External Player Modal!");
+        // ============================================
+        // AUTO-INIT
+        // ============================================
+        document.addEventListener('DOMContentLoaded', init);
     </script>
-<b:if cond='data:view.isPost'>
 
-<div id="floating_ads_container">
-
-<div id="floating_ads_wrap">
-
-<div id="floating_ads_bottom_ad">
-
-<!--[ads]-->
-
-  <script>
-  atOptions = {
-    'key' : '5468e288aa04b4315e8eb86d41e05ba0',
-    'format' : 'iframe',
-    'height' : 250,
-    'width' : 300,
-    'params' : {}
-  };
-</script>
-<script src="https://marksdespitelinear.com/5468e288aa04b4315e8eb86d41e05ba0/invoke.js"></script>
-
-
-  <div id="floating_ads_bottom_close">
-
-<a href="#" onclick="document.getElementById('floating_ads_container').style.display='none';return false;" id="floating_ads_bottom_textcss_x">×</a>
-
-</div>
-
-  </div></div></div></b:if>
 </body>
 </html>
