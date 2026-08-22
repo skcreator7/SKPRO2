@@ -15,6 +15,8 @@
             --text-muted: #9aa0ab;
             --radius: 12px;
             --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --error: #ff6b6b;
+            --success: #51cf66;
         }
 
         * {
@@ -117,17 +119,24 @@
         .status {
             text-align: center;
             padding: 10px;
-            color: var(--text-muted);
             min-height: 40px;
             font-size: 0.95rem;
+        }
+
+        .status.idle {
+            color: var(--text-muted);
         }
 
         .status.loading {
             color: var(--primary);
         }
 
+        .status.success {
+            color: var(--success);
+        }
+
         .status.error {
-            color: #ff6b6b;
+            color: var(--error);
         }
 
         /* Results */
@@ -283,7 +292,7 @@
         }
 
         .player-controls .btn-close:hover {
-            color: #ff6b6b;
+            color: var(--error);
         }
 
         /* No results */
@@ -297,6 +306,31 @@
             font-size: 3rem;
             display: block;
             margin-bottom: 12px;
+        }
+
+        /* API Status */
+        .api-status {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding: 8px;
+            margin-top: 10px;
+        }
+
+        .api-status .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .api-status .dot.online {
+            background: var(--success);
+        }
+
+        .api-status .dot.offline {
+            background: var(--error);
         }
 
         /* Responsive */
@@ -362,24 +396,6 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #3a3f4a;
         }
-
-        /* Loading skeleton */
-        .skeleton {
-            background: linear-gradient(90deg, var(--card-bg) 25%, #252932 50%, var(--card-bg) 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: var(--radius);
-            height: 70px;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 200% 0;
-            }
-            100% {
-                background-position: -200% 0;
-            }
-        }
     </style>
 </head>
 <body>
@@ -389,6 +405,12 @@
             <div class="logo">🎬 SK4Film</div>
             <p class="subtitle">Search &amp; stream your files instantly</p>
         </header>
+
+        <!-- API Status -->
+        <div class="api-status" id="apiStatus">
+            <span class="dot" id="statusDot"></span>
+            <span id="statusText">Checking API connection...</span>
+        </div>
 
         <!-- Search -->
         <div class="search-container">
@@ -405,7 +427,7 @@
         </div>
 
         <!-- Status -->
-        <div id="status" class="status">Enter a search term to find files</div>
+        <div id="status" class="status idle">Enter a search term to find files</div>
 
         <!-- Player -->
         <div id="playerWrapper" class="player-wrapper">
@@ -421,20 +443,63 @@
     </div>
 
     <script>
-        // API Configuration
-        const API_BASE = 'https://sk4film.vercel.app'; // Change this to your actual API URL
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        // Change this to your actual API URL
+        const API_BASE = window.location.origin || 'https://your-api-url.koyeb.app';
         const SEARCH_ENDPOINT = API_BASE + '/api/search';
         const STREAM_BASE = API_BASE + '/stream';
+        const HEALTH_ENDPOINT = API_BASE + '/health';
 
-        // DOM Elements
+        console.log('🔗 API Base:', API_BASE);
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
         const searchInput = document.getElementById('searchInput');
         const statusEl = document.getElementById('status');
         const resultsEl = document.getElementById('results');
         const playerWrapper = document.getElementById('playerWrapper');
         const player = document.getElementById('player');
         const playerFileName = document.getElementById('playerFileName');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
 
-        // Debounce search
+        // ============================================
+        // API HEALTH CHECK
+        // ============================================
+        async function checkAPI() {
+            try {
+                const response = await fetch(HEALTH_ENDPOINT, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    statusDot.className = 'dot online';
+                    statusText.textContent = 'API Online ✅';
+                } else {
+                    statusDot.className = 'dot offline';
+                    statusText.textContent = 'API Offline ❌';
+                }
+            } catch (error) {
+                statusDot.className = 'dot offline';
+                statusText.textContent = 'API Unreachable ❌';
+                console.error('Health check failed:', error);
+            }
+        }
+
+        // Check API status on load
+        checkAPI();
+        // Check every 30 seconds
+        setInterval(checkAPI, 30000);
+
+        // ============================================
+        // SEARCH FUNCTION
+        // ============================================
         let searchTimeout = null;
 
         // Enter key support
@@ -453,18 +518,15 @@
                 searchTimeout = setTimeout(performSearch, 500);
             } else if (query.length === 0) {
                 clearResults();
-                setStatus('Enter a search term to find files', '');
+                setStatus('Enter a search term to find files', 'idle');
             }
         });
 
-        // ============================================
-        // SEARCH FUNCTION
-        // ============================================
         async function performSearch() {
             const query = searchInput.value.trim();
 
             if (query.length < 2) {
-                setStatus('Please enter at least 2 characters', '');
+                setStatus('Please enter at least 2 characters', 'idle');
                 return;
             }
 
@@ -473,27 +535,43 @@
 
             try {
                 const url = `${SEARCH_ENDPOINT}?q=${encodeURIComponent(query)}&limit=30`;
-                const response = await fetch(url);
+                console.log('🔍 Searching:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                    let errorMsg = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch (e) {
+                        // If response is not JSON
+                        errorMsg = await response.text() || errorMsg;
+                    }
+                    throw new Error(errorMsg);
                 }
 
                 const data = await response.json();
+                console.log('📊 Search results:', data);
 
                 if (!data.results || data.results.length === 0) {
-                    setStatus(`No files found for "${query}"`, '');
+                    setStatus(`No files found for "${query}"`, 'idle');
                     showNoResults(query);
                     return;
                 }
 
-                setStatus(`Found ${data.total} result(s) for "${query}"`, '');
+                setStatus(`Found ${data.total} result(s) for "${query}"`, 'success');
                 renderResults(data.results);
 
             } catch (error) {
                 console.error('Search error:', error);
                 setStatus(`Search failed: ${error.message}`, 'error');
+                showError(error.message);
             }
         }
 
@@ -565,7 +643,6 @@
         }
 
         function playAudio(url, fileName) {
-            // Audio uses the same video element
             playVideo(url, fileName);
         }
 
@@ -584,9 +661,9 @@
         // ============================================
         // UTILITY FUNCTIONS
         // ============================================
-        function setStatus(message, type = '') {
+        function setStatus(message, type = 'idle') {
             statusEl.textContent = message;
-            statusEl.className = 'status' + (type ? ' ' + type : '');
+            statusEl.className = 'status ' + type;
         }
 
         function clearResults() {
@@ -603,6 +680,16 @@
             `;
         }
 
+        function showError(message) {
+            resultsEl.innerHTML = `
+                <div class="no-results">
+                    <span class="emoji">⚠️</span>
+                    <p>Error: <strong>${escapeHtml(message)}</strong></p>
+                    <p style="font-size: 0.85rem; margin-top: 6px;">Please try again later</p>
+                </div>
+            `;
+        }
+
         function escapeHtml(str) {
             if (!str) return '';
             const div = document.createElement('div');
@@ -614,14 +701,12 @@
         // KEYBOARD SHORTCUTS
         // ============================================
         document.addEventListener('keydown', (e) => {
-            // Ctrl+K or Cmd+K to focus search
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
                 searchInput.focus();
                 searchInput.select();
             }
 
-            // Escape to close player or clear search
             if (e.key === 'Escape') {
                 if (playerWrapper.classList.contains('active')) {
                     closePlayer();
@@ -629,20 +714,20 @@
                     searchInput.value = '';
                     searchInput.focus();
                     clearResults();
-                    setStatus('Enter a search term to find files', '');
+                    setStatus('Enter a search term to find files', 'idle');
                 }
             }
         });
 
         // ============================================
-        // CHECK FOR URL PARAMS (direct search)
+        // AUTO-SEARCH FROM URL PARAMS
         // ============================================
         (function init() {
             const params = new URLSearchParams(window.location.search);
             const q = params.get('q');
             if (q && q.trim().length >= 2) {
                 searchInput.value = q.trim();
-                performSearch();
+                setTimeout(performSearch, 500);
             }
         })();
 
