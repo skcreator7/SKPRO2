@@ -17,6 +17,7 @@
             --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             --error: #ff6b6b;
             --success: #51cf66;
+            --warning: #fcc419;
         }
 
         * {
@@ -38,6 +39,7 @@
             margin: 0 auto;
         }
 
+        /* Header */
         .header {
             text-align: center;
             padding: 30px 0 20px;
@@ -59,6 +61,7 @@
             margin-top: 4px;
         }
 
+        /* Search Bar */
         .search-container {
             margin: 20px 0 30px;
         }
@@ -113,6 +116,12 @@
             transform: scale(0.97);
         }
 
+        .search-box button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Status */
         .status {
             text-align: center;
             padding: 10px;
@@ -136,6 +145,11 @@
             color: var(--error);
         }
 
+        .status.warning {
+            color: var(--warning);
+        }
+
+        /* Results */
         .results {
             display: flex;
             flex-direction: column;
@@ -191,6 +205,12 @@
             flex-wrap: wrap;
         }
 
+        .file-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
         .file-actions {
             margin-top: 12px;
             display: flex;
@@ -231,6 +251,7 @@
             border-color: var(--primary-hover);
         }
 
+        /* Player */
         .player-wrapper {
             margin: 20px 0 30px;
             border-radius: var(--radius);
@@ -284,6 +305,7 @@
             color: var(--error);
         }
 
+        /* No results */
         .no-results {
             text-align: center;
             padding: 40px 20px;
@@ -296,6 +318,7 @@
             margin-bottom: 12px;
         }
 
+        /* API Status */
         .api-status {
             text-align: center;
             font-size: 0.8rem;
@@ -320,6 +343,17 @@
             background: var(--error);
         }
 
+        .api-status .dot.checking {
+            background: var(--warning);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Responsive */
         @media (max-width: 600px) {
             body {
                 padding: 12px;
@@ -365,6 +399,7 @@
             }
         }
 
+        /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -381,20 +416,37 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #3a3f4a;
         }
+
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, var(--card-bg) 25%, #252932 50%, var(--card-bg) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--radius);
+            height: 70px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <header class="header">
             <div class="logo">🎬 SK4Film</div>
             <p class="subtitle">Search &amp; stream your files instantly</p>
         </header>
 
+        <!-- API Status -->
         <div class="api-status" id="apiStatus">
-            <span class="dot" id="statusDot"></span>
-            <span id="statusText">Checking API connection...</span>
+            <span class="dot checking" id="statusDot"></span>
+            <span id="statusText">Connecting to API...</span>
         </div>
 
+        <!-- Search -->
         <div class="search-container">
             <div class="search-box">
                 <input 
@@ -404,12 +456,14 @@
                     autocomplete="off"
                     spellcheck="false"
                 >
-                <button onclick="performSearch()">🔍 Search</button>
+                <button id="searchBtn" onclick="performSearch()">🔍 Search</button>
             </div>
         </div>
 
+        <!-- Status -->
         <div id="status" class="status idle">Enter a search term to find files</div>
 
+        <!-- Player -->
         <div id="playerWrapper" class="player-wrapper">
             <video id="player" controls preload="metadata"></video>
             <div class="player-controls">
@@ -418,6 +472,7 @@
             </div>
         </div>
 
+        <!-- Results -->
         <div id="results" class="results"></div>
     </div>
 
@@ -425,8 +480,8 @@
         // ============================================
         // CONFIGURATION
         // ============================================
-        // Use the same origin as the page, or set manually
-        const API_BASE = window.location.origin;
+        // Use your actual Koyeb API URL
+        const API_BASE = 'https://uninterested-drusie-tgbottest-65971677.koyeb.app';
         const SEARCH_ENDPOINT = API_BASE + '/api/search';
         const STREAM_BASE = API_BASE + '/stream';
         const HEALTH_ENDPOINT = API_BASE + '/health';
@@ -439,6 +494,7 @@
         // DOM ELEMENTS
         // ============================================
         const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
         const statusEl = document.getElementById('status');
         const resultsEl = document.getElementById('results');
         const playerWrapper = document.getElementById('playerWrapper');
@@ -452,6 +508,9 @@
         // ============================================
         async function checkAPI() {
             try {
+                statusDot.className = 'dot checking';
+                statusText.textContent = 'Checking API connection...';
+                
                 const response = await fetch(HEALTH_ENDPOINT, {
                     method: 'GET',
                     headers: {
@@ -463,28 +522,42 @@
                     const data = await response.json();
                     console.log('✅ API Health:', data);
                     statusDot.className = 'dot online';
-                    statusText.textContent = `API Online ✅ (Client: ${data.client || 'N/A'})`;
+                    const clientStatus = data.client || 'Unknown';
+                    statusText.textContent = `API Online ✅ (Client: ${clientStatus})`;
+                    return true;
                 } else {
                     statusDot.className = 'dot offline';
-                    statusText.textContent = `API Offline (HTTP ${response.status}) ❌`;
+                    statusText.textContent = `API Error (HTTP ${response.status}) ❌`;
+                    console.error('❌ API Health check failed:', response.status);
+                    return false;
                 }
             } catch (error) {
                 statusDot.className = 'dot offline';
-                statusText.textContent = 'API Unreachable ❌';
-                console.error('Health check failed:', error);
+                statusText.textContent = 'API Unreachable ❌ - Check if server is running';
+                console.error('❌ Health check failed:', error);
+                return false;
             }
         }
 
-        // Check API status on load
-        checkAPI();
-        // Check every 30 seconds
-        setInterval(checkAPI, 30000);
+        // Check API status on load and periodically
+        let apiOnline = false;
+        checkAPI().then(status => {
+            apiOnline = status;
+            if (!apiOnline) {
+                setStatus('⚠️ API is offline. Please check the server.', 'error');
+            }
+        });
+        setInterval(async () => {
+            apiOnline = await checkAPI();
+        }, 30000);
 
         // ============================================
         // SEARCH FUNCTION
         // ============================================
         let searchTimeout = null;
+        let isSearching = false;
 
+        // Enter key support
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -492,6 +565,7 @@
             }
         });
 
+        // Auto-search with debounce
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
             const query = searchInput.value.trim();
@@ -511,10 +585,24 @@
                 return;
             }
 
+            if (isSearching) return;
+            isSearching = true;
+            searchBtn.disabled = true;
+            searchBtn.textContent = '⏳ Searching...';
+
             setStatus('Searching...', 'loading');
             clearResults();
 
             try {
+                // Check if API is online first
+                if (!apiOnline) {
+                    const recheck = await checkAPI();
+                    if (!recheck) {
+                        throw new Error('API is offline. Please check the server.');
+                    }
+                    apiOnline = true;
+                }
+
                 const url = `${SEARCH_ENDPOINT}?q=${encodeURIComponent(query)}&limit=30`;
                 console.log('🔍 Searching:', url);
                 
@@ -554,6 +642,10 @@
                 console.error('❌ Search error:', error);
                 setStatus(`Search failed: ${error.message}`, 'error');
                 showError(error.message);
+            } finally {
+                isSearching = false;
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Search';
             }
         }
 
@@ -602,7 +694,6 @@
                         <span>📏 ${sizeMB} MB</span>
                         <span>📁 ${escapeHtml(file.mime_type || 'Unknown')}</span>
                         <span>🆔 ${file.message_id}</span>
-                        <span>📌 ${file.chat_id}</span>
                     </div>
                     <div class="file-actions">${actionsHtml}</div>
                 `;
@@ -624,6 +715,7 @@
             player.load();
             player.play().catch(err => {
                 console.warn('Auto-play prevented:', err);
+                // Show play button overlay or message
             });
         }
 
@@ -671,7 +763,9 @@
                     <span class="emoji">⚠️</span>
                     <p>Error: <strong>${escapeHtml(message)}</strong></p>
                     <p style="font-size: 0.85rem; margin-top: 6px;">Please try again later</p>
-                    <p style="font-size: 0.75rem; margin-top: 4px; color: var(--text-muted);">Check if the API is running at ${API_BASE}</p>
+                    <p style="font-size: 0.75rem; margin-top: 4px; color: var(--text-muted);">
+                        API: ${API_BASE}
+                    </p>
                 </div>
             `;
         }
@@ -687,12 +781,14 @@
         // KEYBOARD SHORTCUTS
         // ============================================
         document.addEventListener('keydown', (e) => {
+            // Ctrl+K or Cmd+K to focus search
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
                 searchInput.focus();
                 searchInput.select();
             }
 
+            // Escape to close player or clear search
             if (e.key === 'Escape') {
                 if (playerWrapper.classList.contains('active')) {
                     closePlayer();
@@ -713,12 +809,16 @@
             const q = params.get('q');
             if (q && q.trim().length >= 2) {
                 searchInput.value = q.trim();
-                setTimeout(performSearch, 1000);
+                // Wait for API to be ready
+                setTimeout(() => {
+                    performSearch();
+                }, 1500);
             }
         })();
 
         console.log('🎬 SK4Film Player loaded!');
         console.log(`🔗 API Base: ${API_BASE}`);
+        console.log('💡 Tip: Press Ctrl+K to focus search');
     </script>
 </body>
 </html>
