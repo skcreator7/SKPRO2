@@ -762,7 +762,7 @@
         let currentChannelName = '';
         let searchDebounceTimer = null;
         let allSearchResults = [];
-        let searchResultsData = []; // Store results data for data-attribute approach
+        let searchResultsData = [];
         
         const DEFAULT_STREAM = 'https://cdn-2.pishow.tv/live/1461/master.m3u8';
         
@@ -785,7 +785,21 @@
             });
             
             player.on("ready", () => {
-                loadStream(DEFAULT_STREAM);
+                // 🔧 FIX #2: Check for ?channel_id=X&message_id=Y in the URL
+                // before falling back to the default live stream. This was
+                // the missing piece — direct links from the first page
+                // never triggered playback because nothing ever read
+                // these query params before.
+                const urlParams = new URLSearchParams(window.location.search);
+                const channelId = urlParams.get('channel_id');
+                const messageId = urlParams.get('message_id');
+                
+                if (messageId) {
+                    console.log('🔗 Direct link detected:', { channelId, messageId });
+                    playFromUrlParams(channelId, messageId);
+                } else {
+                    loadStream(DEFAULT_STREAM);
+                }
             });
             
             player.on("play", () => hideLoading());
@@ -798,8 +812,41 @@
             });
         }
         
+        // 🔧 NEW: Handles ?channel_id=X&message_id=Y direct links.
+        // Builds the stream URL the same way playResultByIndex() does
+        // (backend's /stream/{message_id} route only needs message_id —
+        // it looks up channel_id internally via the DB), sets the title,
+        // and triggers loadStream().
+        async function playFromUrlParams(channelId, messageId) {
+            showLoading();
+            
+            const streamUrl = `${STREAM_BASE}/${messageId}`;
+            
+            currentChannelUrl = streamUrl;
+            currentChannelName = 'Loading...';
+            document.getElementById('videoTitle').textContent = 'Loading video...';
+            
+            // Optional: fetch real file name for a proper title.
+            // Skips silently if the endpoint doesn't exist on the backend.
+            try {
+                const infoUrl = `${API_BASE}/api/file/${messageId}`;
+                const res = await fetch(infoUrl);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.file_name) {
+                        currentChannelName = data.file_name;
+                        document.getElementById('videoTitle').textContent = data.file_name;
+                    }
+                }
+            } catch (e) {
+                console.log('ℹ️ No file-info endpoint, using generic title');
+            }
+            
+            loadStream(streamUrl);
+        }
+        
         // ============================================
-        // 🔧 FIXED: loadStream() now detects whether the URL is an
+        // 🔧 FIX #1: loadStream() now detects whether the URL is an
         // HLS manifest (.m3u8) or a direct file (mp4/mkv/etc from
         // Telegram). Previously it ALWAYS used HLS.js, which fails
         // to parse non-manifest files, triggers the "open externally"
