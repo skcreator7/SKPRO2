@@ -148,7 +148,7 @@
             margin-bottom: 0;
         }
         
-        /* ============ PLAYER CONTAINER ============ */
+        /* ============ PLAYER ============ */
         .player-section {
             width: 100%;
             background: #000;
@@ -158,7 +158,7 @@
         .player-aspect-ratio {
             position: relative;
             width: 100%;
-            padding-top: 56.25%; /* 16:9 aspect ratio */
+            padding-top: 56.25%;
             background: #000;
         }
         
@@ -188,12 +188,9 @@
             background: #000;
         }
         
-        .plyr--video .plyr__control--overlaid {
-            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
-            border: 2px solid #fff;
-            width: 56px;
-            height: 56px;
-            padding: 0;
+        /* Hide Plyr's default big play button */
+        .plyr__control--overlaid {
+            display: none !important;
         }
         
         .custom-loading {
@@ -353,7 +350,7 @@
         .live-search-results {
             display: none;
             margin-top: 8px;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
@@ -365,17 +362,22 @@
         .search-result-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px;
+            gap: 10px;
+            padding: 10px;
             background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            margin-bottom: 6px;
-            border: 1px solid transparent;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+        }
+        
+        .search-result-item:active {
+            background: rgba(255,255,255,0.1);
         }
         
         .search-result-icon {
-            font-size: 1.2rem;
-            width: 28px;
+            font-size: 1.5rem;
+            width: 35px;
             text-align: center;
             flex-shrink: 0;
         }
@@ -388,14 +390,15 @@
         .search-result-name {
             font-weight: 600;
             color: #fff;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            margin-bottom: 2px;
         }
         
         .search-result-meta {
-            font-size: 0.65rem;
+            font-size: 0.68rem;
             color: #999;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -404,36 +407,48 @@
         
         .search-result-actions {
             display: flex;
-            gap: 4px;
+            gap: 8px;
             flex-shrink: 0;
         }
         
+        /* Bade Buttons */
         .btn-play-mini {
             background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
             color: #fff;
             border: none;
-            width: 30px;
-            height: 30px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
+            font-size: 1rem;
+            transition: all 0.3s;
+            box-shadow: 0 3px 10px rgba(255, 0, 0, 0.3);
+        }
+        
+        .btn-play-mini:active {
+            transform: scale(0.9);
         }
         
         .btn-download-mini {
             background: rgba(0, 204, 255, 0.15);
             color: var(--accent);
-            border: 1px solid var(--accent);
-            width: 30px;
-            height: 30px;
+            border: 2px solid var(--accent);
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-download-mini:active {
+            transform: scale(0.9);
         }
         
         .btn-see-more {
@@ -441,10 +456,10 @@
             background: rgba(255,255,255,0.08);
             color: #fff;
             border: 1px solid rgba(255,255,255,0.2);
-            padding: 8px;
+            padding: 10px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             font-weight: 600;
             display: none;
             margin-top: 4px;
@@ -456,9 +471,9 @@
         
         .search-loading, .search-empty {
             text-align: center;
-            padding: 12px;
+            padding: 15px;
             color: #999;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
         }
         
         /* ============ CHANNELS ============ */
@@ -620,8 +635,10 @@
                 font-size: 0.85rem;
             }
             
-            .search-result-meta {
-                font-size: 0.7rem;
+            .btn-play-mini, .btn-download-mini {
+                width: 48px;
+                height: 48px;
+                font-size: 1.1rem;
             }
         }
         
@@ -650,6 +667,12 @@
             
             .channel-name {
                 font-size: 0.8rem;
+            }
+            
+            .btn-play-mini, .btn-download-mini {
+                width: 52px;
+                height: 52px;
+                font-size: 1.2rem;
             }
         }
     </style>
@@ -804,10 +827,10 @@
         
         const DEFAULT_STREAM = 'https://cdn-2.pishow.tv/live/1461/master.m3u8';
         
-        // Player Init
+        // Player Init - WITHOUT big play button
         function initializePlayer() {
             player = new Plyr("#player", {
-                controls: ["play-large", "rewind", "play", "fast-forward", "progress", 
+                controls: ["play", "rewind", "fast-forward", "progress", 
                           "current-time", "duration", "mute", "volume", "settings", 
                           "pip", "fullscreen"],
                 seekTime: 10,
@@ -1016,8 +1039,12 @@
                         <div class="search-result-meta">${escapeHtml(file.mime_type || 'Unknown')} · ${size}</div>
                     </div>
                     <div class="search-result-actions">
-                        <button class="btn-play-mini" onclick="playSearchResult('${sUrl}','${escapeHtml(file.file_name)}')"><i class="fas fa-play"></i></button>
-                        <button class="btn-download-mini" onclick="downloadFile('${dUrl}','${escapeHtml(file.file_name)}')"><i class="fas fa-download"></i></button>
+                        <button class="btn-play-mini" onclick="playSearchResult('${sUrl}','${escapeHtml(file.file_name)}')" title="Play">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="btn-download-mini" onclick="downloadFile('${dUrl}','${escapeHtml(file.file_name)}')" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
                     </div>
                 </div>`;
             });
@@ -1047,15 +1074,17 @@
             }
         }
         
+        // FIXED: Results stay after play
         function playSearchResult(url, name) {
             currentChannelName = name;
             currentChannelUrl = url;
             document.getElementById('videoTitle').textContent = name;
             showLoading();
             loadStream(url);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Scroll to player but DON'T clear search results
+            document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
             showToast('Playing: ' + name);
-            clearSearch();
+            // Results stay visible - no clearSearch() call
         }
         
         function downloadFile(url, name) {
