@@ -798,7 +798,15 @@
             });
         }
         
-        // HLS Stream - FIXED
+        // ============================================
+        // 🔧 FIXED: loadStream() now detects whether the URL is an
+        // HLS manifest (.m3u8) or a direct file (mp4/mkv/etc from
+        // Telegram). Previously it ALWAYS used HLS.js, which fails
+        // to parse non-manifest files, triggers the "open externally"
+        // modal, and on mobile ends up downloading the file instead
+        // of playing it. Now direct files go straight to the native
+        // <video> element.
+        // ============================================
         function loadStream(url) {
             console.log('📺 loadStream called with:', url);
             
@@ -821,8 +829,11 @@
             video.removeAttribute('src');
             video.load();
             
-            if (Hls.isSupported()) {
-                console.log('✅ HLS supported, loading stream...');
+            // Detect stream type: only .m3u8 goes through HLS.js
+            const isHLS = url.toLowerCase().includes('.m3u8');
+            
+            if (isHLS && Hls.isSupported()) {
+                console.log('✅ HLS stream detected, using hls.js...');
                 hls = new Hls({ 
                     enableWorker: true, 
                     lowLatencyMode: true,
@@ -858,14 +869,14 @@
                             console.log('🔄 Media error, recovering...');
                             hls.recoverMediaError();
                         } else {
-                            console.log('❌ Cannot recover');
-                            hideLoading();
-                            if (currentChannelName) showExternalModal(currentChannelName);
+                            console.log('❌ Cannot recover, falling back to direct playback');
                             hls.destroy();
+                            hls = null;
+                            playDirectFile(video, url);
                         }
                     }
                 });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            } else if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
                 console.log('✅ Native HLS (Safari)');
                 video.src = url;
                 video.addEventListener('loadedmetadata', () => { 
@@ -877,10 +888,35 @@
                     if (currentChannelName) showExternalModal(currentChannelName);
                 });
             } else {
-                console.error('❌ HLS not supported');
-                hideLoading();
-                showToast('HLS not supported in this browser');
+                // Direct file playback (MP4, MKV, WebM, or any
+                // non-HLS Telegram file link)
+                console.log('✅ Direct file detected, using native <video> playback');
+                playDirectFile(video, url);
             }
+        }
+        
+        function playDirectFile(video, url) {
+            video.src = url;
+            
+            const onReady = () => {
+                hideLoading();
+                video.play().catch(err => {
+                    console.log('Auto-play prevented:', err);
+                    hideLoading();
+                });
+                video.removeEventListener('loadedmetadata', onReady);
+            };
+            
+            const onError = () => {
+                hideLoading();
+                console.error('❌ Direct playback failed for:', url);
+                if (currentChannelName) showExternalModal(currentChannelName);
+                video.removeEventListener('error', onError);
+            };
+            
+            video.addEventListener('loadedmetadata', onReady);
+            video.addEventListener('error', onError);
+            video.load();
         }
         
         function showLoading() {
@@ -990,7 +1026,7 @@
                 try {
                     const results = await searchFiles(query);
                     allSearchResults = results;
-                    searchResultsData = results; // Store for data-attribute use
+                    searchResultsData = results;
                     displaySearchResults(results, false);
                 } catch (e) {
                     container.innerHTML = '<div class="search-empty">Search failed</div>';
@@ -998,7 +1034,6 @@
             }, 500);
         }
         
-        // FIXED: Using data-index instead of inline URL
         function displaySearchResults(results, showAll) {
             const container = document.getElementById('liveSearchResults');
             
@@ -1045,7 +1080,6 @@
             displaySearchResults(allSearchResults, true);
         }
         
-        // FIXED: Play by index (no URL in onclick)
         function playResultByIndex(index) {
             console.log('🎬 playResultByIndex called with index:', index);
             
@@ -1204,21 +1238,5 @@
             console.log('✅ Ready!');
         });
     </script>
-    
-    <b:if cond='data:view.isPost'>
-    <div id="floating_ads_container">
-        <div id="floating_ads_wrap">
-            <div id="floating_ads_bottom_ad">
-                <script>
-                    atOptions = { 'key': '5468e288aa04b4315e8eb86d41e05ba0', 'format': 'iframe', 'height': 250, 'width': 300, 'params': {} };
-                </script>
-                <script src="https://marksdespitelinear.com/5468e288aa04b4315e8eb86d41e05ba0/invoke.js"></script>
-                <div id="floating_ads_bottom_close">
-                    <a href="#" onclick="document.getElementById('floating_ads_container').style.display='none';return false;">×</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    </b:if>
 </body>
 </html>
