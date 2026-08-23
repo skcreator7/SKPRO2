@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <link rel="shortcut icon" href="https://iili.io/KOlfc41.png" type="image/x-icon">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SK4FiLM - Live Cricket or Movies Channels</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Plyr CSS -->
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
@@ -18,14 +15,8 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    
     <!-- hls.js for live streaming -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    
-    <!-- Ad Script -->
-    <script src="https://quge5.com/88/tag.min.js" data-zone="269232" async data-cfasync="false"></script>
     
     <style>
         :root {
@@ -43,122 +34,101 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        body {
+        html, body {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
             background: var(--dark-bg);
             color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            min-height: 100vh;
-            width: 100%;
-            overflow-x: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             -webkit-overflow-scrolling: touch;
-            padding-top: 60px;
         }
         
-        /* ============ NAVIGATION (Mobile-Friendly) ============ */
+        body {
+            padding-top: 56px;
+            min-height: 100vh;
+        }
+        
+        /* ============ NAVBAR ============ */
         .top-navbar {
             background: rgba(15, 23, 42, 0.98);
-            backdrop-filter: blur(15px);
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             width: 100%;
             z-index: 1000;
-            padding: 8px 0;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.3);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         
-        .navbar-content {
+        .navbar-inner {
+            width: 100%;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            padding: 0 12px;
             gap: 8px;
-            padding: 0 10px;
         }
         
         .logo-section {
             display: flex;
             align-items: center;
-            flex-shrink: 0;
+            gap: 8px;
             min-width: 0;
+            flex-shrink: 0;
         }
         
         .logo-img {
-            height: 35px;
-            width: 35px;
-            margin-right: 6px;
-            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
             object-fit: contain;
+            flex-shrink: 0;
         }
         
         .brand-text {
-            font-size: 1.1rem;
+            font-size: 1rem;
+            font-weight: bold;
             background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            font-weight: bold;
             white-space: nowrap;
         }
         
-        .brand-subtitle {
-            display: none;
-        }
-        
-        .menu-button {
+        .menu-btn {
             background: rgba(0, 204, 255, 0.15);
-            border: 2px solid var(--accent);
+            border: 1px solid var(--accent);
             color: var(--accent);
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s ease;
             flex-shrink: 0;
-        }
-        
-        .menu-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-        
-        .menu-line {
-            width: 18px;
-            height: 2px;
-            background: var(--accent);
-            border-radius: 2px;
-            transition: all 0.3s ease;
+            font-size: 1rem;
         }
         
         .menu-dropdown {
             position: fixed;
-            top: 55px;
-            right: 10px;
-            left: 10px;
+            top: 56px;
+            right: 8px;
+            left: 8px;
             background: rgba(15, 23, 42, 0.98);
-            border: 2px solid var(--accent);
-            border-radius: 15px;
-            padding: 15px;
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: all 0.3s ease;
-            z-index: 998;
+            border: 1px solid var(--accent);
+            border-radius: 12px;
+            padding: 10px;
+            display: none;
+            z-index: 999;
         }
         
         .menu-dropdown.active {
-            max-height: 300px;
-            opacity: 1;
-        }
-        
-        .menu-links {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            display: block;
         }
         
         .menu-link {
@@ -166,48 +136,64 @@
             align-items: center;
             gap: 10px;
             padding: 10px 12px;
-            background: rgba(0, 204, 255, 0.1);
-            border-radius: 10px;
-            color: white;
+            background: rgba(0, 204, 255, 0.08);
+            border-radius: 8px;
+            color: #fff;
             text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
         }
         
-        /* ============ PLAYER ============ */
-        .player-wrapper {
+        .menu-link:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* ============ PLAYER CONTAINER ============ */
+        .player-section {
             width: 100%;
-            max-width: 1100px;
-            margin: 0 auto;
+            background: #000;
             position: relative;
         }
         
+        .player-aspect-ratio {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 aspect ratio */
+            background: #000;
+        }
+        
+        .player-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
         .plyr {
+            width: 100%;
+            height: 100%;
             --plyr-color-main: #e50914;
             --plyr-video-control-color: #fff;
             --plyr-video-control-color-hover: #fff;
-            --plyr-video-control-background-hover: rgba(229, 9, 20, .8);
             --plyr-range-fill-background: #e50914;
             --plyr-menu-background: #181818;
             --plyr-menu-color: #fff;
-            border-radius: 0;
-            overflow: hidden;
         }
         
         .plyr video {
             width: 100%;
-            height: auto;
+            height: 100%;
+            object-fit: contain;
             background: #000;
         }
         
         .plyr--video .plyr__control--overlaid {
             background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
-            border: 2px solid white;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            border: 2px solid #fff;
+            width: 56px;
+            height: 56px;
             padding: 0;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
         .custom-loading {
@@ -219,8 +205,7 @@
             display: none;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 10px;
+            gap: 8px;
             pointer-events: none;
         }
         
@@ -229,27 +214,25 @@
         }
         
         .loading-spinner-ring {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top: 4px solid var(--primary-red);
-            border-right: 4px solid var(--primary-blue);
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid var(--primary-red);
+            border-right: 3px solid var(--primary-blue);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         
         .loading-text {
             color: #fff;
-            font-size: 0.8rem;
-            font-weight: 500;
-            letter-spacing: 1px;
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
-            animation: pulse 1.5s ease-in-out infinite;
+            animation: pulse 1.5s infinite;
         }
         
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
         
         @keyframes pulse {
@@ -259,154 +242,140 @@
         
         /* ============ CONTENT ============ */
         .content-section {
+            width: 100%;
+            max-width: 100%;
             padding: 10px;
-            max-width: 1400px;
-            margin: 0 auto;
+            margin: 0;
         }
         
         .video-info {
             text-align: center;
-            margin-bottom: 10px;
             padding: 8px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
         
         .video-title {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             font-weight: bold;
-            margin-bottom: 5px;
             color: #fff;
+            margin-bottom: 4px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
         }
         
         .video-badges {
             display: flex;
             justify-content: center;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
         
         .badge {
-            padding: 3px 10px;
-            border-radius: 15px;
-            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.65rem;
             font-weight: 600;
+            white-space: nowrap;
         }
         
-        .badge-red { background: var(--primary-red); color: white; }
-        .badge-blue { background: var(--primary-blue); color: white; }
-        .badge-green { background: #28a745; color: white; }
+        .badge-red { background: var(--primary-red); color: #fff; }
+        .badge-blue { background: var(--primary-blue); color: #fff; }
+        .badge-green { background: #28a745; color: #fff; }
         
-        /* ============ SEARCH (Below Video Title) ============ */
+        /* ============ SEARCH ============ */
         .search-section {
-            margin: 10px 0;
+            width: 100%;
+            margin: 8px 0;
             background: rgba(15, 23, 42, 0.8);
-            border-radius: 12px;
-            padding: 10px;
-            border: 1px solid rgba(0, 204, 255, 0.3);
+            border-radius: 10px;
+            padding: 8px;
+            border: 1px solid rgba(0, 204, 255, 0.2);
         }
         
         .search-box {
-            display: flex;
-            align-items: center;
-            gap: 8px;
             position: relative;
-        }
-        
-        .search-input-wrapper {
-            flex: 1;
-            position: relative;
-            display: flex;
-            align-items: center;
+            width: 100%;
         }
         
         .search-icon {
             position: absolute;
-            left: 12px;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
             color: var(--accent);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             pointer-events: none;
+            z-index: 1;
         }
         
         .search-input {
             width: 100%;
             background: rgba(60, 65, 90, 0.9);
-            border: 2px solid var(--accent);
-            color: white;
-            padding: 10px 35px 10px 35px;
-            font-size: 0.9rem;
-            border-radius: 25px;
+            border: 1px solid var(--accent);
+            color: #fff;
+            padding: 10px 30px 10px 32px;
+            font-size: 0.85rem;
+            border-radius: 22px;
             outline: none;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
         }
         
         .search-input:focus {
-            box-shadow: 0 0 15px rgba(0, 204, 255, 0.5);
             border-color: #00e6ff;
-        }
-        
-        .search-input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 10px rgba(0, 204, 255, 0.3);
         }
         
         .search-clear-btn {
             position: absolute;
-            right: 10px;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
             background: rgba(255,255,255,0.1);
             border: none;
-            color: white;
-            width: 25px;
-            height: 25px;
+            color: #fff;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             cursor: pointer;
             display: none;
             align-items: center;
             justify-content: center;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         }
         
         .search-clear-btn.show {
             display: flex;
         }
         
-        /* Live Search Results */
         .live-search-results {
-            margin-top: 10px;
-            max-height: 350px;
-            overflow-y: auto;
             display: none;
+            margin-top: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         
         .live-search-results.active {
             display: block;
-            animation: fadeIn 0.3s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         
         .search-result-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px;
+            gap: 8px;
+            padding: 8px;
             background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 6px;
             border: 1px solid transparent;
         }
         
-        .search-result-item:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: var(--accent);
-        }
-        
         .search-result-icon {
-            font-size: 1.5rem;
-            width: 35px;
+            font-size: 1.2rem;
+            width: 28px;
             text-align: center;
             flex-shrink: 0;
         }
@@ -419,16 +388,15 @@
         .search-result-name {
             font-weight: 600;
             color: #fff;
-            font-size: 0.85rem;
-            margin-bottom: 2px;
+            font-size: 0.78rem;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
         
         .search-result-meta {
-            font-size: 0.7rem;
-            color: #aaa;
+            font-size: 0.65rem;
+            color: #999;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -436,98 +404,75 @@
         
         .search-result-actions {
             display: flex;
-            gap: 5px;
+            gap: 4px;
             flex-shrink: 0;
         }
         
         .btn-play-mini {
-            background: linear-gradient(45deg, var(--primary-red), var(--primary-blue));
-            color: white;
+            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
+            color: #fff;
             border: none;
-            width: 35px;
-            height: 35px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-play-mini:hover {
-            transform: scale(1.1);
-            box-shadow: 0 3px 10px rgba(255, 0, 0, 0.4);
+            font-size: 0.75rem;
         }
         
         .btn-download-mini {
             background: rgba(0, 204, 255, 0.15);
             color: var(--accent);
             border: 1px solid var(--accent);
-            width: 35px;
-            height: 35px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-download-mini:hover {
-            background: rgba(0, 204, 255, 0.25);
-            transform: scale(1.1);
+            font-size: 0.75rem;
         }
         
         .btn-see-more {
             width: 100%;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255,255,255,0.08);
             color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px;
             border-radius: 8px;
             cursor: pointer;
+            font-size: 0.78rem;
             font-weight: 600;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-            margin-top: 5px;
             display: none;
+            margin-top: 4px;
         }
         
         .btn-see-more.show {
             display: block;
         }
         
-        .btn-see-more:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .search-loading {
+        .search-loading, .search-empty {
             text-align: center;
-            padding: 15px;
-            color: #aaa;
-            font-size: 0.85rem;
+            padding: 12px;
+            color: #999;
+            font-size: 0.78rem;
         }
         
-        .search-empty {
-            text-align: center;
-            padding: 15px;
-            color: #aaa;
-            font-size: 0.85rem;
-        }
-        
-        /* ============ CATEGORY ============ */
+        /* ============ CHANNELS ============ */
         .category-section {
-            margin: 15px 0;
+            margin: 12px 0;
+            width: 100%;
         }
         
         .category-title {
-            font-size: 1.2rem;
+            font-size: 1rem;
             font-weight: bold;
-            margin-bottom: 10px;
-            padding-left: 10px;
-            border-left: 4px solid var(--primary-red);
+            margin-bottom: 8px;
+            padding-left: 8px;
+            border-left: 3px solid var(--primary-red);
             color: #fff;
         }
         
@@ -535,6 +480,7 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
+            width: 100%;
         }
         
         .channel-card {
@@ -546,117 +492,155 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.3s ease;
             border: 1px solid rgba(255, 0, 0, 0.2);
-        }
-        
-        .channel-card:active {
-            transform: scale(0.95);
+            min-height: 90px;
         }
         
         .channel-logo {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             object-fit: cover;
             margin-bottom: 5px;
             border: 2px solid var(--primary-red);
-            background: white;
+            background: #fff;
         }
         
         .channel-name {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
             text-align: center;
             color: #fff;
             line-height: 1.2;
+            word-wrap: break-word;
+            max-width: 100%;
         }
         
         .donation-card {
             background: rgba(255, 193, 7, 0.1);
             border: 1px solid rgba(255, 193, 7, 0.2);
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
             text-align: center;
+            width: 100%;
         }
         
         .donation-qr {
-            width: 150px;
-            height: 150px;
-            border-radius: 10px;
-            margin: 0 auto 15px;
+            width: 130px;
+            height: 130px;
+            border-radius: 8px;
+            margin: 0 auto 10px;
             border: 2px solid rgba(255, 193, 7, 0.3);
-            background: white;
-            padding: 8px;
+            background: #fff;
+            padding: 5px;
         }
         
         .toast {
             position: fixed;
-            bottom: 20px;
+            bottom: 15px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 20px;
             z-index: 10000;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             display: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,0,0,0.3);
             max-width: 90%;
             text-align: center;
+            border: 1px solid rgba(255,0,0,0.3);
         }
         
         .toast.show {
             display: block;
-            animation: slideUp 0.3s ease;
+            animation: slideUp 0.3s;
         }
         
         @keyframes slideUp {
             from { transform: translate(-50%, 100%); opacity: 0; }
-            to { transform: translate(-50%, 0%); opacity: 1; }
+            to { transform: translate(-50%, 0); opacity: 1; }
         }
         
-        /* External Player Modal */
         .external-player-modal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0,0,0,0.8);
             z-index: 10001;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
+            padding: 15px;
         }
         
         .external-player-modal.show {
-            opacity: 1;
-            visibility: visible;
+            display: flex;
         }
         
-        /* ============ TABLET & DESKTOP ============ */
+        /* ============ TABLET ============ */
         @media (min-width: 768px) {
             body {
-                padding-top: 70px;
+                padding-top: 64px;
             }
             
-            .brand-subtitle {
-                display: block;
-                font-size: 0.6rem;
-                color: var(--accent);
-                font-style: italic;
+            .top-navbar {
+                height: 64px;
+            }
+            
+            .menu-dropdown {
+                top: 64px;
+                left: auto;
+                right: 16px;
+                width: 280px;
+            }
+            
+            .video-title {
+                font-size: 1.2rem;
             }
             
             .channels-grid {
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
                 gap: 10px;
+            }
+            
+            .channel-logo {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .channel-name {
+                font-size: 0.75rem;
+            }
+            
+            .search-result-name {
+                font-size: 0.85rem;
+            }
+            
+            .search-result-meta {
+                font-size: 0.7rem;
+            }
+        }
+        
+        /* ============ DESKTOP ============ */
+        @media (min-width: 1024px) {
+            .content-section {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 15px;
+            }
+            
+            .player-section {
+                max-width: 1100px;
+                margin: 0 auto;
+            }
+            
+            .channels-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 12px;
             }
             
             .channel-logo {
@@ -667,204 +651,146 @@
             .channel-name {
                 font-size: 0.8rem;
             }
-            
-            .video-title {
-                font-size: 1.3rem;
-            }
-            
-            .search-result-item {
-                padding: 12px;
-            }
-            
-            .search-result-name {
-                font-size: 0.95rem;
-            }
-        }
-        
-        @media (min-width: 992px) {
-            .content-section {
-                padding: 15px;
-            }
-            
-            .search-result-actions {
-                gap: 8px;
-            }
-            
-            .btn-play-mini, .btn-download-mini {
-                width: 40px;
-                height: 40px;
-                font-size: 1rem;
-            }
         }
     </style>
     <style>
-        #floating_ads_container {position: fixed;bottom: 2px;width: 100%; -webkit-transition: width 1s, height 1s; transition: width 1s, height 1s;z-index:999;} 
+        #floating_ads_container {position: fixed;bottom: 2px;width: 100%;z-index:999;} 
         #floating_ads_wrap {text-align: center;} 
         #floating_ads_bottom_ad {display:inline-block;position:relative} 
-        #floating_ads_bottom_close {position: absolute;top:-20px;display:block; font-size: 20px; font-weight: bold; text-decoration: none; border-radius:50%; cursor: pointer; text-align: center; height: 25px; width:25px; line-height: 25px; background-color: #ccc;z-index:5; color: #fff! important; right:-10px;}
-    </style> 
+        #floating_ads_bottom_close {position: absolute;top:-20px;display:block;font-size:18px;font-weight:bold;cursor:pointer;text-align:center;height:22px;width:22px;line-height:22px;background:#ccc;z-index:5;color:#fff!important;right:-8px;border-radius:50%;}
+    </style>
 </head>
 
 <body>
-    <!-- Navigation (Simple, No Search) -->
+    <!-- Navigation -->
     <nav class="top-navbar">
-        <div class="navbar-content">
+        <div class="navbar-inner">
             <div class="logo-section">
-                <a href="#" style="display: flex; align-items: center; color: white; text-decoration: none;">
-                    <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
-                    <div>
-                        <div class="brand-text">SK4FiLM</div>
-                        <div class="brand-subtitle">House of Entertainment</div>
-                    </div>
-                </a>
+                <img src="https://iili.io/KOlfc41.png" alt="Logo" class="logo-img">
+                <span class="brand-text">SK4FiLM</span>
             </div>
-            
-            <div class="menu-section">
-                <button class="menu-button" onclick="toggleMenu()" id="menuToggleBtn">
-                    <div class="menu-lines">
-                        <div class="menu-line"></div>
-                        <div class="menu-line"></div>
-                        <div class="menu-line"></div>
-                    </div>
-                </button>
-                
-                <div class="menu-dropdown" id="menuDropdown">
-                    <div class="menu-links">
-                        <a href="https://t.me/sk4film" target="_blank" class="menu-link">
-                            <i class="fab fa-telegram" style="color: #0088cc;"></i>
-                            <span>Telegram</span>
-                        </a>
-                        <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
-                            <i class="fab fa-whatsapp" style="color: #25d366;"></i>
-                            <span>WhatsApp</span>
-                        </a>
-                        <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
-                            <i class="fab fa-youtube" style="color: #ff0000;"></i>
-                            <span>YouTube</span>
-                        </a>
-                        <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
-                            <i class="fas fa-robot" style="color: #7b68ee;"></i>
-                            <span>Telegram Bot</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
+            <button class="menu-btn" onclick="toggleMenu()" id="menuToggleBtn">
+                <i class="fas fa-bars"></i>
+            </button>
         </div>
     </nav>
     
+    <!-- Menu Dropdown -->
+    <div class="menu-dropdown" id="menuDropdown">
+        <a href="https://t.me/sk4film" target="_blank" class="menu-link">
+            <i class="fab fa-telegram" style="color:#0088cc;"></i> Telegram
+        </a>
+        <a href="https://whatsapp.com/channel/0029Vb7IRSF89inj7Za3cQ0Y" target="_blank" class="menu-link">
+            <i class="fab fa-whatsapp" style="color:#25d366;"></i> WhatsApp
+        </a>
+        <a href="https://youtube.com/@Skcreator7" target="_blank" class="menu-link">
+            <i class="fab fa-youtube" style="color:#ff0000;"></i> YouTube
+        </a>
+        <a href="https://t.me/skfilmbot" target="_blank" class="menu-link">
+            <i class="fas fa-robot" style="color:#7b68ee;"></i> Telegram Bot
+        </a>
+    </div>
+    
     <!-- External Player Modal -->
     <div class="external-player-modal" id="externalPlayerModal">
-        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border: 2px solid var(--accent); border-radius: 20px; padding: 20px; width: 90%; max-width: 350px; text-align: center; position: relative;">
-            <button onclick="closeExternalModal()" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.1); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;">
+        <div style="background:#1a1a2e;border:2px solid var(--accent);border-radius:15px;padding:20px;width:100%;max-width:330px;text-align:center;position:relative;">
+            <button onclick="closeExternalModal()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.1);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;">
                 <i class="fas fa-times"></i>
             </button>
-            <div style="font-size: 2.5rem; color: var(--accent); margin-bottom: 10px;">
-                <i class="fas fa-external-link-alt"></i>
-            </div>
-            <div id="modalTitle" style="font-size: 1.2rem; color: var(--accent); margin-bottom: 5px; font-weight: bold;">External Player</div>
-            <div id="modalMessage" style="color: #fff; margin-bottom: 15px; font-size: 0.9rem;">Choose a player</div>
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <button onclick="openWithVLC()" style="flex: 1; background: linear-gradient(45deg, var(--primary-red), var(--primary-blue)); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
+            <div style="font-size:2rem;color:var(--accent);margin-bottom:8px;"><i class="fas fa-external-link-alt"></i></div>
+            <div id="modalTitle" style="font-size:1.1rem;color:var(--accent);font-weight:bold;margin-bottom:5px;">External Player</div>
+            <div style="color:#fff;margin-bottom:12px;font-size:0.85rem;">Choose a player</div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="openWithVLC()" style="flex:1;background:linear-gradient(45deg,var(--primary-red),var(--primary-blue));color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;">
                     <i class="fab fa-vlc"></i> VLC
                 </button>
-                <button onclick="openWithMX()" style="flex: 1; background: rgba(0, 204, 255, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;">
+                <button onclick="openWithMX()" style="flex:1;background:rgba(0,204,255,0.15);color:var(--accent);border:1px solid var(--accent);padding:10px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;">
                     <i class="fas fa-play"></i> MX
                 </button>
             </div>
         </div>
     </div>
     
-    <div class="container-fluid px-0">
-        <!-- ================= VIDEO PLAYER ================= -->
-        <div class="player-wrapper">
-            <video id="player" playsinline controls preload="metadata" crossorigin>
-                Your browser does not support HTML5 video.
-            </video>
-            
-            <div class="custom-loading" id="customLoading">
-                <div class="loading-spinner-ring"></div>
-                <div class="loading-text">Loading...</div>
-            </div>
-        </div>
-
-        <!-- Content Section -->
-        <div class="content-section">
-            <!-- Video Info -->
-            <div class="video-info">
-                <div class="video-title" id="videoTitle">SK4FiLM Live Stream</div>
-                <div class="video-badges">
-                    <span class="badge badge-red"><i class="fas fa-file me-1"></i> Live</span>
-                    <span class="badge badge-blue"><i class="fas fa-wifi me-1"></i> Direct</span>
-                    <span class="badge badge-green"><i class="fas fa-tachometer-alt me-1"></i> Fast</span>
+    <!-- ============ PLAYER ============ -->
+    <div class="player-section">
+        <div class="player-aspect-ratio">
+            <div class="player-wrapper">
+                <video id="player" playsinline controls preload="metadata"></video>
+                <div class="custom-loading" id="customLoading">
+                    <div class="loading-spinner-ring"></div>
+                    <div class="loading-text">Loading...</div>
                 </div>
-            </div>
-            
-            <!-- ================= SEARCH SECTION (Below Video Title) ================= -->
-            <div class="search-section">
-                <div class="search-box">
-                    <div class="search-input-wrapper">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" class="search-input" id="searchInput" 
-                               placeholder="Search movies, channels, files..." 
-                               oninput="handleLiveSearch(this.value)" autocomplete="off">
-                        <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Live Search Results -->
-                <div class="live-search-results" id="liveSearchResults"></div>
-            </div>
-            
-            <!-- Sports Category -->
-            <div class="category-section">
-                <div class="category-title"><i class="fas fa-futbol me-2" style="color: var(--primary-red);"></i> Sports Channels</div>
-                <div class="channels-grid" id="sports-channels"></div>
-            </div>
-
-            <!-- Movies Category -->
-            <div class="category-section">
-                <div class="category-title"><i class="fas fa-film me-2" style="color: var(--primary-blue);"></i> Movies Channels</div>
-                <div class="channels-grid" id="movies-channels"></div>
-            </div>
-            
-            <!-- Music Category -->
-            <div class="category-section">
-                <div class="category-title"><i class="fas fa-music me-2" style="color: #ff6b6b;"></i> Music Channels</div>
-                <div class="channels-grid" id="music-channels"></div>
-                <div class="text-center mt-3" style="color: #aaa; font-size: 0.8rem;">
-                    <i class="fas fa-plus-circle me-1"></i> More channels adding soon...
-                </div>
-            </div>
-
-            <!-- Donation Section -->
-            <div class="donation-card">
-                <h5 class="text-warning mb-3"><i class="fas fa-heart me-2"></i> Support SK4FiLM</h5>
-                <p class="mb-3" style="font-size: 0.85rem;">Help us maintain this streaming service</p>
-                <img src="https://i.ibb.co/FkQSTtK3/x.jpg" alt="Donation QR Code" class="donation-qr">
-                <div class="mb-3">
-                    <div class="input-group mx-auto" style="max-width: 280px;">
-                        <input type="text" class="form-control bg-dark text-light text-center" 
-                               value="skfilmbox718186.rzp@icici" readonly id="upiId" style="font-size: 0.8rem;">
-                        <button class="btn btn-warning btn-sm" onclick="copyUPI()"><i class="fas fa-copy"></i></button>
-                    </div>
-                </div>
-                <a href="https://razorpay.me/@skfilmbox" target="_blank" class="btn btn-warning btn-sm px-3">
-                    <i class="fas fa-donate me-1"></i> DONATE
-                </a>
             </div>
         </div>
     </div>
-
-    <!-- Toast Notification -->
+    
+    <!-- Content -->
+    <div class="content-section">
+        <!-- Video Info -->
+        <div class="video-info">
+            <div class="video-title" id="videoTitle">SK4FiLM Live Stream</div>
+            <div class="video-badges">
+                <span class="badge badge-red">Live</span>
+                <span class="badge badge-blue">Direct</span>
+                <span class="badge badge-green">Fast</span>
+            </div>
+        </div>
+        
+        <!-- Search -->
+        <div class="search-section">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" id="searchInput" 
+                       placeholder="Search movies, channels..." 
+                       oninput="handleLiveSearch(this.value)" autocomplete="off">
+                <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="live-search-results" id="liveSearchResults"></div>
+        </div>
+        
+        <!-- Sports -->
+        <div class="category-section">
+            <div class="category-title"><i class="fas fa-futbol me-1" style="color:var(--primary-red);"></i> Sports Channels</div>
+            <div class="channels-grid" id="sports-channels"></div>
+        </div>
+        
+        <!-- Movies -->
+        <div class="category-section">
+            <div class="category-title"><i class="fas fa-film me-1" style="color:var(--primary-blue);"></i> Movies Channels</div>
+            <div class="channels-grid" id="movies-channels"></div>
+        </div>
+        
+        <!-- Music -->
+        <div class="category-section">
+            <div class="category-title"><i class="fas fa-music me-1" style="color:#ff6b6b;"></i> Music Channels</div>
+            <div class="channels-grid" id="music-channels"></div>
+        </div>
+        
+        <!-- Donation -->
+        <div class="donation-card">
+            <h6 class="text-warning mb-2"><i class="fas fa-heart me-1"></i> Support Us</h6>
+            <img src="https://i.ibb.co/FkQSTtK3/x.jpg" alt="QR" class="donation-qr">
+            <div class="mb-2">
+                <div class="input-group" style="max-width:260px;margin:0 auto;">
+                    <input type="text" class="form-control bg-dark text-light text-center" 
+                           value="skfilmbox718186.rzp@icici" readonly id="upiId" style="font-size:0.7rem;">
+                    <button class="btn btn-warning btn-sm" onclick="copyUPI()"><i class="fas fa-copy"></i></button>
+                </div>
+            </div>
+            <a href="https://razorpay.me/@skfilmbox" target="_blank" class="btn btn-warning btn-sm">
+                <i class="fas fa-donate me-1"></i> DONATE
+            </a>
+        </div>
+    </div>
+    
     <div class="toast" id="toast"></div>
-
+    
     <!-- Plyr JS -->
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
-
+    
     <script>
-        // ============ CONFIGURATION ============
         const API_BASE = 'https://uninterested-drusie-tgbottest-65971677.koyeb.app';
         const SEARCH_ENDPOINT = API_BASE + '/api/search';
         const STREAM_BASE = API_BASE + '/stream';
@@ -875,20 +801,19 @@
         let currentChannelName = '';
         let searchDebounceTimer = null;
         let allSearchResults = [];
-        let showingAllResults = false;
         
         const DEFAULT_STREAM = 'https://cdn-2.pishow.tv/live/1461/master.m3u8';
         
-        // ============ PLYR INIT ============
+        // Player Init
         function initializePlayer() {
             player = new Plyr("#player", {
                 controls: ["play-large", "rewind", "play", "fast-forward", "progress", 
                           "current-time", "duration", "mute", "volume", "settings", 
-                          "pip", "airplay", "fullscreen"],
+                          "pip", "fullscreen"],
                 seekTime: 10,
                 settings: ["quality", "speed"],
-                speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] },
-                keyboard: { focused: true, global: true },
+                speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+                keyboard: { focused: true, global: false },
                 tooltips: { controls: true, seek: true },
                 hideControls: true,
                 resetOnEnd: false,
@@ -898,75 +823,67 @@
             });
             
             player.on("ready", () => {
-                console.log("✅ Player Ready");
                 loadStream(DEFAULT_STREAM);
             });
             
-            player.on("play", () => { hideLoading(); });
-            player.on("waiting", () => { showLoading(); });
-            player.on("playing", () => { hideLoading(); });
-            player.on("canplay", () => { hideLoading(); });
+            player.on("play", () => hideLoading());
+            player.on("playing", () => hideLoading());
+            player.on("canplay", () => hideLoading());
+            player.on("waiting", () => showLoading());
             player.on("error", () => {
                 hideLoading();
                 if (currentChannelName) showExternalModal(currentChannelName);
             });
         }
         
-        // ============ HLS STREAM ============
+        // HLS Stream
         function loadStream(url) {
-            const videoElement = document.querySelector('#player');
+            const video = document.querySelector('#player');
             showLoading();
             
             if (hls) { hls.destroy(); hls = null; }
             
             if (Hls.isSupported()) {
-                hls = new Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 90 });
+                hls = new Hls({ enableWorker: true, lowLatencyMode: true });
                 hls.loadSource(url);
-                hls.attachMedia(videoElement);
+                hls.attachMedia(video);
                 
-                hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-                    const qualities = data.levels.map((level, index) => ({
-                        label: level.height ? `${level.height}p` : `Quality ${index + 1}`,
-                        value: index,
-                        default: index === data.levels.length - 1
+                hls.on(Hls.Events.MANIFEST_PARSED, (e, data) => {
+                    const qualities = data.levels.map((level, i) => ({
+                        label: level.height ? level.height + 'p' : 'Q' + (i+1),
+                        value: i,
+                        default: i === data.levels.length - 1
                     }));
                     if (player && player.quality) player.quality.options = qualities;
                     hideLoading();
-                    videoElement.play().catch(e => { hideLoading(); });
+                    video.play().catch(() => hideLoading());
                 });
                 
-                hls.on(Hls.Events.ERROR, (event, data) => {
+                hls.on(Hls.Events.ERROR, (e, data) => {
                     if (data.fatal) {
                         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
                         else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
                         else { hideLoading(); if (currentChannelName) showExternalModal(currentChannelName); hls.destroy(); }
                     }
                 });
-            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                videoElement.src = url;
-                videoElement.addEventListener('loadedmetadata', () => { hideLoading(); videoElement.play().catch(e => hideLoading()); });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => { hideLoading(); video.play().catch(() => hideLoading()); });
             } else {
                 hideLoading();
-                showToast('HLS not supported', 3000);
+                showToast('HLS not supported');
             }
         }
         
-        // ============ LOADING ============
         function showLoading() {
-            const el = document.getElementById('customLoading');
-            if (el) {
-                el.classList.add('active');
-                const text = el.querySelector('.loading-text');
-                text.textContent = currentChannelName ? `Loading ${currentChannelName}...` : 'Loading...';
-            }
+            document.getElementById('customLoading').classList.add('active');
         }
         
         function hideLoading() {
-            const el = document.getElementById('customLoading');
-            if (el) el.classList.remove('active');
+            document.getElementById('customLoading').classList.remove('active');
         }
         
-        // ============ CHANNELS ============
+        // Channels
         const channelLogos = {
             'star sports Hd': 'https://i.ibb.co/ywrgTyZ/star-sports-live-cricket-matches-guide-screenshot.png',
             'star sports 1 hindi': 'https://i.ibb.co/4RFSmjvK/IMG-20260220-190309.png',
@@ -1023,18 +940,14 @@
         
         function createChannelCard(name, url) {
             const logo = channelLogos[name] || '';
-            return `
-                <div class="channel-card" onclick="playChannel('${name}', '${url}')">
-                    <img class="channel-logo" src="${logo}" alt="${name}" 
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                    <span style="display:none;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--primary-red),var(--primary-blue));align-items:center;justify-content:center;font-size:1.5rem;font-weight:bold;color:white;margin-bottom:5px">${name.charAt(0).toUpperCase()}</span>
-                    <div class="channel-name">${name}</div>
-                </div>
-            `;
+            return `<div class="channel-card" onclick="playChannel('${name}','${url}')">
+                <img class="channel-logo" src="${logo}" alt="${name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <span style="display:none;width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--primary-red),var(--primary-blue));align-items:center;justify-content:center;font-size:1.3rem;font-weight:bold;color:#fff;margin-bottom:5px;">${name.charAt(0)}</span>
+                <div class="channel-name">${name}</div>
+            </div>`;
         }
         
         function playChannel(name, url) {
-            console.log(`Playing: ${name}`);
             currentChannelName = name;
             currentChannelUrl = url;
             document.getElementById('videoTitle').textContent = name;
@@ -1042,39 +955,36 @@
             loadStream(url);
         }
         
-        // ============ LIVE SEARCH ============
+        // Live Search
         async function handleLiveSearch(query) {
             const clearBtn = document.getElementById('searchClearBtn');
-            const resultsContainer = document.getElementById('liveSearchResults');
+            const container = document.getElementById('liveSearchResults');
             
             clearBtn.classList.toggle('show', query.length > 0);
-            
             if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
             
             if (!query || query.trim().length === 0) {
-                resultsContainer.classList.remove('active');
-                resultsContainer.innerHTML = '';
-                showingAllResults = false;
+                container.classList.remove('active');
+                container.innerHTML = '';
                 return;
             }
             
             if (query.trim().length < 2) {
-                resultsContainer.classList.add('active');
-                resultsContainer.innerHTML = '<div class="search-empty">Type at least 2 characters...</div>';
+                container.classList.add('active');
+                container.innerHTML = '<div class="search-empty">Type at least 2 characters...</div>';
                 return;
             }
             
-            resultsContainer.classList.add('active');
-            resultsContainer.innerHTML = '<div class="search-loading"><div class="loading-spinner" style="margin:0 auto 8px;width:20px;height:20px;"></div>Searching...</div>';
+            container.classList.add('active');
+            container.innerHTML = '<div class="search-loading">Searching...</div>';
             
             searchDebounceTimer = setTimeout(async () => {
                 try {
                     const results = await searchFiles(query);
                     allSearchResults = results;
-                    showingAllResults = false;
                     displaySearchResults(results, false);
-                } catch (error) {
-                    resultsContainer.innerHTML = '<div class="search-empty">Search failed. Try again.</div>';
+                } catch (e) {
+                    container.innerHTML = '<div class="search-empty">Search failed</div>';
                 }
             }, 500);
         }
@@ -1087,89 +997,76 @@
                 return;
             }
             
-            const displayCount = showAll ? results.length : Math.min(4, results.length);
-            const displayResults = results.slice(0, displayCount);
+            const count = showAll ? results.length : Math.min(4, results.length);
+            const display = results.slice(0, count);
             
-            let html = `<div style="color:#aaa;font-size:0.8rem;margin-bottom:8px;">Found ${results.length} result(s)</div>`;
+            let html = `<div style="color:#999;font-size:0.7rem;margin-bottom:6px;">Found ${results.length} result(s)</div>`;
             
-            displayResults.forEach((file) => {
-                const fileSize = file.file_size ? (file.file_size / (1024 * 1024)).toFixed(1) + ' MB' : 'Unknown';
+            display.forEach(file => {
+                const size = file.file_size ? (file.file_size / 1048576).toFixed(1) + ' MB' : 'Unknown';
                 const isVideo = (file.mime_type || '').startsWith('video/');
                 const icon = isVideo ? '🎬' : '📄';
-                const streamUrl = file.stream_url || `${STREAM_BASE}/${file.message_id}`;
-                const downloadUrl = file.download_url || streamUrl;
+                const sUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
+                const dUrl = file.download_url || sUrl;
                 
-                html += `
-                    <div class="search-result-item">
-                        <div class="search-result-icon">${icon}</div>
-                        <div class="search-result-info">
-                            <div class="search-result-name">${escapeHtml(file.file_name)}</div>
-                            <div class="search-result-meta">${escapeHtml(file.mime_type || 'Unknown')} · ${fileSize}</div>
-                        </div>
-                        <div class="search-result-actions">
-                            <button class="btn-play-mini" onclick="playSearchResult('${streamUrl}', '${escapeHtml(file.file_name)}')" title="Play">
-                                <i class="fas fa-play"></i>
-                            </button>
-                            <button class="btn-download-mini" onclick="downloadFile('${downloadUrl}', '${escapeHtml(file.file_name)}')" title="Download">
-                                <i class="fas fa-download"></i>
-                            </button>
-                        </div>
+                html += `<div class="search-result-item">
+                    <div class="search-result-icon">${icon}</div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${escapeHtml(file.file_name)}</div>
+                        <div class="search-result-meta">${escapeHtml(file.mime_type || 'Unknown')} · ${size}</div>
                     </div>
-                `;
+                    <div class="search-result-actions">
+                        <button class="btn-play-mini" onclick="playSearchResult('${sUrl}','${escapeHtml(file.file_name)}')"><i class="fas fa-play"></i></button>
+                        <button class="btn-download-mini" onclick="downloadFile('${dUrl}','${escapeHtml(file.file_name)}')"><i class="fas fa-download"></i></button>
+                    </div>
+                </div>`;
             });
             
-            // See More button if more than 4 results
             if (results.length > 4 && !showAll) {
-                html += `<button class="btn-see-more show" onclick="showAllResults()">
-                    <i class="fas fa-chevron-down me-1"></i> See More (${results.length - 4} more)
-                </button>`;
+                html += `<button class="btn-see-more show" onclick="showAllResults()">See More (${results.length - 4} more) <i class="fas fa-chevron-down"></i></button>`;
             }
             
             container.innerHTML = html;
         }
         
         function showAllResults() {
-            showingAllResults = true;
             displaySearchResults(allSearchResults, true);
         }
         
         async function searchFiles(query) {
-            if (!query || query.length < 2) return [];
+            if (query.length < 2) return [];
             try {
-                const url = `${SEARCH_ENDPOINT}?q=${encodeURIComponent(query)}&limit=30`;
-                const response = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
+                const url = SEARCH_ENDPOINT + '?q=' + encodeURIComponent(query) + '&limit=30';
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
                 return data.results || [];
-            } catch (error) {
-                console.error('Search error:', error);
-                throw error;
+            } catch (e) {
+                console.error(e);
+                throw e;
             }
         }
         
         function playSearchResult(url, name) {
-            console.log(`Playing: ${name}`);
             currentChannelName = name;
             currentChannelUrl = url;
             document.getElementById('videoTitle').textContent = name;
             showLoading();
             loadStream(url);
-            document.querySelector('.player-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            showToast(`Playing: ${name}`, 2000);
-            
-            // Clear search
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            showToast('Playing: ' + name);
             clearSearch();
         }
         
         function downloadFile(url, name) {
-            showToast(`Downloading: ${name}`, 2000);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = name;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            showToast('Downloading: ' + name);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
         
         function clearSearch() {
@@ -1178,12 +1075,11 @@
             document.getElementById('liveSearchResults').classList.remove('active');
             document.getElementById('liveSearchResults').innerHTML = '';
             allSearchResults = [];
-            showingAllResults = false;
         }
         
-        // ============ EXTERNAL PLAYER ============
-        function showExternalModal(channelName) {
-            document.getElementById('modalTitle').textContent = channelName;
+        // External Player
+        function showExternalModal(name) {
+            document.getElementById('modalTitle').textContent = name;
             document.getElementById('externalPlayerModal').classList.add('show');
         }
         
@@ -1192,57 +1088,51 @@
         }
         
         function openWithVLC() {
-            showToast("Opening VLC...", 1500);
             let url = currentChannelUrl;
             if (/Android/i.test(navigator.userAgent)) {
-                window.location.href = `intent:${url}#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end`;
+                window.location.href = 'intent:' + url + '#Intent;package=org.videolan.vlc;action=android.intent.action.VIEW;type=video/*;end';
             } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                window.location.href = `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(url)}`;
-            } else {
-                window.location.href = `vlc://${url}`;
+                window.location.href = 'vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(url);
             }
             closeExternalModal();
         }
         
         function openWithMX() {
-            showToast("Opening MX Player...", 1500);
             let url = currentChannelUrl;
             if (/Android/i.test(navigator.userAgent)) {
-                window.location.href = `intent:${url}#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end`;
-            } else {
-                showToast("MX only on Android", 2000);
+                window.location.href = 'intent:' + url + '#Intent;package=com.mxtech.videoplayer.ad;action=android.intent.action.VIEW;type=video/*;end';
             }
             closeExternalModal();
         }
         
-        // ============ UTILITY ============
-        function showToast(message, duration = 2000) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+        // Utility
+        function showToast(msg, duration) {
+            duration = duration || 2000;
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), duration);
         }
         
         function escapeHtml(str) {
             if (!str) return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
         }
         
         function copyUPI() {
-            const input = document.getElementById('upiId');
-            input.select();
+            const i = document.getElementById('upiId');
+            i.select();
             document.execCommand('copy');
-            showToast("UPI ID copied!", 2000);
+            showToast('UPI ID copied!');
         }
         
         function toggleMenu() {
             document.getElementById('menuDropdown').classList.toggle('active');
-            document.getElementById('menuToggleBtn').classList.toggle('active');
         }
         
-        // ============ EXPOSE ============
+        // Expose
         window.toggleMenu = toggleMenu;
         window.handleLiveSearch = handleLiveSearch;
         window.clearSearch = clearSearch;
@@ -1256,9 +1146,8 @@
         window.openWithMX = openWithMX;
         window.copyUPI = copyUPI;
         
-        // ============ INIT ============
+        // Init
         document.addEventListener('DOMContentLoaded', () => {
-            console.log("🚀 Initializing...");
             initializePlayer();
             loadChannels();
             
@@ -1267,21 +1156,11 @@
                 if (e.target === modal) closeExternalModal();
                 
                 const menu = document.getElementById('menuDropdown');
-                const menuBtn = document.getElementById('menuToggleBtn');
-                if (menu.classList.contains('active') && !menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                const btn = document.getElementById('menuToggleBtn');
+                if (menu.classList.contains('active') && !menu.contains(e.target) && !btn.contains(e.target)) {
                     menu.classList.remove('active');
-                    menuBtn.classList.remove('active');
                 }
             });
-            
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    clearSearch();
-                    document.getElementById('menuDropdown').classList.remove('active');
-                }
-            });
-            
-            console.log("✅ Ready!");
         });
     </script>
     
@@ -1294,7 +1173,7 @@
                 </script>
                 <script src="https://marksdespitelinear.com/5468e288aa04b4315e8eb86d41e05ba0/invoke.js"></script>
                 <div id="floating_ads_bottom_close">
-                    <a href="#" onclick="document.getElementById('floating_ads_container').style.display='none';return false;" id="floating_ads_bottom_textcss_x">×</a>
+                    <a href="#" onclick="document.getElementById('floating_ads_container').style.display='none';return false;">×</a>
                 </div>
             </div>
         </div>
