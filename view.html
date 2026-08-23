@@ -281,6 +281,39 @@
         .badge-blue { background: var(--primary-blue); color: #fff; }
         .badge-green { background: #28a745; color: #fff; }
         
+        .quality-buttons {
+            display: none;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        
+        .quality-buttons.show {
+            display: flex;
+        }
+        
+        .quality-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(0, 204, 255, 0.4);
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 16px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quality-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .quality-btn.active {
+            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
+            border-color: transparent;
+        }
+        
         /* ============ SEARCH ============ */
         .search-section {
             width: 100%;
@@ -695,6 +728,7 @@
                 <span class="badge badge-blue">Direct</span>
                 <span class="badge badge-green">Fast</span>
             </div>
+            <div class="quality-buttons" id="qualityButtons"></div>
         </div>
         
         <!-- Search -->
@@ -812,11 +846,12 @@
             });
         }
         
-        // 🔧 NEW: Handles ?channel_id=X&message_id=Y direct links.
+        // 🔧 Handles ?channel_id=X&message_id=Y direct links.
         // Builds the stream URL the same way playResultByIndex() does
         // (backend's /stream/{message_id} route only needs message_id —
-        // it looks up channel_id internally via the DB), sets the title,
-        // and triggers loadStream().
+        // it looks up channel_id internally via the DB), fetches the real
+        // title from the /api/file/{id} endpoint, and loads quality
+        // sibling buttons.
         async function playFromUrlParams(channelId, messageId) {
             showLoading();
             
@@ -825,24 +860,140 @@
             currentChannelUrl = streamUrl;
             currentChannelName = 'Loading...';
             document.getElementById('videoTitle').textContent = 'Loading video...';
+            hideQualityButtons();
             
-            // Optional: fetch real file name for a proper title.
-            // Skips silently if the endpoint doesn't exist on the backend.
+            let fileName = null;
+            
             try {
                 const infoUrl = `${API_BASE}/api/file/${messageId}`;
                 const res = await fetch(infoUrl);
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.file_name) {
-                        currentChannelName = data.file_name;
-                        document.getElementById('videoTitle').textContent = data.file_name;
+                        fileName = data.file_name;
+                        currentChannelName = fileName;
+                        document.getElementById('videoTitle').textContent = fileName;
                     }
+                } else {
+                    console.warn('⚠️ /api/file/{id} not available on backend yet');
                 }
             } catch (e) {
                 console.log('ℹ️ No file-info endpoint, using generic title');
             }
             
             loadStream(streamUrl);
+            
+            if (fileName) {
+                loadQualityOptions(fileName, messageId);
+            }
+        }
+        
+        // ============================================
+        // 🎯 QUALITY DETECTION & SIBLING LOOKUP
+        // ============================================
+        
+        // Strips resolution/codec/year tokens to get a "base title" that
+        // should match across all quality versions of the same movie/file.
+        function normalizeBaseTitle(name) {
+            if (!name) return '';
+            let n = name.toLowerCase();
+            n = n.replace(/\.[a-z0-9]{2,4}$/i, ''); // drop file extension
+            n = n.replace(/[\._]/g, ' ');
+            n = n.replace(/\b(19|20)\d{2}\b/g, '');
+            n = n.replace(/\b(480p|720p|1080p|2160p|4k|hd|fhd|uhd|hevc|x264|x265|h264|h265|bluray|webrip|hdrip|web-dl|hdtv)\b/gi, '');
+            n = n.replace(/\s+/g, ' ').trim();
+            return n;
+        }
+        
+        function detectQualityLabel(name) {
+            if (!name) return 'Unknown';
+            const n = name.toLowerCase();
+            const hevc = n.includes('hevc') || n.includes('x265');
+            if (n.includes('2160p') || n.includes('4k')) return hevc ? '2160p HEVC' : '2160p';
+            if (n.includes('1080p')) return hevc ? '1080p HEVC' : '1080p';
+            if (n.includes('720p')) return hevc ? '720p HEVC' : '720p';
+            if (n.includes('480p')) return hevc ? '480p HEVC' : '480p';
+            return 'Original';
+        }
+        
+        // Searches for other quality versions of the currently playing
+        // file by comparing normalized base titles, then renders them as
+        // clickable pills under the video title.
+        async function loadQualityOptions(currentFileName, currentMessageId) {
+            const baseTitle = normalizeBaseTitle(currentFileName);
+            if (!baseTitle || baseTitle.length < 2) {
+                hideQualityButtons();
+                return;
+            }
+            
+            try {
+                const url = SEARCH_ENDPOINT + '?q=' + encodeURIComponent(baseTitle) + '&limit=30';
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const results = data.results || [];
+                
+                // Keep only files that share the same base title, dedupe by quality
+                const seen = {};
+                const options = [];
+                
+                results.forEach(f => {
+                    if (normalizeBaseTitle(f.file_name) !== baseTitle) return;
+                    const quality = detectQualityLabel(f.file_name);
+                    if (seen[quality]) return;
+                    seen[quality] = true;
+                    options.push({
+                        quality,
+                        message_id: f.message_id,
+                        file_name: f.file_name,
+                        stream_url: f.stream_url || `${STREAM_BASE}/${f.message_id}`
+                    });
+                });
+                
+                if (options.length <= 1) {
+                    hideQualityButtons();
+                    return;
+                }
+                
+                // Sort roughly by resolution, smallest to largest
+                const order = ['480p', '480p HEVC', '720p', '720p HEVC', '1080p', '1080p HEVC', '2160p', '2160p HEVC', 'Original'];
+                options.sort((a, b) => order.indexOf(a.quality) - order.indexOf(b.quality));
+                
+                renderQualityButtons(options, currentMessageId);
+                
+            } catch (e) {
+                console.error('❌ Quality lookup failed:', e);
+                hideQualityButtons();
+            }
+        }
+        
+        function renderQualityButtons(options, activeMessageId) {
+            const container = document.getElementById('qualityButtons');
+            container.innerHTML = options.map(opt => `
+                <button class="quality-btn ${String(opt.message_id) === String(activeMessageId) ? 'active' : ''}"
+                        onclick="switchQuality('${opt.stream_url}', ${opt.message_id}, '${escapeHtml(opt.file_name).replace(/'/g, "\\'")}')">
+                    ${opt.quality}
+                </button>
+            `).join('');
+            container.classList.add('show');
+        }
+        
+        function hideQualityButtons() {
+            const container = document.getElementById('qualityButtons');
+            container.classList.remove('show');
+            container.innerHTML = '';
+        }
+        
+        function switchQuality(streamUrl, messageId, fileName) {
+            currentChannelUrl = streamUrl;
+            currentChannelName = fileName;
+            document.getElementById('videoTitle').textContent = fileName;
+            
+            document.querySelectorAll('.quality-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            loadStream(streamUrl);
+            showToast('Switched quality');
         }
         
         // ============================================
@@ -1043,6 +1194,7 @@
             currentChannelName = name;
             currentChannelUrl = url;
             document.getElementById('videoTitle').textContent = name;
+            hideQualityButtons();
             loadStream(url);
         }
         
@@ -1144,8 +1296,10 @@
             currentChannelName = file.file_name;
             currentChannelUrl = streamUrl;
             document.getElementById('videoTitle').textContent = file.file_name;
+            hideQualityButtons();
             
             loadStream(streamUrl);
+            loadQualityOptions(file.file_name, file.message_id);
             
             document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
             showToast('Playing: ' + file.file_name);
@@ -1264,6 +1418,7 @@
         window.openWithVLC = openWithVLC;
         window.openWithMX = openWithMX;
         window.copyUPI = copyUPI;
+        window.switchQuality = switchQuality;
         
         // Init
         document.addEventListener('DOMContentLoaded', () => {
