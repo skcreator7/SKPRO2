@@ -188,7 +188,6 @@
             background: #000;
         }
         
-        /* Hide Plyr's default big play button */
         .plyr__control--overlaid {
             display: none !important;
         }
@@ -411,7 +410,6 @@
             flex-shrink: 0;
         }
         
-        /* Bade Buttons */
         .btn-play-mini {
             background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
             color: #fff;
@@ -596,84 +594,25 @@
             display: flex;
         }
         
-        /* ============ TABLET ============ */
         @media (min-width: 768px) {
-            body {
-                padding-top: 64px;
-            }
-            
-            .top-navbar {
-                height: 64px;
-            }
-            
-            .menu-dropdown {
-                top: 64px;
-                left: auto;
-                right: 16px;
-                width: 280px;
-            }
-            
-            .video-title {
-                font-size: 1.2rem;
-            }
-            
-            .channels-grid {
-                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-                gap: 10px;
-            }
-            
-            .channel-logo {
-                width: 60px;
-                height: 60px;
-            }
-            
-            .channel-name {
-                font-size: 0.75rem;
-            }
-            
-            .search-result-name {
-                font-size: 0.85rem;
-            }
-            
-            .btn-play-mini, .btn-download-mini {
-                width: 48px;
-                height: 48px;
-                font-size: 1.1rem;
-            }
+            body { padding-top: 64px; }
+            .top-navbar { height: 64px; }
+            .menu-dropdown { top: 64px; left: auto; right: 16px; width: 280px; }
+            .video-title { font-size: 1.2rem; }
+            .channels-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+            .channel-logo { width: 60px; height: 60px; }
+            .channel-name { font-size: 0.75rem; }
+            .search-result-name { font-size: 0.85rem; }
+            .btn-play-mini, .btn-download-mini { width: 48px; height: 48px; font-size: 1.1rem; }
         }
         
-        /* ============ DESKTOP ============ */
         @media (min-width: 1024px) {
-            .content-section {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 15px;
-            }
-            
-            .player-section {
-                max-width: 1100px;
-                margin: 0 auto;
-            }
-            
-            .channels-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 12px;
-            }
-            
-            .channel-logo {
-                width: 70px;
-                height: 70px;
-            }
-            
-            .channel-name {
-                font-size: 0.8rem;
-            }
-            
-            .btn-play-mini, .btn-download-mini {
-                width: 52px;
-                height: 52px;
-                font-size: 1.2rem;
-            }
+            .content-section { max-width: 1200px; margin: 0 auto; padding: 15px; }
+            .player-section { max-width: 1100px; margin: 0 auto; }
+            .channels-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+            .channel-logo { width: 70px; height: 70px; }
+            .channel-name { font-size: 0.8rem; }
+            .btn-play-mini, .btn-download-mini { width: 52px; height: 52px; font-size: 1.2rem; }
         }
     </style>
     <style>
@@ -734,7 +673,7 @@
         </div>
     </div>
     
-    <!-- ============ PLAYER ============ -->
+    <!-- Player -->
     <div class="player-section">
         <div class="player-aspect-ratio">
             <div class="player-wrapper">
@@ -749,7 +688,6 @@
     
     <!-- Content -->
     <div class="content-section">
-        <!-- Video Info -->
         <div class="video-info">
             <div class="video-title" id="videoTitle">SK4FiLM Live Stream</div>
             <div class="video-badges">
@@ -824,10 +762,11 @@
         let currentChannelName = '';
         let searchDebounceTimer = null;
         let allSearchResults = [];
+        let searchResultsData = []; // Store results data for data-attribute approach
         
         const DEFAULT_STREAM = 'https://cdn-2.pishow.tv/live/1461/master.m3u8';
         
-        // Player Init - WITHOUT big play button
+        // Player Init
         function initializePlayer() {
             player = new Plyr("#player", {
                 controls: ["play", "rewind", "fast-forward", "progress", 
@@ -859,19 +798,43 @@
             });
         }
         
-        // HLS Stream
+        // HLS Stream - FIXED
         function loadStream(url) {
+            console.log('📺 loadStream called with:', url);
+            
+            if (!url || url === 'undefined' || url === 'null' || url === '') {
+                console.error('❌ Invalid stream URL:', url);
+                hideLoading();
+                showToast('Invalid stream URL');
+                return;
+            }
+            
             const video = document.querySelector('#player');
             showLoading();
             
-            if (hls) { hls.destroy(); hls = null; }
+            if (hls) { 
+                hls.destroy(); 
+                hls = null; 
+            }
+            
+            // Reset video src
+            video.removeAttribute('src');
+            video.load();
             
             if (Hls.isSupported()) {
-                hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+                console.log('✅ HLS supported, loading stream...');
+                hls = new Hls({ 
+                    enableWorker: true, 
+                    lowLatencyMode: true,
+                    maxBufferLength: 30,
+                    backBufferLength: 90
+                });
+                
                 hls.loadSource(url);
                 hls.attachMedia(video);
                 
                 hls.on(Hls.Events.MANIFEST_PARSED, (e, data) => {
+                    console.log('✅ Manifest parsed, qualities:', data.levels.length);
                     const qualities = data.levels.map((level, i) => ({
                         label: level.height ? level.height + 'p' : 'Q' + (i+1),
                         value: i,
@@ -879,22 +842,44 @@
                     }));
                     if (player && player.quality) player.quality.options = qualities;
                     hideLoading();
-                    video.play().catch(() => hideLoading());
+                    video.play().catch(err => {
+                        console.log('Auto-play prevented:', err);
+                        hideLoading();
+                    });
                 });
                 
                 hls.on(Hls.Events.ERROR, (e, data) => {
+                    console.error('❌ HLS Error:', data.type, data.details);
                     if (data.fatal) {
-                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-                        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-                        else { hideLoading(); if (currentChannelName) showExternalModal(currentChannelName); hls.destroy(); }
+                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                            console.log('🔄 Network error, retrying...');
+                            hls.startLoad();
+                        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                            console.log('🔄 Media error, recovering...');
+                            hls.recoverMediaError();
+                        } else {
+                            console.log('❌ Cannot recover');
+                            hideLoading();
+                            if (currentChannelName) showExternalModal(currentChannelName);
+                            hls.destroy();
+                        }
                     }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                console.log('✅ Native HLS (Safari)');
                 video.src = url;
-                video.addEventListener('loadedmetadata', () => { hideLoading(); video.play().catch(() => hideLoading()); });
+                video.addEventListener('loadedmetadata', () => { 
+                    hideLoading(); 
+                    video.play().catch(err => hideLoading()); 
+                });
+                video.addEventListener('error', () => {
+                    hideLoading();
+                    if (currentChannelName) showExternalModal(currentChannelName);
+                });
             } else {
+                console.error('❌ HLS not supported');
                 hideLoading();
-                showToast('HLS not supported');
+                showToast('HLS not supported in this browser');
             }
         }
         
@@ -971,10 +956,10 @@
         }
         
         function playChannel(name, url) {
+            console.log('Channel clicked:', name, url);
             currentChannelName = name;
             currentChannelUrl = url;
             document.getElementById('videoTitle').textContent = name;
-            showLoading();
             loadStream(url);
         }
         
@@ -1005,6 +990,7 @@
                 try {
                     const results = await searchFiles(query);
                     allSearchResults = results;
+                    searchResultsData = results; // Store for data-attribute use
                     displaySearchResults(results, false);
                 } catch (e) {
                     container.innerHTML = '<div class="search-empty">Search failed</div>';
@@ -1012,6 +998,7 @@
             }, 500);
         }
         
+        // FIXED: Using data-index instead of inline URL
         function displaySearchResults(results, showAll) {
             const container = document.getElementById('liveSearchResults');
             
@@ -1025,12 +1012,10 @@
             
             let html = `<div style="color:#999;font-size:0.7rem;margin-bottom:6px;">Found ${results.length} result(s)</div>`;
             
-            display.forEach(file => {
+            display.forEach((file, index) => {
                 const size = file.file_size ? (file.file_size / 1048576).toFixed(1) + ' MB' : 'Unknown';
                 const isVideo = (file.mime_type || '').startsWith('video/');
                 const icon = isVideo ? '🎬' : '📄';
-                const sUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
-                const dUrl = file.download_url || sUrl;
                 
                 html += `<div class="search-result-item">
                     <div class="search-result-icon">${icon}</div>
@@ -1039,10 +1024,10 @@
                         <div class="search-result-meta">${escapeHtml(file.mime_type || 'Unknown')} · ${size}</div>
                     </div>
                     <div class="search-result-actions">
-                        <button class="btn-play-mini" onclick="playSearchResult('${sUrl}','${escapeHtml(file.file_name)}')" title="Play">
+                        <button class="btn-play-mini" onclick="playResultByIndex(${index})" title="Play">
                             <i class="fas fa-play"></i>
                         </button>
-                        <button class="btn-download-mini" onclick="downloadFile('${dUrl}','${escapeHtml(file.file_name)}')" title="Download">
+                        <button class="btn-download-mini" onclick="downloadResultByIndex(${index})" title="Download">
                             <i class="fas fa-download"></i>
                         </button>
                     </div>
@@ -1060,42 +1045,65 @@
             displaySearchResults(allSearchResults, true);
         }
         
-        async function searchFiles(query) {
-            if (query.length < 2) return [];
-            try {
-                const url = SEARCH_ENDPOINT + '?q=' + encodeURIComponent(query) + '&limit=30';
-                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json();
-                return data.results || [];
-            } catch (e) {
-                console.error(e);
-                throw e;
+        // FIXED: Play by index (no URL in onclick)
+        function playResultByIndex(index) {
+            console.log('🎬 playResultByIndex called with index:', index);
+            
+            const file = allSearchResults[index];
+            if (!file) {
+                console.error('❌ No file found at index:', index);
+                showToast('File not found');
+                return;
             }
-        }
-        
-        // FIXED: Results stay after play
-        function playSearchResult(url, name) {
-            currentChannelName = name;
-            currentChannelUrl = url;
-            document.getElementById('videoTitle').textContent = name;
-            showLoading();
-            loadStream(url);
-            // Scroll to player but DON'T clear search results
+            
+            const streamUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
+            console.log('📺 Stream URL:', streamUrl);
+            console.log('📄 File name:', file.file_name);
+            
+            currentChannelName = file.file_name;
+            currentChannelUrl = streamUrl;
+            document.getElementById('videoTitle').textContent = file.file_name;
+            
+            loadStream(streamUrl);
+            
             document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            showToast('Playing: ' + name);
-            // Results stay visible - no clearSearch() call
+            showToast('Playing: ' + file.file_name);
         }
         
-        function downloadFile(url, name) {
-            showToast('Downloading: ' + name);
+        function downloadResultByIndex(index) {
+            const file = allSearchResults[index];
+            if (!file) {
+                showToast('File not found');
+                return;
+            }
+            
+            const streamUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
+            const downloadUrl = file.download_url || streamUrl;
+            
+            showToast('Downloading: ' + file.file_name);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = name;
+            a.href = downloadUrl;
+            a.download = file.file_name;
             a.target = '_blank';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+        }
+        
+        async function searchFiles(query) {
+            if (query.length < 2) return [];
+            try {
+                const url = SEARCH_ENDPOINT + '?q=' + encodeURIComponent(query) + '&limit=30';
+                console.log('🔍 Searching:', url);
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                console.log('📊 Results:', data.results ? data.results.length : 0);
+                return data.results || [];
+            } catch (e) {
+                console.error('❌ Search error:', e);
+                throw e;
+            }
         }
         
         function clearSearch() {
@@ -1104,6 +1112,7 @@
             document.getElementById('liveSearchResults').classList.remove('active');
             document.getElementById('liveSearchResults').innerHTML = '';
             allSearchResults = [];
+            searchResultsData = [];
         }
         
         // External Player
@@ -1166,8 +1175,8 @@
         window.handleLiveSearch = handleLiveSearch;
         window.clearSearch = clearSearch;
         window.showAllResults = showAllResults;
-        window.playSearchResult = playSearchResult;
-        window.downloadFile = downloadFile;
+        window.playResultByIndex = playResultByIndex;
+        window.downloadResultByIndex = downloadResultByIndex;
         window.playChannel = playChannel;
         window.showExternalModal = showExternalModal;
         window.closeExternalModal = closeExternalModal;
@@ -1177,6 +1186,7 @@
         
         // Init
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Initializing...');
             initializePlayer();
             loadChannels();
             
@@ -1190,6 +1200,8 @@
                     menu.classList.remove('active');
                 }
             });
+            
+            console.log('✅ Ready!');
         });
     </script>
     
