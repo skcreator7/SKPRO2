@@ -48,11 +48,11 @@
         }
         
         body {
-            padding-top: 56px;
+            padding-top: 112px;
             min-height: 100vh;
         }
         
-        /* ============ NAVBAR ============ */
+        /* ============ NAVBAR (logo row + search row, both fixed) ============ */
         .top-navbar {
             background: rgba(15, 23, 42, 0.98);
             position: fixed;
@@ -61,14 +61,14 @@
             right: 0;
             width: 100%;
             z-index: 1000;
-            height: 56px;
             display: flex;
-            align-items: center;
+            flex-direction: column;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         
         .navbar-inner {
             width: 100%;
+            height: 56px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -119,7 +119,7 @@
         
         .menu-dropdown {
             position: fixed;
-            top: 56px;
+            top: 112px;
             right: 8px;
             left: 8px;
             background: rgba(15, 23, 42, 0.98);
@@ -149,6 +149,206 @@
         
         .menu-link:last-child {
             margin-bottom: 0;
+        }
+        
+        /* ============ TOPBAR SEARCH ROW ============ */
+        .navbar-search-row {
+            width: 100%;
+            height: 56px;
+            padding: 8px 12px;
+            position: relative;
+        }
+        
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent);
+            font-size: 0.85rem;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .search-input {
+            width: 100%;
+            background: rgba(60, 65, 90, 0.9);
+            border: 1px solid var(--accent);
+            color: #fff;
+            padding: 10px 30px 10px 32px;
+            font-size: 0.85rem;
+            border-radius: 22px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .search-input:focus {
+            border-color: #00e6ff;
+            box-shadow: 0 0 10px rgba(0, 204, 255, 0.3);
+        }
+        
+        .search-clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+        
+        .search-clear-btn.show {
+            display: flex;
+        }
+        
+        .live-search-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 12px;
+            right: 12px;
+            margin-top: 4px;
+            max-height: 70vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(0, 204, 255, 0.25);
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        
+        .live-search-results.active {
+            display: block;
+        }
+        
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+        }
+        
+        .search-result-item:active {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .search-result-icon {
+            font-size: 1.5rem;
+            width: 35px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        .search-result-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .search-result-name {
+            font-weight: 600;
+            color: #fff;
+            font-size: 0.8rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-bottom: 2px;
+        }
+        
+        .search-result-meta {
+            font-size: 0.68rem;
+            color: #999;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .search-result-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        
+        .btn-play-mini {
+            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
+            color: #fff;
+            border: none;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.3s;
+            box-shadow: 0 3px 10px rgba(255, 0, 0, 0.3);
+        }
+        
+        .btn-play-mini:active {
+            transform: scale(0.9);
+        }
+        
+        .btn-download-mini {
+            background: rgba(0, 204, 255, 0.15);
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-download-mini:active {
+            transform: scale(0.9);
+        }
+        
+        .btn-see-more {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: none;
+            margin-top: 4px;
+        }
+        
+        .btn-see-more.show {
+            display: block;
+        }
+        
+        .search-loading, .search-empty {
+            text-align: center;
+            padding: 15px;
+            color: #999;
+            font-size: 0.8rem;
         }
         
         /* ============ ADS ============ */
@@ -342,199 +542,6 @@
         .quality-btn.active {
             background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
             border-color: transparent;
-        }
-        
-        /* ============ SEARCH ============ */
-        .search-section {
-            width: 100%;
-            margin: 8px 0;
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 10px;
-            padding: 8px;
-            border: 1px solid rgba(0, 204, 255, 0.2);
-        }
-        
-        .search-box {
-            position: relative;
-            width: 100%;
-        }
-        
-        .search-icon {
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--accent);
-            font-size: 0.85rem;
-            pointer-events: none;
-            z-index: 1;
-        }
-        
-        .search-input {
-            width: 100%;
-            background: rgba(60, 65, 90, 0.9);
-            border: 1px solid var(--accent);
-            color: #fff;
-            padding: 10px 30px 10px 32px;
-            font-size: 0.85rem;
-            border-radius: 22px;
-            outline: none;
-            transition: all 0.3s;
-        }
-        
-        .search-input:focus {
-            border-color: #00e6ff;
-            box-shadow: 0 0 10px rgba(0, 204, 255, 0.3);
-        }
-        
-        .search-clear-btn {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: #fff;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-        }
-        
-        .search-clear-btn.show {
-            display: flex;
-        }
-        
-        .live-search-results {
-            display: none;
-            margin-top: 8px;
-            max-height: 400px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        .live-search-results.active {
-            display: block;
-        }
-        
-        .search-result-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s;
-        }
-        
-        .search-result-item:active {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .search-result-icon {
-            font-size: 1.5rem;
-            width: 35px;
-            text-align: center;
-            flex-shrink: 0;
-        }
-        
-        .search-result-info {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .search-result-name {
-            font-weight: 600;
-            color: #fff;
-            font-size: 0.8rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            margin-bottom: 2px;
-        }
-        
-        .search-result-meta {
-            font-size: 0.68rem;
-            color: #999;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .search-result-actions {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-        
-        .btn-play-mini {
-            background: linear-gradient(135deg, var(--primary-red), var(--primary-blue));
-            color: #fff;
-            border: none;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            transition: all 0.3s;
-            box-shadow: 0 3px 10px rgba(255, 0, 0, 0.3);
-        }
-        
-        .btn-play-mini:active {
-            transform: scale(0.9);
-        }
-        
-        .btn-download-mini {
-            background: rgba(0, 204, 255, 0.15);
-            color: var(--accent);
-            border: 2px solid var(--accent);
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            transition: all 0.3s;
-        }
-        
-        .btn-download-mini:active {
-            transform: scale(0.9);
-        }
-        
-        .btn-see-more {
-            width: 100%;
-            background: rgba(255,255,255,0.08);
-            color: #fff;
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: 600;
-            display: none;
-            margin-top: 4px;
-        }
-        
-        .btn-see-more.show {
-            display: block;
-        }
-        
-        .search-loading, .search-empty {
-            text-align: center;
-            padding: 15px;
-            color: #999;
-            font-size: 0.8rem;
         }
         
         /* ============ LATEST MOVIES ============ */
@@ -802,9 +809,10 @@
         }
         
         @media (min-width: 768px) {
-            body { padding-top: 64px; }
-            .top-navbar { height: 64px; }
-            .menu-dropdown { top: 64px; left: auto; right: 16px; width: 280px; }
+            body { padding-top: 128px; }
+            .navbar-inner { height: 64px; }
+            .navbar-search-row { height: 64px; }
+            .menu-dropdown { top: 128px; left: auto; right: 16px; width: 280px; }
             .video-title { font-size: 1.2rem; }
             .channels-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
             .channel-logo { width: 60px; height: 60px; }
@@ -831,7 +839,7 @@
 </head>
 
 <body>
-    <!-- Navigation -->
+    <!-- Navigation (logo row + fixed search row) -->
     <nav class="top-navbar">
         <div class="navbar-inner">
             <div class="logo-section">
@@ -841,6 +849,20 @@
             <button class="menu-btn" onclick="toggleMenu()" id="menuToggleBtn">
                 <i class="fas fa-bars"></i>
             </button>
+        </div>
+        
+        <!-- Search moved to topbar -->
+        <div class="navbar-search-row">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" id="searchInput" 
+                       placeholder="Search movies, channels..." 
+                       oninput="handleLiveSearch(this.value)" autocomplete="off">
+                <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="live-search-results" id="liveSearchResults"></div>
         </div>
     </nav>
     
@@ -921,36 +943,21 @@
             <div class="quality-buttons" id="qualityButtons"></div>
         </div>
         
-        <!-- Search -->
-        <div class="search-section">
-            <div class="search-box">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" class="search-input" id="searchInput" 
-                       placeholder="Search movies, channels..." 
-                       oninput="handleLiveSearch(this.value)" autocomplete="off">
-                <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="live-search-results" id="liveSearchResults"></div>
-        </div>
-        
         <!-- ========== LATEST MOVIES SECTION ========== -->
         <div class="section-box">
             
             <!-- Ad Above Movies -->
             <div class="ad-above-movies">
                 <script>
-  atOptions = {
-    'key' : '8078db1d75a50345d1eb7ee72b2ecd23',
-    'format' : 'iframe',
-    'height' : 50,
-    'width' : 320,
-    'params' : {}
-  };
-</script>
-<script src="https://marksdespitelinear.com/8078db1d75a50345d1eb7ee72b2ecd23/invoke.js"></script>
-
+                    atOptions = {
+                        'key' : '8078db1d75a50345d1eb7ee72b2ecd23',
+                        'format' : 'iframe',
+                        'height' : 50,
+                        'width' : 320,
+                        'params' : {}
+                    };
+                </script>
+                <script src="https://marksdespitelinear.com/8078db1d75a50345d1eb7ee72b2ecd23/invoke.js"></script>
                 <div id="container-8078db1d75a50345d1eb7ee72b2ecd23"></div>
             </div>
             
@@ -1005,7 +1012,7 @@
         <!-- SEO Text Block -->
         <div class="seo-text-block">
             <h2>Watch Live Cricket, Sports & Movies Free on SK4FiLM</h2>
-            <p>SK4FiLM lets you stream live cricket matches, popular sports channels, and the latest Bollywood, Hollywood and South Indian movies — all in one place, completely free and without any signup. Use the search bar above to instantly find a movie and pick the quality that suits your connection, from 480p all the way up to 1080p HD.</p>
+            <p>SK4FiLM lets you stream live cricket matches, popular sports channels, and the latest Bollywood, Hollywood and South Indian movies — all in one place, completely free and without any signup. Use the search bar at the top to instantly find a movie and pick the quality that suits your connection, from 480p all the way up to 1080p HD.</p>
             <p>New movies and channels are added regularly, so bookmark this page and check back often for the latest releases and live sports coverage.</p>
             <div class="seo-tags">
                 <span class="seo-tag">Live Cricket Streaming</span>
@@ -1058,7 +1065,8 @@
         const SEARCH_ENDPOINT = API_BASE + '/api/search';
         const STREAM_BASE = API_BASE + '/stream';
         
-        // 🔗 Smartlink shown once before a play/download/channel action
+        // 🔗 Smartlink — now ONLY used before a download action.
+        // Play buttons (search results + channels) run directly, no ad.
         const SMARTLINK_LINK = 'https://marksdespitelinear.com/fenss50y0s?key=e3bd05adff60874ee5f1d76bff5ebcbb';
         
         function triggerSmartlinkThenRun(callback) {
@@ -1438,16 +1446,14 @@
             </div>`;
         }
         
-        // 🔗 Channel play now shows the smartlink first, then plays
+        // 🔗 Channel play — direct, NO smartlink
         function playChannel(name, url) {
             console.log('Channel clicked:', name, url);
-            triggerSmartlinkThenRun(() => {
-                currentChannelName = name;
-                currentChannelUrl = url;
-                document.getElementById('videoTitle').textContent = name;
-                hideQualityButtons();
-                loadStream(url);
-            });
+            currentChannelName = name;
+            currentChannelUrl = url;
+            document.getElementById('videoTitle').textContent = name;
+            hideQualityButtons();
+            loadStream(url);
         }
         
         // Live Search
@@ -1531,7 +1537,7 @@
             displaySearchResults(allSearchResults, true);
         }
         
-        // 🔗 Play from search results now shows the smartlink first
+        // 🔗 Play from search results — direct, NO smartlink
         function playResultByIndex(index) {
             console.log('🎬 playResultByIndex called with index:', index);
             
@@ -1542,25 +1548,23 @@
                 return;
             }
             
-            triggerSmartlinkThenRun(() => {
-                const streamUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
-                console.log('📺 Stream URL:', streamUrl);
-                console.log('📄 File name:', file.file_name);
-                
-                currentChannelName = file.file_name;
-                currentChannelUrl = streamUrl;
-                document.getElementById('videoTitle').textContent = file.file_name;
-                hideQualityButtons();
-                
-                loadStream(streamUrl);
-                loadQualityOptions(file.file_name, file.message_id);
-                
-                document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-                showToast('Playing: ' + file.file_name);
-            });
+            const streamUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
+            console.log('📺 Stream URL:', streamUrl);
+            console.log('📄 File name:', file.file_name);
+            
+            currentChannelName = file.file_name;
+            currentChannelUrl = streamUrl;
+            document.getElementById('videoTitle').textContent = file.file_name;
+            hideQualityButtons();
+            
+            loadStream(streamUrl);
+            loadQualityOptions(file.file_name, file.message_id);
+            
+            document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast('Playing: ' + file.file_name);
         }
         
-        // 🔗 Download from search results now shows the smartlink first
+        // 🔗 Download from search results — smartlink triggers first
         function downloadResultByIndex(index) {
             const file = allSearchResults[index];
             if (!file) {
@@ -1693,6 +1697,12 @@
                 if (menu.classList.contains('active') && !menu.contains(e.target) && !btn.contains(e.target)) {
                     menu.classList.remove('active');
                 }
+                
+                // Close search results dropdown on outside click
+                const searchRow = document.querySelector('.navbar-search-row');
+                if (searchRow && !searchRow.contains(e.target)) {
+                    document.getElementById('liveSearchResults').classList.remove('active');
+                }
             });
             
             console.log('✅ Ready!');
@@ -1781,7 +1791,7 @@
             window.location.href = `https://sk4film.vercel.app/search.html?query=${encodeURIComponent(decodeURIComponent(title))}`;
         }
 
-        // 🔗 Uses the same smartlink pattern before navigating to search
+        // 🔗 Movie card click still uses the ad-link pattern (unchanged)
         window.searchMovieWithAd = function (title) {
             const AD_LINK = "https://marksdespitelinear.com/q0kc8nv4q?key=c218be3bec34666c085d52b88afa4651";
             window.open(AD_LINK, '_blank');
