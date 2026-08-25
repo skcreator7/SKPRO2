@@ -587,7 +587,7 @@
         .btn-stream-now:hover, .btn-download-main:hover {
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
-        .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); }
+        .btn-stream-now { background: linear-gradient(45deg, #ff416c, #ff4b2b); border: none; font-family: 'Josefin Sans', sans-serif; }
         .btn-download-main { 
             background: linear-gradient(45deg, #28a745, #20c997); 
             font-family: 'Josefin Sans', sans-serif;
@@ -599,6 +599,13 @@
             padding: 12px; 
             margin: 0;
             animation: slideDown 0.3s ease;
+        }
+        .quality-dropdown-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
         }
         @keyframes slideDown {
             from { opacity: 0; transform: translateY(-10px); }
@@ -625,6 +632,10 @@
             transform: translateY(-2px);
         }
         .quality-option-2click:active { transform: scale(0.95); }
+        .quality-option-watch:hover {
+            background: #ff416c;
+            border-color: #ff416c;
+        }
         
         .pagination { margin: 20px 0; flex-wrap: wrap; justify-content: center; gap: 4px; }
         .page-link {
@@ -1054,10 +1065,8 @@ function renderIMDbInfo(imdbData) {
     
     let html = '<div class="imdb-info-container">';
     
-    // Header with Poster and Info
     html += '<div class="imdb-header">';
     
-    // Poster
     html += '<div class="imdb-poster-container">';
     if (poster && poster !== 'N/A') {
         html += `<img src="${poster}" alt="${escapeHtml(title)}" class="imdb-poster" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'imdb-poster\\' style=\\'display:flex;align-items:center;justify-content:center;background:#000;border:1px solid #1a1a1a;min-height:200px;\\'><i class=\\'fas fa-film\\' style=\\'font-size:40px;color:#333;\\'></i></div>';">`;
@@ -1066,7 +1075,6 @@ function renderIMDbInfo(imdbData) {
     }
     html += '</div>';
     
-    // Movie Info
     html += '<div class="imdb-header-info">';
     html += '<div class="imdb-logo-rating">';
     html += '<span class="imdb-logo">IMDb</span>';
@@ -1079,7 +1087,6 @@ function renderIMDbInfo(imdbData) {
     html += `<span class="imdb-movie-year"><i class="far fa-calendar-alt me-1"></i>${year}</span>`;
     html += '</div></div>';
     
-    // Details Grid
     html += '<div class="imdb-details">';
     html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Runtime</div><div class="imdb-detail-value">${runtime}</div></div>`;
     html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Rated</div><div class="imdb-detail-value">${rated}</div></div>`;
@@ -1089,20 +1096,17 @@ function renderIMDbInfo(imdbData) {
     if (boxOffice !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Box Office</div><div class="imdb-detail-value">${boxOffice}</div></div>`;
     html += '</div>';
     
-    // Genres
     if (genres.length > 0 && genres[0] !== 'N/A') {
         html += '<div class="imdb-genres">';
         genres.forEach(genre => { html += `<span class="imdb-genre-tag">${genre}</span>`; });
         html += '</div>';
     }
     
-    // Plot
     html += '<div class="imdb-plot">';
     html += '<div class="imdb-plot-title"><i class="fas fa-book-open me-2"></i>Short Story / Synopsis</div>';
     html += `<div class="imdb-plot-text">${plot}</div>`;
     html += '</div>';
     
-    // Additional Info
     html += '<div class="imdb-additional-info">';
     if (director !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Director</div><div class="imdb-detail-value" style="font-size:12px;">${director}</div></div>`;
     if (actors !== 'N/A') html += `<div class="imdb-detail-item"><div class="imdb-detail-label">Cast</div><div class="imdb-detail-value" style="font-size:12px;line-height:1.4;">${actors}</div></div>`;
@@ -1264,9 +1268,10 @@ function togglePostContent(index) {
     else { textDiv.style.maxHeight = 'none'; if (fadeEffect) fadeEffect.style.display = 'none'; if (toggleBtn) toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less ↑'; }
 }
 
+// ========== DOWNLOAD quality options (Telegram bot links) ==========
 function generateQualityOptions(qualityOptions, result) {
     if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color:#999;margin:0;">No options available</p>';
-    let html = '<div style="display:flex;flex-wrap:wrap;gap:8px;">'; let count = 0;
+    let html = '<div class="quality-dropdown-label"><i class="fas fa-download me-1"></i>Choose quality to download</div><div style="display:flex;flex-wrap:wrap;gap:8px;">'; let count = 0;
     let defaultMsgId = result.real_message_id || result.message_id || result.id || '0';
     defaultMsgId = String(defaultMsgId).replace(/\D/g, '');
     for (const [quality, data] of Object.entries(qualityOptions)) {
@@ -1287,6 +1292,31 @@ function generateQualityOptions(qualityOptions, result) {
     html += '</div>'; return html;
 }
 
+// ========== 🆕 WATCH quality options (opens view.html player directly, no Telegram redirect) ==========
+function generateWatchQualityOptions(qualityOptions, result) {
+    if (!qualityOptions || typeof qualityOptions !== 'object') return '<p style="color:#999;margin:0;">No options available</p>';
+    let html = '<div class="quality-dropdown-label"><i class="fas fa-play-circle me-1"></i>Choose quality to watch</div><div style="display:flex;flex-wrap:wrap;gap:8px;">'; let count = 0;
+    let defaultMsgId = result.real_message_id || result.message_id || result.id || '0';
+    defaultMsgId = String(defaultMsgId).replace(/\D/g, '');
+    for (const [quality, data] of Object.entries(qualityOptions)) {
+        if (data && typeof data === 'object') {
+            let qualityMsgId = data.message_id || defaultMsgId;
+            qualityMsgId = String(qualityMsgId).replace(/\D/g, '');
+            if (qualityMsgId && qualityMsgId !== '0') {
+                const size = data.file_size ? formatSize(data.file_size) : '';
+                const watchLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${qualityMsgId}`;
+                html += `<a href="${watchLink}" target="_blank" rel="noopener noreferrer" class="quality-option-2click quality-option-watch" style="text-decoration:none;">${quality} ${size}</a>`;
+                count++;
+            }
+        }
+    }
+    if (count === 0) {
+        const watchLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${defaultMsgId}`;
+        html += `<a href="${watchLink}" target="_blank" rel="noopener noreferrer" class="quality-option-2click quality-option-watch" style="text-decoration:none;">Watch</a>`;
+    }
+    html += '</div>'; return html;
+}
+
 function handleQualityClick(telegramLink) {
     triggerBackgroundSmartlink();
     if (hasUserSeenRedirect) { window.open(telegramLink, '_blank'); return; }
@@ -1300,7 +1330,18 @@ function handleQualityClick(telegramLink) {
 }
 
 function triggerAdLink() { triggerBackgroundSmartlink(); }
-function toggleDownload(index) { const dropdown = document.getElementById(`download-quality-${index}`); if (dropdown) { dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'; } document.querySelectorAll('.quality-dropdown').forEach(d => { if (d.id !== `download-quality-${index}`) d.style.display = 'none'; }); }
+
+// 🆕 Generic toggle used by both Watch and Download quality dropdowns —
+// closes any other open dropdown so only one shows at a time.
+function toggleQualityDropdown(id) {
+    const dropdown = document.getElementById(id);
+    if (!dropdown) return;
+    const isOpen = dropdown.style.display === 'block';
+    document.querySelectorAll('.quality-dropdown').forEach(d => { d.style.display = 'none'; });
+    dropdown.style.display = isOpen ? 'none' : 'block';
+}
+function toggleDownload(index) { toggleQualityDropdown(`download-quality-${index}`); }
+function toggleWatch(index) { toggleQualityDropdown(`watch-quality-${index}`); }
 
 function renderResults(results, pagination) {
     const rc = document.getElementById('resultsContainer'), ri = document.getElementById('resultsInfo'), pc = document.getElementById('paginationContainer');
@@ -1318,9 +1359,18 @@ function renderResults(results, pagination) {
         html += `<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${thumbUrl}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hasFile?'<div class="video-file-badge">SK4FiLM</div>':''}</div></div><h3 class="result-title">${formatTitle(title)}</h3>`;
         if (postContent && postContent.trim().length > 0) html += createPostContent(postContent, index);
         if (hasFile) {
-            html += `<div class="action-buttons-container"><a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
-            if (hasQualities) { html += `<button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button></div><div class="quality-dropdown" id="download-quality-${index}" style="display:none;">${generateQualityOptions(qualityOptions, result)}</div>`; }
-            else { const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`; const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : ''; html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i>Download ${badge}</button></div>`; }
+            if (hasQualities) {
+                // 🆕 Both Watch Now and Download open their own quality dropdown
+                html += `<div class="action-buttons-container">
+                    <button class="btn-stream-now" onclick="toggleWatch(${index})"><i class="fas fa-play-circle"></i> Watch Now <i class="fas fa-chevron-down ms-1"></i></button>
+                    <button class="btn-download-main" onclick="toggleDownload(${index})"><i class="fas fa-download"></i>Download <i class="fas fa-chevron-down ms-1"></i></button>
+                </div>
+                <div class="quality-dropdown" id="watch-quality-${index}" style="display:none;">${generateWatchQualityOptions(qualityOptions, result)}</div>
+                <div class="quality-dropdown" id="download-quality-${index}" style="display:none;">${generateQualityOptions(qualityOptions, result)}</div>`;
+            } else {
+                html += `<div class="action-buttons-container"><a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Now</a>`;
+                const dl = `https://t.me/${BOT_USERNAME}?start=${FILE_CHANNEL_ID}_${msgIdForStream}`; const badge = !hasUserSeenRedirect ? '<span class="one-time-badge">1st time</span>' : ''; html += `<button class="btn-download-main" onclick="handleQualityClick('${dl}')"><i class="fas fa-download"></i>Download ${badge}</button></div>`;
+            }
         } else { html += `<div class="action-buttons-container"><a href="https://sk4film.vercel.app/view.html" target="_blank" rel="noopener noreferrer" class="btn-stream-now"><i class="fas fa-play-circle"></i> Watch Live Cricket</a></div>`; }
         html += `</div>`;
     });
@@ -1350,6 +1400,7 @@ document.addEventListener('click', event => { if (!event.target.closest('.action
 
 window.triggerAdLink = triggerAdLink;
 window.toggleDownload = toggleDownload;
+window.toggleWatch = toggleWatch;
 window.handleQualityClick = handleQualityClick;
 window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
