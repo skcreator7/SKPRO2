@@ -312,7 +312,7 @@ class Config:
     REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
     
     # ✅ FIXED: Channel Configuration - Proper negative IDs
-    MAIN_CHANNEL_ID = -1002555323872  # Main channel (posts)
+    MAIN_CHANNEL_ID = -1001767371495  # Main channel (posts)
     TEXT_CHANNEL_IDS = [-1001891090100, -1002024811395]  # Text channels for posts
     FILE_CHANNEL_ID = -1001768249569   # File channel for videos
     
