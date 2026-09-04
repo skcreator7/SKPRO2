@@ -36,66 +36,41 @@ class VerificationSystem:
         return hashlib.sha256(data.encode()).hexdigest()[:32]
     
     async def get_shortened_url(self, destination_url: str) -> Tuple[str, str]:
-        """Get shortened URL using GPLinks or similar service"""
+        """Get shortened URL using sk4link"""
+        # Check if API key is configured
+        if not hasattr(self.config, 'SHORTLINK_API') or not self.config.SHORTLINK_API:
+            logger.warning("No shortlink API configured, using direct URL")
+            return destination_url, 'Direct'
+
         try:
-            # Check if API key is configured
-            if not hasattr(self.config, 'SHORTLINK_API') or not self.config.SHORTLINK_API:
-                logger.warning("No shortlink API configured, using direct URL")
-                return destination_url, 'Direct'
-            
-            # Try GPLinks
-            api_url = "https://gplinks.in/api"
+            api_url = "https://sk4link.vercel.app/api/public/shorten"
             params = {
                 'api': self.config.SHORTLINK_API,
                 'url': destination_url
             }
-            
+
             timeout = aiohttp.ClientTimeout(total=10)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(api_url, params=params) as response:
                     if response.status == 200:
                         response_text = await response.text()
-                        
-                        # Try to extract URL from response
+
                         try:
                             data = json.loads(response_text)
                             if data.get("status") == "success":
-                                short_url = data.get('shortenedUrl') or data.get('shortenedurl') or data.get('short_url')
+                                short_url = data.get('shortenedUrl') or data.get('short_link')
                                 if short_url:
-                                    logger.info(f"✅ URL shortened via GPLinks: {short_url}")
-                                    return short_url, 'GPLinks'
+                                    logger.info(f"✅ URL shortened via sk4link: {short_url}")
+                                    return short_url, 'sk4link'
                         except json.JSONDecodeError:
-                            # If response is direct URL
                             if response_text.startswith('http'):
-                                logger.info(f"✅ URL shortened via GPLinks: {response_text}")
-                                return response_text, 'GPLinks'
-        
+                                logger.info(f"✅ URL shortened via sk4link: {response_text}")
+                                return response_text, 'sk4link'
+
         except Exception as e:
-            logger.warning(f"GPLinks failed: {e}")
-        
-        # Fallback to other shorteners
-        shorteners = [
-            # TinyURL
-            ("https://tinyurl.com/api-create.php", {'url': destination_url}, 'TinyURL'),
-            # Is.gd
-            ("https://is.gd/create.php", {'format': 'simple', 'url': destination_url}, 'Is.gd'),
-            # Cutt.ly
-            ("https://cutt.ly/api/api.php", {'key': getattr(self.config, 'CUTTLY_API', ''), 'short': destination_url}, 'Cutt.ly'),
-        ]
-        
-        for api_url, params, name in shorteners:
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(api_url, params=params, timeout=5) as r:
-                        if r.status == 200:
-                            response_text = await r.text()
-                            if response_text.startswith('http'):
-                                logger.info(f"✅ URL shortened via {name}: {response_text}")
-                                return response_text.strip(), name
-            except:
-                continue
-        
-        logger.warning("All shorteners failed, using direct URL")
+            logger.warning(f"sk4link failed: {e}")
+
+        logger.warning("sk4link failed, using direct URL")
         return destination_url, 'Direct'
     
     async def create_verification_link(self, user_id: int, content_type: str = "download") -> Dict[str, Any]:
