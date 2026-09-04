@@ -322,7 +322,7 @@ class Config:
     CHANNEL_USERNAME = "sk4film"
     
     # URL Shortener
-    SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
+    SHORTLINK_API = os.environ.get("SHORTLINK_API", "MoA5M2mCWO")
     CUTTLY_API = os.environ.get("CUTTLY_API", "")
     
     # UPI IDs
@@ -332,7 +332,7 @@ class Config:
     UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
     
     # Verification
-    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "False").lower() == "True"
+    VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "True").lower() == "True"
     VERIFICATION_DURATION = 6 * 60 * 60
     
     # Application
@@ -2408,8 +2408,8 @@ async def setup_telegram_bot_handlers(bot):
                         if success:
                             await processing.delete()
                             await message.reply_text(
-                                f"✅ **Powred By SK4FiLM!**\n\n"
-                                f"📁 **File:** `{result['file_name']}`\n"
+                                f"✅ **★ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : @Sk4Film**\n\n"
+                                f"📁 **Please forward this File/Video to your Saved Messages and Start Download there** (Due to Copyright Issues)\n"
                                 f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME} minutes",
                                 reply_markup=InlineKeyboardMarkup([
                                     [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
