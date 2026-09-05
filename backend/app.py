@@ -2387,7 +2387,7 @@ async def get_home_movies(limit=100):
 # ✅ TELEGRAM BOT SETUP - WITH ALL HANDLERS
 # ============================================================================
     
-    @bot.on_message(filters.command("start")
+    @bot.on_message(filters.command("start"))
     async def start_cmd(client, message):
             try:
                 user_name = message.from_user.first_name or "User"
