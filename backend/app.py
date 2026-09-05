@@ -13,6 +13,7 @@ import time
 import secrets
 import base64
 import hashlib
+import hmac
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple, Union
 from collections import defaultdict
@@ -84,16 +85,17 @@ except ImportError as e:
 # Premium System
 try:
     from premium import PremiumSystem, PremiumTier
-    logger.debug("✅ Premium module imported")
+    logger.debug("✅ Premium module imported with Razorpay")
 except ImportError as e:
     logger.error(f"❌ Premium module import error: {e}")
     PremiumSystem = None
     PremiumTier = None
     class PremiumTier:
+        FREE = "free"
         BASIC = "basic"
-        PREMIUM = "premium"
-        GOLD = "gold"
-        DIAMOND = "diamond"
+        STANDARD = "standard"
+        PRO = "pro"
+        ULTIMATE = "ultimate"
     
     class PremiumSystem:
         def __init__(self, config, mongo_client):
@@ -102,11 +104,24 @@ except ImportError as e:
         async def is_premium_user(self, user_id):
             return False
         async def get_user_tier(self, user_id):
-            return PremiumTier.BASIC
+            return PremiumTier.FREE
         async def get_subscription_details(self, user_id):
-            return {"tier": "basic", "expiry": None}
+            return {"tier": "free", "expiry": None}
+        async def start_cleanup_task(self): pass
         async def stop_cleanup_task(self): pass
-
+        async def create_razorpay_order(self, *args, **kwargs):
+            return {'success': False, 'error': 'Premium system not available'}
+        async def verify_razorpay_payment(self, *args, **kwargs):
+            return False, "Premium system not available"
+        async def handle_razorpay_webhook(self, *args, **kwargs):
+            return False, "Premium system not available"
+        async def get_all_plans(self):
+            return []
+        async def get_referral_info(self, *args, **kwargs):
+            return {}
+        async def get_admin_stats(self):
+            return {}
+            
 # Poster Fetcher
 try:
     from poster_fetching import PosterFetcher, PosterSource
@@ -235,8 +250,8 @@ app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 async def add_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['X-SK4FiLM-Version'] = '9.5-FIXED-BOT'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Razorpay-Signature'
+    response.headers['X-SK4FiLM-Version'] = '10.0-RAZORPAY'
     response.headers['X-Response-Time'] = f"{time.perf_counter():.3f}"
     return response
 
@@ -323,13 +338,11 @@ class Config:
     
     # URL Shortener
     SHORTLINK_API = os.environ.get("SHORTLINK_API", "MoA5M2mCWO")
-    CUTTLY_API = os.environ.get("CUTTLY_API", "")
     
-    # UPI IDs
-    UPI_ID_BASIC = os.environ.get("UPI_ID_BASIC", "cf.sk4film@cashfreensdlpb")
-    UPI_ID_PREMIUM = os.environ.get("UPI_ID_PREMIUM", "cf.sk4film@cashfreensdlpb")
-    UPI_ID_GOLD = os.environ.get("UPI_ID_GOLD", "cf.sk4film@cashfreensdlpb")
-    UPI_ID_DIAMOND = os.environ.get("UPI_ID_DIAMOND", "cf.sk4film@cashfreensdlpb")
+    # ✅ YEH 3 LINES ADD KAREIN - Razorpay Configuration
+    RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_51PfXhWSIYHF8VB")
+    RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "j8XwcLsT0UBb3kUvTXnUvV7F")
+    RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
     
     # Verification
     VERIFICATION_REQUIRED = os.environ.get("VERIFICATION_REQUIRED", "True").lower() == "True"
@@ -2472,19 +2485,26 @@ async def setup_telegram_bot_handlers(bot):
                 
             elif data == "buy_premium":
                 text = (
-                    "💎 **Premium Plans** 💎\n\n"
-                    f"**Basic** - ₹50\n"
-                    f"📅 30 days\n\n"
-                    f"**Premium** - ₹100\n"
-                    f"📅 90 days\n\n"
-                    f"**Gold** - ₹200\n"
-                    f"📅 180 days\n\n"
-                    f"**Diamond** - ₹500\n"
-                    f"📅 365 days\n\n"
-                    f"**UPI ID:** `{Config.UPI_ID_BASIC}`\n\n"
-                    f"📸 Send payment screenshot here to activate"
+                    "💎 **SK4FiLM PREMIUM PLANS** 💎\n\n"
+                    "🎯 **ALL PLANS INCLUDE:**\n"
+                    "✅ All Quality (480p-4K)\n"
+                    "✅ Unlimited Downloads\n"
+                    "✅ No Verification Needed\n"
+                    "✅ VIP Support 24/7\n"
+                    "✅ No Ads\n"
+                    "✅ Custom Requests\n\n"
+                    "📊 **Choose Your Plan:**\n\n"
+                    "🥉 Basic - ₹9/15 days\n"
+                    "🥈 Standard - ₹19/28 days\n"
+                    "🥇 Pro - ₹29/49 days\n"
+                    "💎 Ultimate - ₹49/90 days"
                 )
                 keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🥉 Basic - ₹9", callback_data="buy_basic")],
+                    [InlineKeyboardButton("🥈 Standard - ₹19", callback_data="buy_standard")],
+                    [InlineKeyboardButton("🥇 Pro - ₹29", callback_data="buy_pro")],
+                    [InlineKeyboardButton("💎 Ultimate - ₹49", callback_data="buy_ultimate")],
+                    [InlineKeyboardButton("🎁 Refer & Get Premium", callback_data="referral_info")],
                     [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
                 ])
                 await callback_query.message.edit_text(text, reply_markup=keyboard)
@@ -2868,7 +2888,7 @@ async def init_system():
     
     try:
         logger.info("=" * 60)
-        logger.info("🚀 SK4FiLM v9.5 - COMPLETE FIXED BOT")
+        logger.info("🚀 SK4FiLM v10.0 - RAZORPAY INTEGRATION")
         logger.info("=" * 60)
         
         # Initialize MongoDB
@@ -2893,12 +2913,16 @@ async def init_system():
         # Initialize Verification System
         if VerificationSystem is not None:
             verification_system = VerificationSystem(Config, mongo_client)
+            await verification_system.start_cleanup_task()
             logger.info("✅ Verification System initialized")
         
-        # Initialize Premium System
+        # Initialize Premium System with Razorpay
         if PremiumSystem is not None:
             premium_system = PremiumSystem(Config, mongo_client)
-            logger.info("✅ Premium System initialized")
+            await premium_system.start_cleanup_task()
+            logger.info("✅ Premium System initialized with Razorpay")
+        else:
+            logger.warning("⚠️ Premium System not available")
         
         # Initialize Telegram Sessions
         if PYROGRAM_AVAILABLE:
@@ -2920,9 +2944,9 @@ async def init_system():
         else:
             logger.warning("⚠️ Telegram Bot failed to start")
         
-        # Start indexing (limited)
+        # Start indexing
         if (user_session_ready or bot_session_ready) and thumbnails_col is not None:
-            logger.info("🔍 Starting thumbnail indexing (limited to 500 messages)...")
+            logger.info("🔍 Starting thumbnail indexing...")
             asyncio.create_task(initial_indexing_optimized())
         
         init_time = time.time() - start_time
@@ -2931,6 +2955,7 @@ async def init_system():
         logger.info("🔧 FEATURES:")
         logger.info(f"   • File Channel ID: {Config.FILE_CHANNEL_ID}")
         logger.info(f"   • Main Channel ID: {Config.MAIN_CHANNEL_ID}")
+        logger.info(f"   • Razorpay: {'✅ ENABLED' if Config.RAZORPAY_KEY_ID else '❌ DISABLED'}")
         logger.info(f"   • Poster Fetching: ✅ ENABLED")
         logger.info(f"   • File Sending: ✅ ENABLED")
         logger.info(f"   • Auto-Delete: ✅ {Config.AUTO_DELETE_TIME} minutes")
@@ -2980,9 +3005,10 @@ async def root():
     
     return jsonify({
         'status': 'healthy',
-        'service': 'SK4FiLM v9.5 - COMPLETE FIXED BOT',
+        'service': 'SK4FiLM v10.0 - RAZORPAY INTEGRATION',  # ← UPDATE
         'poster_fetching': Config.POSTER_FETCHING_ENABLED,
         'auto_delete_minutes': Config.AUTO_DELETE_TIME,
+        'razorpay_enabled': bool(Config.RAZORPAY_KEY_ID and Config.RAZORPAY_KEY_SECRET),
         'storage_stats': {
             'movies_with_thumbnails': movies_with_thumb,
             'movies_without_thumbnails': movies_without_thumb,
@@ -3187,6 +3213,151 @@ async def debug_channel_info():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ============================================================================
+# RAZORPAY API ENDPOINTS
+# ============================================================================
+
+@app.route('/api/razorpay/webhook', methods=['POST'])
+async def razorpay_webhook():
+    """Handle Razorpay webhook events"""
+    try:
+        webhook_data = await request.get_json()
+        
+        if not webhook_data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+        
+        if Config.RAZORPAY_WEBHOOK_SECRET:
+            signature = request.headers.get('X-Razorpay-Signature')
+            if not signature:
+                logger.warning("⚠️ Webhook signature missing")
+                return jsonify({'status': 'error', 'message': 'Signature missing'}), 400
+            
+            raw_body = await request.get_data()
+            expected_signature = hmac.new(
+                Config.RAZORPAY_WEBHOOK_SECRET.encode(),
+                raw_body,
+                hashlib.sha256
+            ).hexdigest()
+            
+            if not hmac.compare_digest(signature, expected_signature):
+                logger.error("❌ Webhook signature verification failed")
+                return jsonify({'status': 'error', 'message': 'Invalid signature'}), 400
+        
+        logger.info(f"📥 Razorpay webhook received: {webhook_data.get('event', 'unknown')}")
+        
+        if premium_system:
+            success, message = await premium_system.handle_razorpay_webhook(webhook_data)
+            
+            if success:
+                return jsonify({'status': 'success', 'message': message}), 200
+            else:
+                return jsonify({'status': 'error', 'message': message}), 500
+        else:
+            return jsonify({'status': 'error', 'message': 'Premium system not available'}), 500
+            
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/razorpay/verify', methods=['POST'])
+async def verify_payment():
+    """Verify Razorpay payment signature"""
+    try:
+        data = await request.get_json()
+        
+        razorpay_order_id = data.get('razorpay_order_id')
+        razorpay_payment_id = data.get('razorpay_payment_id')
+        razorpay_signature = data.get('razorpay_signature')
+        
+        if not all([razorpay_order_id, razorpay_payment_id, razorpay_signature]):
+            return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+        
+        if premium_system:
+            success, message = await premium_system.verify_razorpay_payment(
+                razorpay_order_id,
+                razorpay_payment_id,
+                razorpay_signature
+            )
+            
+            if success:
+                return jsonify({'status': 'success', 'message': message}), 200
+            else:
+                return jsonify({'status': 'error', 'message': message}), 400
+        else:
+            return jsonify({'status': 'error', 'message': 'Premium system not available'}), 500
+            
+    except Exception as e:
+        logger.error(f"Payment verification error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/razorpay/create-order', methods=['POST'])
+async def create_order():
+    """Create Razorpay order for premium purchase"""
+    try:
+        data = await request.get_json()
+        
+        user_id = data.get('user_id')
+        tier_str = data.get('tier', 'basic')
+        referral_code = data.get('referral_code')
+        
+        if not user_id:
+            return jsonify({'status': 'error', 'message': 'User ID required'}), 400
+        
+        tier_map = {
+            'basic': PremiumTier.BASIC,
+            'standard': PremiumTier.STANDARD,
+            'pro': PremiumTier.PRO,
+            'ultimate': PremiumTier.ULTIMATE
+        }
+        
+        tier = tier_map.get(tier_str, PremiumTier.BASIC)
+        
+        if premium_system:
+            order_data = await premium_system.create_razorpay_order(
+                int(user_id), tier, referral_code
+            )
+            
+            if order_data.get('success'):
+                return jsonify(order_data), 200
+            else:
+                return jsonify({'status': 'error', 'message': order_data.get('error')}), 400
+        else:
+            return jsonify({'status': 'error', 'message': 'Premium system not available'}), 500
+            
+    except Exception as e:
+        logger.error(f"Create order error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/premium/plans', methods=['GET'])
+async def get_premium_plans():
+    """Get all premium plans"""
+    try:
+        if premium_system:
+            plans = await premium_system.get_all_plans()
+            return jsonify({'status': 'success', 'plans': plans}), 200
+        else:
+            return jsonify({'status': 'error', 'message': 'Premium system not available'}), 500
+    except Exception as e:
+        logger.error(f"Get plans error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/referral/<int:user_id>', methods=['GET'])
+async def get_referral_info(user_id: int):
+    """Get user's referral information"""
+    try:
+        if premium_system:
+            referral_info = await premium_system.get_referral_info(user_id)
+            return jsonify({'status': 'success', 'referral': referral_info}), 200
+        else:
+            return jsonify({'status': 'error', 'message': 'Premium system not available'}), 500
+    except Exception as e:
+        logger.error(f"Referral info error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
 # ✅ STARTUP AND SHUTDOWN
