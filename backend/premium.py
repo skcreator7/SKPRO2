@@ -199,7 +199,8 @@ class PremiumSystem:
                             'tier': tier.value,
                             'plan_name': plan['name'],
                             'duration_days': plan['duration_days'],
-                            'referral_applied': referral_applied
+                            'referral_applied': referral_applied,
+                            'payment_url': f"https://checkout.razorpay.com/v1/checkout.js?order_id={razorpay_order['id']}&key_id={self.razorpay_key_id}&amount={amount}&currency=INR&name=SK4FiLM&description={plan['name']}&prefill[contact]=&prefill[email]="
                         }
                     else:
                         return {'success': False, 'error': 'Payment gateway error'}
@@ -403,11 +404,11 @@ class PremiumSystem:
         data = self.referral_usage.get(code, {})
         
         return {
-            'referral_code': code,
+            'referral_code': f"SK-{code}",
             'total_referrals': data.get('successful_referrals', 0),
             'milestones_achieved': data.get('milestones_achieved', []),
             'referred_user_reward': self.referred_user_reward['extra_days'],
-            'referral_link': f"https://t.me/{getattr(self.config, 'BOT_USERNAME', 'sk4filmbot')}?start=ref_{code}",
+            'referral_link': f"https://telegram.me/{getattr(self.config, 'BOT_USERNAME', 'sk4filmbot')}?start=SK-{code}",
             'milestones': self.referral_milestones
         }
     
