@@ -2752,6 +2752,15 @@ async def start_telegram_bot():
                 await callback_query.message.edit_text("🎬 SK4FiLM")
             
             await callback_query.answer()
+        
+        logger.info("✅ Bot handlers registered successfully")
+        return bot
+        
+    except Exception as e:
+        logger.error(f"❌ Bot startup error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
     
 # ============================================================================
 # ✅ TELEGRAM SESSION INITIALIZATION
