@@ -723,45 +723,6 @@ class BotHandler:
             logger.error(f"❌ Send file error: {e}")
             return False, {'message': f'Error: {str(e)}'}, 0
     
-    async def auto_delete_file(client, user_id, message_id, minutes):
-    """Auto-delete file and send notification"""
-    try:
-        await asyncio.sleep(minutes * 60)
-        
-        try:
-            await client.delete_messages(user_id, message_id)
-        except:
-            pass
-        
-        notification_text = (
-            "🗑️ **Your Files Deleted** ✅\n\n"
-            "Get again click here 👇"
-        )
-        notification_buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 WEBSITE", url=Config.WEBSITE_URL)]
-        ])
-        
-        await client.send_message(
-            user_id,
-            notification_text,
-            reply_markup=notification_buttons
-        )
-    except Exception as e:
-        logger.error(f"Auto-delete error: {e}")
-                    
-        except asyncio.CancelledError:
-            logger.info(f"⏹️ Auto-delete cancelled for user {user_id}, message {message_id}")
-            task_id = f"{user_id}_{message_id}"
-            if task_id in self.auto_delete_messages:
-                self.auto_delete_messages[task_id]['status'] = 'cancelled'
-        except Exception as e:
-            logger.error(f"❌ Auto-delete error: {e}")
-        finally:
-            # Clean up task
-            task_id = f"{user_id}_{message_id}"
-            if task_id in self.auto_delete_tasks:
-                del self.auto_delete_tasks[task_id]
-    
     async def cancel_auto_delete(self, user_id: int, message_id: int):
         """Cancel auto-delete for a specific file"""
         task_id = f"{user_id}_{message_id}"
@@ -976,6 +937,32 @@ class BotHandler:
                 logger.error(f"❌ Error stopping bot: {e}")
 
 bot_handler = BotHandler()
+
+async def auto_delete_file(client, user_id, message_id, minutes):
+    """Auto-delete file and send notification"""
+    try:
+        await asyncio.sleep(minutes * 60)
+        
+        try:
+            await client.delete_messages(user_id, message_id)
+        except:
+            pass
+        
+        notification_text = (
+            "🗑️ **Your Files Deleted** ✅\n\n"
+            "Get again click here 👇"
+        )
+        notification_buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 WEBSITE", url=Config.WEBSITE_URL)]
+        ])
+        
+        await client.send_message(
+            user_id,
+            notification_text,
+            reply_markup=notification_buttons
+        )
+    except Exception as e:
+        logger.error(f"Auto-delete error: {e}")
 
 # ============================================================================
 # ✅ ENHANCED TITLE EXTRACTION FUNCTIONS
