@@ -2609,7 +2609,20 @@ async def start_telegram_bot():
             user_id = message.from_user.id
             if premium_system:
                 info = await premium_system.get_referral_info(user_id)
-                await message.reply_text(f"🎁 Code: `{info['referral_code']}`\nTotal: {info['total_referrals']}")
+                text = (
+                    f"🎁 **REFER & GET PREMIUM**\n\n"
+                    f"👥 Your Code: `{info['referral_code']}`\n"
+                    f"📊 Total Referrals: {info['total_referrals']}\n\n"
+                    f"💎 **Milestones:**\n"
+                    f"3 refs = Basic (15 days)\n"
+                    f"5 refs = Standard (28 days)\n"
+                    f"10 refs = Pro (49 days)\n\n"
+                    f"🔗 Your Link:\n`{info['referral_link']}`"
+                )
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📤 SHARE", url=f"https://t.me/share/url?url={info['referral_link']}")]
+                ])
+                await message.reply_text(text, reply_markup=keyboard)
             else:
                 await message.reply_text("❌ Premium unavailable")
         
@@ -2620,6 +2633,7 @@ async def start_telegram_bot():
         @bot.on_callback_query()
         async def callbacks(client, callback_query):
             data = callback_query.data
+            
             if data == "buy_premium":
                 await callback_query.message.edit_text(
                     "💎 **PREMIUM PLANS**",
@@ -2630,13 +2644,85 @@ async def start_telegram_bot():
                         [InlineKeyboardButton("💎 Ultimate ₹49", callback_data="buy_ultimate")]
                     ])
                 )
+            
+            elif data in ["buy_basic", "buy_standard", "buy_pro", "buy_ultimate"]:
+                user_id = callback_query.from_user.id
+                tier_map = {
+                    "buy_basic": "basic",
+                    "buy_standard": "standard",
+                    "buy_pro": "pro",
+                    "buy_ultimate": "ultimate"
+                }
+                tier_str = tier_map.get(data, "basic")
+                
+                if premium_system:
+                    from premium import PremiumTier
+                    tier_enum = {
+                        "basic": PremiumTier.BASIC,
+                        "standard": PremiumTier.STANDARD,
+                        "pro": PremiumTier.PRO,
+                        "ultimate": PremiumTier.ULTIMATE
+                    }.get(tier_str)
+                    
+                    order_data = await premium_system.create_razorpay_order(user_id, tier_enum)
+                    
+                    if order_data.get('success'):
+                        plan = premium_system.plans.get(tier_enum, {})
+                        payment_text = (
+                            f"💳 **PAYMENT REQUIRED**\n\n"
+                            f"📋 Plan: {plan.get('name', tier_str)}\n"
+                            f"💰 Amount: ₹{plan.get('price', 0)}\n"
+                            f"📅 Duration: {plan.get('duration_days', 0)} days\n\n"
+                            f"🔒 Secure payment via Razorpay\n\n"
+                            f"Click below to pay:"
+                        )
+                        payment_url = f"https://rzp.io/l/{order_data['order_id']}"
+                        
+                        keyboard = InlineKeyboardMarkup([
+                            [InlineKeyboardButton("💳 PAY NOW", url=payment_url)],
+                            [InlineKeyboardButton("✅ I'VE PAID", callback_data=f"verify_payment_{order_data['order_id']}")],
+                            [InlineKeyboardButton("❌ CANCEL", callback_data="buy_premium")]
+                        ])
+                        
+                        await callback_query.message.edit_text(payment_text, reply_markup=keyboard)
+                    else:
+                        await callback_query.answer("❌ Payment gateway error!", show_alert=True)
+                else:
+                    await callback_query.answer("❌ Premium system unavailable!", show_alert=True)
+            
+            elif data.startswith("verify_payment_"):
+                order_id = data.replace("verify_payment_", "")
+                await callback_query.answer("🔄 Checking payment...", show_alert=True)
+                await callback_query.message.edit_text(
+                    "⏳ **Payment Verification Pending**\n\n"
+                    f"Order ID: `{order_id}`\n\n"
+                    "Payment complete hone ke baad premium activate ho jayega."
+                )
+            
             elif data == "referral_info":
                 user_id = callback_query.from_user.id
                 if premium_system:
                     info = await premium_system.get_referral_info(user_id)
-                    await callback_query.message.edit_text(f"🎁 Code: `{info['referral_code']}`\nTotal: {info['total_referrals']}")
+                    text = (
+                        f"🎁 **REFER & GET PREMIUM**\n\n"
+                        f"👥 Your Code: `{info['referral_code']}`\n"
+                        f"📊 Total Referrals: {info['total_referrals']}\n\n"
+                        f"💎 **Milestones:**\n"
+                        f"3 refs = Basic (15 days)\n"
+                        f"5 refs = Standard (28 days)\n"
+                        f"10 refs = Pro (49 days)\n\n"
+                        f"🔗 **Your Link:**\n"
+                        f"`{info['referral_link']}`"
+                    )
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📤 SHARE", url=f"https://t.me/share/url?url={info['referral_link']}&text=Join%20SK4FiLM%20Premium!")],
+                        [InlineKeyboardButton("🔙 BACK", callback_data="buy_premium")]
+                    ])
+                    await callback_query.message.edit_text(text, reply_markup=keyboard)
+            
             elif data == "back_to_start":
                 await callback_query.message.edit_text("🎬 SK4FiLM")
+            
             await callback_query.answer()
         
         logger.info("✅ Bot handlers registered successfully")
@@ -2647,7 +2733,7 @@ async def start_telegram_bot():
         import traceback
         traceback.print_exc()
         return None
-
+    
 # ============================================================================
 # ✅ TELEGRAM SESSION INITIALIZATION
 # ============================================================================
