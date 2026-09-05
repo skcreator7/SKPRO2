@@ -2540,12 +2540,55 @@ async def start_telegram_bot():
                             file_msg = await client.get_messages(channel_id, msg_id)
                             
                             if file_msg and (file_msg.document or file_msg.video):
-                                caption = f"📹 Quality: {quality}"
+                                # File info
                                 if file_msg.document:
-                                    await client.send_document(user_id, file_msg.document.file_id, caption=caption)
+                                    file_name = file_msg.document.file_name or "file.bin"
+                                    file_id = file_msg.document.file_id
+                                    is_video = False
                                 else:
-                                    await client.send_video(user_id, file_msg.video.file_id, caption=caption)
+                                    file_name = file_msg.video.file_name or "video.mp4"
+                                    file_id = file_msg.video.file_id
+                                    is_video = True
+                                
+                                # Caption - EXACT FORMAT
+                                caption = (
+                                    f"★ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : @SK4FiLM\n"
+                                    f"📁 File Name: {file_name}\n\n"
+                                    f"⏰ Auto-delete in: {Config.AUTO_DELETE_TIME} minutes"
+                                )
+                                
+                                # Buttons - Row 1: 2 buttons, Row 2: 1 button
+                                file_buttons = []
+                                row1 = [
+                                    InlineKeyboardButton("📢 OFFICIAL CHANNEL", url=Config.MAIN_CHANNEL_LINK),
+                                    InlineKeyboardButton("📢 BACKUP CHANNEL", url=Config.UPDATES_CHANNEL_LINK)
+                                ]
+                                file_buttons.append(row1)
+                                file_buttons.append([
+                                    InlineKeyboardButton("🎁 REFER & GET PREMIUM", callback_data="referral_info")
+                                ])
+                                
+                                # Send file
+                                if is_video:
+                                    sent = await client.send_video(
+                                        user_id,
+                                        file_id,
+                                        caption=caption,
+                                        reply_markup=InlineKeyboardMarkup(file_buttons)
+                                    )
+                                else:
+                                    sent = await client.send_document(
+                                        user_id,
+                                        file_id,
+                                        caption=caption,
+                                        reply_markup=InlineKeyboardMarkup(file_buttons)
+                                    )
+                                
                                 await processing.delete()
+                                logger.info(f"✅ File sent: {file_name}")
+                                
+                                # Auto-delete schedule
+                                asyncio.create_task(auto_delete_file(client, user_id, sent.id, Config.AUTO_DELETE_TIME))
                             else:
                                 await processing.edit_text("❌ File not found!")
                             return
