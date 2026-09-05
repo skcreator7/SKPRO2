@@ -2668,15 +2668,29 @@ async def start_telegram_bot():
                     
                     if order_data.get('success'):
                         plan = premium_system.plans.get(tier_enum, {})
+                        amount_paise = order_data.get('amount', 0) * 100
+                        
+                        # ✅ DIRECT RAZORPAY CHECKOUT URL
+                        payment_url = (
+                            f"https://checkout.razorpay.com/v1/checkout.js?"
+                            f"order_id={order_data['order_id']}"
+                            f"&key_id={Config.RAZORPAY_KEY_ID}"
+                            f"&amount={amount_paise}"
+                            f"&currency=INR"
+                            f"&name=SK4FiLM"
+                            f"&description={plan.get('name', 'Premium Plan')}"
+                            f"&prefill[email]="
+                            f"&prefill[contact]="
+                        )
+                        
                         payment_text = (
                             f"💳 **PAYMENT REQUIRED**\n\n"
                             f"📋 Plan: {plan.get('name', tier_str)}\n"
                             f"💰 Amount: ₹{plan.get('price', 0)}\n"
                             f"📅 Duration: {plan.get('duration_days', 0)} days\n\n"
                             f"🔒 Secure payment via Razorpay\n\n"
-                            f"Click below to pay:"
+                            f"👇 Click below to pay:"
                         )
-                        payment_url = f"https://rzp.io/l/{order_data['order_id']}"
                         
                         keyboard = InlineKeyboardMarkup([
                             [InlineKeyboardButton("💳 PAY NOW", url=payment_url)],
@@ -2685,19 +2699,33 @@ async def start_telegram_bot():
                         ])
                         
                         await callback_query.message.edit_text(payment_text, reply_markup=keyboard)
+                        await callback_query.answer("✅ Payment link ready!")
                     else:
-                        await callback_query.answer("❌ Payment gateway error!", show_alert=True)
+                        await callback_query.answer(f"❌ {order_data.get('error', 'Payment error')}", show_alert=True)
                 else:
                     await callback_query.answer("❌ Premium system unavailable!", show_alert=True)
             
             elif data.startswith("verify_payment_"):
                 order_id = data.replace("verify_payment_", "")
-                await callback_query.answer("🔄 Checking payment...", show_alert=True)
-                await callback_query.message.edit_text(
-                    "⏳ **Payment Verification Pending**\n\n"
-                    f"Order ID: `{order_id}`\n\n"
-                    "Payment complete hone ke baad premium activate ho jayega."
-                )
+                
+                # Check if payment done
+                if premium_system and order_id in premium_system.razorpay_orders:
+                    order_status = premium_system.razorpay_orders[order_id].get('status')
+                    
+                    if order_status == 'paid':
+                        await callback_query.message.edit_text("✅ **Payment Verified! Premium Activated!** 🎉")
+                    else:
+                        await callback_query.message.edit_text(
+                            "⏳ **Payment Pending**\n\n"
+                            f"Order ID: `{order_id}`\n\n"
+                            "Payment complete hone ke baad premium activate ho jayega.\n"
+                            "Contact support if issue persists."
+                        )
+                else:
+                    await callback_query.message.edit_text(
+                        "⏳ **Payment Pending**\n\n"
+                        "Payment complete hone ke baad premium activate ho jayega."
+                    )
             
             elif data == "referral_info":
                 user_id = callback_query.from_user.id
@@ -2724,15 +2752,6 @@ async def start_telegram_bot():
                 await callback_query.message.edit_text("🎬 SK4FiLM")
             
             await callback_query.answer()
-        
-        logger.info("✅ Bot handlers registered successfully")
-        return bot
-        
-    except Exception as e:
-        logger.error(f"❌ Bot startup error: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
     
 # ============================================================================
 # ✅ TELEGRAM SESSION INITIALIZATION
