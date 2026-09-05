@@ -2386,85 +2386,123 @@ async def get_home_movies(limit=100):
 # ============================================================================
 # ✅ TELEGRAM BOT SETUP - WITH ALL HANDLERS
 # ============================================================================
-
-async def setup_telegram_bot_handlers(bot):
-    """Setup all bot command handlers"""
     
     @bot.on_message(filters.command("start"))
-    async def start_command(client, message):
-        """Handle /start command"""
-        try:
-            user_name = message.from_user.first_name or "User"
-            
-            # Check if it's a file request
-            if len(message.command) > 1:
-                file_param = message.command[1]
-                parts = file_param.split('_')
+        async def start_cmd(client, message):
+            try:
+                user_name = message.from_user.first_name or "User"
+                user_id = message.from_user.id
                 
-                if len(parts) >= 2:
-                    try:
-                        channel_id = int(parts[0])
-                        message_id = int(parts[1])
-                        quality = parts[2] if len(parts) > 2 else "480p"
-                        
-                        # Send processing message
-                        processing = await message.reply_text("⏳ **Sending your file...**")
-                        
-                        # Send file using bot handler
-                        success, result, size = await bot_handler.send_file_to_user(
-                            message.chat.id,
-                            channel_id,
-                            message_id,
-                            quality
-                        )
-                        
-                        if success:
-                            await processing.delete()
-                            await message.reply_text(
-                                f"✅ **★ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : @Sk4Film**\n\n"
-                                f"📁 **Please forward this File/Video to your Saved Messages and Start Download there** (Due to Copyright Issues)\n"
-                                f"⏰ **Auto-delete in:** {Config.AUTO_DELETE_TIME} minutes",
-                                reply_markup=InlineKeyboardMarkup([
-                                    [InlineKeyboardButton("🌐 VISIT WEBSITE", url=Config.WEBSITE_URL)],
-                                    [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)]
-                                ])
-                            )
-                        else:
-                            await processing.edit_text(f"❌ {result.get('message', 'Error sending file')}")
+                # ============================================================================
+                # ✅ FILE REQUEST CHECK
+                # ============================================================================
+                if len(message.command) > 1:
+                    file_param = message.command[1]
+                    
+                    # Referral code
+                    if file_param.startswith('ref_'):
+                        code = file_param.replace('ref_', '')
+                        await message.reply_text(f"🎁 Referral Code: `{code}`\nUse /buy to purchase!")
                         return
-                        
-                    except Exception as e:
-                        logger.error(f"File request error: {e}")
-                        await message.reply_text("❌ Invalid file request")
+                    
+                    # Verification token
+                    if file_param.startswith('verify_'):
+                        token = file_param.replace('verify_', '')
+                        if verification_system:
+                            success, uid, msg = await verification_system.verify_user_token(token)
+                            await message.reply_text("✅ Verified! 6 hours access." if success else f"❌ {msg}")
                         return
-            
-            # Normal start message
-            welcome_text = (
-                f"🎬 **Welcome to SK4FiLM, {user_name}!**\n\n"
-                f"🌐 **Website:** {Config.WEBSITE_URL}\n\n"
-                f"**How to download:**\n"
-                f"1. Visit website\n"
-                f"2. Search movie\n"
-                f"3. Click download\n"
-                f"4. File appears here\n\n"
-                f"⏰ Files auto-delete in {Config.AUTO_DELETE_TIME} minutes\n\n"
-                f"🎬 **Happy watching!**"
-            )
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)],
-                [InlineKeyboardButton("📢 JOIN CHANNEL", url=Config.MAIN_CHANNEL_LINK)],
-                [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
-            ])
-            
-            await message.reply_text(welcome_text, reply_markup=keyboard)
-            
-        except Exception as e:
-            logger.error(f"Start command error: {e}")
-            await message.reply_text("❌ Error. Please try again.")
-    
-    @bot.on_callback_query()
-    async def handle_callbacks(client, callback_query):
+                    
+                    # File download request
+                    parts = file_param.split('_')
+                    if len(parts) >= 2:
+                        try:
+                            channel_id = int(parts[0])
+                            msg_id = int(parts[1])
+                            quality = parts[2] if len(parts) > 2 else "480p"
+                            
+                            # ✅ ACCESS CHECK
+                            is_admin = user_id in Config.ADMIN_IDS
+                            
+                            is_premium = False
+                            if premium_system:
+                                try:
+                                    is_premium = await premium_system.is_premium_user(user_id)
+                                except:
+                                    is_premium = False
+                            
+                            is_verified = False
+                            if verification_system:
+                                try:
+                                    is_verified, _ = await verification_system.check_user_verified(user_id, premium_system)
+                                except:
+                                    is_verified = False
+                            
+                            # ❌ ACCESS DENIED
+                            if not is_admin and not is_premium and not is_verified:
+                                verification_link = None
+                                if verification_system:
+                                    try:
+                                        vdata = await verification_system.create_verification_link(user_id)
+                                        verification_link = vdata.get('short_url')
+                                    except:
+                                        pass
+                                
+                                buttons = []
+                                row1 = []
+                                if verification_link:
+                                    row1.append(InlineKeyboardButton("🔗 VERIFY NOW (FREE)", url=verification_link))
+                                else:
+                                    row1.append(InlineKeyboardButton("🔗 VERIFY NOW (FREE)", callback_data="verify_free"))
+                                row1.append(InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium"))
+                                buttons.append(row1)
+                                buttons.append([InlineKeyboardButton("🎁 REFER & GET PREMIUM", callback_data="referral_info")])
+                                
+                                await message.reply_text(
+                                    "🔒 **ACCESS DENIED** 🔒\n\n"
+                                    "❌ You need to verify or purchase premium to download files.\n\n"
+                                    "👇 **Choose your option:**",
+                                    reply_markup=InlineKeyboardMarkup(buttons),
+                                    disable_web_page_preview=True
+                                )
+                                return
+                            
+                            # ✅ ACCESS GRANTED - Send file
+                            processing = await message.reply_text("⏳ **Sending file...**")
+                            
+                            file_msg = await client.get_messages(channel_id, msg_id)
+                            
+                            if file_msg and (file_msg.document or file_msg.video):
+                                caption = f"📹 Quality: {quality}\n⏰ Auto-delete: {Config.AUTO_DELETE_TIME} min"
+                                if file_msg.document:
+                                    await client.send_document(user_id, file_msg.document.file_id, caption=caption)
+                                else:
+                                    await client.send_video(user_id, file_msg.video.file_id, caption=caption)
+                                await processing.delete()
+                                logger.info(f"✅ File sent to user {user_id}")
+                            else:
+                                await processing.edit_text("❌ File not found!")
+                            return
+                            
+                        except Exception as e:
+                            logger.error(f"File request error: {e}")
+                            await message.reply_text(f"❌ Error: {e}")
+                            return
+                
+                # Welcome message
+                await message.reply_text(
+                    f"🎬 **SK4FiLM**\n\n"
+                    f"👋 Welcome {user_name}!\n\n"
+                    f"Commands:\n"
+                    f"/buy - Premium\n"
+                    f"/plans - Plans\n"
+                    f"/mypremium - Status\n"
+                    f"/referral - Refer\n"
+                    f"/help - Help"
+                )
+            except Exception as e:
+                logger.error(f"Start error: {e}")
+                await message.reply_text("❌ Error!")
         """Handle all callback queries"""
         try:
             data = callback_query.data
