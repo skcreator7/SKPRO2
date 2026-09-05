@@ -2635,7 +2635,6 @@ async def start_telegram_bot():
         
         logger.info("🤖 Starting Telegram Bot...")
         
-        # Create bot client
         bot = Client(
             "sk4film_main_bot",
             api_id=Config.API_ID,
@@ -2644,41 +2643,118 @@ async def start_telegram_bot():
             workers=10
         )
         
-        # Start bot
         await bot.start()
         logger.info("✅ Bot client started")
         
-        # ✅ REGISTER ALL COMMAND HANDLERS DIRECTLY
         @bot.on_message(filters.command("start"))
         async def start_cmd(client, message):
-            user_name = message.from_user.first_name or "User"
-            await message.reply_text(
-                f"🎬 **SK4FiLM**\n\n"
-                f"👋 Welcome {user_name}!\n\n"
-                f"Commands:\n"
-                f"/buy - Premium\n"
-                f"/plans - Plans\n"
-                f"/mypremium - Status\n"
-                f"/referral - Refer\n"
-                f"/help - Help"
-            )
+            try:
+                user_name = message.from_user.first_name or "User"
+                user_id = message.from_user.id
+                
+                # File request check
+                if len(message.command) > 1:
+                    file_param = message.command[1]
+                    
+                    if file_param.startswith('ref_'):
+                        code = file_param.replace('ref_', '')
+                        await message.reply_text(f"🎁 Referral Code: `{code}`\nUse /buy to purchase!")
+                        return
+                    
+                    if file_param.startswith('verify_'):
+                        token = file_param.replace('verify_', '')
+                        if verification_system:
+                            success, uid, msg = await verification_system.verify_user_token(token)
+                            await message.reply_text("✅ Verified! 6 hours access." if success else f"❌ {msg}")
+                        return
+                    
+                    parts = file_param.split('_')
+                    if len(parts) >= 2:
+                        try:
+                            channel_id = int(parts[0])
+                            msg_id = int(parts[1])
+                            quality = parts[2] if len(parts) > 2 else "480p"
+                            
+                            # ACCESS CHECK
+                            is_admin = user_id in Config.ADMIN_IDS
+                            is_premium = False
+                            if premium_system:
+                                try:
+                                    is_premium = await premium_system.is_premium_user(user_id)
+                                except:
+                                    pass
+                            is_verified = False
+                            if verification_system:
+                                try:
+                                    is_verified, _ = await verification_system.check_user_verified(user_id, premium_system)
+                                except:
+                                    pass
+                            
+                            if not is_admin and not is_premium and not is_verified:
+                                verification_link = None
+                                if verification_system:
+                                    try:
+                                        vdata = await verification_system.create_verification_link(user_id)
+                                        verification_link = vdata.get('short_url')
+                                    except:
+                                        pass
+                                
+                                buttons = []
+                                row1 = []
+                                if verification_link:
+                                    row1.append(InlineKeyboardButton("🔗 VERIFY NOW (FREE)", url=verification_link))
+                                else:
+                                    row1.append(InlineKeyboardButton("🔗 VERIFY NOW (FREE)", callback_data="verify_free"))
+                                row1.append(InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium"))
+                                buttons.append(row1)
+                                buttons.append([InlineKeyboardButton("🎁 REFER & GET PREMIUM", callback_data="referral_info")])
+                                
+                                await message.reply_text(
+                                    "🔒 **ACCESS DENIED** 🔒\n\n"
+                                    "❌ Verify or purchase premium!\n\n👇 Choose:",
+                                    reply_markup=InlineKeyboardMarkup(buttons)
+                                )
+                                return
+                            
+                            processing = await message.reply_text("⏳ Sending...")
+                            file_msg = await client.get_messages(channel_id, msg_id)
+                            
+                            if file_msg and (file_msg.document or file_msg.video):
+                                caption = f"📹 Quality: {quality}"
+                                if file_msg.document:
+                                    await client.send_document(user_id, file_msg.document.file_id, caption=caption)
+                                else:
+                                    await client.send_video(user_id, file_msg.video.file_id, caption=caption)
+                                await processing.delete()
+                            else:
+                                await processing.edit_text("❌ File not found!")
+                            return
+                        except Exception as e:
+                            await message.reply_text(f"❌ Error: {e}")
+                            return
+                
+                await message.reply_text(
+                    f"🎬 **SK4FiLM**\n\n👋 Welcome {user_name}!\n\n"
+                    f"/buy - Premium\n/plans - Plans\n/mypremium - Status\n/referral - Refer\n/help - Help",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🌐 WEBSITE", url=Config.WEBSITE_URL)],
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")]
+                    ])
+                )
+            except Exception as e:
+                await message.reply_text("❌ Error!")
         
         @bot.on_message(filters.command("buy"))
         async def buy_cmd(client, message):
-            text = (
-                "💎 **PREMIUM PLANS**\n\n"
-                "🥉 Basic - ₹9/15 days\n"
-                "🥈 Standard - ₹19/28 days\n"
-                "🥇 Pro - ₹29/49 days\n"
-                "💎 Ultimate - ₹49/90 days"
+            await message.reply_text(
+                "💎 **PREMIUM PLANS**\n\n🥉 Basic ₹9\n🥈 Standard ₹19\n🥇 Pro ₹29\n💎 Ultimate ₹49",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🥉 Basic ₹9", callback_data="buy_basic")],
+                    [InlineKeyboardButton("🥈 Standard ₹19", callback_data="buy_standard")],
+                    [InlineKeyboardButton("🥇 Pro ₹29", callback_data="buy_pro")],
+                    [InlineKeyboardButton("💎 Ultimate ₹49", callback_data="buy_ultimate")]
+                ])
             )
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🥉 Basic ₹9", callback_data="buy_basic")],
-                [InlineKeyboardButton("🥈 Standard ₹19", callback_data="buy_standard")],
-                [InlineKeyboardButton("🥇 Pro ₹29", callback_data="buy_pro")],
-                [InlineKeyboardButton("💎 Ultimate ₹49", callback_data="buy_ultimate")]
-            ])
-            await message.reply_text(text, reply_markup=keyboard)
         
         @bot.on_message(filters.command("plans"))
         async def plans_cmd(client, message):
@@ -2691,50 +2767,31 @@ async def start_telegram_bot():
                 is_premium = await premium_system.is_premium_user(user_id)
                 if is_premium:
                     details = await premium_system.get_subscription_details(user_id)
-                    await message.reply_text(
-                        f"⭐ Premium: {details.get('tier_name', 'Active')}\n"
-                        f"Days Left: {details.get('days_remaining', 0)}"
-                    )
+                    await message.reply_text(f"⭐ Premium: {details.get('tier_name')}\nDays: {details.get('days_remaining', 0)}")
                 else:
-                    await message.reply_text("👤 Free User\nUse /buy to upgrade!")
+                    await message.reply_text("👤 Free User\nUse /buy!")
             else:
-                await message.reply_text("❌ Premium system unavailable")
+                await message.reply_text("❌ Premium unavailable")
         
         @bot.on_message(filters.command("referral"))
         async def referral_cmd(client, message):
             user_id = message.from_user.id
             if premium_system:
                 info = await premium_system.get_referral_info(user_id)
-                await message.reply_text(
-                    f"🎁 Referral Code: `{info['referral_code']}`\n"
-                    f"Total: {info['total_referrals']}"
-                )
+                await message.reply_text(f"🎁 Code: `{info['referral_code']}`\nTotal: {info['total_referrals']}")
             else:
-                await message.reply_text("❌ Premium system unavailable")
+                await message.reply_text("❌ Premium unavailable")
         
         @bot.on_message(filters.command("help"))
         async def help_cmd(client, message):
-            await message.reply_text(
-                "📚 HELP\n\n"
-                "/start - Start\n"
-                "/buy - Premium\n"
-                "/plans - Plans\n"
-                "/mypremium - Status\n"
-                "/referral - Refer\n"
-                "/help - Help"
-            )
+            await message.reply_text("📚 HELP\n\n/start\n/buy\n/plans\n/mypremium\n/referral\n/help")
         
         @bot.on_callback_query()
         async def callbacks(client, callback_query):
             data = callback_query.data
-            
             if data == "buy_premium":
                 await callback_query.message.edit_text(
-                    "💎 **PREMIUM PLANS**\n\n"
-                    "🥉 Basic - ₹9/15 days\n"
-                    "🥈 Standard - ₹19/28 days\n"
-                    "🥇 Pro - ₹29/49 days\n"
-                    "💎 Ultimate - ₹49/90 days",
+                    "💎 **PREMIUM PLANS**",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🥉 Basic ₹9", callback_data="buy_basic")],
                         [InlineKeyboardButton("🥈 Standard ₹19", callback_data="buy_standard")],
@@ -2742,19 +2799,13 @@ async def start_telegram_bot():
                         [InlineKeyboardButton("💎 Ultimate ₹49", callback_data="buy_ultimate")]
                     ])
                 )
-            
             elif data == "referral_info":
                 user_id = callback_query.from_user.id
                 if premium_system:
                     info = await premium_system.get_referral_info(user_id)
-                    await callback_query.message.edit_text(
-                        f"🎁 Code: `{info['referral_code']}`\n"
-                        f"Total: {info['total_referrals']}"
-                    )
-            
+                    await callback_query.message.edit_text(f"🎁 Code: `{info['referral_code']}`\nTotal: {info['total_referrals']}")
             elif data == "back_to_start":
                 await callback_query.message.edit_text("🎬 SK4FiLM")
-            
             await callback_query.answer()
         
         logger.info("✅ Bot handlers registered successfully")
