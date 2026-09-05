@@ -2388,7 +2388,7 @@ async def get_home_movies(limit=100):
 # ============================================================================
     
     @bot.on_message(filters.command("start"))
-        async def start_cmd(client, message):
+    async def start_cmd(client, message):
             try:
                 user_name = message.from_user.first_name or "User"
                 user_id = message.from_user.id
