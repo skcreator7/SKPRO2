@@ -723,42 +723,31 @@ class BotHandler:
             logger.error(f"❌ Send file error: {e}")
             return False, {'message': f'Error: {str(e)}'}, 0
     
-    async def _auto_delete_file(self, user_id: int, message_id: int, file_name: str, minutes: int):
-        """Auto-delete file after specified minutes"""
+    async def auto_delete_file(client, user_id, message_id, minutes):
+    """Auto-delete file and send notification"""
+    try:
+        await asyncio.sleep(minutes * 60)
+        
         try:
-            task_id = f"{user_id}_{message_id}"
-            logger.info(f"⏰ Auto-delete scheduled for user {user_id}, message {message_id} in {minutes} minutes")
-            
-            await asyncio.sleep(minutes * 60)
-            
-            # Delete the message
-            try:
-                await self.bot.delete_messages(user_id, message_id)
-                logger.info(f"🗑️ Auto-deleted file for user {user_id}: {file_name}")
-                
-                # Update status
-                if task_id in self.auto_delete_messages:
-                    self.auto_delete_messages[task_id]['status'] = 'completed'
-                    self.auto_delete_messages[task_id]['completed_at'] = datetime.now()
-                
-                # Send notification
-                await self.bot.send_message(
-                    user_id,
-                    f"🗑️ **File Auto-Deleted**\n\n"
-                    f"✅ Security measure completed\n\n"
-                    f"🌐 Visit website to download again: {Config.WEBSITE_URL}",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🌐 OPEN WEBSITE", url=Config.WEBSITE_URL)]
-                    ])
-                )
-                
-            except MessageDeleteForbidden:
-                logger.warning(f"❌ Cannot delete message {message_id}: Message delete forbidden")
-            except BadRequest as e:
-                if "MESSAGE_ID_INVALID" in str(e):
-                    logger.info(f"Message {message_id} already deleted")
-                else:
-                    logger.error(f"Delete error: {e}")
+            await client.delete_messages(user_id, message_id)
+        except:
+            pass
+        
+        notification_text = (
+            "🗑️ **Your Files Deleted** ✅\n\n"
+            "Get again click here 👇"
+        )
+        notification_buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 WEBSITE", url=Config.WEBSITE_URL)]
+        ])
+        
+        await client.send_message(
+            user_id,
+            notification_text,
+            reply_markup=notification_buttons
+        )
+    except Exception as e:
+        logger.error(f"Auto-delete error: {e}")
                     
         except asyncio.CancelledError:
             logger.info(f"⏹️ Auto-delete cancelled for user {user_id}, message {message_id}")
