@@ -2597,30 +2597,135 @@ async def start_telegram_bot():
         
         logger.info("🤖 Starting Telegram Bot...")
         
-        # Ensure bot handler is initialized
-        if not bot_handler.initialized:
-            await bot_handler.initialize()
-        
         # Create bot client
         bot = Client(
-            "sk4film_bot",
+            "sk4film_main_bot",
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
-            bot_token=Config.BOT_TOKEN
+            bot_token=Config.BOT_TOKEN,
+            workers=10
         )
         
         # Start bot
         await bot.start()
         logger.info("✅ Bot client started")
         
-        # Setup handlers
-        await setup_telegram_bot_handlers(bot)
+        # ✅ REGISTER ALL COMMAND HANDLERS DIRECTLY
+        @bot.on_message(filters.command("start"))
+        async def start_cmd(client, message):
+            user_name = message.from_user.first_name or "User"
+            await message.reply_text(
+                f"🎬 **SK4FiLM**\n\n"
+                f"👋 Welcome {user_name}!\n\n"
+                f"Commands:\n"
+                f"/buy - Premium\n"
+                f"/plans - Plans\n"
+                f"/mypremium - Status\n"
+                f"/referral - Refer\n"
+                f"/help - Help"
+            )
         
-        logger.info("✅ Telegram Bot fully initialized with handlers")
+        @bot.on_message(filters.command("buy"))
+        async def buy_cmd(client, message):
+            text = (
+                "💎 **PREMIUM PLANS**\n\n"
+                "🥉 Basic - ₹9/15 days\n"
+                "🥈 Standard - ₹19/28 days\n"
+                "🥇 Pro - ₹29/49 days\n"
+                "💎 Ultimate - ₹49/90 days"
+            )
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🥉 Basic ₹9", callback_data="buy_basic")],
+                [InlineKeyboardButton("🥈 Standard ₹19", callback_data="buy_standard")],
+                [InlineKeyboardButton("🥇 Pro ₹29", callback_data="buy_pro")],
+                [InlineKeyboardButton("💎 Ultimate ₹49", callback_data="buy_ultimate")]
+            ])
+            await message.reply_text(text, reply_markup=keyboard)
+        
+        @bot.on_message(filters.command("plans"))
+        async def plans_cmd(client, message):
+            await buy_cmd(client, message)
+        
+        @bot.on_message(filters.command("mypremium"))
+        async def mypremium_cmd(client, message):
+            user_id = message.from_user.id
+            if premium_system:
+                is_premium = await premium_system.is_premium_user(user_id)
+                if is_premium:
+                    details = await premium_system.get_subscription_details(user_id)
+                    await message.reply_text(
+                        f"⭐ Premium: {details.get('tier_name', 'Active')}\n"
+                        f"Days Left: {details.get('days_remaining', 0)}"
+                    )
+                else:
+                    await message.reply_text("👤 Free User\nUse /buy to upgrade!")
+            else:
+                await message.reply_text("❌ Premium system unavailable")
+        
+        @bot.on_message(filters.command("referral"))
+        async def referral_cmd(client, message):
+            user_id = message.from_user.id
+            if premium_system:
+                info = await premium_system.get_referral_info(user_id)
+                await message.reply_text(
+                    f"🎁 Referral Code: `{info['referral_code']}`\n"
+                    f"Total: {info['total_referrals']}"
+                )
+            else:
+                await message.reply_text("❌ Premium system unavailable")
+        
+        @bot.on_message(filters.command("help"))
+        async def help_cmd(client, message):
+            await message.reply_text(
+                "📚 HELP\n\n"
+                "/start - Start\n"
+                "/buy - Premium\n"
+                "/plans - Plans\n"
+                "/mypremium - Status\n"
+                "/referral - Refer\n"
+                "/help - Help"
+            )
+        
+        @bot.on_callback_query()
+        async def callbacks(client, callback_query):
+            data = callback_query.data
+            
+            if data == "buy_premium":
+                await callback_query.message.edit_text(
+                    "💎 **PREMIUM PLANS**\n\n"
+                    "🥉 Basic - ₹9/15 days\n"
+                    "🥈 Standard - ₹19/28 days\n"
+                    "🥇 Pro - ₹29/49 days\n"
+                    "💎 Ultimate - ₹49/90 days",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🥉 Basic ₹9", callback_data="buy_basic")],
+                        [InlineKeyboardButton("🥈 Standard ₹19", callback_data="buy_standard")],
+                        [InlineKeyboardButton("🥇 Pro ₹29", callback_data="buy_pro")],
+                        [InlineKeyboardButton("💎 Ultimate ₹49", callback_data="buy_ultimate")]
+                    ])
+                )
+            
+            elif data == "referral_info":
+                user_id = callback_query.from_user.id
+                if premium_system:
+                    info = await premium_system.get_referral_info(user_id)
+                    await callback_query.message.edit_text(
+                        f"🎁 Code: `{info['referral_code']}`\n"
+                        f"Total: {info['total_referrals']}"
+                    )
+            
+            elif data == "back_to_start":
+                await callback_query.message.edit_text("🎬 SK4FiLM")
+            
+            await callback_query.answer()
+        
+        logger.info("✅ Bot handlers registered successfully")
         return bot
         
     except Exception as e:
         logger.error(f"❌ Bot startup error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # ============================================================================
