@@ -1,6 +1,6 @@
 """
 verification.py - URL shortener and verification system
-UPDATED: Compatible with Razorpay premium system
+COMPLETE CODE - Compatible with Razorpay premium system
 """
 import asyncio
 import json
@@ -21,18 +21,13 @@ class VerificationSystem:
         self.verification_tokens = {}
         self.verified_users = {}
         
-        # Verification duration: 6 hours
         self.verification_duration = 6 * 60 * 60
-        
-        # Cleanup task
         self.cleanup_task = None
         
     def generate_unique_token(self, length=32) -> str:
-        """Generate unique verification token"""
         return secrets.token_urlsafe(length)
     
     async def get_shortened_url(self, destination_url: str) -> Tuple[str, str]:
-        """Get shortened URL using sk4link"""
         if not hasattr(self.config, 'SHORTLINK_API') or not self.config.SHORTLINK_API:
             logger.warning("No shortlink API configured, using direct URL")
             return destination_url, 'Direct'
@@ -69,7 +64,6 @@ class VerificationSystem:
         return destination_url, 'Direct'
     
     async def create_verification_link(self, user_id: int, content_type: str = "download") -> Dict[str, Any]:
-        """Create verification link with unique token (valid for 6 hours)"""
         try:
             verification_token = self.generate_unique_token()
             
@@ -104,7 +98,6 @@ class VerificationSystem:
             
         except Exception as e:
             logger.error(f"❌ Verification link creation error: {e}")
-            # Fallback to direct link
             verification_token = self.generate_unique_token()
             bot_username = getattr(self.config, 'BOT_USERNAME', 'sk4filmbot')
             direct_url = f"https://t.me/{bot_username}?start=verify_{verification_token}"
@@ -130,7 +123,6 @@ class VerificationSystem:
             return verification_data
     
     async def verify_user_token(self, token: str) -> Tuple[bool, Optional[int], str]:
-        """Verify user token and return user_id if valid"""
         try:
             user_id = self.verification_tokens.get(token)
             if not user_id:
@@ -139,17 +131,13 @@ class VerificationSystem:
             
             verification_data = self.pending_verifications.get(user_id)
             if not verification_data:
-                logger.warning(f"❌ No pending verification for user {user_id}")
                 return False, user_id, "No pending verification found"
             
             if verification_data['token'] != token:
-                logger.warning(f"❌ Token mismatch for user {user_id}")
                 return False, user_id, "Token mismatch"
             
-            created_at = verification_data['created_at']
             if datetime.now() > verification_data['link_expires_at']:
                 self._cleanup_user_verification(user_id)
-                logger.info(f"⏰ Verification link expired for user {user_id}")
                 return False, user_id, "Verification link expired (max 1 hour)"
             
             verification_data['status'] = 'verified'
@@ -173,17 +161,13 @@ class VerificationSystem:
             return False, None, "Internal verification error"
     
     def _cleanup_user_verification(self, user_id: int):
-        """Cleanup verification data for user"""
         if user_id in self.pending_verifications:
             token = self.pending_verifications[user_id].get('token')
             if token and token in self.verification_tokens:
                 del self.verification_tokens[token]
             del self.pending_verifications[user_id]
-            logger.debug(f"🧹 Cleaned up verification data for user {user_id}")
     
     async def check_user_verified(self, user_id: int, premium_system=None) -> Tuple[bool, str]:
-        """Check if user is currently verified (6 hours) or premium"""
-        # ✅ Check premium first (Razorpay premium users bypass verification)
         if premium_system:
             try:
                 is_premium = await premium_system.is_premium_user(user_id)
@@ -194,7 +178,6 @@ class VerificationSystem:
             except Exception as e:
                 logger.error(f"Premium check error: {e}")
         
-        # Check verification for free users
         if user_id in self.verified_users:
             user_data = self.verified_users[user_id]
             expiry_time = user_data['expires_at']
@@ -206,114 +189,37 @@ class VerificationSystem:
                 return True, f"Verified ✅ (expires in {hours}h {minutes}m)"
             else:
                 del self.verified_users[user_id]
-                logger.info(f"⏰ Verification expired for user {user_id}")
                 return False, "Verification expired - Please verify again"
         
         return False, "Not verified - 6 hours verification required"
     
-    async def check_user_access(self, user_id: int, premium_system=None) -> Tuple[bool, str, Dict[str, Any]]:
-        """Check user access with premium bypass"""
-        # ✅ Premium users always have access (Razorpay)
-        if premium_system:
-            try:
-                is_premium = await premium_system.is_premium_user(user_id)
-                if is_premium:
-                    tier = await premium_system.get_user_tier(user_id)
-                    sub_details = await premium_system.get_subscription_details(user_id)
-                    return True, "Premium access granted", {
-                        'access_type': 'premium',
-                        'tier': tier.value if hasattr(tier, 'value') else str(tier),
-                        'days_remaining': sub_details.get('days_remaining', 0)
-                    }
-            except Exception as e:
-                logger.error(f"Premium check error: {e}")
-        
-        # Free users need verification
-        is_verified, message = await self.check_user_verified(user_id, premium_system)
-        
-        if is_verified:
-            user_data = self.verified_users.get(user_id, {})
-            remaining = user_data.get('expires_at', datetime.now()) - datetime.now()
-            return True, message, {
-                'access_type': 'verified',
-                'tier': 'free',
-                'hours_remaining': int(remaining.total_seconds() / 3600)
-            }
-        else:
-            return False, message, {
-                'access_type': 'none',
-                'tier': 'free',
-                'needs_verification': True
-            }
-    
-    async def get_user_verification_info(self, user_id: int) -> Dict[str, Any]:
-        """Get detailed verification info for user"""
-        info = {
-            'user_id': user_id,
-            'is_verified': user_id in self.verified_users,
-            'has_pending': user_id in self.pending_verifications,
-            'verification_duration_hours': 6
-        }
-        
-        if user_id in self.verified_users:
-            user_data = self.verified_users[user_id]
-            remaining = user_data['expires_at'] - datetime.now()
-            info.update({
-                'verified_at': user_data['verified_at'].isoformat(),
-                'expires_at': user_data['expires_at'].isoformat(),
-                'hours_remaining': int(remaining.total_seconds() / 3600),
-                'minutes_remaining': int((remaining.total_seconds() % 3600) / 60),
-                'verification_count': user_data.get('verification_count', 1)
-            })
-        
-        if user_id in self.pending_verifications:
-            pending = self.pending_verifications[user_id]
-            info.update({
-                'pending_created_at': pending['created_at'].isoformat(),
-                'pending_short_url': pending['short_url'],
-                'pending_service': pending['service_name'],
-                'pending_expires_at': pending['link_expires_at'].isoformat()
-            })
-        
-        return info
-    
     async def get_user_stats(self) -> Dict[str, Any]:
-        """Get verification statistics"""
         active_verified = 0
-        expired_verified = 0
         now = datetime.now()
         
         for user_id, user_data in self.verified_users.items():
             if now < user_data['expires_at']:
                 active_verified += 1
-            else:
-                expired_verified += 1
         
         return {
             'pending_verifications': len(self.pending_verifications),
             'active_verified_users': active_verified,
-            'expired_verified_users': expired_verified,
             'total_verified_users': len(self.verified_users),
-            'active_tokens': len(self.verification_tokens),
             'verification_duration_hours': 6,
             'link_validity_hours': 1,
             'timestamp': datetime.now().isoformat()
         }
     
     async def start_cleanup_task(self):
-        """Start background cleanup task"""
         if self.cleanup_task:
             self.cleanup_task.cancel()
-        
         self.cleanup_task = asyncio.create_task(self._cleanup_loop())
         logger.info("🧹 Verification cleanup task started")
     
     async def _cleanup_loop(self):
-        """Background cleanup loop"""
         while True:
             try:
                 await asyncio.sleep(300)
-                
                 now = datetime.now()
                 
                 expired_pending = []
@@ -331,31 +237,19 @@ class VerificationSystem:
                 
                 for user_id in expired_verified:
                     del self.verified_users[user_id]
-                
-                if expired_pending or expired_verified:
-                    logger.info(
-                        f"🧹 Verification cleanup: "
-                        f"{len(expired_pending)} pending links, "
-                        f"{len(expired_verified)} expired verifications"
-                    )
                     
             except asyncio.CancelledError:
-                logger.info("🧹 Verification cleanup task cancelled")
                 break
             except Exception as e:
                 logger.error(f"Cleanup loop error: {e}")
     
     async def stop_cleanup_task(self):
-        """Stop background cleanup task"""
         if self.cleanup_task:
             self.cleanup_task.cancel()
             try:
                 await self.cleanup_task
             except asyncio.CancelledError:
                 pass
-            logger.info("🧹 Verification cleanup task stopped")
     
     async def stop(self):
-        """Stop verification system"""
         await self.stop_cleanup_task()
-        logger.info("🛑 Verification system stopped")
