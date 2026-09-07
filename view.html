@@ -266,6 +266,84 @@
             50% { opacity: 0.5; }
         }
         
+        /* ============ PRE-ROLL VIDEO AD ============ */
+        .preroll-ad-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preroll-ad-overlay.show {
+            display: flex;
+        }
+        
+        .preroll-ad-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+            cursor: pointer;
+        }
+        
+        .preroll-ad-label {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        
+        .preroll-ad-timer {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+        
+        .preroll-ad-skip {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(255,255,255,0.95);
+            color: #000;
+            border: none;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .preroll-ad-skip.enabled {
+            display: flex;
+        }
+        
+        .preroll-ad-skip:active {
+            transform: scale(0.95);
+        }
+        
         /* ============ CONTENT ============ */
         .content-section {
             width: 100%;
@@ -905,6 +983,16 @@
                     <div class="loading-spinner-ring"></div>
                     <div class="loading-text">Playing...</div>
                 </div>
+                
+                <!-- 🎬 PRE-ROLL VIDEO AD OVERLAY -->
+                <div class="preroll-ad-overlay" id="prerollAdOverlay">
+                    <video class="preroll-ad-video" id="prerollAdVideo" playsinline></video>
+                    <div class="preroll-ad-label">Advertisement</div>
+                    <div class="preroll-ad-timer" id="prerollAdTimer">5</div>
+                    <button class="preroll-ad-skip" id="prerollSkipBtn" onclick="skipPrerollAd()">
+                        Skip Ad <i class="fas fa-forward"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1068,6 +1156,110 @@
                 console.warn('Smartlink popup blocked:', e);
             }
             setTimeout(callback, 100);
+        }
+        
+        // ============================================
+        // 🎬 PRE-ROLL VIDEO AD (plays before Play button content)
+        // ============================================
+        // 🔧 TODO: Replace this with your actual ad network's video ad
+        // URL (an .mp4 file link, or the video URL your network gives
+        // you for "in-stream"/"pre-roll video" ad units). Most banner
+        // networks like the ones already used on this page (Adsterra-
+        // style) sell this separately as "Video Ads" / "In-Stream Ads" —
+        // check your ad network dashboard for the direct video file URL.
+        const PREROLL_AD_VIDEO_URL = 'https://second-director.com/dxmnFHz/d.GoN/vPZ/G_UN/Oewmu9GugZtUTlTkzPOTecgxrMtjOEq0BN/TZc/ttNVzyETyAMUTWQS2MMWQS';
+        // Where a click on the ad should send the user (your ad network's
+        // click-through / landing URL — can reuse SMARTLINK_LINK or a
+        // dedicated video-ad click URL from your network)
+        const PREROLL_AD_CLICK_URL = SMARTLINK_LINK;
+        // How many seconds before the "Skip Ad" button becomes clickable
+        const PREROLL_SKIP_AFTER_SECONDS = 10;
+        
+        let prerollTimerInterval = null;
+        let prerollCompleteCallback = null;
+        let prerollSkippable = false;
+        
+        function showPrerollAd(onComplete) {
+            const overlay = document.getElementById('prerollAdOverlay');
+            const adVideo = document.getElementById('prerollAdVideo');
+            const skipBtn = document.getElementById('prerollSkipBtn');
+            const timerEl = document.getElementById('prerollAdTimer');
+            
+            // If no real ad URL has been configured yet, skip straight to content
+            if (!PREROLL_AD_VIDEO_URL || PREROLL_AD_VIDEO_URL.includes('REPLACE-WITH-YOUR')) {
+                console.warn('⚠️ Pre-roll ad URL not configured — skipping ad, playing content directly.');
+                onComplete();
+                return;
+            }
+            
+            prerollCompleteCallback = onComplete;
+            prerollSkippable = false;
+            skipBtn.classList.remove('enabled');
+            
+            let remaining = PREROLL_SKIP_AFTER_SECONDS;
+            timerEl.textContent = remaining;
+            
+            adVideo.src = PREROLL_AD_VIDEO_URL;
+            adVideo.muted = false;
+            adVideo.controls = false;
+            overlay.classList.add('show');
+            
+            adVideo.play().catch(() => {
+                // Autoplay with sound blocked — try muted so it still runs
+                adVideo.muted = true;
+                adVideo.play().catch(() => {
+                    // If even muted autoplay fails, don't block the user
+                    finishPrerollAd();
+                });
+            });
+            
+            if (prerollTimerInterval) clearInterval(prerollTimerInterval);
+            prerollTimerInterval = setInterval(() => {
+                remaining--;
+                if (remaining > 0) {
+                    timerEl.textContent = remaining;
+                } else {
+                    timerEl.textContent = '';
+                    prerollSkippable = true;
+                    skipBtn.classList.add('enabled');
+                    clearInterval(prerollTimerInterval);
+                }
+            }, 1000);
+            
+            adVideo.onended = () => finishPrerollAd();
+            adVideo.onerror = () => {
+                console.warn('⚠️ Pre-roll ad failed to load — skipping to content.');
+                finishPrerollAd();
+            };
+            
+            // Clicking the ad video itself opens the click-through link
+            adVideo.onclick = () => {
+                if (PREROLL_AD_CLICK_URL) window.open(PREROLL_AD_CLICK_URL, '_blank');
+            };
+        }
+        
+        function skipPrerollAd() {
+            if (!prerollSkippable) return;
+            finishPrerollAd();
+        }
+        
+        function finishPrerollAd() {
+            const overlay = document.getElementById('prerollAdOverlay');
+            const adVideo = document.getElementById('prerollAdVideo');
+            
+            if (prerollTimerInterval) {
+                clearInterval(prerollTimerInterval);
+                prerollTimerInterval = null;
+            }
+            
+            adVideo.pause();
+            adVideo.removeAttribute('src');
+            adVideo.load();
+            overlay.classList.remove('show');
+            
+            const cb = prerollCompleteCallback;
+            prerollCompleteCallback = null;
+            if (cb) cb();
         }
         
         let player = null;
@@ -1438,10 +1630,10 @@
             </div>`;
         }
         
-        // 🔗 Channel play now shows the smartlink first, then plays
+        // 🎬 Channel play now shows pre-roll video ad first, then plays
         function playChannel(name, url) {
             console.log('Channel clicked:', name, url);
-            triggerSmartlinkThenRun(() => {
+            showPrerollAd(() => {
                 currentChannelName = name;
                 currentChannelUrl = url;
                 document.getElementById('videoTitle').textContent = name;
@@ -1531,7 +1723,7 @@
             displaySearchResults(allSearchResults, true);
         }
         
-        // 🟢 PLAY from search results - NO smartlink, just plays directly
+        // 🎬 PLAY from search results - shows pre-roll video ad, then plays
         function playResultByIndex(index) {
             console.log('🎬 playResultByIndex called with index:', index);
             
@@ -1542,21 +1734,22 @@
                 return;
             }
             
-            // 🟢 Direct play - NO smartlink trigger
-            const streamUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
-            console.log('📺 Stream URL:', streamUrl);
-            console.log('📄 File name:', file.file_name);
-            
-            currentChannelName = file.file_name;
-            currentChannelUrl = streamUrl;
-            document.getElementById('videoTitle').textContent = file.file_name;
-            hideQualityButtons();
-            
-            loadStream(streamUrl);
-            loadQualityOptions(file.file_name, file.message_id);
-            
-            document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            showToast('Playing: ' + file.file_name);
+            showPrerollAd(() => {
+                const streamUrl = file.stream_url || STREAM_BASE + '/' + file.message_id;
+                console.log('📺 Stream URL:', streamUrl);
+                console.log('📄 File name:', file.file_name);
+                
+                currentChannelName = file.file_name;
+                currentChannelUrl = streamUrl;
+                document.getElementById('videoTitle').textContent = file.file_name;
+                hideQualityButtons();
+                
+                loadStream(streamUrl);
+                loadQualityOptions(file.file_name, file.message_id);
+                
+                document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                showToast('Playing: ' + file.file_name);
+            });
         }
         
         // 🔴 DOWNLOAD from search results - shows smartlink first, then downloads
@@ -1677,6 +1870,7 @@
         window.openWithMX = openWithMX;
         window.copyUPI = copyUPI;
         window.switchQuality = switchQuality;
+        window.skipPrerollAd = skipPrerollAd;
         
         // Init
         document.addEventListener('DOMContentLoaded', () => {
