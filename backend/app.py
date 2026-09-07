@@ -2653,6 +2653,7 @@ async def start_telegram_bot():
         async def callbacks(client, callback_query):
             data = callback_query.data
             
+            # ==================== BUY PREMIUM ====================
             if data == "buy_premium":
                 await callback_query.message.edit_text(
                     "💎 **PREMIUM PLANS**\n\n"
@@ -2668,6 +2669,7 @@ async def start_telegram_bot():
                     ])
                 )
             
+            # ==================== PLAN PURCHASE ====================
             elif data in ["buy_basic", "buy_standard", "buy_pro", "buy_ultimate"]:
                 user_id = callback_query.from_user.id
                 tier_str = data.replace("buy_", "")
@@ -2687,7 +2689,10 @@ async def start_telegram_bot():
                         
                         if order_data.get('success'):
                             plan = premium_system.plans.get(tier_enum, {})
-                            payment_url = order_data.get('payment_url', '')
+                            order_id = order_data.get('order_id', '')
+                            
+                            # Simple URL
+                            payment_url = f"https://rzp.io/i/{order_id}"
                             
                             payment_text = (
                                 f"💳 **PAYMENT REQUIRED**\n\n"
@@ -2699,7 +2704,7 @@ async def start_telegram_bot():
                             
                             keyboard = InlineKeyboardMarkup([
                                 [InlineKeyboardButton("💳 PAY NOW", url=payment_url)],
-                                [InlineKeyboardButton("✅ I'VE PAID", callback_data=f"verify_payment_{order_data['order_id']}")],
+                                [InlineKeyboardButton("✅ I'VE PAID", callback_data=f"verify_payment_{order_id}")],
                                 [InlineKeyboardButton("❌ CANCEL", callback_data="buy_premium")]
                             ])
                             
@@ -2713,23 +2718,33 @@ async def start_telegram_bot():
                 else:
                     await callback_query.answer("❌ Premium system unavailable!", show_alert=True)
             
+            # ==================== VERIFY PAYMENT ====================
             elif data.startswith("verify_payment_"):
                 order_id = data.replace("verify_payment_", "")
                 await callback_query.answer("🔄 Checking payment...", show_alert=True)
                 
                 if premium_system and order_id in premium_system.razorpay_orders:
                     order_status = premium_system.razorpay_orders[order_id].get('status')
+                    
                     if order_status == 'paid':
-                        await callback_query.message.edit_text("✅ **Payment Verified! Premium Activated!** 🎉")
+                        await callback_query.message.edit_text(
+                            "✅ **Payment Verified! Premium Activated!** 🎉\n\n"
+                            "Enjoy unlimited downloads!"
+                        )
                     else:
                         await callback_query.message.edit_text(
                             "⏳ **Payment Pending**\n\n"
                             f"Order ID: `{order_id}`\n\n"
-                            "Payment complete hone ke baad premium activate ho jayega."
+                            "Payment complete hone ke baad premium activate ho jayega.\n"
+                            "Contact support if issue persists."
                         )
                 else:
-                    await callback_query.message.edit_text("⏳ **Payment Pending**")
+                    await callback_query.message.edit_text(
+                        "⏳ **Payment Pending**\n\n"
+                        "Payment complete hone ke baad premium activate ho jayega."
+                    )
             
+            # ==================== REFERRAL INFO ====================
             elif data == "referral_info":
                 user_id = callback_query.from_user.id
                 if premium_system:
@@ -2752,8 +2767,44 @@ async def start_telegram_bot():
                 else:
                     await callback_query.answer("❌ Premium unavailable!", show_alert=True)
             
+            # ==================== VERIFY FREE ====================
+            elif data == "verify_free":
+                user_id = callback_query.from_user.id
+                if verification_system:
+                    vdata = await verification_system.create_verification_link(user_id)
+                    short_url = vdata.get('short_url', '')
+                    
+                    await callback_query.message.edit_text(
+                        "🔗 **VERIFICATION LINK**\n\n"
+                        f"Click below to verify:\n\n"
+                        f"✅ Valid for 6 hours",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔗 VERIFY NOW", url=short_url)],
+                            [InlineKeyboardButton("🔙 BACK", callback_data="back_to_start")]
+                        ])
+                    )
+                else:
+                    await callback_query.answer("❌ Verification unavailable!", show_alert=True)
+            
+            # ==================== BACK TO START ====================
             elif data == "back_to_start":
-                await callback_query.message.edit_text("🎬 SK4FiLM")
+                await callback_query.message.edit_text(
+                    "🎬 **SK4FiLM**\n\n"
+                    "Use /buy for premium\n"
+                    "Use /referral for referral",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("⭐ BUY PREMIUM", callback_data="buy_premium")],
+                        [InlineKeyboardButton("🎁 REFER & EARN", callback_data="referral_info")]
+                    ])
+                )
+            
+            # ==================== PAYMENT DONE (Fallback) ====================
+            elif data.startswith("payment_done_"):
+                await callback_query.answer("✅ Screenshot bhejo! Admin verify karega!", show_alert=True)
+                await callback_query.message.edit_text(
+                    "📸 **PAYMENT SCREENSHOT BHEJO**\n\n"
+                    "Payment screenshot bhejne ke baad admin 24 hours mein activate karega."
+                )
             
             await callback_query.answer()
         
