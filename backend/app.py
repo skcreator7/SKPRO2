@@ -2655,7 +2655,11 @@ async def start_telegram_bot():
             
             if data == "buy_premium":
                 await callback_query.message.edit_text(
-                    "💎 **PREMIUM PLANS**",
+                    "💎 **PREMIUM PLANS**\n\n"
+                    "🥉 Basic - ₹9/15 days\n"
+                    "🥈 Standard - ₹19/28 days\n"
+                    "🥇 Pro - ₹29/49 days\n"
+                    "💎 Ultimate - ₹49/90 days",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("🥉 Basic ₹9", callback_data="buy_basic")],
                         [InlineKeyboardButton("🥈 Standard ₹19", callback_data="buy_standard")],
@@ -2666,85 +2670,65 @@ async def start_telegram_bot():
             
             elif data in ["buy_basic", "buy_standard", "buy_pro", "buy_ultimate"]:
                 user_id = callback_query.from_user.id
-                tier_map = {
-                    "buy_basic": "basic",
-                    "buy_standard": "standard",
-                    "buy_pro": "pro",
-                    "buy_ultimate": "ultimate"
-                }
-                tier_str = tier_map.get(data, "basic")
+                tier_str = data.replace("buy_", "")
                 
                 if premium_system:
                     from premium import PremiumTier
-                    tier_enum = {
+                    tier_map = {
                         "basic": PremiumTier.BASIC,
                         "standard": PremiumTier.STANDARD,
                         "pro": PremiumTier.PRO,
                         "ultimate": PremiumTier.ULTIMATE
-                    }.get(tier_str)
+                    }
+                    tier_enum = tier_map.get(tier_str)
                     
-                    order_data = await premium_system.create_razorpay_order(user_id, tier_enum)
-                    
-                    if order_data.get('success'):
-                        plan = premium_system.plans.get(tier_enum, {})
-                        amount_paise = order_data.get('amount', 0) * 100
+                    if tier_enum:
+                        order_data = await premium_system.create_razorpay_order(user_id, tier_enum)
                         
-                        # ✅ DIRECT RAZORPAY CHECKOUT URL
-                        payment_url = (
-                            f"https://checkout.razorpay.com/v1/checkout.js?"
-                            f"order_id={order_data['order_id']}"
-                            f"&key_id={Config.RAZORPAY_KEY_ID}"
-                            f"&amount={amount_paise}"
-                            f"&currency=INR"
-                            f"&name=SK4FiLM"
-                            f"&description={plan.get('name', 'Premium Plan')}"
-                            f"&prefill[email]="
-                            f"&prefill[contact]="
-                        )
-                        
-                        payment_text = (
-                            f"💳 **PAYMENT REQUIRED**\n\n"
-                            f"📋 Plan: {plan.get('name', tier_str)}\n"
-                            f"💰 Amount: ₹{plan.get('price', 0)}\n"
-                            f"📅 Duration: {plan.get('duration_days', 0)} days\n\n"
-                            f"🔒 Secure payment via Razorpay\n\n"
-                            f"👇 Click below to pay:"
-                        )
-                        
-                        keyboard = InlineKeyboardMarkup([
-                            [InlineKeyboardButton("💳 PAY NOW", url=payment_url)],
-                            [InlineKeyboardButton("✅ I'VE PAID", callback_data=f"verify_payment_{order_data['order_id']}")],
-                            [InlineKeyboardButton("❌ CANCEL", callback_data="buy_premium")]
-                        ])
-                        
-                        await callback_query.message.edit_text(payment_text, reply_markup=keyboard)
-                        await callback_query.answer("✅ Payment link ready!")
+                        if order_data.get('success'):
+                            plan = premium_system.plans.get(tier_enum, {})
+                            payment_url = order_data.get('payment_url', '')
+                            
+                            payment_text = (
+                                f"💳 **PAYMENT REQUIRED**\n\n"
+                                f"📋 Plan: {plan.get('name', tier_str)}\n"
+                                f"💰 Amount: ₹{plan.get('price', 0)}\n"
+                                f"📅 Duration: {plan.get('duration_days', 0)} days\n\n"
+                                f"👇 Click below to pay:"
+                            )
+                            
+                            keyboard = InlineKeyboardMarkup([
+                                [InlineKeyboardButton("💳 PAY NOW", url=payment_url)],
+                                [InlineKeyboardButton("✅ I'VE PAID", callback_data=f"verify_payment_{order_data['order_id']}")],
+                                [InlineKeyboardButton("❌ CANCEL", callback_data="buy_premium")]
+                            ])
+                            
+                            await callback_query.message.edit_text(payment_text, reply_markup=keyboard)
+                            await callback_query.answer("✅ Payment link ready!")
+                        else:
+                            error_msg = order_data.get('error', 'Payment error')
+                            await callback_query.answer(f"❌ {error_msg}", show_alert=True)
                     else:
-                        await callback_query.answer(f"❌ {order_data.get('error', 'Payment error')}", show_alert=True)
+                        await callback_query.answer("❌ Invalid plan!", show_alert=True)
                 else:
                     await callback_query.answer("❌ Premium system unavailable!", show_alert=True)
             
             elif data.startswith("verify_payment_"):
                 order_id = data.replace("verify_payment_", "")
+                await callback_query.answer("🔄 Checking payment...", show_alert=True)
                 
-                # Check if payment done
                 if premium_system and order_id in premium_system.razorpay_orders:
                     order_status = premium_system.razorpay_orders[order_id].get('status')
-                    
                     if order_status == 'paid':
                         await callback_query.message.edit_text("✅ **Payment Verified! Premium Activated!** 🎉")
                     else:
                         await callback_query.message.edit_text(
                             "⏳ **Payment Pending**\n\n"
                             f"Order ID: `{order_id}`\n\n"
-                            "Payment complete hone ke baad premium activate ho jayega.\n"
-                            "Contact support if issue persists."
+                            "Payment complete hone ke baad premium activate ho jayega."
                         )
                 else:
-                    await callback_query.message.edit_text(
-                        "⏳ **Payment Pending**\n\n"
-                        "Payment complete hone ke baad premium activate ho jayega."
-                    )
+                    await callback_query.message.edit_text("⏳ **Payment Pending**")
             
             elif data == "referral_info":
                 user_id = callback_query.from_user.id
@@ -2758,14 +2742,15 @@ async def start_telegram_bot():
                         f"3 refs = Basic (15 days)\n"
                         f"5 refs = Standard (28 days)\n"
                         f"10 refs = Pro (49 days)\n\n"
-                        f"🔗 **Your Link:**\n"
-                        f"`{info['referral_link']}`"
+                        f"🔗 **Your Link:**\n`{info['referral_link']}`"
                     )
                     keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("📤 SHARE", url=f"https://t.me/share/url?url={info['referral_link']}&text=Join%20SK4FiLM%20Premium!")],
+                        [InlineKeyboardButton("📤 SHARE", url=f"https://t.me/share/url?url={info['referral_link']}")],
                         [InlineKeyboardButton("🔙 BACK", callback_data="buy_premium")]
                     ])
                     await callback_query.message.edit_text(text, reply_markup=keyboard)
+                else:
+                    await callback_query.answer("❌ Premium unavailable!", show_alert=True)
             
             elif data == "back_to_start":
                 await callback_query.message.edit_text("🎬 SK4FiLM")
