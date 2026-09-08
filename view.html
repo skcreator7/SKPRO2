@@ -1029,17 +1029,16 @@
             <!-- Ad Above Movies -->
             <div class="ad-above-movies">
                 <script>
-(function(jijoza){
-var d = document,
-    s = d.createElement('script'),
-    l = d.currentScript || d.scripts[d.scripts.length - 1];
-s.settings = jijoza || {};
-s.src = "\/\/juvenilechoice.com\/bQXeV.smd\/Gal\/0aYqW\/cH\/nekmv9\/u_ZQU\/lPkTPHTxcTxMMwj_EM0tNNDjEgt\/NqzTE\/yBMATLQC0nN\/Qm";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
+  atOptions = {
+    'key' : '8078db1d75a50345d1eb7ee72b2ecd23',
+    'format' : 'iframe',
+    'height' : 50,
+    'width' : 320,
+    'params' : {}
+  };
 </script>
+<script src="https://marksdespitelinear.com/8078db1d75a50345d1eb7ee72b2ecd23/invoke.js"></script>
+
                 <div id="container-8078db1d75a50345d1eb7ee72b2ecd23"></div>
             </div>
             
@@ -1160,87 +1159,167 @@ l.parentNode.insertBefore(s, l);
         }
         
         // ============================================
-        // 🎬 PRE-ROLL VIDEO AD (plays before Play button content)
+        // 🎬 PRE-ROLL VIDEO AD — HilltopAds VAST
         // ============================================
-        // 🔧 TODO: Replace this with your actual ad network's video ad
-        // URL (an .mp4 file link, or the video URL your network gives
-        // you for "in-stream"/"pre-roll video" ad units). Most banner
-        // networks like the ones already used on this page (Adsterra-
-        // style) sell this separately as "Video Ads" / "In-Stream Ads" —
-        // check your ad network dashboard for the direct video file URL.
-        const PREROLL_AD_VIDEO_URL = 'https://second-director.com/dxmnFHz/d.GoN/vPZ/G_UN/Oewmu9GugZtUTlTkzPOTecgxrMtjOEq0BN/TZc/ttNVzyETyAMUTWQS2MMWQS';
-        // Where a click on the ad should send the user (your ad network's
-        // click-through / landing URL — can reuse SMARTLINK_LINK or a
-        // dedicated video-ad click URL from your network)
-        const PREROLL_AD_CLICK_URL = SMARTLINK_LINK;
-        // How many seconds before the "Skip Ad" button becomes clickable
-        const PREROLL_SKIP_AFTER_SECONDS = 10;
+        const HILLTOPADS_VAST_URL = 'https://second-director.com/dxmnFHz/d.GoN/vPZ/G_UN/Oewmu9GugZtUTlTkzPOTecgxrMtjOEq0BN/TZc/ttNVzyETyAMUTWQS2MMWQS';
+        // Fallback minimum skip time if the VAST tag doesn't specify a skipoffset
+        const PREROLL_SKIP_AFTER_SECONDS = 5;
         
         let prerollTimerInterval = null;
         let prerollCompleteCallback = null;
         let prerollSkippable = false;
+        let currentVastData = null;
         
-        function showPrerollAd(onComplete) {
+        // Fires 1x1 tracking/impression pixels — fire-and-forget
+        function fireUrls(urls) {
+            if (!urls || !urls.length) return;
+            urls.forEach(u => {
+                try {
+                    const img = new Image();
+                    img.src = u;
+                } catch (e) { /* ignore */ }
+            });
+        }
+        
+        // Converts VAST skipoffset ("00:00:05") to seconds. Returns null
+        // for percentage-based or missing offsets (falls back to default).
+        function parseSkipOffset(skipoffset) {
+            if (!skipoffset || skipoffset.includes('%')) return null;
+            const parts = skipoffset.split(':').map(Number);
+            if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            }
+            return null;
+        }
+        
+        // Fetches a VAST tag and parses it, following VASTAdTagURI
+        // wrapper redirects up to 3 levels deep (common for ad networks
+        // that route through an ad exchange before the final creative).
+        async function fetchVast(url, depth) {
+            depth = depth || 0;
+            if (depth > 3) return null;
+            
+            const res = await fetch(url);
+            const text = await res.text();
+            const xml = new DOMParser().parseFromString(text, 'text/xml');
+            
+            if (xml.querySelector('parsererror')) {
+                throw new Error('VAST XML parse error');
+            }
+            
+            const wrapperUri = xml.querySelector('VASTAdTagURI');
+            if (wrapperUri && wrapperUri.textContent.trim()) {
+                return await fetchVast(wrapperUri.textContent.trim(), depth + 1);
+            }
+            
+            const mediaFiles = Array.from(xml.querySelectorAll('MediaFile'));
+            // Prefer an mp4 media file if multiple are offered
+            const mp4 = mediaFiles.find(m => (m.getAttribute('type') || '').includes('mp4'));
+            const mediaFileEl = mp4 || mediaFiles[0];
+            const mediaFileUrl = mediaFileEl ? mediaFileEl.textContent.trim() : null;
+            
+            const clickThroughEl = xml.querySelector('ClickThrough');
+            const clickThroughUrl = clickThroughEl ? clickThroughEl.textContent.trim() : null;
+            
+            const impressions = Array.from(xml.querySelectorAll('Impression'))
+                .map(el => el.textContent.trim())
+                .filter(Boolean);
+            
+            const trackingEvents = {};
+            xml.querySelectorAll('Tracking').forEach(el => {
+                const evt = el.getAttribute('event');
+                if (!evt) return;
+                const u = el.textContent.trim();
+                if (!u) return;
+                (trackingEvents[evt] = trackingEvents[evt] || []).push(u);
+            });
+            
+            const linearEl = xml.querySelector('Linear');
+            const skipOffset = linearEl ? linearEl.getAttribute('skipoffset') : null;
+            
+            return { mediaFileUrl, clickThroughUrl, impressions, trackingEvents, skipOffset };
+        }
+        
+        async function showPrerollAd(onComplete) {
             const overlay = document.getElementById('prerollAdOverlay');
             const adVideo = document.getElementById('prerollAdVideo');
             const skipBtn = document.getElementById('prerollSkipBtn');
             const timerEl = document.getElementById('prerollAdTimer');
             
-            // If no real ad URL has been configured yet, skip straight to content
-            if (!PREROLL_AD_VIDEO_URL || PREROLL_AD_VIDEO_URL.includes('REPLACE-WITH-YOUR')) {
-                console.warn('⚠️ Pre-roll ad URL not configured — skipping ad, playing content directly.');
+            prerollCompleteCallback = onComplete;
+            prerollSkippable = false;
+            skipBtn.classList.remove('enabled');
+            overlay.classList.add('show');
+            timerEl.textContent = '';
+            
+            let vastData = null;
+            try {
+                vastData = await fetchVast(HILLTOPADS_VAST_URL);
+            } catch (e) {
+                console.warn('⚠️ VAST fetch/parse failed:', e);
+                vastData = null;
+            }
+            
+            if (!vastData || !vastData.mediaFileUrl) {
+                console.warn('⚠️ No usable ad from VAST tag — skipping to content.');
+                overlay.classList.remove('show');
                 onComplete();
                 return;
             }
             
-            prerollCompleteCallback = onComplete;
-            prerollSkippable = false;
-            skipBtn.classList.remove('enabled');
+            currentVastData = vastData;
+            const skipAfter = parseSkipOffset(vastData.skipOffset) || PREROLL_SKIP_AFTER_SECONDS;
             
-            let remaining = PREROLL_SKIP_AFTER_SECONDS;
-            timerEl.textContent = remaining;
-            
-            adVideo.src = PREROLL_AD_VIDEO_URL;
+            adVideo.src = vastData.mediaFileUrl;
             adVideo.muted = false;
             adVideo.controls = false;
-            overlay.classList.add('show');
             
-            adVideo.play().catch(() => {
-                // Autoplay with sound blocked — try muted so it still runs
-                adVideo.muted = true;
-                adVideo.play().catch(() => {
-                    // If even muted autoplay fails, don't block the user
-                    finishPrerollAd();
-                });
-            });
-            
-            if (prerollTimerInterval) clearInterval(prerollTimerInterval);
-            prerollTimerInterval = setInterval(() => {
-                remaining--;
-                if (remaining > 0) {
-                    timerEl.textContent = remaining;
-                } else {
-                    timerEl.textContent = '';
-                    prerollSkippable = true;
-                    skipBtn.classList.add('enabled');
-                    clearInterval(prerollTimerInterval);
-                }
-            }, 1000);
-            
-            adVideo.onended = () => finishPrerollAd();
-            adVideo.onerror = () => {
-                console.warn('⚠️ Pre-roll ad failed to load — skipping to content.');
-                finishPrerollAd();
+            const startAdTimer = () => {
+                fireUrls(vastData.impressions);
+                fireUrls(vastData.trackingEvents.start);
+                
+                let remaining = skipAfter;
+                timerEl.textContent = remaining;
+                
+                if (prerollTimerInterval) clearInterval(prerollTimerInterval);
+                prerollTimerInterval = setInterval(() => {
+                    remaining--;
+                    if (remaining > 0) {
+                        timerEl.textContent = remaining;
+                    } else {
+                        timerEl.textContent = '';
+                        prerollSkippable = true;
+                        skipBtn.classList.add('enabled');
+                        clearInterval(prerollTimerInterval);
+                    }
+                }, 1000);
             };
             
-            // Clicking the ad video itself opens the click-through link
+            adVideo.play().then(startAdTimer).catch(() => {
+                // Autoplay with sound blocked — retry muted so it still runs
+                adVideo.muted = true;
+                adVideo.play().then(startAdTimer).catch(() => finishPrerollAd());
+            });
+            
+            adVideo.onended = () => {
+                fireUrls(vastData.trackingEvents.complete);
+                finishPrerollAd();
+            };
+            adVideo.onerror = () => {
+                console.warn('⚠️ Ad video failed to play — skipping to content.');
+                finishPrerollAd();
+            };
             adVideo.onclick = () => {
-                if (PREROLL_AD_CLICK_URL) window.open(PREROLL_AD_CLICK_URL, '_blank');
+                if (vastData.clickThroughUrl) {
+                    fireUrls(vastData.trackingEvents.clickthrough);
+                    window.open(vastData.clickThroughUrl, '_blank');
+                }
             };
         }
         
         function skipPrerollAd() {
             if (!prerollSkippable) return;
+            if (currentVastData) fireUrls(currentVastData.trackingEvents.skip);
             finishPrerollAd();
         }
         
@@ -1253,10 +1332,12 @@ l.parentNode.insertBefore(s, l);
                 prerollTimerInterval = null;
             }
             
+            adVideo.onclick = null;
             adVideo.pause();
             adVideo.removeAttribute('src');
             adVideo.load();
             overlay.classList.remove('show');
+            currentVastData = null;
             
             const cb = prerollCompleteCallback;
             prerollCompleteCallback = null;
@@ -1994,17 +2075,6 @@ l.parentNode.insertBefore(s, l);
         loadMovies();
     })();
     </script>
-    <script>
-(function(jijoza){
-var d = document,
-    s = d.createElement('script'),
-    l = d.currentScript || d.scripts[d.scripts.length - 1];
-s.settings = jijoza || {};
-s.src = "\/\/juvenilechoice.com\/b.XdV\/szdtGEle0\/YSWuc-\/WeUmE9\/uyZvUklrkZP\/TccmxHMZjBEf0MN\/z\/Mwt\/Nuz\/EzysMxTTQc3ONiwE";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})
-</script>
+    <!-- ========== END LATEST MOVIES SCRIPT ========== -->
 </body>
 </html>
