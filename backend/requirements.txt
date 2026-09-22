@@ -1,6 +1,5 @@
 # Telegram
-pyrogram==2.0.106
-TgCrypto==1.2.5
+wzgram[fast]==3.0.36
 
 # Web Framework
 Flask==3.0.3
