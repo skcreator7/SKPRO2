@@ -1344,6 +1344,98 @@
             if (cb) cb();
         }
         
+        // ============================================
+        // 🎬 PAGE-LOAD OVERLAY AD — OnClickA VAST
+        // Plays automatically the moment the page/player loads, for a
+        // fixed 10 seconds, before any stream (default live channel or
+        // ?message_id= direct link) starts loading. Not skippable.
+        // ============================================
+        const PAGELOAD_OVERLAY_VAST_URL = 'https://bid.onclckstr.com/vast?spot_id=6152422';
+        const PAGELOAD_OVERLAY_DURATION_SECONDS = 10;
+        
+        let pageLoadOverlayTimeout = null;
+        let pageLoadOverlayInterval = null;
+        
+        async function showPageLoadOverlayAd(onComplete) {
+            const overlay = document.getElementById('prerollAdOverlay');
+            const adVideo = document.getElementById('prerollAdVideo');
+            const skipBtn = document.getElementById('prerollSkipBtn');
+            const timerEl = document.getElementById('prerollAdTimer');
+            
+            skipBtn.classList.remove('enabled'); // mandatory — no skip
+            overlay.classList.add('show');
+            timerEl.textContent = '';
+            
+            const finish = () => {
+                if (pageLoadOverlayTimeout) { clearTimeout(pageLoadOverlayTimeout); pageLoadOverlayTimeout = null; }
+                if (pageLoadOverlayInterval) { clearInterval(pageLoadOverlayInterval); pageLoadOverlayInterval = null; }
+                adVideo.onclick = null;
+                adVideo.onended = null;
+                adVideo.pause();
+                adVideo.removeAttribute('src');
+                adVideo.load();
+                overlay.classList.remove('show');
+                timerEl.textContent = '';
+                if (onComplete) onComplete();
+            };
+            
+            let vastData = null;
+            try {
+                vastData = await fetchVast(PAGELOAD_OVERLAY_VAST_URL);
+            } catch (e) {
+                console.warn('⚠️ Page-load overlay VAST fetch failed:', e);
+            }
+            
+            if (!vastData || !vastData.mediaFileUrl) {
+                console.warn('⚠️ No usable page-load overlay ad — skipping.');
+                overlay.classList.remove('show');
+                onComplete();
+                return;
+            }
+            
+            adVideo.src = vastData.mediaFileUrl;
+            adVideo.muted = false;
+            adVideo.controls = false;
+            
+            let remaining = PAGELOAD_OVERLAY_DURATION_SECONDS;
+            timerEl.textContent = remaining;
+            
+            const startCountdown = () => {
+                fireUrls(vastData.impressions);
+                fireUrls(vastData.trackingEvents.start);
+                
+                if (pageLoadOverlayInterval) clearInterval(pageLoadOverlayInterval);
+                pageLoadOverlayInterval = setInterval(() => {
+                    remaining--;
+                    if (remaining > 0) timerEl.textContent = remaining;
+                    else { timerEl.textContent = ''; clearInterval(pageLoadOverlayInterval); }
+                }, 1000);
+                
+                // Hard cap at exactly 10s regardless of the creative's
+                // actual length (holds last frame if ad is shorter)
+                pageLoadOverlayTimeout = setTimeout(() => {
+                    fireUrls(vastData.trackingEvents.complete);
+                    finish();
+                }, PAGELOAD_OVERLAY_DURATION_SECONDS * 1000);
+            };
+            
+            adVideo.play().then(startCountdown).catch(() => {
+                adVideo.muted = true;
+                adVideo.play().then(startCountdown).catch(() => finish());
+            });
+            
+            adVideo.onclick = () => {
+                if (vastData.clickThroughUrl) {
+                    fireUrls(vastData.trackingEvents.clickthrough);
+                    window.open(vastData.clickThroughUrl, '_blank');
+                }
+            };
+            
+            // If the creative ends early, just hold until the 10s timeout fires
+            adVideo.onended = () => { /* wait for hard timeout */ };
+            adVideo.onerror = () => finish();
+        }
+        
         let player = null;
         let hls = null;
         let currentChannelUrl = '';
@@ -1373,16 +1465,18 @@
             });
             
             player.on("ready", () => {
-                const urlParams = new URLSearchParams(window.location.search);
-                const channelId = urlParams.get('channel_id');
-                const messageId = urlParams.get('message_id');
-                
-                if (messageId) {
-                    console.log('🔗 Direct link detected:', { channelId, messageId });
-                    playFromUrlParams(channelId, messageId);
-                } else {
-                    loadStream(DEFAULT_STREAM);
-                }
+                showPageLoadOverlayAd(() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const channelId = urlParams.get('channel_id');
+                    const messageId = urlParams.get('message_id');
+                    
+                    if (messageId) {
+                        console.log('🔗 Direct link detected:', { channelId, messageId });
+                        playFromUrlParams(channelId, messageId);
+                    } else {
+                        loadStream(DEFAULT_STREAM);
+                    }
+                });
             });
             
             player.on("play", () => hideLoading());
@@ -2059,7 +2153,7 @@
 
         // 🔗 Uses the same smartlink pattern before navigating to search
         window.searchMovieWithAd = function (title) {
-            const AD_LINK = "https://plump-plastic.com/bS3NVo0wP.3ApPv/bOmpVGJAZlDX0/3pMmT/Q/w/NmDskQzMLvT/cvxQN-DJAQ0XOLT-cx";
+            const AD_LINK = "https://marksdespitelinear.com/pz4bcvup6?key=125e9e8790baed0c56479946bbd5e475";
             window.open(AD_LINK, '_blank');
             setTimeout(() => { searchMovie(title); }, 100);
         };
