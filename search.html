@@ -3,8 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SK4FiLM — latest movies</title>
-    <meta name="description" content="Search and download latest movies in HD quality">
+    <title>SK4FiLM Search — 1 Million+ Movies | Download Hindi Dubbed Movies 480p, 720p, 1080p, 4K</title>
+    <meta name="description" content="Search from 1 Million+ movies on SK4FiLM - Hindi dubbed, dual audio, 480p, 720p, 1080p, 4K. Fast downloads of Bollywood, Hollywood, South Indian films & web series.">
+    <meta name="keywords" content="SK4FiLM search, 1 million movies, download movies, Hindi dubbed movies, latest movies, 480p movies, 720p movies, 1080p movies, 4K movies, Bollywood movies, Hollywood movies, South Indian movies, Tamil movies, Telugu movies, web series download, dual audio movies, HEVC x265, IMDb ratings, movie search engine">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="SK4FiLM">
+    <meta name="copyright" content="SK4FiLM">
+    <meta name="language" content="English">
+    <meta name="revisit-after" content="1 day">
+    <meta name="rating" content="general">
+    <meta name="distribution" content="global">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sk4film.xyz/search.html">
+    <meta property="og:title" content="SK4FiLM Search — 1 Million+ Movies | Download Hindi Dubbed Movies">
+    <meta property="og:description" content="Search from 1 Million+ movies on SK4FiLM - Hindi dubbed, dual audio, 480p, 720p, 1080p, 4K. Fast downloads of Bollywood, Hollywood, South Indian films & web series.">
+    <meta property="og:image" content="https://iili.io/KOlfc41.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://sk4film.xyz/search.html">
+    <meta property="twitter:title" content="SK4FiLM Search — 1 Million+ Movies | Download Hindi Dubbed Movies">
+    <meta property="twitter:description" content="Search from 1 Million+ movies on SK4FiLM - Hindi dubbed, dual audio, 480p, 720p, 1080p, 4K. Fast downloads of Bollywood, Hollywood, South Indian films & web series.">
+    <meta property="twitter:image" content="https://iili.io/KOlfc41.png">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SK4FiLM",
+      "url": "https://sk4film.xyz",
+      "description": "SK4FiLM offers 1 Million+ movies for download - Hindi dubbed, dual audio, 480p, 720p, 1080p, 4K. Fast downloads of Bollywood, Hollywood, South Indian films & web series.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://sk4film.xyz/search.html?query={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Montserrat:wght@800&display=swap" rel="stylesheet">
@@ -180,7 +218,262 @@
         .search-btn:hover { background: linear-gradient(45deg, #ff3333, #3388ff); }
         .search-btn:active { transform: scale(0.95); }
         
-        /* IMDb Info Section - Full Width Mobile, No Color Borders */
+        /* ========== HIGH SEO HERO BANNER ========== */
+        .seo-search-hero {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0000 50%, #000a1a 100%);
+            padding: 22px 16px;
+            text-align: center;
+            border: 1px solid #1a1a1a;
+            border-radius: 8px;
+            margin: 10px 12px;
+            position: relative;
+            overflow: hidden;
+            animation: slideDown 0.5s ease;
+        }
+        @media (min-width: 768px) {
+            .seo-search-hero { margin: 10px 0; }
+        }
+        .seo-search-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,0,0,0.06) 0%, transparent 70%);
+            animation: rotateGlow 18s linear infinite;
+        }
+        @keyframes rotateGlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .seo-search-hero h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(1.1rem, 3.5vw, 1.6rem);
+            font-weight: 800;
+            background: linear-gradient(90deg, #ff0000, #ffcc00, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+            position: relative; z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: textGlow 3s ease-in-out infinite;
+        }
+        @keyframes textGlow {
+            0% { filter: drop-shadow(0 0 4px rgba(255,0,0,0.4)); }
+            50% { filter: drop-shadow(0 0 14px rgba(0,204,255,0.7)); }
+            100% { filter: drop-shadow(0 0 4px rgba(255,0,0,0.4)); }
+        }
+        .seo-search-hero .count-up {
+            display: inline-block;
+            font-size: clamp(1.5rem, 5vw, 2.2rem);
+            font-weight: 800;
+            color: #ffcc00;
+            text-shadow: 0 0 16px rgba(255,204,0,0.5), 0 0 30px rgba(255,0,0,0.3);
+            animation: countPulse 2s ease-in-out infinite;
+            position: relative; z-index: 1;
+        }
+        @keyframes countPulse {
+            0% { transform: scale(1); text-shadow: 0 0 16px rgba(255,204,0,0.5); }
+            50% { transform: scale(1.04); text-shadow: 0 0 24px rgba(255,204,0,0.85), 0 0 45px rgba(255,0,0,0.5); }
+            100% { transform: scale(1); text-shadow: 0 0 16px rgba(255,204,0,0.5); }
+        }
+        .seo-search-hero p {
+            color: #c8d8e8;
+            font-size: clamp(0.78rem, 2vw, 0.92rem);
+            max-width: 720px;
+            margin: 6px auto 0;
+            position: relative; z-index: 1;
+            line-height: 1.6;
+        }
+        .seo-search-hero .highlight-yellow { color: #ffcc00; font-weight: 700; }
+        .seo-search-hero .highlight-cyan { color: #00ccff; font-weight: 700; }
+        .seo-search-stats {
+            display: flex; justify-content: center; gap: 10px;
+            flex-wrap: wrap; margin-top: 12px;
+            position: relative; z-index: 1;
+        }
+        .seo-search-stat {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            border-radius: 10px;
+            padding: 7px 14px;
+            min-width: 80px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .seo-search-stat:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 18px rgba(0, 204, 255, 0.35);
+            transform: translateY(-3px);
+        }
+        .seo-search-stat .stat-number {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.05rem; font-weight: 800;
+            color: #ffcc00; display: block;
+        }
+        .seo-search-stat .stat-label {
+            font-size: 0.58rem; color: #a0b0c0;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            margin-top: 2px; display: block;
+        }
+
+        /* ========== SEO POPULAR SEARCHES CHIPS ========== */
+        .seo-popular-searches {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 12px;
+        }
+        @media (min-width: 768px) {
+            .seo-popular-searches { margin: 10px 0; }
+        }
+        .seo-popular-searches .ps-title {
+            font-size: 0.75rem;
+            color: #ffcc00;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ps-chip {
+            display: inline-block;
+            background: #000;
+            border: 1px solid rgba(0,204,255,0.25);
+            border-radius: 18px;
+            padding: 5px 12px;
+            font-size: 0.7rem;
+            color: #00ccff;
+            margin: 3px 3px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+        .ps-chip:hover {
+            background: #111;
+            border-color: var(--accent);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,204,255,0.25);
+        }
+
+        /* ========== SEO CONTENT SECTION ========== */
+        .seo-search-content {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 8px;
+            padding: 20px 16px;
+            margin: 14px 12px;
+            line-height: 1.75;
+        }
+        @media (min-width: 768px) {
+            .seo-search-content { margin: 14px 0; }
+        }
+        .seo-search-content h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.15rem;
+            color: var(--accent);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            text-align: center;
+        }
+        .seo-search-content h3 {
+            font-size: 1rem;
+            color: #ffcc00;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--primary);
+            padding-left: 10px;
+        }
+        .seo-search-content p {
+            font-size: 0.85rem;
+            color: #c8d2dc;
+            margin-bottom: 10px;
+        }
+        .seo-search-content ul {
+            padding-left: 18px;
+            margin-bottom: 12px;
+        }
+        .seo-search-content li {
+            font-size: 0.82rem;
+            color: #b8c4d0;
+            margin-bottom: 6px;
+        }
+        .seo-search-content .kw-badge {
+            display: inline-block;
+            background: #000;
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            border-radius: 16px;
+            padding: 3px 10px;
+            font-size: 0.7rem;
+            margin: 3px 3px;
+            color: var(--accent);
+        }
+
+        /* ========== TUTORIAL VIDEOS SECTION ========== */
+        .tutorial-section {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 8px;
+            padding: 18px 14px;
+            margin: 14px 12px;
+        }
+        @media (min-width: 768px) {
+            .tutorial-section { margin: 14px 0; }
+        }
+        .tutorial-section h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.15rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            text-align: center;
+        }
+        .tutorial-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+        @media (min-width: 768px) {
+            .tutorial-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        .tutorial-card {
+            background: #000;
+            border: 1px solid #1a1a1a;
+            border-radius: 6px;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
+        .tutorial-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 6px 20px rgba(0,204,255,0.2);
+            transform: translateY(-3px);
+        }
+        .tutorial-card h5 {
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tutorial-card .ratio {
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #1a1a1a;
+        }
+        .tutorial-card p {
+            font-size: 0.75rem;
+            color: #a0b0c0;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        /* IMDb Info Section */
         .imdb-info-container {
             background: #0a0a0a;
             border: 1px solid #1a1a1a;
@@ -821,10 +1114,10 @@
 <nav class="top-navbar">
     <div class="navbar-content">
         <a href="/" class="logo-section">
-            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM" class="logo-img">
+            <img src="https://iili.io/KOlfc41.png" alt="SK4FiLM Logo" class="logo-img">
             <div class="brand-content">
                 <div class="brand-text">SK4FiLM</div>
-                <div class="brand-subtitle">House of Entertainment</div>
+                <div class="brand-subtitle">1 Million+ Movies Available</div>
             </div>
         </a>
         <div class="menu-section">
@@ -861,8 +1154,59 @@
 
     <!-- Search Section -->
     <div class="search-container">
-        <input type="text" id="searchInput" class="search-box" placeholder="Search movies... (e.g., Animal 2023, Jawan)" aria-label="Search movies">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search from 1M+ movies... (e.g., Animal 2023, Jawan)" aria-label="Search movies">
         <button class="search-btn" id="searchButton" aria-label="Search"><i class="fas fa-search"></i></button>
+    </div>
+
+    <!-- ========== HIGH SEO HERO BANNER ========== -->
+    <div class="seo-search-hero">
+        <h1>🔍 Search from 1 Million+ Movies! 🎬</h1>
+        <div class="count-up">1,000,000+</div>
+        <p>
+            Find any movie instantly from our massive library of 
+            <span class="highlight-yellow">1 Million+ titles</span> — 
+            <span class="highlight-cyan">Hindi dubbed, dual audio, 480p, 720p, 1080p, HEVC x265, 4K</span>. 
+            Bollywood, Hollywood, South Indian, Tamil, Telugu, Punjabi, web series — 
+            everything is searchable right here on <strong>SK4FiLM</strong>.
+        </p>
+        <div class="seo-search-stats">
+            <div class="seo-search-stat">
+                <span class="stat-number">1M+</span>
+                <span class="stat-label">Movies</span>
+            </div>
+            <div class="seo-search-stat">
+                <span class="stat-number">50K+</span>
+                <span class="stat-label">Web Series</span>
+            </div>
+            <div class="seo-search-stat">
+                <span class="stat-number">IMDb</span>
+                <span class="stat-label">Ratings</span>
+            </div>
+            <div class="seo-search-stat">
+                <span class="stat-number">Daily</span>
+                <span class="stat-label">Updates</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== POPULAR SEARCHES CHIPS ========== -->
+    <div class="seo-popular-searches">
+        <div class="ps-title"><i class="fas fa-fire"></i> Popular Searches</div>
+        <span class="ps-chip" onclick="quickSearch('Animal 2023')">Animal 2023</span>
+        <span class="ps-chip" onclick="quickSearch('Jawan')">Jawan</span>
+        <span class="ps-chip" onclick="quickSearch('Pathaan')">Pathaan</span>
+        <span class="ps-chip" onclick="quickSearch('KGF Chapter 2')">KGF Chapter 2</span>
+        <span class="ps-chip" onclick="quickSearch('RRR')">RRR</span>
+        <span class="ps-chip" onclick="quickSearch('Pushpa')">Pushpa</span>
+        <span class="ps-chip" onclick="quickSearch('Leo 2023')">Leo 2023</span>
+        <span class="ps-chip" onclick="quickSearch('Salaar')">Salaar</span>
+        <span class="ps-chip" onclick="quickSearch('Dunki')">Dunki</span>
+        <span class="ps-chip" onclick="quickSearch('Tiger 3')">Tiger 3</span>
+        <span class="ps-chip" onclick="quickSearch('Oppenheimer')">Oppenheimer</span>
+        <span class="ps-chip" onclick="quickSearch('Barbie 2023')">Barbie 2023</span>
+        <span class="ps-chip" onclick="quickSearch('John Wick 4')">John Wick 4</span>
+        <span class="ps-chip" onclick="quickSearch('Fast X')">Fast X</span>
+        <span class="ps-chip" onclick="quickSearch('Mission Impossible')">Mission Impossible</span>
     </div>
 
     <!-- Results Info -->
@@ -878,6 +1222,115 @@
 
     <!-- Pagination -->
     <div id="paginationContainer"></div>
+
+    <!-- ========== TUTORIAL VIDEOS SECTION ========== -->
+    <div class="tutorial-section">
+        <h2><i class="fas fa-play-circle me-2"></i>Tutorial Videos — How to Use SK4FiLM</h2>
+        <div class="tutorial-grid">
+            <div class="tutorial-card">
+                <h5><i class="fas fa-search"></i> How to Search Movies</h5>
+                <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/PSQ9_KLzm8s" allowfullscreen loading="lazy"></iframe>
+                </div>
+                <p>Learn how to search from our 1 Million+ movie library using title, year, and quality filters.</p>
+            </div>
+            <div class="tutorial-card">
+                <h5><i class="fas fa-link"></i> StreamNet Link Guide</h5>
+                <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/fVL7DfhnwWM" allowfullscreen loading="lazy"></iframe>
+                </div>
+                <p>Step-by-step guide on how to use StreamNet links for fast HD movie downloads.</p>
+            </div>
+            <div class="tutorial-card">
+                <h5><i class="fas fa-hdd"></i> DiskWala Link Guide</h5>
+                <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/ZNKeL-pcIDw" allowfullscreen loading="lazy"></iframe>
+                </div>
+                <p>Complete tutorial on DiskWala links to download movies in 480p, 720p, 1080p, and 4K.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== HIGH SEO CONTENT SECTION ========== -->
+    <div class="seo-search-content">
+        <h2>🔍 Search 1 Million+ Movies — SK4FiLM Search Engine</h2>
+        <p>
+            <strong>SK4FiLM</strong> is not just a movie download site — it's a powerful <strong>movie search engine</strong> with over <strong>1 Million+ movies and web series</strong> in its ever-growing library. Use our smart search bar to find any movie by title, year, quality, language, or genre. Whether you're looking for <strong>latest Hindi dubbed movies</strong>, <strong>dual audio Hollywood blockbusters</strong>, <strong>South Indian action films</strong>, or <strong>IMDb-rated classics</strong> — our search engine finds it in seconds.
+        </p>
+        <p>
+            Each search result comes with detailed <strong>IMDb information</strong> including ratings, votes, plot synopsis, cast, director, runtime, genres, and box office collection — so you can make an informed choice before downloading. Our library is updated <strong>daily</strong> with the newest theatrical releases and OTT premieres.
+        </p>
+
+        <h3>🎯 Why Use SK4FiLM Search Engine?</h3>
+        <ul>
+            <li><strong>1 Million+ Movies:</strong> The largest searchable movie database on the internet.</li>
+            <li><strong>IMDb Integration:</strong> Get official ratings, plot, cast, and crew info for every title.</li>
+            <li><strong>Multi-Quality Results:</strong> 480p, 720p, 1080p, HEVC x265, and 4K options listed for every movie.</li>
+            <li><strong>Hindi Dubbed &amp; Dual Audio:</strong> Search specifically for Hindi dubbed or dual audio releases.</li>
+            <li><strong>Fast &amp; Accurate:</strong> Smart search algorithm finds the exact title you need.</li>
+            <li><strong>No Registration:</strong> Search freely without signing up.</li>
+            <li><strong>Mobile Optimized:</strong> Perfect search experience on smartphones and tablets.</li>
+        </ul>
+
+        <h3>🔥 Popular Movie Searches</h3>
+        <p>
+            <span class="kw-badge">Animal 2023</span>
+            <span class="kw-badge">Jawan</span>
+            <span class="kw-badge">Pathaan</span>
+            <span class="kw-badge">KGF Chapter 2</span>
+            <span class="kw-badge">RRR</span>
+            <span class="kw-badge">Pushpa</span>
+            <span class="kw-badge">Leo 2023</span>
+            <span class="kw-badge">Salaar</span>
+            <span class="kw-badge">Dunki</span>
+            <span class="kw-badge">Tiger 3</span>
+            <span class="kw-badge">Oppenheimer</span>
+            <span class="kw-badge">Barbie 2023</span>
+            <span class="kw-badge">John Wick 4</span>
+            <span class="kw-badge">Fast X</span>
+            <span class="kw-badge">Mission Impossible</span>
+            <span class="kw-badge">South Indian Hindi Dubbed</span>
+            <span class="kw-badge">Tamil Dubbed Movies</span>
+            <span class="kw-badge">Telugu Hindi Dubbed</span>
+            <span class="kw-badge">Web Series Download</span>
+            <span class="kw-badge">HEVC x265 Movies</span>
+        </p>
+
+        <h3>📥 How to Search &amp; Download from 1 Million+ Library?</h3>
+        <ul>
+            <li><strong>Step 1:</strong> Type the movie title in the search box above (e.g., "Animal 2023").</li>
+            <li><strong>Step 2:</strong> Click the search button or press Enter.</li>
+            <li><strong>Step 3:</strong> Browse results with IMDb info, plot synopsis, and cast details.</li>
+            <li><strong>Step 4:</strong> Choose your quality (480p, 720p, 1080p, 4K) and click <strong>Watch Now</strong> or <strong>Download</strong>.</li>
+        </ul>
+
+        <h3>❓ Frequently Asked Questions (FAQ)</h3>
+        <p><strong>Q: How many movies can I search on SK4FiLM?</strong><br>
+        A: Over <strong>1 Million+ movies and web series</strong> are available in our searchable library. New titles are added daily.</p>
+
+        <p><strong>Q: Is the search feature free?</strong><br>
+        A: Yes! Search and download from our 1M+ library completely free. No registration required.</p>
+
+        <p><strong>Q: Can I search movies by year?</strong><br>
+        A: Absolutely! Type the movie title followed by the year, e.g., "Animal 2023" or "Jawan 2023".</p>
+
+        <p><strong>Q: What quality options are shown in search results?</strong><br>
+        A: Every result lists available qualities: 480p, 720p, 1080p, HEVC x265, and 4K (where available).</p>
+
+        <p><strong>Q: Does SK4FiLM show IMDb ratings?</strong><br>
+        A: Yes! We integrate IMDb data to show ratings, plot, cast, director, runtime, and box office collection for each title.</p>
+
+        <p><strong>Q: Can I search Hindi dubbed movies specifically?</strong><br>
+        A: Yes! Our library includes a huge collection of Hindi dubbed and dual audio releases.</p>
+
+        <p><strong>Q: What if I can't find a movie?</strong><br>
+        A: Contact us via Telegram or WhatsApp and we'll try to add it from our 1M+ collection.</p>
+
+        <h3>⚠️ Disclaimer</h3>
+        <p style="font-size:0.78rem;color:#a0a8b0;">
+            SK4FiLM does not host any files on its own servers. All content is provided for informational and promotional purposes only. We strongly recommend users to purchase and watch movies through official platforms. If you are a copyright owner and believe your content is being shared illegally, please contact us for immediate removal.
+        </p>
+    </div>
 
     <!-- Bottom Ads -->
     <div class="bottom-ads">
@@ -900,7 +1353,7 @@
     </div>
 
     <div class="disclaimer">
-        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong> This site does not store any file, it links to media hosted on Telegram.
+        <strong><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</strong> This site does not store any file, it links to media hosted on Telegram. | 1 Million+ Movies | Hindi Dubbed | 480p, 720p, 1080p, 4K
     </div>
 </div>
 
@@ -945,6 +1398,16 @@ document.addEventListener('keydown', function(event) {
         if (dropdown) dropdown.style.display = 'none';
     }
 });
+
+// ========== QUICK SEARCH (for Popular Search chips) ==========
+function quickSearch(query) {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = query;
+        performSearchWithPopup(1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
 
 // ========== GLOBALS ==========
 const API_ENDPOINTS = ['https://sk4film.koyeb.app', 'https://sk4film-backup.herokuapp.com', 'https://sk4film-alternate.onrender.com'];
@@ -1205,7 +1668,7 @@ async function performSearchWithPopup(page = 1) {
     url.searchParams.set('query', query);
     url.searchParams.set('page', page);
     window.history.pushState({}, '', url);
-    if (resultsContainer) resultsContainer.innerHTML = `<div class="results-loading"><div class="spinner"></div><p style="color:#00ccff;">Searching for "${escapeHtml(query)}"...</p></div>`;
+    if (resultsContainer) resultsContainer.innerHTML = `<div class="results-loading"><div class="spinner"></div><p style="color:#00ccff;">Searching from 1M+ movies for "${escapeHtml(query)}"...</p></div>`;
     if (resultsInfo) resultsInfo.style.display = 'none';
     if (paginationContainer) paginationContainer.innerHTML = '';
     loadIMDbInfo(query);
@@ -1346,7 +1809,7 @@ function renderResults(results, pagination) {
     const rc = document.getElementById('resultsContainer'), ri = document.getElementById('resultsInfo'), pc = document.getElementById('paginationContainer');
     if (!rc) return;
     if (!results || results.length === 0) { rc.innerHTML = `<div class="error-state" style="text-align:center;padding:40px;"><i class="fas fa-search fa-3x mb-3" style="color:#00ccff;"></i><h4>No results found</h4><p>Try different keywords</p></div>`; if (ri) ri.style.display = 'none'; if (pc) pc.innerHTML = ''; return; }
-    if (ri && pagination) { ri.innerHTML = `Found <strong>${pagination.total_results}</strong> results · Page ${pagination.current_page} of ${pagination.total_pages}`; ri.style.display = 'block'; }
+    if (ri && pagination) { ri.innerHTML = `Found <strong>${pagination.total_results}</strong> results from 1M+ library · Page ${pagination.current_page} of ${pagination.total_pages}`; ri.style.display = 'block'; }
     let html = '';
     results.forEach((result, index) => {
         const title = result.title || 'Untitled', thumbUrl = result.thumbnail_url || result.poster_url || FALLBACK_THUMBNAIL;
@@ -1355,7 +1818,7 @@ function renderResults(results, pagination) {
         msgIdForStream = String(msgIdForStream).replace(/\D/g, '');
         if ((msgIdForStream === '0' || msgIdForStream === '') && hasQualities) { const fq = Object.values(qualityOptions)[0]; if (fq && fq.message_id) msgIdForStream = String(fq.message_id).replace(/\D/g, ''); }
         const streamLink = `view.html?channel_id=${FILE_CHANNEL_ID}&message_id=${msgIdForStream}`;
-        html += `<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${thumbUrl}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hasFile?'<div class="video-file-badge">SK4FiLM</div>':''}</div></div><h3 class="result-title">${formatTitle(title)}</h3>`;
+        html += `<div class="result-card"><div class="result-thumbnail-top"><div class="thumbnail-container" onclick="triggerAdLink()"><img src="${thumbUrl}" alt="${escapeHtml(title)} Hindi Dubbed Movie Download" loading="lazy" onerror="this.src='${FALLBACK_THUMBNAIL}'"><div class="play-overlay"><div class="play-button"><i class="fas fa-play"></i></div></div>${hasFile?'<div class="video-file-badge">SK4FiLM</div>':''}</div></div><h3 class="result-title">${formatTitle(title)}</h3>`;
         if (postContent && postContent.trim().length > 0) html += createPostContent(postContent, index);
         if (hasFile) {
             if (hasQualities) {
@@ -1409,6 +1872,7 @@ window.closeRedirect = closeRedirect;
 window.togglePostContent = togglePostContent;
 window.performSearchWithPopup = performSearchWithPopup;
 window.toggleMenu = toggleMenu;
+window.quickSearch = quickSearch;
 </script>
     
 </body>
