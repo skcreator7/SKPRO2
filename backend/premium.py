@@ -138,6 +138,7 @@ class PremiumSystem:
         self.user_usage = {}
         self.razorpay_orders = {}
         self.processed_payments = set()  # payment_ids already activated (idempotency)
+        self._link_locks = {}  # per-user asyncio locks for payment link creation
         self.cleanup_task = None
         
         self.statistics = {
@@ -151,8 +152,34 @@ class PremiumSystem:
         
         self.logger.info("✅ Premium System initialized")
     
+    def _link_response(self, order: Dict[str, Any], plan: Dict[str, Any], referral_applied: bool) -> Dict[str, Any]:
+        return {
+            'success': True,
+            'order_id': order['order_id'],
+            'reference_id': order['reference_id'],
+            'amount': order['amount'],
+            'key_id': self.razorpay_key_id,
+            'tier': order['tier'].value,
+            'plan_name': plan['name'],
+            'duration_days': plan['duration_days'],
+            'referral_applied': referral_applied,
+            'payment_url': order['payment_url']
+        }
+    
+    def _find_reusable_link(self, user_id: int, tier: PremiumTier, referral_code: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Return a still-valid unpaid link for the same user/plan (links live 30 min, reuse for 25)."""
+        cutoff = datetime.now() - timedelta(minutes=25)
+        for order in self.razorpay_orders.values():
+            if (order.get('user_id') == user_id and order.get('tier') == tier
+                    and order.get('status') == 'created'
+                    and order.get('payment_url')
+                    and order.get('referral_code') == referral_code
+                    and order.get('created_at') and order['created_at'] > cutoff):
+                return order
+        return None
+    
     async def create_razorpay_order(self, user_id: int, tier: PremiumTier, referral_code: Optional[str] = None) -> Dict[str, Any]:
-        """Create a Razorpay Payment Link (hosted payment page) for the given plan."""
+        """Create (or reuse) a Razorpay Payment Link (hosted payment page) for the given plan."""
         try:
             if not self.razorpay_key_id or not self.razorpay_key_secret:
                 return {'success': False, 'error': 'Razorpay not configured'}
@@ -161,73 +188,77 @@ class PremiumSystem:
             if not plan:
                 return {'success': False, 'error': 'Invalid plan'}
             
-            amount = plan['price'] * 100  # paise
-            
             referral_applied = False
             if referral_code:
                 referral_data = await self.validate_referral_code(referral_code, user_id)
                 if referral_data.get('valid'):
                     referral_applied = True
+            applied_code = referral_code if referral_applied else None
             
-            now_ts = int(datetime.now().timestamp())
-            reference_id = f"SK4_{user_id}_{now_ts}"
-            
-            payment_link_data = {
-                'amount': amount,
-                'currency': 'INR',
-                'description': f"SK4FiLM {plan['name']}",
-                'reference_id': reference_id,
-                'expire_by': now_ts + 30 * 60,  # link valid for 30 minutes (Razorpay minimum is 15)
-                'callback_url': self.razorpay_callback_url,
-                'callback_method': 'get',
-                'notes': {
-                    'user_id': str(user_id),
-                    'tier': tier.value,
-                    'referral_code': referral_code if referral_applied else ''
-                }
-            }
-            
-            auth = base64.b64encode(f"{self.razorpay_key_id}:{self.razorpay_key_secret}".encode()).decode()
-            headers = {'Authorization': f'Basic {auth}', 'Content-Type': 'application/json'}
-            timeout = aiohttp.ClientTimeout(total=20)
-            
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post('https://api.razorpay.com/v1/payment_links', json=payment_link_data, headers=headers) as response:
-                    if response.status == 200:
-                        link_data = await response.json()
-                        link_id = link_data['id']  # plink_xxx
-                        
-                        # Keyed by payment link id (NOT an order id)
-                        self.razorpay_orders[link_id] = {
-                            'order_id': link_id,
-                            'reference_id': reference_id,
-                            'user_id': user_id,
-                            'tier': tier,
-                            'amount': amount / 100,
-                            'referral_code': referral_code if referral_applied else None,
-                            'created_at': datetime.now(),
-                            'status': 'created'
-                        }
-                        return {
-                            'success': True,
-                            'order_id': link_id,
-                            'reference_id': reference_id,
-                            'amount': amount / 100,
-                            'key_id': self.razorpay_key_id,
-                            'tier': tier.value,
-                            'plan_name': plan['name'],
-                            'duration_days': plan['duration_days'],
-                            'referral_applied': referral_applied,
-                            'payment_url': link_data['short_url']
-                        }
-                    else:
-                        error_body = await response.text()
-                        self.logger.error(f"Razorpay payment link failed: {response.status} {error_body}")
-                        return {'success': False, 'error': 'Payment gateway error'}
-                        
+            # One creation at a time per user: double-taps reuse the same link instead of
+            # hammering Razorpay (avoids duplicate reference_id 400s and 429 rate limits)
+            lock = self._link_locks.setdefault(user_id, asyncio.Lock())
+            async with lock:
+                reusable = self._find_reusable_link(user_id, tier, applied_code)
+                if reusable:
+                    return self._link_response(reusable, plan, referral_applied)
+                return await self._create_payment_link(user_id, tier, plan, applied_code, referral_applied)
         except Exception as e:
             self.logger.error(f"Razorpay error: {e}")
             return {'success': False, 'error': str(e)}
+    
+    async def _create_payment_link(self, user_id: int, tier: PremiumTier, plan: Dict[str, Any],
+                                   applied_code: Optional[str], referral_applied: bool) -> Dict[str, Any]:
+        amount = plan['price'] * 100  # paise
+        now_ts = int(datetime.now().timestamp())
+        # random suffix: reference_id must be unique, and one-second timestamps can collide
+        reference_id = f"SK4_{user_id}_{now_ts}_{secrets.token_hex(3)}"
+        
+        payment_link_data = {
+            'amount': amount,
+            'currency': 'INR',
+            'description': f"SK4FiLM {plan['name']}",
+            'reference_id': reference_id,
+            'expire_by': now_ts + 30 * 60,  # link valid for 30 minutes (Razorpay minimum is 15)
+            'callback_url': self.razorpay_callback_url,
+            'callback_method': 'get',
+            'notes': {
+                'user_id': str(user_id),
+                'tier': tier.value,
+                'referral_code': applied_code or ''
+            }
+        }
+        
+        auth = base64.b64encode(f"{self.razorpay_key_id}:{self.razorpay_key_secret}".encode()).decode()
+        headers = {'Authorization': f'Basic {auth}', 'Content-Type': 'application/json'}
+        timeout = aiohttp.ClientTimeout(total=20)
+        
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post('https://api.razorpay.com/v1/payment_links', json=payment_link_data, headers=headers) as response:
+                if response.status == 200:
+                    link_data = await response.json()
+                    link_id = link_data['id']  # plink_xxx
+                    
+                    # Keyed by payment link id (NOT an order id)
+                    order = {
+                        'order_id': link_id,
+                        'reference_id': reference_id,
+                        'user_id': user_id,
+                        'tier': tier,
+                        'amount': amount / 100,
+                        'referral_code': applied_code,
+                        'payment_url': link_data['short_url'],
+                        'created_at': datetime.now(),
+                        'status': 'created'
+                    }
+                    self.razorpay_orders[link_id] = order
+                    return self._link_response(order, plan, referral_applied)
+                
+                error_body = await response.text()
+                self.logger.error(f"Razorpay payment link failed: {response.status} {error_body}")
+                if response.status == 429:
+                    return {'success': False, 'error': 'Bahut zyada requests, 30 second baad dobara try karein'}
+                return {'success': False, 'error': 'Payment gateway error'}
     
     def verify_webhook_signature(self, raw_body: bytes, signature: str) -> bool:
         """Verify X-Razorpay-Signature header. Pass the RAW request body (bytes), not parsed JSON."""
