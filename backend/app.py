@@ -115,6 +115,10 @@ except ImportError as e:
             return False, "Premium system not available"
         async def handle_razorpay_webhook(self, *args, **kwargs):
             return False, "Premium system not available"
+        async def handle_payment_link_callback(self, *args, **kwargs):
+            return False, "Premium system not available"
+        def verify_webhook_signature(self, *args, **kwargs):
+            return False
         async def get_all_plans(self):
             return []
         async def get_referral_info(self, *args, **kwargs):
@@ -340,8 +344,8 @@ class Config:
     SHORTLINK_API = os.environ.get("SHORTLINK_API", "MoA5M2mCWO")
     
     # ✅ YEH 3 LINES ADD KAREIN - Razorpay Configuration
-    RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_51PfXhWSIYHF8VB")
-    RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "j8XwcLsT0UBb3kUvTXnUvV7F")
+    RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+    RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
     RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
     
     # Verification
@@ -2687,12 +2691,12 @@ async def start_telegram_bot():
                     if tier_enum:
                         order_data = await premium_system.create_razorpay_order(user_id, tier_enum)
                         
-                        if order_data.get('success'):
+                        if order_data.get('success') and order_data.get('payment_url'):
                             plan = premium_system.plans.get(tier_enum, {})
                             order_id = order_data.get('order_id', '')
                             
-                            # Simple URL
-                            payment_url = f"https://rzp.io/i/{order_id}"
+                            # Razorpay Payment Link (short_url) returned by premium.py
+                            payment_url = order_data.get('payment_url')
                             
                             payment_text = (
                                 f"💳 **PAYMENT REQUIRED**\n\n"
@@ -3414,45 +3418,88 @@ async def debug_channel_info():
 
 @app.route('/api/razorpay/webhook', methods=['POST'])
 async def razorpay_webhook():
-    """Handle Razorpay webhook events"""
+    """Handle Razorpay webhook events (payment_link.paid etc.)"""
     try:
-        webhook_data = await request.get_json()
+        if not premium_system:
+            return jsonify({'status': 'error', 'message': 'Premium system not available'}), 500
         
+        # Signature check is mandatory: payment_link.paid activates premium from the payload's notes,
+        # so an unsigned webhook would let anyone grant themselves premium.
+        if not Config.RAZORPAY_WEBHOOK_SECRET:
+            logger.error("❌ RAZORPAY_WEBHOOK_SECRET not set - rejecting webhook")
+            return jsonify({'status': 'error', 'message': 'Webhook secret not configured'}), 500
+        
+        raw_body = await request.get_data()
+        signature = request.headers.get('X-Razorpay-Signature', '')
+        
+        if not premium_system.verify_webhook_signature(raw_body, signature):
+            logger.error("❌ Webhook signature verification failed")
+            return jsonify({'status': 'error', 'message': 'Invalid signature'}), 400
+        
+        webhook_data = json.loads(raw_body)
         if not webhook_data:
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
         
-        if Config.RAZORPAY_WEBHOOK_SECRET:
-            signature = request.headers.get('X-Razorpay-Signature')
-            if not signature:
-                logger.warning("⚠️ Webhook signature missing")
-                return jsonify({'status': 'error', 'message': 'Signature missing'}), 400
-            
-            raw_body = await request.get_data()
-            expected_signature = hmac.new(
-                Config.RAZORPAY_WEBHOOK_SECRET.encode(),
-                raw_body,
-                hashlib.sha256
-            ).hexdigest()
-            
-            if not hmac.compare_digest(signature, expected_signature):
-                logger.error("❌ Webhook signature verification failed")
-                return jsonify({'status': 'error', 'message': 'Invalid signature'}), 400
-        
         logger.info(f"📥 Razorpay webhook received: {webhook_data.get('event', 'unknown')}")
         
-        if premium_system:
-            success, message = await premium_system.handle_razorpay_webhook(webhook_data)
-            
-            if success:
-                return jsonify({'status': 'success', 'message': message}), 200
-            else:
-                return jsonify({'status': 'error', 'message': message}), 500
+        success, message = await premium_system.handle_razorpay_webhook(webhook_data)
+        
+        if success:
+            return jsonify({'status': 'success', 'message': message}), 200
         else:
-            return jsonify({'status': 'error', 'message': 'Premium system not available'}), 500
+            return jsonify({'status': 'error', 'message': message}), 500
             
     except Exception as e:
         logger.error(f"Webhook error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+_PAYMENT_RESULT_PAGE = """<!DOCTYPE html>
+<html lang="hi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#eee;
+display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px}
+.card{background:#1a1d24;border-radius:16px;padding:32px 24px;max-width:380px;text-align:center}
+h1{font-size:22px;margin:0 0 12px}p{color:#b8bcc6;line-height:1.5;margin:0 0 20px}
+a{display:inline-block;background:#229ed9;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px}
+</style></head><body><div class="card"><h1>__TITLE__</h1><p>__MSG__</p>
+<a href="__BOT_URL__">Telegram par wapas jaayein</a></div></body></html>"""
+
+
+@app.route('/api/razorpay/callback', methods=['GET'])
+async def razorpay_callback():
+    """Razorpay Payment Link redirects the user's browser here after payment."""
+    def result_page(title, message, status):
+        page = (_PAYMENT_RESULT_PAGE
+                .replace('__TITLE__', html.escape(title))
+                .replace('__MSG__', html.escape(message))
+                .replace('__BOT_URL__', f"https://t.me/{Config.BOT_USERNAME}"))
+        return Response(page, status=status, mimetype='text/html')
+    
+    try:
+        params = request.args.to_dict()
+        logger.info(f"📥 Razorpay callback received: {params.get('razorpay_payment_link_id')}")
+        
+        if not premium_system:
+            return result_page("Service Unavailable", "Premium system abhi available nahi hai. Thodi der baad try karein.", 500)
+        
+        success, message = await premium_system.handle_payment_link_callback(params)
+        
+        if success:
+            if 'pending' in message.lower():
+                return result_page("Payment Received ✅",
+                                   "Aapka payment mil gaya hai. Premium kuch hi der mein activate ho jayega.", 200)
+            return result_page("Payment Successful ✅",
+                               "Premium activate ho gaya hai. Ab Telegram bot par wapas jaa sakte hain.", 200)
+        
+        logger.warning(f"Callback verification failed: {message}")
+        return result_page("Verification Failed ❌",
+                           "Payment verify nahi ho paya. Agar paise kat gaye hain to support se contact karein.", 400)
+    except Exception as e:
+        logger.error(f"Callback error: {e}")
+        return result_page("Error", "Payment process karte waqt error aaya. Support se contact karein.", 500)
 
 
 @app.route('/api/razorpay/verify', methods=['POST'])
