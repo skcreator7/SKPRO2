@@ -1,6 +1,6 @@
 """
 premium.py - Premium subscription system with Razorpay integration
-COMPLETE CODE - Razorpay + Referral System + Milestone Rewards
+COMPLETE CODE - Razorpay Payment Links + Referral System + Milestone Rewards
 """
 
 import asyncio
@@ -41,6 +41,9 @@ class PremiumSystem:
         self.razorpay_key_id = os.environ.get("RAZORPAY_KEY_ID", "")
         self.razorpay_key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "")
         self.razorpay_webhook_secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
+        self.razorpay_callback_url = os.environ.get(
+            "RAZORPAY_CALLBACK_URL", "https://sk4film.koyeb.app/api/razorpay/callback"
+        )
         
         self.COMMON_FEATURES = [
             "✅ All Quality (480p-4K)",
@@ -134,6 +137,7 @@ class PremiumSystem:
         self.user_subscriptions = {}
         self.user_usage = {}
         self.razorpay_orders = {}
+        self.processed_payments = set()  # payment_ids already activated (idempotency)
         self.cleanup_task = None
         
         self.statistics = {
@@ -148,6 +152,7 @@ class PremiumSystem:
         self.logger.info("✅ Premium System initialized")
     
     async def create_razorpay_order(self, user_id: int, tier: PremiumTier, referral_code: Optional[str] = None) -> Dict[str, Any]:
+        """Create a Razorpay Payment Link (hosted payment page) for the given plan."""
         try:
             if not self.razorpay_key_id or not self.razorpay_key_secret:
                 return {'success': False, 'error': 'Razorpay not configured'}
@@ -156,7 +161,7 @@ class PremiumSystem:
             if not plan:
                 return {'success': False, 'error': 'Invalid plan'}
             
-            amount = plan['price'] * 100
+            amount = plan['price'] * 100  # paise
             
             referral_applied = False
             if referral_code:
@@ -164,10 +169,17 @@ class PremiumSystem:
                 if referral_data.get('valid'):
                     referral_applied = True
             
-            order_data = {
+            now_ts = int(datetime.now().timestamp())
+            reference_id = f"SK4_{user_id}_{now_ts}"
+            
+            payment_link_data = {
                 'amount': amount,
                 'currency': 'INR',
-                'receipt': f"SK4_{user_id}_{int(datetime.now().timestamp())}",
+                'description': f"SK4FiLM {plan['name']}",
+                'reference_id': reference_id,
+                'expire_by': now_ts + 30 * 60,  # link valid for 30 minutes (Razorpay minimum is 15)
+                'callback_url': self.razorpay_callback_url,
+                'callback_method': 'get',
                 'notes': {
                     'user_id': str(user_id),
                     'tier': tier.value,
@@ -175,15 +187,20 @@ class PremiumSystem:
                 }
             }
             
-            async with aiohttp.ClientSession() as session:
-                auth = base64.b64encode(f"{self.razorpay_key_id}:{self.razorpay_key_secret}".encode()).decode()
-                headers = {'Authorization': f'Basic {auth}', 'Content-Type': 'application/json'}
-                
-                async with session.post('https://api.razorpay.com/v1/orders', json=order_data, headers=headers) as response:
+            auth = base64.b64encode(f"{self.razorpay_key_id}:{self.razorpay_key_secret}".encode()).decode()
+            headers = {'Authorization': f'Basic {auth}', 'Content-Type': 'application/json'}
+            timeout = aiohttp.ClientTimeout(total=20)
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post('https://api.razorpay.com/v1/payment_links', json=payment_link_data, headers=headers) as response:
                     if response.status == 200:
-                        razorpay_order = await response.json()
-                        self.razorpay_orders[razorpay_order['id']] = {
-                            'order_id': razorpay_order['id'],
+                        link_data = await response.json()
+                        link_id = link_data['id']  # plink_xxx
+                        
+                        # Keyed by payment link id (NOT an order id)
+                        self.razorpay_orders[link_id] = {
+                            'order_id': link_id,
+                            'reference_id': reference_id,
                             'user_id': user_id,
                             'tier': tier,
                             'amount': amount / 100,
@@ -193,23 +210,90 @@ class PremiumSystem:
                         }
                         return {
                             'success': True,
-                            'order_id': razorpay_order['id'],
+                            'order_id': link_id,
+                            'reference_id': reference_id,
                             'amount': amount / 100,
                             'key_id': self.razorpay_key_id,
                             'tier': tier.value,
                             'plan_name': plan['name'],
                             'duration_days': plan['duration_days'],
                             'referral_applied': referral_applied,
-                            'payment_url': f"https://checkout.razorpay.com/v1/checkout.js?order_id={razorpay_order['id']}&key_id={self.razorpay_key_id}&amount={amount}&currency=INR&name=SK4FiLM&description={plan['name']}&prefill[contact]=&prefill[email]="
+                            'payment_url': link_data['short_url']
                         }
                     else:
+                        error_body = await response.text()
+                        self.logger.error(f"Razorpay payment link failed: {response.status} {error_body}")
                         return {'success': False, 'error': 'Payment gateway error'}
                         
         except Exception as e:
             self.logger.error(f"Razorpay error: {e}")
             return {'success': False, 'error': str(e)}
     
+    def verify_webhook_signature(self, raw_body: bytes, signature: str) -> bool:
+        """Verify X-Razorpay-Signature header. Pass the RAW request body (bytes), not parsed JSON."""
+        if not self.razorpay_webhook_secret or not signature:
+            return False
+        expected = hmac.new(self.razorpay_webhook_secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, signature)
+    
+    def verify_payment_link_signature(self, params: Dict[str, str]) -> Tuple[bool, str]:
+        """Verify the query params Razorpay appends to callback_url after a Payment Link payment."""
+        try:
+            if params.get('razorpay_payment_link_status') != 'paid':
+                return False, "Payment not completed"
+            
+            message = "|".join([
+                params['razorpay_payment_link_id'],
+                params['razorpay_payment_link_reference_id'],
+                params['razorpay_payment_link_status'],
+                params['razorpay_payment_id']
+            ])
+            expected = hmac.new(self.razorpay_key_secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+            
+            if hmac.compare_digest(expected, params.get('razorpay_signature', '')):
+                return True, "Signature verified"
+            return False, "Invalid signature"
+        except KeyError as e:
+            return False, f"Missing parameter: {e}"
+        except Exception as e:
+            return False, str(e)
+    
+    async def handle_payment_link_callback(self, params: Dict[str, str]) -> Tuple[bool, str]:
+        """
+        Use in GET /api/razorpay/callback: pass dict(request.query).
+        Verifies signature and activates premium (safe to call even if the webhook also fires).
+        """
+        ok, msg = self.verify_payment_link_signature(params)
+        if not ok:
+            return False, msg
+        
+        link_id = params['razorpay_payment_link_id']
+        payment_id = params['razorpay_payment_id']
+        order_data = self.razorpay_orders.get(link_id)
+        
+        if payment_id in self.processed_payments:
+            return True, "Already activated"
+        
+        if not order_data:
+            # Server restarted and in-memory data was lost; the webhook (which carries notes) will activate it.
+            return True, "Payment verified; activation pending via webhook"
+        
+        if order_data.get('status') == 'paid':
+            return True, "Already activated"
+        
+        order_data['status'] = 'paid'
+        order_data['payment_id'] = payment_id
+        await self.activate_premium_after_payment(
+            user_id=order_data['user_id'],
+            tier=order_data['tier'],
+            payment_id=payment_id,
+            razorpay_order_id=link_id,
+            referral_code=order_data.get('referral_code')
+        )
+        return True, "Payment verified"
+    
     async def verify_razorpay_payment(self, razorpay_order_id: str, razorpay_payment_id: str, razorpay_signature: str) -> Tuple[bool, str]:
+        """Legacy Orders/Checkout signature verification (kept for backward compatibility)."""
         try:
             message = f"{razorpay_order_id}|{razorpay_payment_id}"
             expected_signature = hmac.new(self.razorpay_key_secret.encode(), message.encode(), hashlib.sha256).hexdigest()
@@ -233,10 +317,64 @@ class PremiumSystem:
             return False, str(e)
     
     async def handle_razorpay_webhook(self, webhook_data: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Process a Razorpay webhook. IMPORTANT: verify the signature in your route first with
+        verify_webhook_signature(raw_body, request.headers['X-Razorpay-Signature']).
+        Enable the `payment_link.paid` event in Razorpay Dashboard -> Webhooks.
+        """
         try:
             event = webhook_data.get('event', '')
             payload = webhook_data.get('payload', {})
             
+            if event == 'payment_link.paid':
+                link = payload.get('payment_link', {}).get('entity', {})
+                payment = payload.get('payment', {}).get('entity', {})
+                link_id = link.get('id')
+                payment_id = payment.get('id')
+                notes = link.get('notes') or {}
+                
+                if not link_id or not payment_id:
+                    return False, "Invalid payload"
+                
+                order_data = self.razorpay_orders.get(link_id)
+                if order_data and order_data.get('status') == 'paid':
+                    return True, "Already processed"
+                
+                # notes survive server restarts, in-memory dict does not
+                try:
+                    user_id = int(notes.get('user_id') or (order_data or {}).get('user_id') or 0)
+                except (TypeError, ValueError):
+                    user_id = 0
+                
+                tier = None
+                if notes.get('tier'):
+                    try:
+                        tier = PremiumTier(notes['tier'])
+                    except ValueError:
+                        tier = None
+                if tier is None and order_data:
+                    tier = order_data.get('tier')
+                
+                referral = notes.get('referral_code') or (order_data or {}).get('referral_code') or None
+                
+                if not user_id or tier is None or tier not in self.plans:
+                    self.logger.error(f"payment_link.paid missing user/tier: link={link_id} notes={notes}")
+                    return False, "Missing user or tier"
+                
+                if order_data:
+                    order_data['status'] = 'paid'
+                    order_data['payment_id'] = payment_id
+                
+                await self.activate_premium_after_payment(
+                    user_id=user_id,
+                    tier=tier,
+                    payment_id=payment_id,
+                    razorpay_order_id=link_id,
+                    referral_code=referral
+                )
+                return True, "Payment link processed"
+            
+            # Legacy Orders-API flow
             if event == 'payment.captured':
                 payment_entity = payload.get('payment', {}).get('entity', {})
                 order_id = payment_entity.get('order_id')
@@ -244,6 +382,10 @@ class PremiumSystem:
                 
                 if order_id in self.razorpay_orders:
                     order_data = self.razorpay_orders[order_id]
+                    if order_data.get('status') == 'paid':
+                        return True, "Already processed"
+                    order_data['status'] = 'paid'
+                    order_data['payment_id'] = payment_id
                     await self.activate_premium_after_payment(
                         user_id=order_data['user_id'],
                         tier=order_data['tier'],
@@ -255,9 +397,16 @@ class PremiumSystem:
             
             return True, "Webhook processed"
         except Exception as e:
+            self.logger.error(f"Webhook error: {e}")
             return False, str(e)
     
     async def activate_premium_after_payment(self, user_id: int, tier: PremiumTier, payment_id: str, razorpay_order_id: str, referral_code: Optional[str] = None) -> Dict[str, Any]:
+        # Callback and webhook can both fire for the same payment; activate only once
+        if payment_id in self.processed_payments:
+            self.logger.info(f"Payment {payment_id} already processed, skipping")
+            return self.user_subscriptions.get(user_id, {})
+        self.processed_payments.add(payment_id)
+        
         try:
             plan = self.plans[tier]
             duration_days = plan['duration_days']
@@ -311,6 +460,7 @@ class PremiumSystem:
             
             return subscription_data
         except Exception as e:
+            self.processed_payments.discard(payment_id)  # allow retry on failure
             self.logger.error(f"Activation error: {e}")
             raise
     
